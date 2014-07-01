@@ -25,6 +25,7 @@
 #include "prefix.h"
 #include "log.h"
 #include "if.h"
+#include "vrf.h"
 
 #include "zebra/zserv.h"
 #include "zebra/rib.h"
@@ -521,8 +522,13 @@ kernel_delete_ipv6 (struct prefix *p, struct rib *rib)
 /* Delete IPv6 route from the kernel. */
 int
 kernel_delete_ipv6_old (struct prefix_ipv6 *dest, struct in6_addr *gate,
-		    unsigned int index, int flags, int table)
+		    unsigned int index, int flags, vrf_id_t vrf_id)
 {
+  if (vrf_id != VRF_DEFAULT)
+    {
+      zlog_warn ("Can not delete ipv6 route in VRF %u\n", vrf_id);
+      return 0;
+    }
   return kernel_ioctl_ipv6 (SIOCDELRT, dest, gate, index, flags);
 }
 #endif /* HAVE_IPV6 */

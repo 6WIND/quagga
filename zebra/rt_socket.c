@@ -28,6 +28,7 @@
 #include "log.h"
 #include "str.h"
 #include "privs.h"
+#include "vrf.h"
 
 #include "zebra/debug.h"
 #include "zebra/rib.h"
@@ -483,9 +484,15 @@ kernel_delete_ipv6 (struct prefix *p, struct rib *rib)
 /* Delete IPv6 route from the kernel. */
 int
 kernel_delete_ipv6_old (struct prefix_ipv6 *dest, struct in6_addr *gate,
- 		        unsigned int index, int flags, int table)
+                        unsigned int index, int flags, vrf_id_t vrf_id)
 {
   int route;
+
+  if (vrf_id != VRF_DEFAULT)
+    {
+      zlog_warn ("Can not delete ipv6 route in VRF %u\n", vrf_id);
+      return 0;
+    }
 
   if (zserv_privs.change(ZPRIVS_RAISE))
     zlog (NULL, LOG_ERR, "Can't raise privileges");

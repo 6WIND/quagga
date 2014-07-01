@@ -26,6 +26,7 @@
 #include "log.h"
 #include "if.h"
 #include "rib.h"
+#include "vrf.h"
 
 #include "zebra/zserv.h"
 #include "zebra/rt.h"
@@ -96,7 +97,8 @@ proc_route_read (void)
       p.prefixlen = ip_masklen (tmpmask);
       sscanf (gate, "%lX", (unsigned long *)&gateway);
 
-      rib_add_ipv4 (ZEBRA_ROUTE_KERNEL, zebra_flags, &p, &gateway, NULL, 0, 0, 0, 0, SAFI_UNICAST);
+      rib_add_ipv4 (ZEBRA_ROUTE_KERNEL, zebra_flags, &p, &gateway, NULL, 0,
+                    VRF_DEFAULT, RT_TABLE_MAIN, 0, 0, SAFI_UNICAST);
     }
 
   fclose (fp);
@@ -156,8 +158,8 @@ proc_ipv6_route_read ()
       str2in6_addr (gate, &gateway);
       p.prefixlen = dest_plen;
 
-      rib_add_ipv6 (ZEBRA_ROUTE_KERNEL, zebra_flags, &p, &gateway, 0, 0,
-		    metric, 0);
+      rib_add_ipv6 (ZEBRA_ROUTE_KERNEL, zebra_flags, &p, &gateway, 0,
+                    VRF_DEFAULT, RT_TABLE_MAIN, metric, 0, SAFI_UNICAST);
     }
 
   fclose (fp);

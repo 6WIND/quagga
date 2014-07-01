@@ -36,6 +36,7 @@
 #include "rib.h"
 #include "thread.h"
 #include "privs.h"
+#include "vrf.h"
 
 #include "zebra/zserv.h"
 #include "zebra/rt.h"
@@ -743,7 +744,7 @@ netlink_routing_table (struct sockaddr_nl *snl, struct nlmsghdr *h)
 
       if (!tb[RTA_MULTIPATH])
           rib_add_ipv4 (ZEBRA_ROUTE_KERNEL, flags, &p, gate, src, index,
-                        table, metric, 0, SAFI_UNICAST);
+                        VRF_DEFAULT, table, metric, 0, SAFI_UNICAST);
       else
         {
           /* This is a multipath route */
@@ -759,6 +760,7 @@ netlink_routing_table (struct sockaddr_nl *snl, struct nlmsghdr *h)
           rib->distance = 0;
           rib->flags = flags;
           rib->metric = metric;
+          rib->vrf_id = VRF_DEFAULT;
           rib->table = table;
           rib->nexthop_num = 0;
           rib->uptime = time (NULL);
@@ -808,8 +810,8 @@ netlink_routing_table (struct sockaddr_nl *snl, struct nlmsghdr *h)
       memcpy (&p.prefix, dest, 16);
       p.prefixlen = rtm->rtm_dst_len;
 
-      rib_add_ipv6 (ZEBRA_ROUTE_KERNEL, flags, &p, gate, index, table,
-		    metric, 0, SAFI_UNICAST);
+      rib_add_ipv6 (ZEBRA_ROUTE_KERNEL, flags, &p, gate, index, VRF_DEFAULT,
+                    table, metric, 0, SAFI_UNICAST);
     }
 #endif /* HAVE_IPV6 */
 
@@ -944,8 +946,8 @@ netlink_route_change (struct sockaddr_nl *snl, struct nlmsghdr *h)
       if (h->nlmsg_type == RTM_NEWROUTE)
         {
           if (!tb[RTA_MULTIPATH])
-            rib_add_ipv4 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, src, index, table,
-                          metric, 0, SAFI_UNICAST);
+            rib_add_ipv4 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, src, index, VRF_DEFAULT,
+                          table, metric, 0, SAFI_UNICAST);
           else
             {
               /* This is a multipath route */
@@ -961,6 +963,7 @@ netlink_route_change (struct sockaddr_nl *snl, struct nlmsghdr *h)
               rib->distance = 0;
               rib->flags = 0;
               rib->metric = metric;
+              rib->vrf_id = VRF_DEFAULT;
               rib->table = table;
               rib->nexthop_num = 0;
               rib->uptime = time (NULL);
@@ -1003,7 +1006,8 @@ netlink_route_change (struct sockaddr_nl *snl, struct nlmsghdr *h)
             }
         }
       else
-        rib_delete_ipv4 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, table, SAFI_UNICAST);
+        rib_delete_ipv4 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, VRF_DEFAULT,
+                         SAFI_UNICAST);
     }
 
 #ifdef HAVE_IPV6
@@ -1029,9 +1033,11 @@ netlink_route_change (struct sockaddr_nl *snl, struct nlmsghdr *h)
         }
 
       if (h->nlmsg_type == RTM_NEWROUTE)
-        rib_add_ipv6 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, table, metric, 0, SAFI_UNICAST);
+        rib_add_ipv6 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, VRF_DEFAULT, table,
+                      metric, 0, SAFI_UNICAST);
       else
-        rib_delete_ipv6 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, table, SAFI_UNICAST);
+        rib_delete_ipv6 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, VRF_DEFAULT,
+                         SAFI_UNICAST);
     }
 #endif /* HAVE_IPV6 */
 
@@ -1371,7 +1377,7 @@ netlink_talk (struct nlmsghdr *n, struct nlsock *nl)
 /* Routing table change via netlink interface. */
 static int
 netlink_route (int cmd, int family, void *dest, int length, void *gate,
-               int index, int zebra_flags, int table)
+               int index, int zebra_flags, vrf_id_t vrf_id)
 {
   int ret;
   int bytelen;
@@ -1393,7 +1399,7 @@ netlink_route (int cmd, int family, void *dest, int length, void *gate,
   req.n.nlmsg_flags = NLM_F_CREATE | NLM_F_REQUEST;
   req.n.nlmsg_type = cmd;
   req.r.rtm_family = family;
-  req.r.rtm_table = table;
+  req.r.rtm_table = zebrad.rtm_table_default;
   req.r.rtm_dst_len = length;
   req.r.rtm_protocol = RTPROT_ZEBRA;
   req.r.rtm_scope = RT_SCOPE_UNIVERSE;
@@ -1859,10 +1865,10 @@ kernel_delete_ipv6 (struct prefix *p, struct rib *rib)
 /* Delete IPv6 route from the kernel. */
 int
 kernel_delete_ipv6_old (struct prefix_ipv6 *dest, struct in6_addr *gate,
-                        unsigned int index, int flags, int table)
+                        unsigned int index, int flags, vrf_id_t vrf_id)
 {
   return netlink_route (RTM_DELROUTE, AF_INET6, &dest->prefix,
-                        dest->prefixlen, gate, index, flags, table);
+                        dest->prefixlen, gate, index, flags, vrf_id);
 }
 #endif /* HAVE_IPV6 */
 

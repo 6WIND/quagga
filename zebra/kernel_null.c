@@ -44,7 +44,7 @@ int kernel_delete_ipv6 (struct prefix *a, struct rib *b) { return 0; }
 #endif
 
 int kernel_delete_ipv6_old (struct prefix_ipv6 *dest, struct in6_addr *gate,
-                            unsigned int index, int flags, int table)
+                            unsigned int index, int flags, vrf_id_t vrf_id)
 { return 0; }
 
 int kernel_add_route (struct prefix_ipv4 *a, struct in_addr *b, int c, int d)
