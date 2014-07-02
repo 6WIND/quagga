@@ -49,6 +49,7 @@ THE SOFTWARE.
 #include "command.h"
 #include "vty.h"
 #include "memory.h"
+#include "vrf.h"
 
 #include "babel_main.h"
 #include "babeld.h"
@@ -255,6 +256,7 @@ babel_init(int argc, char **argv)
     cmd_init (1);
     vty_init (master);
     memory_init ();
+    vrf_init ();
 
     resend_delay = BABEL_DEFAULT_RESEND_DELAY;
 

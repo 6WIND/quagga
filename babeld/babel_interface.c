@@ -878,7 +878,6 @@ void
 babel_if_init ()
 {
     /* initialize interface list */
-    if_init();
     if_add_hook (IF_NEW_HOOK,    babel_if_new_hook);
     if_add_hook (IF_DELETE_HOOK, babel_if_delete_hook);
 
