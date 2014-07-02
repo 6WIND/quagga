@@ -2295,7 +2295,7 @@ static_install_ipv4 (safi_t safi, struct prefix *p, struct static_ipv4 *si)
   struct route_table *table;
 
   /* Lookup table.  */
-  table = zebra_vrf_table (AFI_IP, safi, VRF_DEFAULT);
+  table = zebra_vrf_table (AFI_IP, safi, si->vrf_id);
   if (! table)
     return;
 
@@ -2337,7 +2337,7 @@ static_install_ipv4 (safi_t safi, struct prefix *p, struct static_ipv4 *si)
       rib->type = ZEBRA_ROUTE_STATIC;
       rib->distance = si->distance;
       rib->metric = 0;
-      rib->vrf_id = VRF_DEFAULT;
+      rib->vrf_id = si->vrf_id;
       rib->table = zebrad.rtm_table_default;
       rib->nexthop_num = 0;
 
@@ -2389,7 +2389,7 @@ static_uninstall_ipv4 (safi_t safi, struct prefix *p, struct static_ipv4 *si)
   struct route_table *table;
 
   /* Lookup table.  */
-  table = zebra_vrf_table (AFI_IP, safi, VRF_DEFAULT);
+  table = zebra_vrf_table (AFI_IP, safi, si->vrf_id);
   if (! table)
     return;
   
@@ -2495,6 +2495,7 @@ static_add_ipv4_safi (safi_t safi, struct prefix *p, struct in_addr *gate,
   si->type = type;
   si->distance = distance;
   si->flags = flags;
+  si->vrf_id = vrf_id;
 
   if (gate)
     si->gate.ipv4 = *gate;
@@ -2870,7 +2871,7 @@ static_install_ipv6 (struct prefix *p, struct static_ipv6 *si)
   struct route_node *rn;
 
   /* Lookup table.  */
-  table = zebra_vrf_table (AFI_IP6, SAFI_UNICAST, VRF_DEFAULT);
+  table = zebra_vrf_table (AFI_IP6, SAFI_UNICAST, si->vrf_id);
   if (! table)
     return;
 
@@ -2913,7 +2914,7 @@ static_install_ipv6 (struct prefix *p, struct static_ipv6 *si)
       rib->type = ZEBRA_ROUTE_STATIC;
       rib->distance = si->distance;
       rib->metric = 0;
-      rib->vrf_id = VRF_DEFAULT;
+      rib->vrf_id = si->vrf_id;
       rib->table = zebrad.rtm_table_default;
       rib->nexthop_num = 0;
 
@@ -2966,7 +2967,7 @@ static_uninstall_ipv6 (struct prefix *p, struct static_ipv6 *si)
   struct nexthop *nexthop;
 
   /* Lookup table.  */
-  table = zebra_vrf_table (AFI_IP6, SAFI_UNICAST, VRF_DEFAULT);
+  table = zebra_vrf_table (AFI_IP6, SAFI_UNICAST, si->vrf_id);
   if (! table)
     return;
 
@@ -3065,6 +3066,7 @@ static_add_ipv6 (struct prefix *p, u_char type, struct in6_addr *gate,
   si->type = type;
   si->distance = distance;
   si->flags = flags;
+  si->vrf_id = vrf_id;
 
   switch (type)
     {
