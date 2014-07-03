@@ -35,7 +35,13 @@
 /* Initialize of kernel interface.  There is no kernel communication
    support under ioctl().  So this is dummy stub function. */
 void
-kernel_init (void)
+kernel_init (struct zebra_vrf *zvrf)
+{
+  return;
+}
+
+void
+kernel_terminate (struct zebra_vrf *zvrf)
 {
   return;
 }

@@ -24,11 +24,11 @@
 
 #include "zebra/zserv.h"
 
-extern int interface_lookup_netlink (void);
+extern int interface_lookup_netlink (struct zebra_vrf *zvrf);
 
 /* Interface information read by netlink. */
 void
-interface_list (void)
+interface_list (struct zebra_vrf *zvrf)
 {
-  interface_lookup_netlink ();  
+  interface_lookup_netlink (zvrf);
 }

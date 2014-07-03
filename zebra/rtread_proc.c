@@ -168,8 +168,10 @@ proc_ipv6_route_read ()
 #endif /* HAVE_IPV6 */
 
 void
-route_read (void)
+route_read (struct zebra_vrf *zvrf)
 {
+  if (zvrf->vrf_id != VRF_DEFAULT)
+    return;
   proc_route_read ();
 #ifdef HAVE_IPV6
   proc_ipv6_route_read ();
