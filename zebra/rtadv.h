@@ -59,7 +59,9 @@ struct rtadv_prefix
 };
 
 extern void rtadv_config_write (struct vty *, struct interface *);
-extern void rtadv_init (void);
+extern void rtadv_init (struct zebra_vrf *);
+extern void rtadv_terminate (struct zebra_vrf *);
+extern void rtadv_cmd_init (void);
 
 /* RFC4584 Extension to Sockets API for Mobile IPv6 */
 
