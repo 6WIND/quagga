@@ -41,6 +41,7 @@ THE SOFTWARE.
 #include "command.h"
 #include "zclient.h"
 #include "stream.h"
+#include "vrf.h"
 
 /* babel's includes*/
 #include "babel_zebra.h"
@@ -83,7 +84,7 @@ struct cmd_node zebra_node =
 /* Zebra route add and delete treatment (ipv6). */
 static int
 babel_zebra_read_ipv6 (int command, struct zclient *zclient,
-		       zebra_size_t length)
+		       zebra_size_t length, vrf_id_t vrf_id)
 {
     struct stream *s;
     struct zapi_ipv6 api;
@@ -135,7 +136,7 @@ babel_zebra_read_ipv6 (int command, struct zclient *zclient,
 
 static int
 babel_zebra_read_ipv4 (int command, struct zclient *zclient,
-		       zebra_size_t length)
+		       zebra_size_t length, vrf_id_t vrf_id)
 {
     struct stream *s;
     struct zapi_ipv4 api;
@@ -205,7 +206,7 @@ DEFUN (babel_redistribute_type,
         return CMD_WARNING;
     }
 
-    zclient_redistribute (ZEBRA_REDISTRIBUTE_ADD, zclient, type);
+    zclient_redistribute (ZEBRA_REDISTRIBUTE_ADD, zclient, type, VRF_DEFAULT);
     return CMD_SUCCESS;
 }
 
@@ -229,7 +230,7 @@ DEFUN (no_babel_redistribute_type,
         return CMD_WARNING;
     }
 
-    zclient_redistribute (ZEBRA_REDISTRIBUTE_DELETE, zclient, type);
+    zclient_redistribute (ZEBRA_REDISTRIBUTE_DELETE, zclient, type, VRF_DEFAULT);
     /* perhaps should we remove xroutes having the same type... */
     return CMD_SUCCESS;
 }
@@ -329,11 +330,18 @@ debug_babel_config_write (struct vty * vty)
 #endif /* NO_DEBUG */
 }
 
+static void
+babel_zebra_connected (struct zclient *zclient)
+{
+  zclient_send_requests (zclient, VRF_DEFAULT);
+}
+
 void babelz_zebra_init(void)
 {
     zclient = zclient_new();
     zclient_init(zclient, ZEBRA_ROUTE_BABEL);
 
+    zclient->zebra_connected = babel_zebra_connected;
     zclient->interface_add = babel_interface_add;
     zclient->interface_delete = babel_interface_delete;
     zclient->interface_up = babel_interface_up;
@@ -362,7 +370,8 @@ zebra_config_write (struct vty *vty)
         vty_out (vty, "no router zebra%s", VTY_NEWLINE);
         return 1;
     }
-    else if (! zclient->redist[ZEBRA_ROUTE_BABEL])
+    else if (! vrf_bitmap_check (zclient->redist[ZEBRA_ROUTE_BABEL],
+                                 VRF_DEFAULT))
     {
         vty_out (vty, "router zebra%s", VTY_NEWLINE);
         vty_out (vty, " no redistribute babel%s", VTY_NEWLINE);

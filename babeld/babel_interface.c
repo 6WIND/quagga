@@ -81,7 +81,8 @@ static struct cmd_node babel_interface_node =  /* babeld's interface node.    */
 
 
 int
-babel_interface_up (int cmd, struct zclient *client, zebra_size_t length)
+babel_interface_up (int cmd, struct zclient *client, zebra_size_t length,
+    vrf_id_t vrf_id)
 {
     struct stream *s = NULL;
     struct interface *ifp = NULL;
@@ -89,7 +90,7 @@ babel_interface_up (int cmd, struct zclient *client, zebra_size_t length)
     debugf(BABEL_DEBUG_IF, "receive a 'interface up'");
 
     s = zclient->ibuf;
-    ifp = zebra_interface_state_read(s); /* it updates iflist */
+    ifp = zebra_interface_state_read (s, vrf_id); /* it updates iflist */
 
     if (ifp == NULL) {
         return 0;
@@ -100,7 +101,8 @@ babel_interface_up (int cmd, struct zclient *client, zebra_size_t length)
 }
 
 int
-babel_interface_down (int cmd, struct zclient *client, zebra_size_t length)
+babel_interface_down (int cmd, struct zclient *client, zebra_size_t length,
+    vrf_id_t vrf_id)
 {
     struct stream *s = NULL;
     struct interface *ifp = NULL;
@@ -108,7 +110,7 @@ babel_interface_down (int cmd, struct zclient *client, zebra_size_t length)
     debugf(BABEL_DEBUG_IF, "receive a 'interface down'");
 
     s = zclient->ibuf;
-    ifp = zebra_interface_state_read(s); /* it updates iflist */
+    ifp = zebra_interface_state_read (s, vrf_id); /* it updates iflist */
 
     if (ifp == NULL) {
         return 0;
@@ -119,14 +121,15 @@ babel_interface_down (int cmd, struct zclient *client, zebra_size_t length)
 }
 
 int
-babel_interface_add (int cmd, struct zclient *client, zebra_size_t length)
+babel_interface_add (int cmd, struct zclient *client, zebra_size_t length,
+    vrf_id_t vrf_id)
 {
     struct interface *ifp = NULL;
 
     debugf(BABEL_DEBUG_IF, "receive a 'interface add'");
 
     /* read and add the interface in the iflist. */
-    ifp = zebra_interface_add_read (zclient->ibuf);
+    ifp = zebra_interface_add_read (zclient->ibuf, vrf_id);
 
     if (ifp == NULL) {
         return 0;
@@ -137,7 +140,8 @@ babel_interface_add (int cmd, struct zclient *client, zebra_size_t length)
 }
 
 int
-babel_interface_delete (int cmd, struct zclient *client, zebra_size_t length)
+babel_interface_delete (int cmd, struct zclient *client, zebra_size_t length,
+    vrf_id_t vrf_id)
 {
     struct interface *ifp;
     struct stream *s;
@@ -145,7 +149,7 @@ babel_interface_delete (int cmd, struct zclient *client, zebra_size_t length)
     debugf(BABEL_DEBUG_IF, "receive a 'interface delete'");
 
     s = zclient->ibuf;
-    ifp = zebra_interface_state_read(s); /* it updates iflist */
+    ifp = zebra_interface_state_read (s, vrf_id); /* it updates iflist */
 
     if (ifp == NULL)
         return 0;
@@ -162,7 +166,7 @@ babel_interface_delete (int cmd, struct zclient *client, zebra_size_t length)
 
 int
 babel_interface_address_add (int cmd, struct zclient *client,
-                             zebra_size_t length)
+                             zebra_size_t length, vrf_id_t vrf_id)
 {
     babel_interface_nfo *babel_ifp;
     struct connected *ifc;
@@ -171,7 +175,7 @@ babel_interface_address_add (int cmd, struct zclient *client,
     debugf(BABEL_DEBUG_IF, "receive a 'interface address add'");
 
     ifc = zebra_interface_address_read (ZEBRA_INTERFACE_ADDRESS_ADD,
-                                        zclient->ibuf);
+                                        zclient->ibuf, vrf_id);
 
     if (ifc == NULL)
         return 0;
@@ -199,7 +203,7 @@ babel_interface_address_add (int cmd, struct zclient *client,
 
 int
 babel_interface_address_delete (int cmd, struct zclient *client,
-                                zebra_size_t length)
+                                zebra_size_t length, vrf_id_t vrf_id)
 {
     babel_interface_nfo *babel_ifp;
     struct connected *ifc;
@@ -208,7 +212,7 @@ babel_interface_address_delete (int cmd, struct zclient *client,
     debugf(BABEL_DEBUG_IF, "receive a 'interface address add'");
 
     ifc = zebra_interface_address_read (ZEBRA_INTERFACE_ADDRESS_ADD,
-                                        zclient->ibuf);
+                                        zclient->ibuf, vrf_id);
 
     if (ifc == NULL)
         return 0;
