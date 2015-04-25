@@ -101,7 +101,7 @@ dnl Sun Studio 10 / SunPro 5.7 is also supported,
 dnl so lets set some sane CFLAGS for it.
 dnl ---------------------------------------------
 
-AC_USE_SYSTEM_EXTENSIONS()
+AC_USE_SYSTEM_EXTENSIONS
 AC_DEFUN([AC_C_FLAG], [{
 	AC_LANG_PUSH(C)
 	ac_c_flag_save="$CFLAGS"
@@ -175,6 +175,18 @@ if test x"${enable_werror}" = x"yes" ; then
   WERROR="-Werror"
 fi
 AC_SUBST(WERROR)
+
+dnl ----------
+dnl Essentials
+dnl ----------
+
+AX_PTHREAD([
+  CC="$PTHREAD_CC"
+  CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+  LIBS="$PTHREAD_LIBS $LIBS"
+], [
+  AC_MSG_FAILURE([This Quagga version needs pthreads])
+])
 
 dnl --------------
 dnl Check programs
