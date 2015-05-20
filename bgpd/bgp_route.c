@@ -369,7 +369,7 @@ bgp_med_value (struct attr *attr, struct bgp *bgp)
  * multipath is enabled */
 static int
 bgp_info_cmp (struct bgp *bgp, struct bgp_info *new, struct bgp_info *exist,
-              afi_t afi, safi_t safi)
+              int *paths_eq, afi_t afi, safi_t safi)
 {
   struct attr *newattr, *existattr;
   struct attr_extra *newattre, *existattre;
@@ -391,6 +391,8 @@ bgp_info_cmp (struct bgp *bgp, struct bgp_info *new, struct bgp_info *exist,
   int ret;
   uint32_t new_mm_seqnum = 0, exist_mm_seqnum = 0;
   struct bgp_node *rn;
+
+  *paths_eq = 0;
 
   /* 0. Null check. */
   if (new == NULL)
@@ -580,15 +582,20 @@ bgp_info_cmp (struct bgp *bgp, struct bgp_info *new, struct bgp_info *exist,
            * That will trigger both these paths to get into the multipath
            * array.
            */
+          *paths_eq = 1;
           return 0;
         }
       else if (new->peer->sort == BGP_PEER_IBGP)
         {
-          if (aspath_cmp (new->attr->aspath, exist->attr->aspath))
+          if (aspath_cmp (new->attr->aspath, exist->attr->aspath)) {
+            *paths_eq = 1;
             return 0;
+          }
         }
-      else if (new->peer->as == exist->peer->as)
+      else if (new->peer->as == exist->peer->as) {
+        *paths_eq = 1;
         return 0;
+      }
     }
 
   /* 10. If both paths are external, prefer the path that was received
@@ -1409,6 +1416,7 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
   struct bgp_info *nextri = NULL;
   int cmpret, do_mpath;
   struct list mp_list;
+  int paths_eq;
     
   result->old = result->new = NULL;
   
@@ -1439,8 +1447,6 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
             continue;
 
 	new_select = ri1;
-	if (do_mpath)
-	  bgp_mp_list_add (&mp_list, ri1);
 	old_select = CHECK_FLAG (ri1->flags, BGP_INFO_SELECTED) ? ri1 : NULL;
 	if (ri1->next)
 	  for (ri2 = ri1->next; ri2; ri2 = ri2->next)
@@ -1463,30 +1469,18 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
 		{
 		  if (CHECK_FLAG (ri2->flags, BGP_INFO_SELECTED))
 		    old_select = ri2;
-		  if ((cmpret = bgp_info_cmp (bgp, ri2, new_select, afi, safi))
+		  if ((cmpret = bgp_info_cmp (bgp, ri2, new_select, &paths_eq, afi, safi))
 		       == -1)
 		    {
 		      bgp_info_unset_flag (rn, new_select, BGP_INFO_DMED_SELECTED);
 		      new_select = ri2;
 		    }
 
-		  if (do_mpath)
-		    {
-                      if (cmpret == -1)
-                        bgp_mp_list_clear (&mp_list);
-
-                      if (cmpret == 0 || cmpret == -1)
-                        bgp_mp_list_add (&mp_list, ri2);
-                    }
-
 		  bgp_info_set_flag (rn, ri2, BGP_INFO_DMED_CHECK);
 		}
 	    }
 	bgp_info_set_flag (rn, new_select, BGP_INFO_DMED_CHECK);
 	bgp_info_set_flag (rn, new_select, BGP_INFO_DMED_SELECTED);
-
-	bgp_info_mpath_update (rn, new_select, old_select, &mp_list, afi, safi);
-	bgp_mp_list_clear (&mp_list);
       }
 
   /* Check old selected route and new selected route. */
@@ -1532,24 +1526,44 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
       bgp_info_unset_flag (rn, ri, BGP_INFO_DMED_CHECK);
       bgp_info_unset_flag (rn, ri, BGP_INFO_DMED_SELECTED);
 
-      if ((cmpret = bgp_info_cmp (bgp, ri, new_select, afi, safi)) == -1)
+      if ((cmpret = bgp_info_cmp (bgp, ri, new_select, &paths_eq, afi, safi)) == -1)
 	{
-	  if (do_mpath && bgp_flag_check (bgp, BGP_FLAG_DETERMINISTIC_MED))
-	    bgp_mp_dmed_deselect (new_select);
-
 	  new_select = ri;
 	}
-      else if (cmpret == 1 && do_mpath
-               && bgp_flag_check (bgp, BGP_FLAG_DETERMINISTIC_MED))
-	bgp_mp_dmed_deselect (ri);
-
-      if (do_mpath)
+    }
+    
+  /* Now that we know which path is the bestpath see if any of the other paths
+   * qualify as multipaths
+   */
+  if (do_mpath && new_select)
+    {
+      for (ri = rn->info; (ri != NULL) && (nextri = ri->next, 1); ri = nextri)
         {
-          if (cmpret == -1)
-            bgp_mp_list_clear (&mp_list);
+          if (ri == new_select)
+            {
+	      bgp_mp_list_add (&mp_list, ri);
+              continue;
+            }
 
-          if (cmpret == 0 || cmpret == -1)
-            bgp_mp_list_add (&mp_list, ri);
+          if (BGP_INFO_HOLDDOWN (ri))
+            continue;
+
+          if (ri->peer &&
+              ri->peer != bgp->peer_self &&
+              !CHECK_FLAG (ri->peer->sflags, PEER_STATUS_NSF_WAIT))
+            if (ri->peer->status != Established)
+              continue;
+
+          if (bgp_flag_check (bgp, BGP_FLAG_DETERMINISTIC_MED)
+              && (! CHECK_FLAG (ri->flags, BGP_INFO_DMED_SELECTED)))
+	      continue;
+
+          bgp_info_cmp (bgp, ri, new_select, &paths_eq, afi, safi);
+
+          if (paths_eq)
+            {
+	      bgp_mp_list_add (&mp_list, ri);
+            }
         }
     }
 
