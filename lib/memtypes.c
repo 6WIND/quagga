@@ -78,10 +78,3 @@ DEFINE_MGROUP(BABELD, "babeld")
 DEFINE_MTYPE(BABELD, BABEL,		"Babel structure")
 DEFINE_MTYPE(BABELD, BABEL_IF,		"Babel interface")
 
-
-
-DEFINE_MGROUP(MVTYSH, "vtysh")
-DEFINE_MTYPE(MVTYSH, VTYSH_CONFIG,		"Vtysh configuration")
-DEFINE_MTYPE(MVTYSH, VTYSH_CONFIG_LINE,	"Vtysh configuration line")
-
-
