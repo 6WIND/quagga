@@ -1246,7 +1246,7 @@ if test "${enable_snmp}" != ""; then
       AC_MSG_ERROR([--enable-snmp given but unable to find net-snmp-config])
    fi
    LIBS="$LIBS `${NETSNMP_CONFIG} --agent-libs`"
-   CFLAGS="`${NETSNMP_CONFIG} --base-cflags` $CFLAGS"
+   CFLAGS="$CFLAGS `${NETSNMP_CONFIG} --base-cflags`"
    AC_MSG_CHECKING([whether we can link to Net-SNMP])
    AC_LINK_IFELSE([AC_LANG_PROGRAM([
 int main(void);
