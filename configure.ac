@@ -57,6 +57,10 @@ elif test -n "$CFLAGS" ; then
   cflags_specified=yes ;
 fi
 
+dnl Thanks autoconf, but we don't want a default -g -O2.  We have our own
+dnl flag determination logic.
+CFLAGS="${CFLAGS:-}"
+
 dnl --------------------
 dnl Check CC and friends
 dnl --------------------
