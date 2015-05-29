@@ -92,21 +92,6 @@ DEFINE_MTYPE(BABELD, BABEL_IF,		"Babel interface")
 
 
 
-DEFINE_MGROUP(PIMD, "pimd")
-DEFINE_MTYPE(PIMD, PIM_CHANNEL_OIL,       "PIM SSM (S,G) channel OIL")
-DEFINE_MTYPE(PIMD, PIM_INTERFACE,         "PIM interface")
-DEFINE_MTYPE(PIMD, PIM_IGMP_JOIN,         "PIM interface IGMP static join")
-DEFINE_MTYPE(PIMD, PIM_IGMP_SOCKET,       "PIM interface IGMP socket")
-DEFINE_MTYPE(PIMD, PIM_IGMP_GROUP,        "PIM interface IGMP group")
-DEFINE_MTYPE(PIMD, PIM_IGMP_GROUP_SOURCE, "PIM interface IGMP source")
-DEFINE_MTYPE(PIMD, PIM_NEIGHBOR,          "PIM interface neighbor")
-DEFINE_MTYPE(PIMD, PIM_IFCHANNEL,         "PIM interface (S,G) state")
-DEFINE_MTYPE(PIMD, PIM_UPSTREAM,          "PIM upstream (S,G) state")
-DEFINE_MTYPE(PIMD, PIM_SSMPINGD,          "PIM sspimgd socket")
-DEFINE_MTYPE(PIMD, PIM_STATIC_ROUTE,      "PIM Static Route")
-
-
-
 DEFINE_MGROUP(MVTYSH, "vtysh")
 DEFINE_MTYPE(MVTYSH, VTYSH_CONFIG,		"Vtysh configuration")
 DEFINE_MTYPE(MVTYSH, VTYSH_CONFIG_LINE,	"Vtysh configuration line")
