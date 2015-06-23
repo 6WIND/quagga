@@ -192,12 +192,12 @@ connected_up_ipv4 (struct interface *ifp, struct connected *ifc)
     return;
 
   rib_add_ipv4 (ZEBRA_ROUTE_CONNECT, 0, &p, NULL, NULL, ifp->ifindex,
-       ifp->vrf_id, RT_TABLE_MAIN, ifp->metric, 0, SAFI_UNICAST);
+       ifp->ltid, RT_TABLE_MAIN, ifp->metric, 0, SAFI_UNICAST);
 
   rib_add_ipv4 (ZEBRA_ROUTE_CONNECT, 0, &p, NULL, NULL, ifp->ifindex,
-       ifp->vrf_id, RT_TABLE_MAIN, ifp->metric, 0, SAFI_MULTICAST);
+       ifp->ltid, RT_TABLE_MAIN, ifp->metric, 0, SAFI_MULTICAST);
 
-  rib_update (ifp->vrf_id);
+  rib_update (ifp->ltid);
 }
 
 /* Add connected IPv4 route to the interface. */
@@ -304,13 +304,13 @@ connected_down_ipv4 (struct interface *ifp, struct connected *ifc)
     return;
 
   /* Same logic as for connected_up_ipv4(): push the changes into the head. */
-  rib_delete_ipv4 (ZEBRA_ROUTE_CONNECT, 0, &p, NULL, ifp->ifindex, ifp->vrf_id,
+  rib_delete_ipv4 (ZEBRA_ROUTE_CONNECT, 0, &p, NULL, ifp->ifindex, ifp->ltid,
                    SAFI_UNICAST);
 
-  rib_delete_ipv4 (ZEBRA_ROUTE_CONNECT, 0, &p, NULL, ifp->ifindex, ifp->vrf_id,
+  rib_delete_ipv4 (ZEBRA_ROUTE_CONNECT, 0, &p, NULL, ifp->ifindex, ifp->ltid,
                    SAFI_MULTICAST);
 
-  rib_update (ifp->vrf_id);
+  rib_update (ifp->ltid);
 }
 
 /* Delete connected IPv4 route to the interface. */
@@ -332,7 +332,7 @@ connected_delete_ipv4 (struct interface *ifp, int flags, struct in_addr *addr,
     
   connected_withdraw (ifc);
 
-  rib_update (ifp->vrf_id);
+  rib_update (ifp->ltid);
 }
 
 #ifdef HAVE_IPV6
@@ -355,10 +355,10 @@ connected_up_ipv6 (struct interface *ifp, struct connected *ifc)
     return;
 #endif
 
-  rib_add_ipv6 (ZEBRA_ROUTE_CONNECT, 0, &p, NULL, ifp->ifindex, ifp->vrf_id,
+  rib_add_ipv6 (ZEBRA_ROUTE_CONNECT, 0, &p, NULL, ifp->ifindex, ifp->ltid,
                 RT_TABLE_MAIN, ifp->metric, 0, SAFI_UNICAST);
 
-  rib_update (ifp->vrf_id);
+  rib_update (ifp->ltid);
 }
 
 /* Add connected IPv6 route to the interface. */
@@ -438,10 +438,10 @@ connected_down_ipv6 (struct interface *ifp, struct connected *ifc)
   if (IN6_IS_ADDR_UNSPECIFIED (&p.prefix))
     return;
 
-  rib_delete_ipv6 (ZEBRA_ROUTE_CONNECT, 0, &p, NULL, ifp->ifindex, ifp->vrf_id,
+  rib_delete_ipv6 (ZEBRA_ROUTE_CONNECT, 0, &p, NULL, ifp->ifindex, ifp->ltid,
                    SAFI_UNICAST);
 
-  rib_update (ifp->vrf_id);
+  rib_update (ifp->ltid);
 }
 
 void
@@ -462,6 +462,6 @@ connected_delete_ipv6 (struct interface *ifp, struct in6_addr *address,
 
   connected_withdraw (ifc);
 
-  rib_update (ifp->vrf_id);
+  rib_update (ifp->ltid);
 }
 #endif /* HAVE_IPV6 */

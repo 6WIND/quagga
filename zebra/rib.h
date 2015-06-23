@@ -57,8 +57,8 @@ struct rib
   /* Type fo this route. */
   int type;
 
-  /* VRF identifier. */
-  vrf_id_t vrf_id;
+  /* LT identifier. */
+  ltid_t ltid;
 
   /* Which routing table */
   int table;			
@@ -174,8 +174,8 @@ struct static_ipv4
   struct static_ipv4 *prev;
   struct static_ipv4 *next;
 
-  /* VRF identifier. */
-  vrf_id_t vrf_id;
+  /* LT identifier. */
+  ltid_t ltid;
 
   /* Administrative distance. */
   u_char distance;
@@ -209,8 +209,8 @@ struct static_ipv6
   struct static_ipv6 *prev;
   struct static_ipv6 *next;
 
-  /* VRF identifier. */
-  vrf_id_t vrf_id;
+  /* LT identifier. */
+  ltid_t ltid;
 
   /* Administrative distance. */
   u_char distance;
@@ -324,12 +324,12 @@ struct nexthop
                                       : ((tnexthop) = (nexthop)->next)) \
                        : (((recursing) = 0),((tnexthop) = (tnexthop)->next)))
 
-/* Structure holding nexthop & VRF identifier,
+/* Structure holding nexthop & LT identifier,
  * used for applying the route-map. */
-struct nexthop_vrfid
+struct nexthop_ltid
 {
   struct nexthop *nexthop;
-  vrf_id_t vrf_id;
+  ltid_t ltid;
 };
 
 /* Router advertisement feature. */
@@ -367,10 +367,10 @@ struct nlsock
 #endif
 
 /* Routing table instance.  */
-struct zebra_vrf
+struct zebra_lt
 {
   /* Identifier. */
-  vrf_id_t vrf_id;
+  ltid_t ltid;
 
   /* Routing table name.  */
   char *name;
@@ -417,9 +417,9 @@ typedef struct rib_table_info_t_
 {
 
   /*
-   * Back pointer to zebra_vrf.
+   * Back pointer to zebra_lt.
    */
-  struct zebra_vrf *zvrf;
+  struct zebra_lt *zlt;
   afi_t afi;
   safi_t safi;
 
@@ -438,7 +438,7 @@ typedef enum
  */
 typedef struct rib_tables_iter_t_
 {
-  vrf_id_t vrf_id;
+  ltid_t ltid;
   int afi_safi_ix;
 
   rib_tables_iter_state_t state;
@@ -476,7 +476,7 @@ extern void rib_lookup_and_pushup (struct prefix_ipv4 *);
 extern void _rib_dump (const char *,
 		       union prefix46constptr, const struct rib *);
 extern int rib_lookup_ipv4_route (struct prefix_ipv4 *, union sockunion *,
-                                  vrf_id_t);
+                                  ltid_t);
 #define ZEBRA_RIB_LOOKUP_ERROR -1
 #define ZEBRA_RIB_FOUND_EXACT 0
 #define ZEBRA_RIB_FOUND_NOGATE 1
@@ -487,34 +487,34 @@ extern int rib_lookup_ipv4_route (struct prefix_ipv4 *, union sockunion *,
 extern struct nexthop *nexthop_ipv6_add (struct rib *, struct in6_addr *);
 #endif /* HAVE_IPV6 */
 
-extern struct zebra_vrf *zebra_vrf_alloc (vrf_id_t);
-extern struct route_table *zebra_vrf_table (afi_t, safi_t, vrf_id_t);
-extern struct route_table *zebra_vrf_static_table (afi_t, safi_t, vrf_id_t);
+extern struct zebra_lt *zebra_lt_alloc (ltid_t);
+extern struct route_table *zebra_lt_table (afi_t, safi_t, ltid_t);
+extern struct route_table *zebra_lt_static_table (afi_t, safi_t, ltid_t);
 
 /* NOTE:
  * All rib_add_ipv[46]* functions will not just add prefix into RIB, but
  * also implicitly withdraw equal prefix of same type. */
 extern int rib_add_ipv4 (int type, int flags, struct prefix_ipv4 *p, 
 			 struct in_addr *gate, struct in_addr *src,
-			 unsigned int ifindex, vrf_id_t vrf_id, int table_id,
+			 unsigned int ifindex, ltid_t ltid, int table_id,
 			 u_int32_t, u_char, safi_t);
 
 extern int rib_add_ipv4_multipath (struct prefix_ipv4 *, struct rib *, safi_t);
 
 extern int rib_delete_ipv4 (int type, int flags, struct prefix_ipv4 *p,
 		            struct in_addr *gate, unsigned int ifindex, 
-		            vrf_id_t, safi_t safi);
+		            ltid_t, safi_t safi);
 
 extern struct rib *rib_match_ipv4_safi (struct in_addr addr, safi_t safi,
 					int skip_bgp, struct route_node **rn_out,
-					vrf_id_t);
+					ltid_t);
 extern struct rib *rib_match_ipv4_multicast (struct in_addr addr,
 					     struct route_node **rn_out,
-					     vrf_id_t);
+					     ltid_t);
 
-extern struct rib *rib_lookup_ipv4 (struct prefix_ipv4 *, vrf_id_t);
+extern struct rib *rib_lookup_ipv4 (struct prefix_ipv4 *, ltid_t);
 
-extern void rib_update (vrf_id_t);
+extern void rib_update (ltid_t);
 extern void rib_weed_tables (void);
 extern void rib_sweep_route (void);
 extern void rib_close_table (struct route_table *);
@@ -525,35 +525,35 @@ extern unsigned long rib_score_proto (u_char proto);
 extern int
 static_add_ipv4_safi (safi_t safi, struct prefix *p, struct in_addr *gate,
 		      const char *ifname, u_char flags, u_char distance,
-		      vrf_id_t vrf_id);
+		      ltid_t ltid);
 extern int
 static_delete_ipv4_safi (safi_t safi, struct prefix *p, struct in_addr *gate,
-			 const char *ifname, u_char distance, vrf_id_t vrf_id);
+			 const char *ifname, u_char distance, ltid_t ltid);
 
 #ifdef HAVE_IPV6
 extern int
 rib_add_ipv6 (int type, int flags, struct prefix_ipv6 *p,
-	      struct in6_addr *gate, unsigned int ifindex, vrf_id_t vrf_id,
+	      struct in6_addr *gate, unsigned int ifindex, ltid_t ltid,
 	      int table_id, u_int32_t metric, u_char distance, safi_t safi);
 
 extern int
 rib_delete_ipv6 (int type, int flags, struct prefix_ipv6 *p,
-		 struct in6_addr *gate, unsigned int ifindex, vrf_id_t vrf_id, safi_t safi);
+		 struct in6_addr *gate, unsigned int ifindex, ltid_t ltid, safi_t safi);
 
-extern struct rib *rib_lookup_ipv6 (struct in6_addr *, vrf_id_t);
+extern struct rib *rib_lookup_ipv6 (struct in6_addr *, ltid_t);
 
-extern struct rib *rib_match_ipv6 (struct in6_addr *, vrf_id_t);
+extern struct rib *rib_match_ipv6 (struct in6_addr *, ltid_t);
 
 extern struct route_table *rib_table_ipv6;
 
 extern int
 static_add_ipv6 (struct prefix *p, u_char type, struct in6_addr *gate,
 		 const char *ifname, u_char flags, u_char distance,
-		 vrf_id_t vrf_id);
+		 ltid_t ltid);
 
 extern int
 static_delete_ipv6 (struct prefix *p, u_char type, struct in6_addr *gate,
-		    const char *ifname, u_char distance, vrf_id_t vrf_id);
+		    const char *ifname, u_char distance, ltid_t ltid);
 
 #endif /* HAVE_IPV6 */
 
@@ -630,12 +630,12 @@ rib_dest_table (rib_dest_t *dest)
 }
 
 /*
- * rib_dest_vrf
+ * rib_dest_lt
  */
-static inline struct zebra_vrf *
-rib_dest_vrf (rib_dest_t *dest)
+static inline struct zebra_lt *
+rib_dest_lt (rib_dest_t *dest)
 {
-  return rib_table_info (rib_dest_table (dest))->zvrf;
+  return rib_table_info (rib_dest_table (dest))->zlt;
 }
 
 /*

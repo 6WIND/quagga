@@ -39,7 +39,7 @@
 #include "privs.h"
 #include "sigevent.h"
 #include "zclient.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "ospfd/ospfd.h"
 #include "ospfd/ospf_interface.h"
@@ -291,7 +291,7 @@ main (int argc, char **argv)
   debug_init ();
   vty_init (master);
   memory_init ();
-  vrf_init ();
+  lt_init ();
 
   access_list_init ();
   prefix_list_init ();

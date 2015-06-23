@@ -381,7 +381,7 @@ if_check_address (struct in_addr addr)
 /* Inteface link down message processing. */
 int
 rip_interface_down (int command, struct zclient *zclient, zebra_size_t length,
-    vrf_id_t vrf_id)
+    ltid_t ltid)
 {
   struct interface *ifp;
   struct stream *s;
@@ -390,7 +390,7 @@ rip_interface_down (int command, struct zclient *zclient, zebra_size_t length,
 
   /* zebra_interface_state_read() updates interface structure in
      iflist. */
-  ifp = zebra_interface_state_read (s, vrf_id);
+  ifp = zebra_interface_state_read (s, ltid);
 
   if (ifp == NULL)
     return 0;
@@ -408,13 +408,13 @@ rip_interface_down (int command, struct zclient *zclient, zebra_size_t length,
 /* Inteface link up message processing */
 int
 rip_interface_up (int command, struct zclient *zclient, zebra_size_t length,
-    vrf_id_t vrf_id)
+    ltid_t ltid)
 {
   struct interface *ifp;
 
   /* zebra_interface_state_read () updates interface structure in
      iflist. */
-  ifp = zebra_interface_state_read (zclient->ibuf, vrf_id);
+  ifp = zebra_interface_state_read (zclient->ibuf, ltid);
 
   if (ifp == NULL)
     return 0;
@@ -439,11 +439,11 @@ rip_interface_up (int command, struct zclient *zclient, zebra_size_t length,
 /* Inteface addition message from zebra. */
 int
 rip_interface_add (int command, struct zclient *zclient, zebra_size_t length,
-    vrf_id_t vrf_id)
+    ltid_t ltid)
 {
   struct interface *ifp;
 
-  ifp = zebra_interface_add_read (zclient->ibuf, vrf_id);
+  ifp = zebra_interface_add_read (zclient->ibuf, ltid);
 
   if (IS_RIP_DEBUG_ZEBRA)
     zlog_debug ("interface add %s index %d flags %#llx metric %d mtu %d",
@@ -469,7 +469,7 @@ rip_interface_add (int command, struct zclient *zclient, zebra_size_t length,
 
 int
 rip_interface_delete (int command, struct zclient *zclient,
-		      zebra_size_t length, vrf_id_t vrf_id)
+		      zebra_size_t length, ltid_t ltid)
 {
   struct interface *ifp;
   struct stream *s;
@@ -477,7 +477,7 @@ rip_interface_delete (int command, struct zclient *zclient,
 
   s = zclient->ibuf;  
   /* zebra_interface_state_read() updates interface structure in iflist */
-  ifp = zebra_interface_state_read (s, vrf_id);
+  ifp = zebra_interface_state_read (s, ltid);
 
   if (ifp == NULL)
     return 0;
@@ -647,13 +647,13 @@ rip_apply_address_add (struct connected *ifc)
 
 int
 rip_interface_address_add (int command, struct zclient *zclient,
-			   zebra_size_t length, vrf_id_t vrf_id)
+			   zebra_size_t length, ltid_t ltid)
 {
   struct connected *ifc;
   struct prefix *p;
 
   ifc = zebra_interface_address_read (ZEBRA_INTERFACE_ADDRESS_ADD, 
-                                      zclient->ibuf, vrf_id);
+                                      zclient->ibuf, ltid);
 
   if (ifc == NULL)
     return 0;
@@ -703,13 +703,13 @@ rip_apply_address_del (struct connected *ifc) {
 
 int
 rip_interface_address_delete (int command, struct zclient *zclient,
-			      zebra_size_t length, vrf_id_t vrf_id)
+			      zebra_size_t length, ltid_t ltid)
 {
   struct connected *ifc;
   struct prefix *p;
 
   ifc = zebra_interface_address_read (ZEBRA_INTERFACE_ADDRESS_DELETE,
-                                      zclient->ibuf, vrf_id);
+                                      zclient->ibuf, ltid);
   
   if (ifc)
     {

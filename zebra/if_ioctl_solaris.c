@@ -30,7 +30,7 @@
 #include "memory.h"
 #include "log.h"
 #include "privs.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "zebra/interface.h"
 #include "zebra/rib.h"
@@ -351,11 +351,11 @@ interface_info_ioctl (struct interface *ifp)
 
 /* Lookup all interface information. */
 void
-interface_list (struct zebra_vrf *zvrf)
+interface_list (struct zebra_lt *zlt)
 {
-  if (zvrf->vrf_id != VRF_DEFAULT)
+  if (zlt->ltid != LTID_DEFAULT)
     {
-      zlog_warn ("interface_list: ignore VRF %u", zvrf->vrf_id);
+      zlog_warn ("interface_list: ignore LT %u", zlt->ltid);
       return;
     }
   interface_list_ioctl (AF_INET);

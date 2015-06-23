@@ -28,7 +28,7 @@
 #include "command.h"
 #include "filter.h"
 #include "plist.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "zebra/zserv.h"
 
@@ -131,7 +131,7 @@ static route_map_result_t
 route_match_interface (void *rule, struct prefix *prefix,
 		       route_map_object_t type, void *object)
 {
-  struct nexthop_vrfid *nh_vrf;
+  struct nexthop_ltid *nh_lt;
   struct nexthop *nexthop;
   char *ifname = rule;
   unsigned int ifindex;
@@ -140,13 +140,13 @@ route_match_interface (void *rule, struct prefix *prefix,
     {
       if (strcasecmp(ifname, "any") == 0)
 	return RMAP_MATCH;
-      nh_vrf = object;
-      if (!nh_vrf)
+      nh_lt = object;
+      if (!nh_lt)
 	return RMAP_NOMATCH;
-      ifindex = ifname2ifindex_vrf (ifname, nh_vrf->vrf_id);
+      ifindex = ifname2ifindex_lt (ifname, nh_lt->ltid);
       if (ifindex == 0)
 	return RMAP_NOMATCH;
-      nexthop = nh_vrf->nexthop;
+      nexthop = nh_lt->nexthop;
       if (!nexthop)
 	return RMAP_NOMATCH;
       if (nexthop->ifindex == ifindex)
@@ -371,7 +371,7 @@ DEFUN (set_src,
 {
   struct in_addr src;
   struct interface *pif = NULL;
-  vrf_iter_t iter;
+  lt_iter_t iter;
 
   if (inet_pton(AF_INET, argv[0], &src) <= 0)
     {
@@ -379,8 +379,8 @@ DEFUN (set_src,
       return CMD_WARNING;
     }
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
-    if ((pif = if_lookup_exact_address_vrf (src, vrf_iter2id (iter))) != NULL)
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
+    if ((pif = if_lookup_exact_address_lt (src, lt_iter2id (iter))) != NULL)
       break;
 
   if (!pif)

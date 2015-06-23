@@ -93,14 +93,14 @@ zclient_init (struct zclient *zclient, int redist_default)
 
   /* Clear redistribution flags. */
   for (i = 0; i < ZEBRA_ROUTE_MAX; i++)
-    zclient->redist[i] = vrf_bitmap_init ();
+    zclient->redist[i] = lt_bitmap_init ();
 
   /* Set unwanted redistribute route.  bgpd does not need BGP route
      redistribution. */
   zclient->redist_default = redist_default;
 
   /* Set default-information redistribute to zero. */
-  zclient->default_information = vrf_bitmap_init ();
+  zclient->default_information = lt_bitmap_init ();
 
   /* Schedule first zclient connection. */
   if (zclient_debug)
@@ -292,19 +292,19 @@ zclient_send_message(struct zclient *zclient)
 }
 
 void
-zclient_create_header (struct stream *s, uint16_t command, vrf_id_t vrf_id)
+zclient_create_header (struct stream *s, uint16_t command, ltid_t ltid)
 {
   /* length placeholder, caller can update */
   stream_putw (s, ZEBRA_HEADER_SIZE);
   stream_putc (s, ZEBRA_HEADER_MARKER);
   stream_putc (s, ZSERV_VERSION);
-  stream_putw (s, vrf_id);
+  stream_putw (s, ltid);
   stream_putw (s, command);
 }
 
 /* Send simple Zebra message. */
 static int
-zebra_message_send (struct zclient *zclient, int command, vrf_id_t vrf_id)
+zebra_message_send (struct zclient *zclient, int command, ltid_t ltid)
 {
   struct stream *s;
 
@@ -313,7 +313,7 @@ zebra_message_send (struct zclient *zclient, int command, vrf_id_t vrf_id)
   stream_reset (s);
 
   /* Send very simple command only Zebra message. */
-  zclient_create_header (s, command, vrf_id);
+  zclient_create_header (s, command, ltid);
   
   return zclient_send_message(zclient);
 }
@@ -328,8 +328,8 @@ zebra_hello_send (struct zclient *zclient)
       s = zclient->obuf;
       stream_reset (s);
 
-      /* The VRF ID in the HELLO message is always 0. */
-      zclient_create_header (s, ZEBRA_HELLO, VRF_DEFAULT);
+      /* The LT ID in the HELLO message is always 0. */
+      zclient_create_header (s, ZEBRA_HELLO, LTID_DEFAULT);
       stream_putc (s, zclient->redist_default);
       stream_putw_at (s, 0, stream_get_endp (s));
       return zclient_send_message(zclient);
@@ -338,9 +338,9 @@ zebra_hello_send (struct zclient *zclient)
   return 0;
 }
 
-/* Send requests to zebra daemon for the information in a VRF. */
+/* Send requests to zebra daemon for the information in a LT. */
 void
-zclient_send_requests (struct zclient *zclient, vrf_id_t vrf_id)
+zclient_send_requests (struct zclient *zclient, ltid_t ltid)
 {
   int i;
 
@@ -353,26 +353,26 @@ zclient_send_requests (struct zclient *zclient, vrf_id_t vrf_id)
     return;
 
   if (zclient_debug)
-    zlog_debug ("%s: send messages for VRF %u", __func__, vrf_id);
+    zlog_debug ("%s: send messages for LT %u", __func__, ltid);
 
   /* We need router-id information. */
-  zebra_message_send (zclient, ZEBRA_ROUTER_ID_ADD, vrf_id);
+  zebra_message_send (zclient, ZEBRA_ROUTER_ID_ADD, ltid);
 
   /* We need interface information. */
-  zebra_message_send (zclient, ZEBRA_INTERFACE_ADD, vrf_id);
+  zebra_message_send (zclient, ZEBRA_INTERFACE_ADD, ltid);
 
   /* Set unwanted redistribute route. */
-  vrf_bitmap_set (zclient->redist[zclient->redist_default], vrf_id);
+  lt_bitmap_set (zclient->redist[zclient->redist_default], ltid);
 
   /* Flush all redistribute request. */
   for (i = 0; i < ZEBRA_ROUTE_MAX; i++)
     if (i != zclient->redist_default &&
-        vrf_bitmap_check (zclient->redist[i], vrf_id))
-      zebra_redistribute_send (ZEBRA_REDISTRIBUTE_ADD, zclient, i, vrf_id);
+        lt_bitmap_check (zclient->redist[i], ltid))
+      zebra_redistribute_send (ZEBRA_REDISTRIBUTE_ADD, zclient, i, ltid);
 
   /* If default information is needed. */
-  if (vrf_bitmap_check (zclient->default_information, VRF_DEFAULT))
-    zebra_message_send (zclient, ZEBRA_REDISTRIBUTE_DEFAULT_ADD, vrf_id);
+  if (lt_bitmap_check (zclient->default_information, LTID_DEFAULT))
+    zebra_message_send (zclient, ZEBRA_REDISTRIBUTE_DEFAULT_ADD, ltid);
 }
 
 /* Make connection to zebra daemon. */
@@ -495,7 +495,7 @@ zapi_ipv4_route (u_char cmd, struct zclient *zclient, struct prefix_ipv4 *p,
   s = zclient->obuf;
   stream_reset (s);
 
-  zclient_create_header (s, cmd, api->vrf_id);
+  zclient_create_header (s, cmd, api->ltid);
   
   /* Put type and nexthop. */
   stream_putc (s, api->type);
@@ -557,7 +557,7 @@ zapi_ipv6_route (u_char cmd, struct zclient *zclient, struct prefix_ipv6 *p,
   s = zclient->obuf;
   stream_reset (s);
 
-  zclient_create_header (s, cmd, api->vrf_id);
+  zclient_create_header (s, cmd, api->ltid);
 
   /* Put type and nexthop. */
   stream_putc (s, api->type);
@@ -607,14 +607,14 @@ zapi_ipv6_route (u_char cmd, struct zclient *zclient, struct prefix_ipv6 *p,
  */
 int
 zebra_redistribute_send (int command, struct zclient *zclient, int type,
-    vrf_id_t vrf_id)
+    ltid_t ltid)
 {
   struct stream *s;
 
   s = zclient->obuf;
   stream_reset(s);
   
-  zclient_create_header (s, command, vrf_id);
+  zclient_create_header (s, command, ltid);
   stream_putc (s, type);
   
   stream_putw_at (s, 0, stream_get_endp (s));
@@ -669,7 +669,7 @@ zebra_router_id_update_read (struct stream *s, struct prefix *rid)
  */
 
 struct interface *
-zebra_interface_add_read (struct stream *s, vrf_id_t vrf_id)
+zebra_interface_add_read (struct stream *s, ltid_t ltid)
 {
   struct interface *ifp;
   char ifname_tmp[INTERFACE_NAMSIZ];
@@ -678,9 +678,9 @@ zebra_interface_add_read (struct stream *s, vrf_id_t vrf_id)
   stream_get (ifname_tmp, s, INTERFACE_NAMSIZ);
 
   /* Lookup/create interface by name. */
-  ifp = if_get_by_name_len_vrf (ifname_tmp,
+  ifp = if_get_by_name_len_lt (ifname_tmp,
                                 strnlen (ifname_tmp, INTERFACE_NAMSIZ),
-                                vrf_id);
+                                ltid);
 
   zebra_interface_if_set_value (s, ifp);
 
@@ -695,7 +695,7 @@ zebra_interface_add_read (struct stream *s, vrf_id_t vrf_id)
  * is sent at the tail of the message.
  */
 struct interface *
-zebra_interface_state_read (struct stream *s, vrf_id_t vrf_id)
+zebra_interface_state_read (struct stream *s, ltid_t ltid)
 {
   struct interface *ifp;
   char ifname_tmp[INTERFACE_NAMSIZ];
@@ -704,9 +704,9 @@ zebra_interface_state_read (struct stream *s, vrf_id_t vrf_id)
   stream_get (ifname_tmp, s, INTERFACE_NAMSIZ);
 
   /* Lookup this by interface index. */
-  ifp = if_lookup_by_name_len_vrf (ifname_tmp,
+  ifp = if_lookup_by_name_len_lt (ifname_tmp,
                                    strnlen (ifname_tmp, INTERFACE_NAMSIZ),
-                                   vrf_id);
+                                   ltid);
 
   /* If such interface does not exist, indicate an error */
   if (! ifp)
@@ -783,7 +783,7 @@ memconstant(const void *s, int c, size_t n)
 }
 
 struct connected *
-zebra_interface_address_read (int type, struct stream *s, vrf_id_t vrf_id)
+zebra_interface_address_read (int type, struct stream *s, ltid_t ltid)
 {
   unsigned int ifindex;
   struct interface *ifp;
@@ -800,7 +800,7 @@ zebra_interface_address_read (int type, struct stream *s, vrf_id_t vrf_id)
   ifindex = stream_getl (s);
 
   /* Lookup index. */
-  ifp = if_lookup_by_index_vrf (ifindex, vrf_id);
+  ifp = if_lookup_by_index_lt (ifindex, ltid);
   if (ifp == NULL)
     {
       zlog_warn ("zebra_interface_address_read(%s): "
@@ -863,7 +863,7 @@ zclient_read (struct thread *thread)
   size_t already;
   uint16_t length, command;
   uint8_t marker, version;
-  vrf_id_t vrf_id;
+  ltid_t ltid;
   struct zclient *zclient;
 
   /* Get socket to zebra. */
@@ -898,7 +898,7 @@ zclient_read (struct thread *thread)
   length = stream_getw (zclient->ibuf);
   marker = stream_getc (zclient->ibuf);
   version = stream_getc (zclient->ibuf);
-  vrf_id = stream_getw (zclient->ibuf);
+  ltid = stream_getw (zclient->ibuf);
   command = stream_getw (zclient->ibuf);
   
   if (marker != ZEBRA_HEADER_MARKER || version != ZSERV_VERSION)
@@ -950,53 +950,53 @@ zclient_read (struct thread *thread)
   length -= ZEBRA_HEADER_SIZE;
 
   if (zclient_debug)
-    zlog_debug("zclient 0x%p command 0x%x VRF %u\n", (void *)zclient, command, vrf_id);
+    zlog_debug("zclient 0x%p command 0x%x LT %u\n", (void *)zclient, command, ltid);
 
   switch (command)
     {
     case ZEBRA_ROUTER_ID_UPDATE:
       if (zclient->router_id_update)
-	(*zclient->router_id_update) (command, zclient, length, vrf_id);
+	(*zclient->router_id_update) (command, zclient, length, ltid);
       break;
     case ZEBRA_INTERFACE_ADD:
       if (zclient->interface_add)
-	(*zclient->interface_add) (command, zclient, length, vrf_id);
+	(*zclient->interface_add) (command, zclient, length, ltid);
       break;
     case ZEBRA_INTERFACE_DELETE:
       if (zclient->interface_delete)
-	(*zclient->interface_delete) (command, zclient, length, vrf_id);
+	(*zclient->interface_delete) (command, zclient, length, ltid);
       break;
     case ZEBRA_INTERFACE_ADDRESS_ADD:
       if (zclient->interface_address_add)
-	(*zclient->interface_address_add) (command, zclient, length, vrf_id);
+	(*zclient->interface_address_add) (command, zclient, length, ltid);
       break;
     case ZEBRA_INTERFACE_ADDRESS_DELETE:
       if (zclient->interface_address_delete)
-	(*zclient->interface_address_delete) (command, zclient, length, vrf_id);
+	(*zclient->interface_address_delete) (command, zclient, length, ltid);
       break;
     case ZEBRA_INTERFACE_UP:
       if (zclient->interface_up)
-	(*zclient->interface_up) (command, zclient, length, vrf_id);
+	(*zclient->interface_up) (command, zclient, length, ltid);
       break;
     case ZEBRA_INTERFACE_DOWN:
       if (zclient->interface_down)
-	(*zclient->interface_down) (command, zclient, length, vrf_id);
+	(*zclient->interface_down) (command, zclient, length, ltid);
       break;
     case ZEBRA_IPV4_ROUTE_ADD:
       if (zclient->ipv4_route_add)
-	(*zclient->ipv4_route_add) (command, zclient, length, vrf_id);
+	(*zclient->ipv4_route_add) (command, zclient, length, ltid);
       break;
     case ZEBRA_IPV4_ROUTE_DELETE:
       if (zclient->ipv4_route_delete)
-	(*zclient->ipv4_route_delete) (command, zclient, length, vrf_id);
+	(*zclient->ipv4_route_delete) (command, zclient, length, ltid);
       break;
     case ZEBRA_IPV6_ROUTE_ADD:
       if (zclient->ipv6_route_add)
-	(*zclient->ipv6_route_add) (command, zclient, length, vrf_id);
+	(*zclient->ipv6_route_add) (command, zclient, length, ltid);
       break;
     case ZEBRA_IPV6_ROUTE_DELETE:
       if (zclient->ipv6_route_delete)
-	(*zclient->ipv6_route_delete) (command, zclient, length, vrf_id);
+	(*zclient->ipv6_route_delete) (command, zclient, length, ltid);
       break;
     default:
       break;
@@ -1015,47 +1015,47 @@ zclient_read (struct thread *thread)
 
 void
 zclient_redistribute (int command, struct zclient *zclient, int type,
-    vrf_id_t vrf_id)
+    ltid_t ltid)
 {
 
   if (command == ZEBRA_REDISTRIBUTE_ADD) 
     {
-      if (vrf_bitmap_check (zclient->redist[type], vrf_id))
+      if (lt_bitmap_check (zclient->redist[type], ltid))
          return;
-      vrf_bitmap_set (zclient->redist[type], vrf_id);
+      lt_bitmap_set (zclient->redist[type], ltid);
     }
   else
     {
-      if (!vrf_bitmap_check (zclient->redist[type], vrf_id))
+      if (!lt_bitmap_check (zclient->redist[type], ltid))
          return;
-      vrf_bitmap_unset (zclient->redist[type], vrf_id);
+      lt_bitmap_unset (zclient->redist[type], ltid);
     }
 
   if (zclient->sock > 0)
-    zebra_redistribute_send (command, zclient, type, vrf_id);
+    zebra_redistribute_send (command, zclient, type, ltid);
 }
 
 
 void
 zclient_redistribute_default (int command, struct zclient *zclient,
-    vrf_id_t vrf_id)
+    ltid_t ltid)
 {
 
   if (command == ZEBRA_REDISTRIBUTE_DEFAULT_ADD)
     {
-      if (vrf_bitmap_check (zclient->default_information, vrf_id))
+      if (lt_bitmap_check (zclient->default_information, ltid))
         return;
-      vrf_bitmap_set (zclient->default_information, vrf_id);
+      lt_bitmap_set (zclient->default_information, ltid);
     }
   else 
     {
-      if (!vrf_bitmap_check (zclient->default_information, vrf_id))
+      if (!lt_bitmap_check (zclient->default_information, ltid))
         return;
-      vrf_bitmap_unset (zclient->default_information, vrf_id);
+      lt_bitmap_unset (zclient->default_information, ltid);
     }
 
   if (zclient->sock > 0)
-    zebra_message_send (zclient, command, vrf_id);
+    zebra_message_send (zclient, command, ltid);
 }
 
 static void

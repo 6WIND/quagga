@@ -31,7 +31,7 @@
 #include <signal.h>
 
 #include "memory.h"
-#include "vrf.h"
+#include "logical_table.h"
 #include "filter.h"
 #include "vty.h"
 #include "sigevent.h"
@@ -204,7 +204,7 @@ int main(int argc, char** argv, char** envp) {
   cmd_init(1);
   vty_init(master);
   memory_init();
-  vrf_init();
+  lt_init();
   access_list_init();
   pim_init();
 

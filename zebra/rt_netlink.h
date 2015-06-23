@@ -41,8 +41,8 @@ extern const char *
 nl_rtproto_to_str (u_char rtproto);
 
 
-extern int interface_lookup_netlink (struct zebra_vrf *zvrf);
-extern int netlink_route_read (struct zebra_vrf *zvrf);
+extern int interface_lookup_netlink (struct zebra_lt *zlt);
+extern int netlink_route_read (struct zebra_lt *zlt);
 
 #endif /* HAVE_NETLINK */
 

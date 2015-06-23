@@ -29,7 +29,7 @@
 #include "log.h"
 #include "privs.h"
 #include "sigevent.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "zebra/rib.h"
 #include "zebra/zserv.h"
@@ -197,49 +197,49 @@ struct quagga_signal_t zebra_signals[] =
   },
 };
 
-/* Callback upon creating a new VRF. */
+/* Callback upon creating a new LT. */
 static int
-zebra_vrf_new (vrf_id_t vrf_id, void **info)
+zebra_lt_new (ltid_t ltid, void **info)
 {
-  struct zebra_vrf *zvrf = *info;
+  struct zebra_lt *zlt = *info;
 
-  if (! zvrf)
+  if (! zlt)
     {
-      zvrf = zebra_vrf_alloc (vrf_id);
-      *info = (void *)zvrf;
+      zlt = zebra_lt_alloc (ltid);
+      *info = (void *)zlt;
     }
 
   return 0;
 }
 
-/* Callback upon enabling a VRF. */
+/* Callback upon enabling a LT. */
 static int
-zebra_vrf_enable (vrf_id_t vrf_id, void **info)
+zebra_lt_enable (ltid_t ltid, void **info)
 {
-  struct zebra_vrf *zvrf = (struct zebra_vrf *) (*info);
+  struct zebra_lt *zlt = (struct zebra_lt *) (*info);
 
-  assert (zvrf);
+  assert (zlt);
 
-  kernel_init (zvrf);
-  route_read (zvrf);
+  kernel_init (zlt);
+  route_read (zlt);
 
   return 0;
 }
 
-/* Callback upon disabling a VRF. */
+/* Callback upon disabling a LT. */
 static int
-zebra_vrf_disable (vrf_id_t vrf_id, void **info)
+zebra_lt_disable (ltid_t ltid, void **info)
 {
-  struct zebra_vrf *zvrf = (struct zebra_vrf *) (*info);
+  struct zebra_lt *zlt = (struct zebra_lt *) (*info);
   struct listnode *list_node;
   struct interface *ifp;
 
-  assert (zvrf);
+  assert (zlt);
 
-  rib_close_table (zvrf->table[AFI_IP][SAFI_UNICAST]);
-  rib_close_table (zvrf->table[AFI_IP6][SAFI_UNICAST]);
+  rib_close_table (zlt->table[AFI_IP][SAFI_UNICAST]);
+  rib_close_table (zlt->table[AFI_IP6][SAFI_UNICAST]);
 
-  for (ALL_LIST_ELEMENTS_RO (vrf_iflist (vrf_id), list_node, ifp))
+  for (ALL_LIST_ELEMENTS_RO (lt_iflist (ltid), list_node, ifp))
     {
       int operative = if_is_operative (ifp);
       UNSET_FLAG (ifp->flags, IFF_UP);
@@ -247,19 +247,19 @@ zebra_vrf_disable (vrf_id_t vrf_id, void **info)
         if_down (ifp);
     }
 
-  kernel_terminate (zvrf);
+  kernel_terminate (zlt);
 
   return 0;
 }
 
-/* Zebra VRF initialization. */
+/* Zebra LT initialization. */
 static void
-zebra_vrf_init (void)
+zebra_lt_init (void)
 {
-  vrf_add_hook (VRF_NEW_HOOK, zebra_vrf_new);
-  vrf_add_hook (VRF_ENABLE_HOOK, zebra_vrf_enable);
-  vrf_add_hook (VRF_DISABLE_HOOK, zebra_vrf_disable);
-  vrf_init ();
+  lt_add_hook (LT_NEW_HOOK, zebra_lt_new);
+  lt_add_hook (LT_ENABLE_HOOK, zebra_lt_enable);
+  lt_add_hook (LT_DISABLE_HOOK, zebra_lt_disable);
+  lt_init ();
 }
 
 /* Main startup routine. */
@@ -359,7 +359,7 @@ main (int argc, char **argv)
   access_list_init ();
 
   /* Make kernel routing socket. */
-  zebra_vrf_init ();
+  zebra_lt_init ();
   zebra_vty_init();
 
   /* Configuration file read*/

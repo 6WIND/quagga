@@ -36,7 +36,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "filter.h"
 #include "plist.h"
 #include "stream.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_attr.h"
@@ -291,7 +291,7 @@ bgp_exit (int status)
   /* reverse community_list_init */
   community_list_terminate (bgp_clist);
 
-  vrf_terminate ();
+  lt_terminate ();
   cmd_terminate ();
   vty_terminate ();
   if (zclient)
@@ -426,7 +426,7 @@ main (int argc, char **argv)
   cmd_init (1);
   vty_init (master);
   memory_init ();
-  vrf_init ();
+  lt_init ();
 
   /* BGP related initialization.  */
   bgp_init ();

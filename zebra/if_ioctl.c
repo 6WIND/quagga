@@ -29,7 +29,7 @@
 #include "connected.h"
 #include "memory.h"
 #include "log.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "zebra/interface.h"
 #include "zebra/rib.h"
@@ -444,11 +444,11 @@ interface_info_ioctl ()
 
 /* Lookup all interface information. */
 void
-interface_list (struct zebra_vrf *zvrf)
+interface_list (struct zebra_lt *zlt)
 {
-  if (zvrf->vrf_id != VRF_DEFAULT)
+  if (zlt->ltid != LTID_DEFAULT)
     {
-      zlog_warn ("interface_list: ignore VRF %u", zvrf->vrf_id);
+      zlog_warn ("interface_list: ignore LT %u", zlt->ltid);
       return;
     }
   /* Linux can do both proc & ioctl, ioctl is the only way to get

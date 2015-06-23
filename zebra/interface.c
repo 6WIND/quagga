@@ -32,7 +32,7 @@
 #include "connected.h"
 #include "log.h"
 #include "zclient.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "zebra/interface.h"
 #include "zebra/rtadv.h"
@@ -382,23 +382,23 @@ if_add_update (struct interface *ifp)
       if (if_data && if_data->shutdown == IF_ZEBRA_SHUTDOWN_ON)
 	{
 	  if (IS_ZEBRA_DEBUG_KERNEL)
-	    zlog_debug ("interface %s vrf %u index %d is shutdown. "
+	    zlog_debug ("interface %s lt %u index %d is shutdown. "
 			"Won't wake it up.",
-			ifp->name, ifp->vrf_id, ifp->ifindex);
+			ifp->name, ifp->ltid, ifp->ifindex);
 	  return;
 	}
 
       if_addr_wakeup (ifp);
 
       if (IS_ZEBRA_DEBUG_KERNEL)
-	zlog_debug ("interface %s vrf %u index %d becomes active.",
-		    ifp->name, ifp->vrf_id, ifp->ifindex);
+	zlog_debug ("interface %s lt %u index %d becomes active.",
+		    ifp->name, ifp->ltid, ifp->ifindex);
     }
   else
     {
       if (IS_ZEBRA_DEBUG_KERNEL)
-	zlog_debug ("interface %s vrf %u index %d is added.",
-		    ifp->name, ifp->vrf_id, ifp->ifindex);
+	zlog_debug ("interface %s lt %u index %d is added.",
+		    ifp->name, ifp->ltid, ifp->ifindex);
     }
 }
 
@@ -415,8 +415,8 @@ if_delete_update (struct interface *ifp)
 
   if (if_is_up(ifp))
     {
-      zlog_err ("interface %s vrf %u index %d is still up while being deleted.",
-                ifp->name, ifp->vrf_id, ifp->ifindex);
+      zlog_err ("interface %s lt %u index %d is still up while being deleted.",
+                ifp->name, ifp->ltid, ifp->ifindex);
       return;
     }
 
@@ -424,8 +424,8 @@ if_delete_update (struct interface *ifp)
   UNSET_FLAG (ifp->status, ZEBRA_INTERFACE_ACTIVE);
   
   if (IS_ZEBRA_DEBUG_KERNEL)
-    zlog_debug ("interface %s vrf %u index %d is now inactive.",
-                ifp->name, ifp->vrf_id, ifp->ifindex);
+    zlog_debug ("interface %s lt %u index %d is now inactive.",
+                ifp->name, ifp->ltid, ifp->ifindex);
 
   /* Delete connected routes from the kernel. */
   if (ifp->connected)
@@ -555,7 +555,7 @@ if_up (struct interface *ifp)
     }
 
   /* Examine all static routes. */
-  rib_update (ifp->vrf_id);
+  rib_update (ifp->ltid);
 }
 
 /* Interface goes down.  We have to manage different behavior of based
@@ -588,7 +588,7 @@ if_down (struct interface *ifp)
     }
 
   /* Examine all static routes which direct to the interface. */
-  rib_update (ifp->vrf_id);
+  rib_update (ifp->ltid);
 }
 
 void
@@ -729,7 +729,7 @@ if_dump_vty (struct vty *vty, struct interface *ifp)
     vty_out (vty, "down%s", VTY_NEWLINE);
   }
 
-  vty_out (vty, "  vrf: %u%s", ifp->vrf_id, VTY_NEWLINE);
+  vty_out (vty, "  lt: %u%s", ifp->ltid, VTY_NEWLINE);
 
   if (ifp->desc)
     vty_out (vty, "  Description: %s%s", ifp->desc,
@@ -916,11 +916,11 @@ DEFUN_NOSH (zebra_interface,
 }
 
 ALIAS (zebra_interface,
-       zebra_interface_vrf_cmd,
-       "interface IFNAME " VRF_CMD_STR,
+       zebra_interface_lt_cmd,
+       "interface IFNAME " LT_CMD_STR,
        "Select an interface to configure\n"
        "Interface's name\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 struct cmd_node interface_node =
 {
@@ -937,7 +937,7 @@ DEFUN (show_interface, show_interface_cmd,
 {
   struct listnode *node;
   struct interface *ifp;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
 #ifdef HAVE_PROC_NET_DEV
   /* If system has interface statistics via proc file system, update
@@ -949,32 +949,32 @@ DEFUN (show_interface, show_interface_cmd,
 #endif /* HAVE_NET_RT_IFLIST */
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
   /* All interface print. */
-  for (ALL_LIST_ELEMENTS_RO (vrf_iflist (vrf_id), node, ifp))
+  for (ALL_LIST_ELEMENTS_RO (lt_iflist (ltid), node, ifp))
     if_dump_vty (vty, ifp);
 
   return CMD_SUCCESS;
 }
 
 ALIAS (show_interface,
-       show_interface_vrf_cmd,
-       "show interface " VRF_CMD_STR,
+       show_interface_lt_cmd,
+       "show interface " LT_CMD_STR,
        SHOW_STR
        "Interface status and configuration\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 /* Show all interfaces to vty. */
-DEFUN (show_interface_vrf_all, show_interface_vrf_all_cmd,
-       "show interface " VRF_ALL_CMD_STR,
+DEFUN (show_interface_lt_all, show_interface_lt_all_cmd,
+       "show interface " LT_ALL_CMD_STR,
        SHOW_STR
        "Interface status and configuration\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   struct listnode *node;
   struct interface *ifp;
-  vrf_iter_t iter;
+  lt_iter_t iter;
 
 #ifdef HAVE_PROC_NET_DEV
   /* If system has interface statistics via proc file system, update
@@ -986,8 +986,8 @@ DEFUN (show_interface_vrf_all, show_interface_vrf_all_cmd,
 #endif /* HAVE_NET_RT_IFLIST */
 
   /* All interface print. */
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
-    for (ALL_LIST_ELEMENTS_RO (vrf_iter2iflist (iter), node, ifp))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
+    for (ALL_LIST_ELEMENTS_RO (lt_iter2iflist (iter), node, ifp))
       if_dump_vty (vty, ifp);
 
   return CMD_SUCCESS;
@@ -1001,7 +1001,7 @@ DEFUN (show_interface_name, show_interface_name_cmd,
        "Inteface name\n")
 {
   struct interface *ifp;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
 #ifdef HAVE_PROC_NET_DEV
   /* If system has interface statistics via proc file system, update
@@ -1013,10 +1013,10 @@ DEFUN (show_interface_name, show_interface_name_cmd,
 #endif /* HAVE_NET_RT_IFLIST */
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
   /* Specified interface print. */
-  ifp = if_lookup_by_name_vrf (argv[0], vrf_id);
+  ifp = if_lookup_by_name_lt (argv[0], ltid);
   if (ifp == NULL)
     {
       vty_out (vty, "%% Can't find interface %s%s", argv[0],
@@ -1029,23 +1029,23 @@ DEFUN (show_interface_name, show_interface_name_cmd,
 }
 
 ALIAS (show_interface_name,
-       show_interface_name_vrf_cmd,
-       "show interface IFNAME " VRF_CMD_STR,
+       show_interface_name_lt_cmd,
+       "show interface IFNAME " LT_CMD_STR,
        SHOW_STR
        "Interface status and configuration\n"
        "Inteface name\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 /* Show specified interface to vty. */
-DEFUN (show_interface_name_vrf_all, show_interface_name_vrf_all_cmd,
-       "show interface IFNAME " VRF_ALL_CMD_STR,
+DEFUN (show_interface_name_lt_all, show_interface_name_lt_all_cmd,
+       "show interface IFNAME " LT_ALL_CMD_STR,
        SHOW_STR
        "Interface status and configuration\n"
        "Inteface name\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   struct interface *ifp;
-  vrf_iter_t iter;
+  lt_iter_t iter;
   int found = 0;
 
 #ifdef HAVE_PROC_NET_DEV
@@ -1058,10 +1058,10 @@ DEFUN (show_interface_name_vrf_all, show_interface_name_vrf_all_cmd,
 #endif /* HAVE_NET_RT_IFLIST */
 
   /* All interface print. */
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
       /* Specified interface print. */
-      ifp = if_lookup_by_name_vrf (argv[0], vrf_iter2id (iter));
+      ifp = if_lookup_by_name_lt (argv[0], lt_iter2id (iter));
       if (ifp)
         {
           if_dump_vty (vty, ifp);
@@ -1079,13 +1079,13 @@ DEFUN (show_interface_name_vrf_all, show_interface_name_vrf_all_cmd,
 }
 
 static void
-if_show_description (struct vty *vty, vrf_id_t vrf_id)
+if_show_description (struct vty *vty, ltid_t ltid)
 {
   struct listnode *node;
   struct interface *ifp;
 
   vty_out (vty, "Interface       Status  Protocol  Description%s", VTY_NEWLINE);
-  for (ALL_LIST_ELEMENTS_RO (vrf_iflist (vrf_id), node, ifp))
+  for (ALL_LIST_ELEMENTS_RO (lt_iflist (ltid), node, ifp))
     {
       int len;
 
@@ -1125,41 +1125,41 @@ DEFUN (show_interface_desc,
        "Interface status and configuration\n"
        "Interface description\n")
 {
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
-  if_show_description (vty, vrf_id);
+  if_show_description (vty, ltid);
 
   return CMD_SUCCESS;
 }
 
 ALIAS (show_interface_desc,
-       show_interface_desc_vrf_cmd,
-       "show interface description " VRF_CMD_STR,
+       show_interface_desc_lt_cmd,
+       "show interface description " LT_CMD_STR,
        SHOW_STR
        "Interface status and configuration\n"
        "Interface description\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
-DEFUN (show_interface_desc_vrf_all,
-       show_interface_desc_vrf_all_cmd,
-       "show interface description " VRF_ALL_CMD_STR,
+DEFUN (show_interface_desc_lt_all,
+       show_interface_desc_lt_all_cmd,
+       "show interface description " LT_ALL_CMD_STR,
        SHOW_STR
        "Interface status and configuration\n"
        "Interface description\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
-  vrf_iter_t iter;
+  lt_iter_t iter;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
-    if (!list_isempty (vrf_iter2iflist (iter)))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
+    if (!list_isempty (lt_iter2iflist (iter)))
       {
-        vty_out (vty, "%s\tVRF %u%s%s", VTY_NEWLINE,
-                 vrf_iter2id (iter),
+        vty_out (vty, "%s\tLT %u%s%s", VTY_NEWLINE,
+                 lt_iter2id (iter),
                  VTY_NEWLINE, VTY_NEWLINE);
-        if_show_description (vty, vrf_iter2id (iter));
+        if_show_description (vty, lt_iter2id (iter));
       }
 
   return CMD_SUCCESS;
@@ -1717,10 +1717,10 @@ if_config_write (struct vty *vty)
 {
   struct listnode *node;
   struct interface *ifp;
-  vrf_iter_t iter;
+  lt_iter_t iter;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
-  for (ALL_LIST_ELEMENTS_RO (vrf_iter2iflist (iter), node, ifp))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
+  for (ALL_LIST_ELEMENTS_RO (lt_iter2iflist (iter), node, ifp))
     {
       struct zebra_if *if_data;
       struct listnode *addrnode;
@@ -1729,10 +1729,10 @@ if_config_write (struct vty *vty)
 
       if_data = ifp->info;
 
-      if (ifp->vrf_id == VRF_DEFAULT)
+      if (ifp->ltid == LTID_DEFAULT)
         vty_out (vty, "interface %s%s", ifp->name, VTY_NEWLINE);
       else
-        vty_out (vty, "interface %s vrf %u%s", ifp->name, ifp->vrf_id,
+        vty_out (vty, "interface %s lt %u%s", ifp->name, ifp->ltid,
                  VTY_NEWLINE);
 
       if (if_data)
@@ -1805,24 +1805,24 @@ zebra_if_init (void)
   install_node (&interface_node, if_config_write);
 
   install_element (VIEW_NODE, &show_interface_cmd);
-  install_element (VIEW_NODE, &show_interface_vrf_cmd);
-  install_element (VIEW_NODE, &show_interface_vrf_all_cmd);
+  install_element (VIEW_NODE, &show_interface_lt_cmd);
+  install_element (VIEW_NODE, &show_interface_lt_all_cmd);
   install_element (VIEW_NODE, &show_interface_name_cmd);
-  install_element (VIEW_NODE, &show_interface_name_vrf_cmd);
-  install_element (VIEW_NODE, &show_interface_name_vrf_all_cmd);
+  install_element (VIEW_NODE, &show_interface_name_lt_cmd);
+  install_element (VIEW_NODE, &show_interface_name_lt_all_cmd);
   install_element (ENABLE_NODE, &show_interface_cmd);
-  install_element (ENABLE_NODE, &show_interface_vrf_cmd);
-  install_element (ENABLE_NODE, &show_interface_vrf_all_cmd);
+  install_element (ENABLE_NODE, &show_interface_lt_cmd);
+  install_element (ENABLE_NODE, &show_interface_lt_all_cmd);
   install_element (ENABLE_NODE, &show_interface_name_cmd);
-  install_element (ENABLE_NODE, &show_interface_name_vrf_cmd);
-  install_element (ENABLE_NODE, &show_interface_name_vrf_all_cmd);
+  install_element (ENABLE_NODE, &show_interface_name_lt_cmd);
+  install_element (ENABLE_NODE, &show_interface_name_lt_all_cmd);
   install_element (ENABLE_NODE, &show_interface_desc_cmd);
-  install_element (ENABLE_NODE, &show_interface_desc_vrf_cmd);
-  install_element (ENABLE_NODE, &show_interface_desc_vrf_all_cmd);
+  install_element (ENABLE_NODE, &show_interface_desc_lt_cmd);
+  install_element (ENABLE_NODE, &show_interface_desc_lt_all_cmd);
   install_element (CONFIG_NODE, &zebra_interface_cmd);
-  install_element (CONFIG_NODE, &zebra_interface_vrf_cmd);
+  install_element (CONFIG_NODE, &zebra_interface_lt_cmd);
   install_element (CONFIG_NODE, &no_interface_cmd);
-  install_element (CONFIG_NODE, &no_interface_vrf_cmd);
+  install_element (CONFIG_NODE, &no_interface_lt_cmd);
   install_default (INTERFACE_NODE);
   install_element (INTERFACE_NODE, &interface_desc_cmd);
   install_element (INTERFACE_NODE, &no_interface_desc_cmd);

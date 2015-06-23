@@ -65,10 +65,10 @@ int kernel_address_delete_ipv4 (struct interface *a, struct connected *b)
   return 0;
 }
 
-void kernel_init (struct zebra_vrf *zvrf) { return; }
-void kernel_terminate (struct zebra_vrf *zvrf) { return; }
+void kernel_init (struct zebra_lt *zlt) { return; }
+void kernel_terminate (struct zebra_lt *zlt) { return; }
 #ifdef HAVE_SYS_WEAK_ALIAS_PRAGMA
 #pragma weak route_read = kernel_init
 #else
-void route_read (struct zebra_vrf *zvrf) { return; }
+void route_read (struct zebra_lt *zlt) { return; }
 #endif

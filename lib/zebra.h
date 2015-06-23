@@ -412,7 +412,7 @@ struct in_pktinfo
 #define ZEBRA_ROUTER_ID_UPDATE            22
 #define ZEBRA_HELLO                       23
 #define ZEBRA_IPV4_NEXTHOP_LOOKUP_MRIB    24
-#define ZEBRA_VRF_UNREGISTER              25
+#define ZEBRA_LT_UNREGISTER              25
 #define ZEBRA_MESSAGE_MAX                 26
 
 /* Marker value used in new Zserv, in the byte location corresponding
@@ -523,8 +523,8 @@ typedef u_int8_t safi_t;
 typedef u_int16_t zebra_size_t;
 typedef u_int16_t zebra_command_t;
 
-/* VRF ID type. */
-typedef u_int16_t vrf_id_t;
+/* LT ID type. */
+typedef u_int16_t ltid_t;
 
 /* FIFO -- first in first out structure and macros.  */
 struct fifo

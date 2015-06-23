@@ -25,7 +25,7 @@
 #include "prefix.h"
 #include "log.h"
 #include "if.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "zebra/rib.h"
 #include "zebra/zserv.h"
@@ -91,12 +91,12 @@ handle_route_entry (mib2_ipRouteEntry_t *routeEntry)
 	gateway.s_addr = routeEntry->ipRouteNextHop;
 
 	rib_add_ipv4 (ZEBRA_ROUTE_KERNEL, zebra_flags, &prefix,
-		      &gateway, NULL, 0, VRF_DEFAULT, RT_TABLE_MAIN,
+		      &gateway, NULL, 0, LTID_DEFAULT, RT_TABLE_MAIN,
 		      0, 0, SAFI_UNICAST);
 }
 
 void
-route_read (struct zebra_vrf *zvrf)
+route_read (struct zebra_lt *zlt)
 {
 	char 			storage[RT_BUFSIZ];
 
@@ -111,7 +111,7 @@ route_read (struct zebra_vrf *zvrf)
 	struct strbuf		msgdata;
 	int			flags, dev, retval, process;
 
-	if (zvrf->vrf_id != VRF_DEFAULT) {
+	if (zlt->ltid != LTID_DEFAULT) {
 		return;
 	}
 

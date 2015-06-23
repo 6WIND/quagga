@@ -140,7 +140,7 @@ struct interface
   struct if_data stats;
 #endif /* HAVE_NET_RT_IFLIST */
 
-  vrf_id_t vrf_id;
+  ltid_t ltid;
 };
 
 /* Connected address structure. */
@@ -249,26 +249,26 @@ extern struct interface *if_lookup_exact_address (struct in_addr);
 extern struct interface *if_lookup_address (struct in_addr);
 extern struct interface *if_lookup_prefix (struct prefix *prefix);
 
-extern struct interface *if_create_vrf (const char *name, int namelen,
-                                vrf_id_t vrf_id);
-extern struct interface *if_lookup_by_index_vrf (unsigned int,
-                                vrf_id_t vrf_id);
-extern struct interface *if_lookup_exact_address_vrf (struct in_addr,
-                                vrf_id_t vrf_id);
-extern struct interface *if_lookup_address_vrf (struct in_addr,
-                                vrf_id_t vrf_id);
-extern struct interface *if_lookup_prefix_vrf (struct prefix *prefix,
-                                vrf_id_t vrf_id);
+extern struct interface *if_create_lt (const char *name, int namelen,
+                                ltid_t ltid);
+extern struct interface *if_lookup_by_index_lt (unsigned int,
+                                ltid_t ltid);
+extern struct interface *if_lookup_exact_address_lt (struct in_addr,
+                                ltid_t ltid);
+extern struct interface *if_lookup_address_lt (struct in_addr,
+                                ltid_t ltid);
+extern struct interface *if_lookup_prefix_lt (struct prefix *prefix,
+                                ltid_t ltid);
 
 /* These 2 functions are to be used when the ifname argument is terminated
    by a '\0' character: */
 extern struct interface *if_lookup_by_name (const char *ifname);
 extern struct interface *if_get_by_name (const char *ifname);
 
-extern struct interface *if_lookup_by_name_vrf (const char *ifname,
-                                vrf_id_t vrf_id);
-extern struct interface *if_get_by_name_vrf (const char *ifname,
-                                vrf_id_t vrf_id);
+extern struct interface *if_lookup_by_name_lt (const char *ifname,
+                                ltid_t ltid);
+extern struct interface *if_get_by_name_lt (const char *ifname,
+                                ltid_t ltid);
 
 /* For these 2 functions, the namelen argument should be the precise length
    of the ifname string (not counting any optional trailing '\0' character).
@@ -277,10 +277,10 @@ extern struct interface *if_lookup_by_name_len(const char *ifname,
                                               size_t namelen);
 extern struct interface *if_get_by_name_len(const char *ifname,size_t namelen);
 
-extern struct interface *if_lookup_by_name_len_vrf(const char *ifname,
-                                size_t namelen, vrf_id_t vrf_id);
-extern struct interface *if_get_by_name_len_vrf(const char *ifname,
-                                size_t namelen, vrf_id_t vrf_id);
+extern struct interface *if_lookup_by_name_len_lt(const char *ifname,
+                                size_t namelen, ltid_t ltid);
+extern struct interface *if_get_by_name_len_lt(const char *ifname,
+                                size_t namelen, ltid_t ltid);
 
 
 /* Delete the interface, but do not free the structure, and leave it in the
@@ -300,8 +300,8 @@ extern int if_is_broadcast (struct interface *);
 extern int if_is_pointopoint (struct interface *);
 extern int if_is_multicast (struct interface *);
 extern void if_add_hook (int, int (*)(struct interface *));
-extern void if_init (vrf_id_t, struct list **);
-extern void if_terminate (vrf_id_t, struct list **);
+extern void if_init (ltid_t, struct list **);
+extern void if_terminate (ltid_t, struct list **);
 extern void if_dump_all (void);
 extern const char *if_flag_dump(unsigned long);
 
@@ -309,13 +309,13 @@ extern const char *if_flag_dump(unsigned long);
    ifindex2ifname uses internal interface info, whereas if_indextoname must
    make a system call. */
 extern const char *ifindex2ifname (unsigned int);
-extern const char *ifindex2ifname_vrf (unsigned int, vrf_id_t vrf_id);
+extern const char *ifindex2ifname_lt (unsigned int, ltid_t ltid);
 
 /* Please use ifname2ifindex instead of if_nametoindex where possible;
    ifname2ifindex uses internal interface info, whereas if_nametoindex must
    make a system call. */
 extern unsigned int ifname2ifindex(const char *ifname);
-extern unsigned int ifname2ifindex_vrf(const char *ifname, vrf_id_t vrf_id);
+extern unsigned int ifname2ifindex_lt(const char *ifname, ltid_t ltid);
 
 /* Connected address functions. */
 extern struct connected *connected_new (void);
@@ -342,12 +342,12 @@ extern struct cmd_element interface_desc_cmd;
 extern struct cmd_element no_interface_desc_cmd;
 extern struct cmd_element interface_cmd;
 extern struct cmd_element no_interface_cmd;
-extern struct cmd_element interface_vrf_cmd;
-extern struct cmd_element no_interface_vrf_cmd;
+extern struct cmd_element interface_lt_cmd;
+extern struct cmd_element no_interface_lt_cmd;
 extern struct cmd_element interface_pseudo_cmd;
 extern struct cmd_element no_interface_pseudo_cmd;
 extern struct cmd_element show_address_cmd;
-extern struct cmd_element show_address_vrf_cmd;
-extern struct cmd_element show_address_vrf_all_cmd;
+extern struct cmd_element show_address_lt_cmd;
+extern struct cmd_element show_address_lt_all_cmd;
 
 #endif /* _ZEBRA_IF_H */

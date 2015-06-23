@@ -35,7 +35,7 @@
 #include "privs.h"
 #include "sigevent.h"
 #include "zclient.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "ospf6d.h"
 #include "ospf6_top.h"
@@ -151,7 +151,7 @@ ospf6_exit (int status)
   ospf6_asbr_terminate ();
   ospf6_lsa_terminate ();
 
-  vrf_terminate ();
+  lt_terminate ();
   vty_terminate ();
   cmd_terminate ();
 
@@ -319,7 +319,7 @@ main (int argc, char *argv[], char *envp[])
   cmd_init (1);
   vty_init (master);
   memory_init ();
-  vrf_init ();
+  lt_init ();
   access_list_init ();
   prefix_list_init ();
 

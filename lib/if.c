@@ -27,7 +27,7 @@
 #include "vector.h"
 #include "vty.h"
 #include "command.h"
-#include "vrf.h"
+#include "logical_table.h"
 #include "if.h"
 #include "sockunion.h"
 #include "prefix.h"
@@ -37,7 +37,7 @@
 #include "str.h"
 #include "log.h"
 
-/* List of interfaces in only the default VRF */
+/* List of interfaces in only the default LT */
 struct list *iflist;
 
 /* One for each program.  This structure is needed to store hooks. */
@@ -114,10 +114,10 @@ if_cmp_func (struct interface *ifp1, struct interface *ifp2)
 
 /* Create new interface structure. */
 struct interface *
-if_create_vrf (const char *name, int namelen, vrf_id_t vrf_id)
+if_create_lt (const char *name, int namelen, ltid_t ltid)
 {
   struct interface *ifp;
-  struct list *intf_list = vrf_iflist_get (vrf_id);
+  struct list *intf_list = lt_iflist_get (ltid);
 
   ifp = XCALLOC (MTYPE_IF, sizeof (struct interface));
   ifp->ifindex = IFINDEX_INTERNAL;
@@ -126,12 +126,12 @@ if_create_vrf (const char *name, int namelen, vrf_id_t vrf_id)
   assert (namelen <= INTERFACE_NAMSIZ);	/* Need space for '\0' at end. */
   strncpy (ifp->name, name, namelen);
   ifp->name[namelen] = '\0';
-  ifp->vrf_id = vrf_id;
-  if (if_lookup_by_name_vrf (ifp->name, vrf_id) == NULL)
+  ifp->ltid = ltid;
+  if (if_lookup_by_name_lt (ifp->name, ltid) == NULL)
     listnode_add_sort (intf_list, ifp);
   else
     zlog_err("if_create(%s): corruption detected -- interface with this "
-             "name exists already in VRF %u!", ifp->name, vrf_id);
+             "name exists already in LT %u!", ifp->name, ltid);
   ifp->connected = list_new ();
   ifp->connected->del = (void (*) (void *)) connected_free;
 
@@ -144,7 +144,7 @@ if_create_vrf (const char *name, int namelen, vrf_id_t vrf_id)
 struct interface *
 if_create (const char *name, int namelen)
 {
-  return if_create_vrf (name, namelen, VRF_DEFAULT);
+  return if_create_lt (name, namelen, LTID_DEFAULT);
 }
 
 /* Delete interface structure. */
@@ -162,7 +162,7 @@ if_delete_retain (struct interface *ifp)
 void
 if_delete (struct interface *ifp)
 {
-  listnode_delete (vrf_iflist (ifp->vrf_id), ifp);
+  listnode_delete (lt_iflist (ifp->ltid), ifp);
 
   if_delete_retain(ifp);
 
@@ -189,12 +189,12 @@ if_add_hook (int type, int (*func)(struct interface *ifp))
 
 /* Interface existance check by index. */
 struct interface *
-if_lookup_by_index_vrf (unsigned int index, vrf_id_t vrf_id)
+if_lookup_by_index_lt (unsigned int index, ltid_t ltid)
 {
   struct listnode *node;
   struct interface *ifp;
 
-  for (ALL_LIST_ELEMENTS_RO (vrf_iflist (vrf_id), node, ifp))
+  for (ALL_LIST_ELEMENTS_RO (lt_iflist (ltid), node, ifp))
     {
       if (ifp->ifindex == index)
 	return ifp;
@@ -205,48 +205,48 @@ if_lookup_by_index_vrf (unsigned int index, vrf_id_t vrf_id)
 struct interface *
 if_lookup_by_index (unsigned int index)
 {
-  return if_lookup_by_index_vrf (index, VRF_DEFAULT);
+  return if_lookup_by_index_lt (index, LTID_DEFAULT);
 }
 
 const char *
-ifindex2ifname_vrf (unsigned int index, vrf_id_t vrf_id)
+ifindex2ifname_lt (unsigned int index, ltid_t ltid)
 {
   struct interface *ifp;
 
-  return ((ifp = if_lookup_by_index_vrf (index, vrf_id)) != NULL) ?
+  return ((ifp = if_lookup_by_index_lt (index, ltid)) != NULL) ?
   	 ifp->name : "unknown";
 }
 
 const char *
 ifindex2ifname (unsigned int index)
 {
-  return ifindex2ifname_vrf (index, VRF_DEFAULT);
+  return ifindex2ifname_lt (index, LTID_DEFAULT);
 }
 
 unsigned int
-ifname2ifindex_vrf (const char *name, vrf_id_t vrf_id)
+ifname2ifindex_lt (const char *name, ltid_t ltid)
 {
   struct interface *ifp;
 
-  return ((ifp = if_lookup_by_name_vrf (name, vrf_id)) != NULL) ? ifp->ifindex
+  return ((ifp = if_lookup_by_name_lt (name, ltid)) != NULL) ? ifp->ifindex
                                                    : IFINDEX_INTERNAL;
 }
 
 unsigned int
 ifname2ifindex (const char *name)
 {
-  return ifname2ifindex_vrf (name, VRF_DEFAULT);
+  return ifname2ifindex_lt (name, LTID_DEFAULT);
 }
 
 /* Interface existance check by interface name. */
 struct interface *
-if_lookup_by_name_vrf (const char *name, vrf_id_t vrf_id)
+if_lookup_by_name_lt (const char *name, ltid_t ltid)
 {
   struct listnode *node;
   struct interface *ifp;
   
   if (name)
-    for (ALL_LIST_ELEMENTS_RO (vrf_iflist (vrf_id), node, ifp))
+    for (ALL_LIST_ELEMENTS_RO (lt_iflist (ltid), node, ifp))
       {
         if (strcmp(name, ifp->name) == 0)
           return ifp;
@@ -257,11 +257,11 @@ if_lookup_by_name_vrf (const char *name, vrf_id_t vrf_id)
 struct interface *
 if_lookup_by_name (const char *name)
 {
-  return if_lookup_by_name_vrf (name, VRF_DEFAULT);
+  return if_lookup_by_name_lt (name, LTID_DEFAULT);
 }
 
 struct interface *
-if_lookup_by_name_len_vrf (const char *name, size_t namelen, vrf_id_t vrf_id)
+if_lookup_by_name_len_lt (const char *name, size_t namelen, ltid_t ltid)
 {
   struct listnode *node;
   struct interface *ifp;
@@ -269,7 +269,7 @@ if_lookup_by_name_len_vrf (const char *name, size_t namelen, vrf_id_t vrf_id)
   if (namelen > INTERFACE_NAMSIZ)
     return NULL;
 
-  for (ALL_LIST_ELEMENTS_RO (vrf_iflist (vrf_id), node, ifp))
+  for (ALL_LIST_ELEMENTS_RO (lt_iflist (ltid), node, ifp))
     {
       if (!memcmp(name, ifp->name, namelen) && (ifp->name[namelen] == '\0'))
 	return ifp;
@@ -280,12 +280,12 @@ if_lookup_by_name_len_vrf (const char *name, size_t namelen, vrf_id_t vrf_id)
 struct interface *
 if_lookup_by_name_len(const char *name, size_t namelen)
 {
-  return if_lookup_by_name_len_vrf (name, namelen, VRF_DEFAULT);
+  return if_lookup_by_name_len_lt (name, namelen, LTID_DEFAULT);
 }
 
 /* Lookup interface by IPv4 address. */
 struct interface *
-if_lookup_exact_address_vrf (struct in_addr src, vrf_id_t vrf_id)
+if_lookup_exact_address_lt (struct in_addr src, ltid_t ltid)
 {
   struct listnode *node;
   struct listnode *cnode;
@@ -293,7 +293,7 @@ if_lookup_exact_address_vrf (struct in_addr src, vrf_id_t vrf_id)
   struct prefix *p;
   struct connected *c;
 
-  for (ALL_LIST_ELEMENTS_RO (vrf_iflist (vrf_id), node, ifp))
+  for (ALL_LIST_ELEMENTS_RO (lt_iflist (ltid), node, ifp))
     {
       for (ALL_LIST_ELEMENTS_RO (ifp->connected, cnode, c))
 	{
@@ -312,12 +312,12 @@ if_lookup_exact_address_vrf (struct in_addr src, vrf_id_t vrf_id)
 struct interface *
 if_lookup_exact_address (struct in_addr src)
 {
-  return if_lookup_exact_address_vrf (src, VRF_DEFAULT);
+  return if_lookup_exact_address_lt (src, LTID_DEFAULT);
 }
 
 /* Lookup interface by IPv4 address. */
 struct interface *
-if_lookup_address_vrf (struct in_addr src, vrf_id_t vrf_id)
+if_lookup_address_lt (struct in_addr src, ltid_t ltid)
 {
   struct listnode *node;
   struct prefix addr;
@@ -333,7 +333,7 @@ if_lookup_address_vrf (struct in_addr src, vrf_id_t vrf_id)
 
   match = NULL;
 
-  for (ALL_LIST_ELEMENTS_RO (vrf_iflist (vrf_id), node, ifp))
+  for (ALL_LIST_ELEMENTS_RO (lt_iflist (ltid), node, ifp))
     {
       for (ALL_LIST_ELEMENTS_RO (ifp->connected, cnode, c))
 	{
@@ -352,19 +352,19 @@ if_lookup_address_vrf (struct in_addr src, vrf_id_t vrf_id)
 struct interface *
 if_lookup_address (struct in_addr src)
 {
-  return if_lookup_address_vrf (src, VRF_DEFAULT);
+  return if_lookup_address_lt (src, LTID_DEFAULT);
 }
 
 /* Lookup interface by prefix */
 struct interface *
-if_lookup_prefix_vrf (struct prefix *prefix, vrf_id_t vrf_id)
+if_lookup_prefix_lt (struct prefix *prefix, ltid_t ltid)
 {
   struct listnode *node;
   struct listnode *cnode;
   struct interface *ifp;
   struct connected *c;
 
-  for (ALL_LIST_ELEMENTS_RO (vrf_iflist (vrf_id), node, ifp))
+  for (ALL_LIST_ELEMENTS_RO (lt_iflist (ltid), node, ifp))
     {
       for (ALL_LIST_ELEMENTS_RO (ifp->connected, cnode, c))
         {
@@ -380,39 +380,39 @@ if_lookup_prefix_vrf (struct prefix *prefix, vrf_id_t vrf_id)
 struct interface *
 if_lookup_prefix (struct prefix *prefix)
 {
-  return if_lookup_prefix_vrf (prefix, VRF_DEFAULT);
+  return if_lookup_prefix_lt (prefix, LTID_DEFAULT);
 }
 
 /* Get interface by name if given name interface doesn't exist create
    one. */
 struct interface *
-if_get_by_name_vrf (const char *name, vrf_id_t vrf_id)
+if_get_by_name_lt (const char *name, ltid_t ltid)
 {
   struct interface *ifp;
 
-  return ((ifp = if_lookup_by_name_vrf (name, vrf_id)) != NULL) ? ifp :
-         if_create_vrf (name, strlen(name), vrf_id);
+  return ((ifp = if_lookup_by_name_lt (name, ltid)) != NULL) ? ifp :
+         if_create_lt (name, strlen(name), ltid);
 }
 
 struct interface *
 if_get_by_name (const char *name)
 {
-  return if_get_by_name_vrf (name, VRF_DEFAULT);
+  return if_get_by_name_lt (name, LTID_DEFAULT);
 }
 
 struct interface *
-if_get_by_name_len_vrf (const char *name, size_t namelen, vrf_id_t vrf_id)
+if_get_by_name_len_lt (const char *name, size_t namelen, ltid_t ltid)
 {
   struct interface *ifp;
 
-  return ((ifp = if_lookup_by_name_len_vrf (name, namelen, vrf_id)) != NULL) ? \
-         ifp : if_create_vrf (name, namelen, vrf_id);
+  return ((ifp = if_lookup_by_name_len_lt (name, namelen, ltid)) != NULL) ? \
+         ifp : if_create_lt (name, namelen, ltid);
 }
 
 struct interface *
 if_get_by_name_len (const char *name, size_t namelen)
 {
-  return if_get_by_name_len_vrf (name, namelen, VRF_DEFAULT);
+  return if_get_by_name_len_lt (name, namelen, LTID_DEFAULT);
 }
 
 /* Does interface up ? */
@@ -523,12 +523,12 @@ if_dump (const struct interface *ifp)
   struct connected *c __attribute__((unused));
 
   for (ALL_LIST_ELEMENTS_RO (ifp->connected, node, c))
-    zlog_info ("Interface %s vrf %u index %d metric %d mtu %d "
+    zlog_info ("Interface %s lt %u index %d metric %d mtu %d "
 #ifdef HAVE_IPV6
                "mtu6 %d "
 #endif /* HAVE_IPV6 */
                "%s",
-               ifp->name, ifp->vrf_id, ifp->ifindex, ifp->metric, ifp->mtu,
+               ifp->name, ifp->ltid, ifp->ifindex, ifp->metric, ifp->mtu,
 #ifdef HAVE_IPV6
                ifp->mtu6,
 #endif /* HAVE_IPV6 */
@@ -542,10 +542,10 @@ if_dump_all (void)
   struct list *intf_list;
   struct listnode *node;
   void *p;
-  vrf_iter_t iter;
+  lt_iter_t iter;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
-    if ((intf_list = vrf_iter2iflist (iter)) != NULL)
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
+    if ((intf_list = lt_iter2iflist (iter)) != NULL)
       for (ALL_LIST_ELEMENTS_RO (intf_list, node, p))
         if_dump (p);
 }
@@ -607,12 +607,12 @@ DEFUN (no_interface_desc,
  *     - no idea, just get the name in its entirety.
  */
 static struct interface *
-if_sunwzebra_get (const char *name, size_t nlen, vrf_id_t vrf_id)
+if_sunwzebra_get (const char *name, size_t nlen, ltid_t ltid)
 {
   struct interface *ifp;
   size_t seppos = 0;
 
-  if ( (ifp = if_lookup_by_name_len_vrf (name, nlen, vrf_id)) != NULL)
+  if ( (ifp = if_lookup_by_name_len_lt (name, nlen, ltid)) != NULL)
     return ifp;
   
   /* hunt the primary interface name... */
@@ -621,9 +621,9 @@ if_sunwzebra_get (const char *name, size_t nlen, vrf_id_t vrf_id)
   
   /* Wont catch seperator as last char, e.g. 'foo0:' but thats invalid */
   if (seppos < nlen)
-    return if_get_by_name_len_vrf (name, seppos, vrf_id);
+    return if_get_by_name_len_lt (name, seppos, ltid);
   else
-    return if_get_by_name_len_vrf (name, nlen, vrf_id);
+    return if_get_by_name_len_lt (name, nlen, ltid);
 }
 #endif /* SUNOS_5 */
 
@@ -635,7 +635,7 @@ DEFUN (interface,
 {
   struct interface *ifp;
   size_t sl;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if ((sl = strlen(argv[0])) > INTERFACE_NAMSIZ)
     {
@@ -646,12 +646,12 @@ DEFUN (interface,
     }
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
 #ifdef SUNOS_5
-  ifp = if_sunwzebra_get (argv[0], sl, vrf_id);
+  ifp = if_sunwzebra_get (argv[0], sl, ltid);
 #else
-  ifp = if_get_by_name_len_vrf (argv[0], sl, vrf_id);
+  ifp = if_get_by_name_len_lt (argv[0], sl, ltid);
 #endif /* SUNOS_5 */
 
   vty->index = ifp;
@@ -661,11 +661,11 @@ DEFUN (interface,
 }
 
 ALIAS (interface,
-       interface_vrf_cmd,
-       "interface IFNAME " VRF_CMD_STR,
+       interface_lt_cmd,
+       "interface IFNAME " LT_CMD_STR,
        "Select an interface to configure\n"
        "Interface's name\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN_NOSH (no_interface,
            no_interface_cmd,
@@ -676,12 +676,12 @@ DEFUN_NOSH (no_interface,
 {
   // deleting interface
   struct interface *ifp;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
-  ifp = if_lookup_by_name_vrf (argv[0], vrf_id);
+  ifp = if_lookup_by_name_lt (argv[0], ltid);
 
   if (ifp == NULL)
     {
@@ -702,12 +702,12 @@ DEFUN_NOSH (no_interface,
 }
 
 ALIAS (no_interface,
-       no_interface_vrf_cmd,
-       "no interface IFNAME " VRF_CMD_STR,
+       no_interface_lt_cmd,
+       "no interface IFNAME " LT_CMD_STR,
        NO_STR
        "Delete a pseudo interface's configuration\n"
        "Interface's name\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 /* For debug purpose. */
 DEFUN (show_address,
@@ -721,12 +721,12 @@ DEFUN (show_address,
   struct interface *ifp;
   struct connected *ifc;
   struct prefix *p;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
-  for (ALL_LIST_ELEMENTS_RO (vrf_iflist (vrf_id), node, ifp))
+  for (ALL_LIST_ELEMENTS_RO (lt_iflist (ltid), node, ifp))
     {
       for (ALL_LIST_ELEMENTS_RO (ifp->connected, node2, ifc))
 	{
@@ -741,18 +741,18 @@ DEFUN (show_address,
 }
 
 ALIAS (show_address,
-       show_address_vrf_cmd,
-       "show address " VRF_CMD_STR,
+       show_address_lt_cmd,
+       "show address " LT_CMD_STR,
        SHOW_STR
        "address\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
-DEFUN (show_address_vrf_all,
-       show_address_vrf_all_cmd,
-       "show address " VRF_ALL_CMD_STR,
+DEFUN (show_address_lt_all,
+       show_address_lt_all_cmd,
+       "show address " LT_ALL_CMD_STR,
        SHOW_STR
        "address\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   struct list *intf_list;
   struct listnode *node;
@@ -760,15 +760,15 @@ DEFUN (show_address_vrf_all,
   struct interface *ifp;
   struct connected *ifc;
   struct prefix *p;
-  vrf_iter_t iter;
+  lt_iter_t iter;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      intf_list = vrf_iter2iflist (iter);
+      intf_list = lt_iter2iflist (iter);
       if (!intf_list || !listcount (intf_list))
         continue;
 
-      vty_out (vty, "%sVRF %u%s%s", VTY_NEWLINE, vrf_iter2id (iter),
+      vty_out (vty, "%sLT %u%s%s", VTY_NEWLINE, lt_iter2id (iter),
                VTY_NEWLINE, VTY_NEWLINE);
 
       for (ALL_LIST_ELEMENTS_RO (intf_list, node, ifp))
@@ -821,8 +821,8 @@ connected_log (struct connected *connected, char *str)
   ifp = connected->ifp;
   p = connected->address;
 
-  snprintf (logbuf, BUFSIZ, "%s interface %s vrf %u %s %s/%d ",
-	    str, ifp->name, ifp->vrf_id, prefix_family_str (p),
+  snprintf (logbuf, BUFSIZ, "%s interface %s lt %u %s %s/%d ",
+	    str, ifp->name, ifp->ltid, prefix_family_str (p),
 	    inet_ntop (p->family, &p->u.prefix, buf, BUFSIZ),
 	    p->prefixlen);
 
@@ -1032,7 +1032,7 @@ ifaddr_ipv4_lookup (struct in_addr *addr, unsigned int ifindex)
 
 /* Initialize interface list. */
 void
-if_init (vrf_id_t vrf_id, struct list **intf_list)
+if_init (ltid_t ltid, struct list **intf_list)
 {
   *intf_list = list_new ();
 #if 0
@@ -1041,12 +1041,12 @@ if_init (vrf_id_t vrf_id, struct list **intf_list)
 
   (*intf_list)->cmp = (int (*)(void *, void *))if_cmp_func;
 
-  if (vrf_id == VRF_DEFAULT)
+  if (ltid == LTID_DEFAULT)
     iflist = *intf_list;
 }
 
 void
-if_terminate (vrf_id_t vrf_id, struct list **intf_list)
+if_terminate (ltid_t ltid, struct list **intf_list)
 {
   for (;;)
     {
@@ -1062,6 +1062,6 @@ if_terminate (vrf_id_t vrf_id, struct list **intf_list)
   list_delete (*intf_list);
   *intf_list = NULL;
 
-  if (vrf_id == VRF_DEFAULT)
+  if (ltid == LTID_DEFAULT)
     iflist = NULL;
 }

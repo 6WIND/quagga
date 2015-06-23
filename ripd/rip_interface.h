@@ -22,16 +22,16 @@
 #define _QUAGGA_RIP_INTERFACE_H
 
 extern int rip_interface_down (int , struct zclient *, zebra_size_t,
-    vrf_id_t);
+    ltid_t);
 extern int rip_interface_up (int , struct zclient *, zebra_size_t,
-    vrf_id_t);
+    ltid_t);
 extern int rip_interface_add (int , struct zclient *, zebra_size_t,
-    vrf_id_t);
+    ltid_t);
 extern int rip_interface_delete (int , struct zclient *, zebra_size_t,
-    vrf_id_t);
+    ltid_t);
 extern int rip_interface_address_add (int , struct zclient *, zebra_size_t,
-    vrf_id_t);
+    ltid_t);
 extern int rip_interface_address_delete (int , struct zclient *, zebra_size_t,
-    vrf_id_t);
+    ltid_t);
 
 #endif /* _QUAGGA_RIP_INTERFACE_H */

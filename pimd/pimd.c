@@ -24,7 +24,7 @@
 
 #include "log.h"
 #include "memory.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "pimd.h"
 #include "pim_cmd.h"
@@ -137,6 +137,6 @@ void pim_init()
 
 void pim_terminate()
 {
-  vrf_terminate();
+  lt_terminate();
   pim_free();
 }

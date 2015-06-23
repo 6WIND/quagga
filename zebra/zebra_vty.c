@@ -27,11 +27,11 @@
 #include "command.h"
 #include "table.h"
 #include "rib.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "zebra/zserv.h"
 
-static int do_show_ip_route(struct vty *vty, safi_t safi, vrf_id_t vrf_id);
+static int do_show_ip_route(struct vty *vty, safi_t safi, ltid_t ltid);
 static void vty_show_ip_route_detail (struct vty *vty, struct route_node *rn,
                                       int mcast);
 static void vty_show_ip_route (struct vty *vty, struct route_node *rn,
@@ -42,7 +42,7 @@ static int
 zebra_static_ipv4_safi (struct vty *vty, safi_t safi, int add_cmd,
 			const char *dest_str, const char *mask_str,
 			const char *gate_str, const char *flag_str,
-			const char *distance_str, const char *vrf_id_str)
+			const char *distance_str, const char *ltid_str)
 {
   int ret;
   u_char distance;
@@ -51,7 +51,7 @@ zebra_static_ipv4_safi (struct vty *vty, safi_t safi, int add_cmd,
   struct in_addr mask;
   const char *ifname;
   u_char flag = 0;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
   
   ret = str2prefix (dest_str, &p);
   if (ret <= 0)
@@ -81,9 +81,9 @@ zebra_static_ipv4_safi (struct vty *vty, safi_t safi, int add_cmd,
   else
     distance = ZEBRA_STATIC_DISTANCE_DEFAULT;
 
-  /* VRF id */
-  if (vrf_id_str)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, vrf_id_str);
+  /* LT id */
+  if (ltid_str)
+    VTY_GET_INTEGER ("LT ID", ltid, ltid_str);
 
   /* Null0 static route.  */
   if ((gate_str != NULL) && (strncasecmp (gate_str, "Null0", strlen (gate_str)) == 0))
@@ -94,9 +94,9 @@ zebra_static_ipv4_safi (struct vty *vty, safi_t safi, int add_cmd,
           return CMD_WARNING;
         }
       if (add_cmd)
-        static_add_ipv4_safi (safi, &p, NULL, NULL, ZEBRA_FLAG_BLACKHOLE, distance, vrf_id);
+        static_add_ipv4_safi (safi, &p, NULL, NULL, ZEBRA_FLAG_BLACKHOLE, distance, ltid);
       else
-        static_delete_ipv4_safi (safi, &p, NULL, NULL, distance, vrf_id);
+        static_delete_ipv4_safi (safi, &p, NULL, NULL, distance, ltid);
       return CMD_SUCCESS;
     }
 
@@ -120,9 +120,9 @@ zebra_static_ipv4_safi (struct vty *vty, safi_t safi, int add_cmd,
   if (gate_str == NULL)
   {
     if (add_cmd)
-      static_add_ipv4_safi (safi, &p, NULL, NULL, flag, distance, vrf_id);
+      static_add_ipv4_safi (safi, &p, NULL, NULL, flag, distance, ltid);
     else
-      static_delete_ipv4_safi (safi, &p, NULL, NULL, distance, vrf_id);
+      static_delete_ipv4_safi (safi, &p, NULL, NULL, distance, ltid);
 
     return CMD_SUCCESS;
   }
@@ -136,9 +136,9 @@ zebra_static_ipv4_safi (struct vty *vty, safi_t safi, int add_cmd,
     ifname = gate_str;
 
   if (add_cmd)
-    static_add_ipv4_safi (safi, &p, ifname ? NULL : &gate, ifname, flag, distance, vrf_id);
+    static_add_ipv4_safi (safi, &p, ifname ? NULL : &gate, ifname, flag, distance, ltid);
   else
-    static_delete_ipv4_safi (safi, &p, ifname ? NULL : &gate, ifname, distance, vrf_id);
+    static_delete_ipv4_safi (safi, &p, ifname ? NULL : &gate, ifname, distance, ltid);
 
   return CMD_SUCCESS;
 }
@@ -147,10 +147,10 @@ static int
 zebra_static_ipv4 (struct vty *vty, int add_cmd, const char *dest_str,
 		   const char *mask_str, const char *gate_str,
 		   const char *flag_str, const char *distance_str,
-		   const char *vrf_id_str)
+		   const char *ltid_str)
 {
   return zebra_static_ipv4_safi (vty, SAFI_UNICAST, add_cmd, dest_str, mask_str,
-                                 gate_str, flag_str, distance_str, vrf_id_str);
+                                 gate_str, flag_str, distance_str, ltid_str);
 }
 
 /* Static unicast routes for multicast RPF lookup. */
@@ -178,16 +178,16 @@ ALIAS (ip_mroute_dist,
        "Nexthop address\n"
        "Nexthop interface name\n")
 
-DEFUN (ip_mroute_dist_vrf,
-       ip_mroute_dist_vrf_cmd,
-       "ip mroute A.B.C.D/M (A.B.C.D|INTERFACE) <1-255> " VRF_CMD_STR,
+DEFUN (ip_mroute_dist_lt,
+       ip_mroute_dist_lt_cmd,
+       "ip mroute A.B.C.D/M (A.B.C.D|INTERFACE) <1-255> " LT_CMD_STR,
        IP_STR
        "Configure static unicast route into MRIB for multicast RPF lookup\n"
        "IP destination prefix (e.g. 10.0.0.0/8)\n"
        "Nexthop address\n"
        "Nexthop interface name\n"
        "Distance\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   VTY_WARN_EXPERIMENTAL();
   return zebra_static_ipv4_safi(vty, SAFI_MULTICAST, 1, argv[0], NULL, argv[1],
@@ -195,15 +195,15 @@ DEFUN (ip_mroute_dist_vrf,
                                 argc > 3 ? argv[3] : argv[2]);
 }
 
-ALIAS (ip_mroute_dist_vrf,
-       ip_mroute_vrf_cmd,
-       "ip mroute A.B.C.D/M (A.B.C.D|INTERFACE) "VRF_CMD_STR,
+ALIAS (ip_mroute_dist_lt,
+       ip_mroute_lt_cmd,
+       "ip mroute A.B.C.D/M (A.B.C.D|INTERFACE) "LT_CMD_STR,
        IP_STR
        "Configure static unicast route into MRIB for multicast RPF lookup\n"
        "IP destination prefix (e.g. 10.0.0.0/8)\n"
        "Nexthop address\n"
        "Nexthop interface name\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (no_ip_mroute_dist,
        no_ip_mroute_dist_cmd,
@@ -230,16 +230,16 @@ ALIAS (no_ip_mroute_dist,
        "Nexthop address\n"
        "Nexthop interface name\n")
 
-DEFUN (no_ip_mroute_dist_vrf,
-       no_ip_mroute_dist_vrf_cmd,
-       "no ip mroute A.B.C.D/M (A.B.C.D|INTERFACE) <1-255> " VRF_CMD_STR,
+DEFUN (no_ip_mroute_dist_lt,
+       no_ip_mroute_dist_lt_cmd,
+       "no ip mroute A.B.C.D/M (A.B.C.D|INTERFACE) <1-255> " LT_CMD_STR,
        IP_STR
        "Configure static unicast route into MRIB for multicast RPF lookup\n"
        "IP destination prefix (e.g. 10.0.0.0/8)\n"
        "Nexthop address\n"
        "Nexthop interface name\n"
        "Distance\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   VTY_WARN_EXPERIMENTAL();
   return zebra_static_ipv4_safi(vty, SAFI_MULTICAST, 0, argv[0], NULL, argv[1],
@@ -247,16 +247,16 @@ DEFUN (no_ip_mroute_dist_vrf,
                                 argc > 3 ? argv[3] : argv[2]);
 }
 
-ALIAS (no_ip_mroute_dist_vrf,
-       no_ip_mroute_vrf_cmd,
-       "no ip mroute A.B.C.D/M (A.B.C.D|INTERFACE) " VRF_CMD_STR,
+ALIAS (no_ip_mroute_dist_lt,
+       no_ip_mroute_lt_cmd,
+       "no ip mroute A.B.C.D/M (A.B.C.D|INTERFACE) " LT_CMD_STR,
        NO_STR
        IP_STR
        "Configure static unicast route into MRIB for multicast RPF lookup\n"
        "IP destination prefix (e.g. 10.0.0.0/8)\n"
        "Nexthop address\n"
        "Nexthop interface name\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (ip_multicast_mode,
        ip_multicast_mode_cmd,
@@ -323,22 +323,22 @@ DEFUN (show_ip_rpf,
        IP_STR
        "Display RPF information for multicast source\n")
 {
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
   VTY_WARN_EXPERIMENTAL();
-  return do_show_ip_route(vty, SAFI_MULTICAST, vrf_id);
+  return do_show_ip_route(vty, SAFI_MULTICAST, ltid);
 }
 
 ALIAS (show_ip_rpf,
-       show_ip_rpf_vrf_cmd,
-       "show ip rpf " VRF_CMD_STR,
+       show_ip_rpf_lt_cmd,
+       "show ip rpf " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "Display RPF information for multicast source\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (show_ip_rpf_addr,
        show_ip_rpf_addr_cmd,
@@ -351,11 +351,11 @@ DEFUN (show_ip_rpf_addr,
   struct in_addr addr;
   struct route_node *rn;
   struct rib *rib;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
   int ret;
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
   VTY_WARN_EXPERIMENTAL();
 
@@ -366,7 +366,7 @@ DEFUN (show_ip_rpf_addr,
       return CMD_WARNING;
     }
 
-  rib = rib_match_ipv4_multicast (addr, &rn, vrf_id);
+  rib = rib_match_ipv4_multicast (addr, &rn, ltid);
 
   if (rib)
     vty_show_ip_route_detail (vty, rn, 1);
@@ -377,35 +377,35 @@ DEFUN (show_ip_rpf_addr,
 }
 
 ALIAS (show_ip_rpf_addr,
-       show_ip_rpf_addr_vrf_cmd,
-       "show ip rpf A.B.C.D " VRF_CMD_STR,
+       show_ip_rpf_addr_lt_cmd,
+       "show ip rpf A.B.C.D " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "Display RPF information for multicast source\n"
        "IP multicast source address (e.g. 10.0.0.0)\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
-DEFUN (show_ip_rpf_vrf_all,
-       show_ip_rpf_vrf_all_cmd,
-       "show ip rpf " VRF_ALL_CMD_STR,
+DEFUN (show_ip_rpf_lt_all,
+       show_ip_rpf_lt_all_cmd,
+       "show ip rpf " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "Display RPF information for multicast source\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
-  struct zebra_vrf *zvrf;
+  struct zebra_lt *zlt;
   struct route_table *table;
   struct route_node *rn;
   struct rib *rib;
-  vrf_iter_t iter;
+  lt_iter_t iter;
   int first = 1;
 
   VTY_WARN_EXPERIMENTAL();
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP][SAFI_MULTICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP][SAFI_MULTICAST]) == NULL)
         continue;
 
       /* Show all IPv4 routes. */
@@ -424,18 +424,18 @@ DEFUN (show_ip_rpf_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ip_rpf_addr_vrf_all,
-       show_ip_rpf_addr_vrf_all_cmd,
-       "show ip rpf A.B.C.D " VRF_ALL_CMD_STR,
+DEFUN (show_ip_rpf_addr_lt_all,
+       show_ip_rpf_addr_lt_all_cmd,
+       "show ip rpf A.B.C.D " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "Display RPF information for multicast source\n"
        "IP multicast source address (e.g. 10.0.0.0)\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   struct in_addr addr;
   struct route_node *rn;
-  vrf_iter_t iter;
+  lt_iter_t iter;
   int ret;
 
   VTY_WARN_EXPERIMENTAL();
@@ -447,9 +447,9 @@ DEFUN (show_ip_rpf_addr_vrf_all,
       return CMD_WARNING;
     }
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if (rib_match_ipv4_multicast (addr, &rn, vrf_iter2id (iter)))
+      if (rib_match_ipv4_multicast (addr, &rn, lt_iter2id (iter)))
         vty_show_ip_route_detail (vty, rn, 1);
     }
 
@@ -823,24 +823,24 @@ DEFUN (no_ip_route_mask_flags_distance2,
                             NULL);
 }
 
-DEFUN (ip_route_vrf,
-       ip_route_vrf_cmd,
-       "ip route A.B.C.D/M (A.B.C.D|INTERFACE|null0) " VRF_CMD_STR,
+DEFUN (ip_route_lt,
+       ip_route_lt_cmd,
+       "ip route A.B.C.D/M (A.B.C.D|INTERFACE|null0) " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix (e.g. 10.0.0.0/8)\n"
        "IP gateway address\n"
        "IP gateway interface name\n"
        "Null interface\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], NULL, argv[1], NULL, NULL,
                             argv[2]);
 }
 
-DEFUN (ip_route_flags_vrf,
-       ip_route_flags_vrf_cmd,
-       "ip route A.B.C.D/M (A.B.C.D|INTERFACE) (reject|blackhole) " VRF_CMD_STR,
+DEFUN (ip_route_flags_lt,
+       ip_route_flags_lt_cmd,
+       "ip route A.B.C.D/M (A.B.C.D|INTERFACE) (reject|blackhole) " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix (e.g. 10.0.0.0/8)\n"
@@ -848,30 +848,30 @@ DEFUN (ip_route_flags_vrf,
        "IP gateway interface name\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], NULL, argv[1], argv[2], NULL,
                             argv[3]);
 }
 
-DEFUN (ip_route_flags2_vrf,
-       ip_route_flags2_vrf_cmd,
-       "ip route A.B.C.D/M (reject|blackhole) " VRF_CMD_STR,
+DEFUN (ip_route_flags2_lt,
+       ip_route_flags2_lt_cmd,
+       "ip route A.B.C.D/M (reject|blackhole) " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix (e.g. 10.0.0.0/8)\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], NULL, NULL, argv[1], NULL,
                             argv[2]);
 }
 
 /* Mask as A.B.C.D format.  */
-DEFUN (ip_route_mask_vrf,
-       ip_route_mask_vrf_cmd,
-       "ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE|null0) " VRF_CMD_STR,
+DEFUN (ip_route_mask_lt,
+       ip_route_mask_lt_cmd,
+       "ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE|null0) " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix\n"
@@ -879,15 +879,15 @@ DEFUN (ip_route_mask_vrf,
        "IP gateway address\n"
        "IP gateway interface name\n"
        "Null interface\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], argv[1], argv[2], NULL, NULL,
                             argv[3]);
 }
 
-DEFUN (ip_route_mask_flags_vrf,
-       ip_route_mask_flags_vrf_cmd,
-       "ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE) (reject|blackhole) " VRF_CMD_STR,
+DEFUN (ip_route_mask_flags_lt,
+       ip_route_mask_flags_lt_cmd,
+       "ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE) (reject|blackhole) " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix\n"
@@ -896,31 +896,31 @@ DEFUN (ip_route_mask_flags_vrf,
        "IP gateway interface name\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], argv[1], argv[2], argv[3], NULL,
                             argv[4]);
 }
 
-DEFUN (ip_route_mask_flags2_vrf,
-       ip_route_mask_flags2_vrf_cmd,
-       "ip route A.B.C.D A.B.C.D (reject|blackhole) " VRF_CMD_STR,
+DEFUN (ip_route_mask_flags2_lt,
+       ip_route_mask_flags2_lt_cmd,
+       "ip route A.B.C.D A.B.C.D (reject|blackhole) " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix\n"
        "IP destination prefix mask\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], argv[1], NULL, argv[2], NULL,
                             argv[3]);
 }
 
 /* Distance option value.  */
-DEFUN (ip_route_distance_vrf,
-       ip_route_distance_vrf_cmd,
-       "ip route A.B.C.D/M (A.B.C.D|INTERFACE|null0) <1-255> " VRF_CMD_STR,
+DEFUN (ip_route_distance_lt,
+       ip_route_distance_lt_cmd,
+       "ip route A.B.C.D/M (A.B.C.D|INTERFACE|null0) <1-255> " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix (e.g. 10.0.0.0/8)\n"
@@ -928,15 +928,15 @@ DEFUN (ip_route_distance_vrf,
        "IP gateway interface name\n"
        "Null interface\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], NULL, argv[1], NULL, argv[2],
                             argv[3]);
 }
 
-DEFUN (ip_route_flags_distance_vrf,
-       ip_route_flags_distance_vrf_cmd,
-       "ip route A.B.C.D/M (A.B.C.D|INTERFACE) (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (ip_route_flags_distance_lt,
+       ip_route_flags_distance_lt_cmd,
+       "ip route A.B.C.D/M (A.B.C.D|INTERFACE) (reject|blackhole) <1-255> " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix (e.g. 10.0.0.0/8)\n"
@@ -945,30 +945,30 @@ DEFUN (ip_route_flags_distance_vrf,
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], NULL, argv[1], argv[2], argv[3],
                             argv[4]);
 }
 
-DEFUN (ip_route_flags_distance2_vrf,
-       ip_route_flags_distance2_vrf_cmd,
-       "ip route A.B.C.D/M (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (ip_route_flags_distance2_lt,
+       ip_route_flags_distance2_lt_cmd,
+       "ip route A.B.C.D/M (reject|blackhole) <1-255> " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix (e.g. 10.0.0.0/8)\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], NULL, NULL, argv[1], argv[2],
                             argv[3]);
 }
 
-DEFUN (ip_route_mask_distance_vrf,
-       ip_route_mask_distance_vrf_cmd,
-       "ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE|null0) <1-255> " VRF_CMD_STR,
+DEFUN (ip_route_mask_distance_lt,
+       ip_route_mask_distance_lt_cmd,
+       "ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE|null0) <1-255> " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix\n"
@@ -977,15 +977,15 @@ DEFUN (ip_route_mask_distance_vrf,
        "IP gateway interface name\n"
        "Null interface\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], argv[1], argv[2], NULL, argv[3],
                             argv[4]);
 }
 
-DEFUN (ip_route_mask_flags_distance_vrf,
-       ip_route_mask_flags_distance_vrf_cmd,
-       "ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE) (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (ip_route_mask_flags_distance_lt,
+       ip_route_mask_flags_distance_lt_cmd,
+       "ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE) (reject|blackhole) <1-255> " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix\n"
@@ -995,15 +995,15 @@ DEFUN (ip_route_mask_flags_distance_vrf,
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], argv[1], argv[2], argv[3], argv[4],
                             argv[5]);
 }
 
-DEFUN (ip_route_mask_flags_distance2_vrf,
-       ip_route_mask_flags_distance2_vrf_cmd,
-       "ip route A.B.C.D A.B.C.D (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (ip_route_mask_flags_distance2_lt,
+       ip_route_mask_flags_distance2_lt_cmd,
+       "ip route A.B.C.D A.B.C.D (reject|blackhole) <1-255> " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IP destination prefix\n"
@@ -1011,15 +1011,15 @@ DEFUN (ip_route_mask_flags_distance2_vrf,
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 1, argv[0], argv[1], NULL, argv[2], argv[3],
                             argv[4]);
 }
 
-DEFUN (no_ip_route_vrf,
-       no_ip_route_vrf_cmd,
-       "no ip route A.B.C.D/M (A.B.C.D|INTERFACE|null0) " VRF_CMD_STR,
+DEFUN (no_ip_route_lt,
+       no_ip_route_lt_cmd,
+       "no ip route A.B.C.D/M (A.B.C.D|INTERFACE|null0) " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -1027,15 +1027,15 @@ DEFUN (no_ip_route_vrf,
        "IP gateway address\n"
        "IP gateway interface name\n"
        "Null interface\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 0, argv[0], NULL, argv[1], NULL, NULL,
                             (argc > 3) ? argv[3] : argv[2]);
 }
 
-ALIAS (no_ip_route_vrf,
-       no_ip_route_flags_vrf_cmd,
-       "no ip route A.B.C.D/M (A.B.C.D|INTERFACE) (reject|blackhole) " VRF_CMD_STR,
+ALIAS (no_ip_route_lt,
+       no_ip_route_flags_lt_cmd,
+       "no ip route A.B.C.D/M (A.B.C.D|INTERFACE) (reject|blackhole) " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -1044,26 +1044,26 @@ ALIAS (no_ip_route_vrf,
        "IP gateway interface name\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
-DEFUN (no_ip_route_flags2_vrf,
-       no_ip_route_flags2_vrf_cmd,
-       "no ip route A.B.C.D/M (reject|blackhole) " VRF_CMD_STR,
+DEFUN (no_ip_route_flags2_lt,
+       no_ip_route_flags2_lt_cmd,
+       "no ip route A.B.C.D/M (reject|blackhole) " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
        "IP destination prefix (e.g. 10.0.0.0/8)\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 0, argv[0], NULL, NULL, NULL, NULL,
                             argv[2]);
 }
 
-DEFUN (no_ip_route_mask_vrf,
-       no_ip_route_mask_vrf_cmd,
-       "no ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE|null0) " VRF_CMD_STR,
+DEFUN (no_ip_route_mask_lt,
+       no_ip_route_mask_lt_cmd,
+       "no ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE|null0) " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -1072,15 +1072,15 @@ DEFUN (no_ip_route_mask_vrf,
        "IP gateway address\n"
        "IP gateway interface name\n"
        "Null interface\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 0, argv[0], argv[1], argv[2], NULL, NULL,
                             (argc > 4) ? argv[4] : argv[3]);
 }
 
-ALIAS (no_ip_route_mask_vrf,
-       no_ip_route_mask_flags_vrf_cmd,
-       "no ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE) (reject|blackhole) " VRF_CMD_STR,
+ALIAS (no_ip_route_mask_lt,
+       no_ip_route_mask_flags_lt_cmd,
+       "no ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE) (reject|blackhole) " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -1090,11 +1090,11 @@ ALIAS (no_ip_route_mask_vrf,
        "IP gateway interface name\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
-DEFUN (no_ip_route_mask_flags2_vrf,
-       no_ip_route_mask_flags2_vrf_cmd,
-       "no ip route A.B.C.D A.B.C.D (reject|blackhole) " VRF_CMD_STR,
+DEFUN (no_ip_route_mask_flags2_lt,
+       no_ip_route_mask_flags2_lt_cmd,
+       "no ip route A.B.C.D A.B.C.D (reject|blackhole) " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -1102,15 +1102,15 @@ DEFUN (no_ip_route_mask_flags2_vrf,
        "IP destination prefix mask\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 0, argv[0], argv[1], NULL, NULL, NULL,
                             argv[2]);
 }
 
-DEFUN (no_ip_route_distance_vrf,
-       no_ip_route_distance_vrf_cmd,
-       "no ip route A.B.C.D/M (A.B.C.D|INTERFACE|null0) <1-255> " VRF_CMD_STR,
+DEFUN (no_ip_route_distance_lt,
+       no_ip_route_distance_lt_cmd,
+       "no ip route A.B.C.D/M (A.B.C.D|INTERFACE|null0) <1-255> " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -1119,15 +1119,15 @@ DEFUN (no_ip_route_distance_vrf,
        "IP gateway interface name\n"
        "Null interface\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 0, argv[0], NULL, argv[1], NULL, argv[2],
                             argv[3]);
 }
 
-DEFUN (no_ip_route_flags_distance_vrf,
-       no_ip_route_flags_distance_vrf_cmd,
-       "no ip route A.B.C.D/M (A.B.C.D|INTERFACE) (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (no_ip_route_flags_distance_lt,
+       no_ip_route_flags_distance_lt_cmd,
+       "no ip route A.B.C.D/M (A.B.C.D|INTERFACE) (reject|blackhole) <1-255> " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -1137,15 +1137,15 @@ DEFUN (no_ip_route_flags_distance_vrf,
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 0, argv[0], NULL, argv[1], argv[2], argv[3],
                             argv[4]);
 }
 
-DEFUN (no_ip_route_flags_distance2_vrf,
-       no_ip_route_flags_distance2_vrf_cmd,
-       "no ip route A.B.C.D/M (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (no_ip_route_flags_distance2_lt,
+       no_ip_route_flags_distance2_lt_cmd,
+       "no ip route A.B.C.D/M (reject|blackhole) <1-255> " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -1153,15 +1153,15 @@ DEFUN (no_ip_route_flags_distance2_vrf,
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 0, argv[0], NULL, NULL, argv[1], argv[2],
                             argv[3]);
 }
 
-DEFUN (no_ip_route_mask_distance_vrf,
-       no_ip_route_mask_distance_vrf_cmd,
-       "no ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE|null0) <1-255> " VRF_CMD_STR,
+DEFUN (no_ip_route_mask_distance_lt,
+       no_ip_route_mask_distance_lt_cmd,
+       "no ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE|null0) <1-255> " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -1171,15 +1171,15 @@ DEFUN (no_ip_route_mask_distance_vrf,
        "IP gateway interface name\n"
        "Null interface\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 0, argv[0], argv[1], argv[2], NULL, argv[3],
                             argv[4]);
 }
 
-DEFUN (no_ip_route_mask_flags_distance_vrf,
-       no_ip_route_mask_flags_distance_vrf_cmd,
-       "no ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE) (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (no_ip_route_mask_flags_distance_lt,
+       no_ip_route_mask_flags_distance_lt_cmd,
+       "no ip route A.B.C.D A.B.C.D (A.B.C.D|INTERFACE) (reject|blackhole) <1-255> " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -1190,15 +1190,15 @@ DEFUN (no_ip_route_mask_flags_distance_vrf,
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 0, argv[0], argv[1], argv[2], argv[3], argv[4],
                             argv[5]);
 }
 
-DEFUN (no_ip_route_mask_flags_distance2_vrf,
-       no_ip_route_mask_flags_distance2_vrf_cmd,
-       "no ip route A.B.C.D A.B.C.D (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (no_ip_route_mask_flags_distance2_lt,
+       no_ip_route_mask_flags_distance2_lt_cmd,
+       "no ip route A.B.C.D A.B.C.D (reject|blackhole) <1-255> " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -1207,7 +1207,7 @@ DEFUN (no_ip_route_mask_flags_distance2_vrf,
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this route\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return zebra_static_ipv4 (vty, 0, argv[0], argv[1], NULL, argv[2], argv[3],
                             argv[4]);
@@ -1290,7 +1290,7 @@ vty_show_ip_route_detail (struct vty *vty, struct route_node *rn, int mcast)
               VTY_NEWLINE);
       vty_out (vty, "  Known via \"%s\"", zebra_route_string (rib->type));
       vty_out (vty, ", distance %u, metric %u", rib->distance, rib->metric);
-      vty_out (vty, ", vrf %u", rib->vrf_id);
+      vty_out (vty, ", lt %u", rib->ltid);
       if (CHECK_FLAG (rib->flags, ZEBRA_FLAG_SELECTED))
         vty_out (vty, ", best");
       if (rib->refcnt)
@@ -1346,7 +1346,7 @@ vty_show_ip_route_detail (struct vty *vty, struct route_node *rn, int mcast)
               vty_out (vty, " %s", inet_ntoa (nexthop->gate.ipv4));
               if (nexthop->ifindex)
                 vty_out (vty, ", via %s",
-                         ifindex2ifname_vrf (nexthop->ifindex, rib->vrf_id));
+                         ifindex2ifname_lt (nexthop->ifindex, rib->ltid));
               break;
             case NEXTHOP_TYPE_IPV6:
             case NEXTHOP_TYPE_IPV6_IFINDEX:
@@ -1357,11 +1357,11 @@ vty_show_ip_route_detail (struct vty *vty, struct route_node *rn, int mcast)
                 vty_out (vty, ", %s", nexthop->ifname);
               else if (nexthop->ifindex)
                 vty_out (vty, ", via %s",
-                         ifindex2ifname_vrf (nexthop->ifindex, rib->vrf_id));
+                         ifindex2ifname_lt (nexthop->ifindex, rib->ltid));
               break;
             case NEXTHOP_TYPE_IFINDEX:
               vty_out (vty, " directly connected, %s",
-                       ifindex2ifname_vrf (nexthop->ifindex, rib->vrf_id));
+                       ifindex2ifname_lt (nexthop->ifindex, rib->ltid));
               break;
             case NEXTHOP_TYPE_IFNAME:
               vty_out (vty, " directly connected, %s", nexthop->ifname);
@@ -1440,8 +1440,8 @@ vty_show_ip_route (struct vty *vty, struct route_node *rn, struct rib *rib)
 	    len += vty_out (vty, " [%d/%d]", rib->distance,
 			    rib->metric);
 
-          if (rib->vrf_id != VRF_DEFAULT)
-            len += vty_out (vty, " [vrf %u]", rib->vrf_id);
+          if (rib->ltid != LTID_DEFAULT)
+            len += vty_out (vty, " [lt %u]", rib->ltid);
 	}
       else
 	vty_out (vty, "  %c%*c",
@@ -1456,7 +1456,7 @@ vty_show_ip_route (struct vty *vty, struct route_node *rn, struct rib *rib)
           vty_out (vty, " via %s", inet_ntoa (nexthop->gate.ipv4));
           if (nexthop->ifindex)
             vty_out (vty, ", %s",
-                     ifindex2ifname_vrf (nexthop->ifindex, rib->vrf_id));
+                     ifindex2ifname_lt (nexthop->ifindex, rib->ltid));
           break;
         case NEXTHOP_TYPE_IPV6:
         case NEXTHOP_TYPE_IPV6_IFINDEX:
@@ -1467,11 +1467,11 @@ vty_show_ip_route (struct vty *vty, struct route_node *rn, struct rib *rib)
             vty_out (vty, ", %s", nexthop->ifname);
           else if (nexthop->ifindex)
             vty_out (vty, ", %s",
-                     ifindex2ifname_vrf (nexthop->ifindex, rib->vrf_id));
+                     ifindex2ifname_lt (nexthop->ifindex, rib->ltid));
           break;
         case NEXTHOP_TYPE_IFINDEX:
           vty_out (vty, " is directly connected, %s",
-                   ifindex2ifname_vrf (nexthop->ifindex, rib->vrf_id));
+                   ifindex2ifname_lt (nexthop->ifindex, rib->ltid));
           break;
         case NEXTHOP_TYPE_IFNAME:
           vty_out (vty, " is directly connected, %s", nexthop->ifname);
@@ -1562,22 +1562,22 @@ DEFUN (show_ip_route,
        IP_STR
        "IP routing table\n")
 {
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
-  return do_show_ip_route(vty, SAFI_UNICAST, vrf_id);
+  return do_show_ip_route(vty, SAFI_UNICAST, ltid);
 }
 
-static int do_show_ip_route(struct vty *vty, safi_t safi, vrf_id_t vrf_id)
+static int do_show_ip_route(struct vty *vty, safi_t safi, ltid_t ltid)
 {
   struct route_table *table;
   struct route_node *rn;
   struct rib *rib;
   int first = 1;
 
-  table = zebra_vrf_table (AFI_IP, safi, vrf_id);
+  table = zebra_lt_table (AFI_IP, safi, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -1596,12 +1596,12 @@ static int do_show_ip_route(struct vty *vty, safi_t safi, vrf_id_t vrf_id)
 }
 
 ALIAS (show_ip_route,
-       show_ip_route_vrf_cmd,
-       "show ip route " VRF_CMD_STR,
+       show_ip_route_lt_cmd,
+       "show ip route " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (show_ip_route_prefix_longer,
        show_ip_route_prefix_longer_cmd,
@@ -1618,7 +1618,7 @@ DEFUN (show_ip_route_prefix_longer,
   struct prefix p;
   int ret;
   int first = 1;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   ret = str2prefix (argv[0], &p);
   if (! ret)
@@ -1628,9 +1628,9 @@ DEFUN (show_ip_route_prefix_longer,
     }
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
-  table = zebra_vrf_table (AFI_IP, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -1650,14 +1650,14 @@ DEFUN (show_ip_route_prefix_longer,
 }
 
 ALIAS (show_ip_route_prefix_longer,
-       show_ip_route_prefix_longer_vrf_cmd,
-       "show ip route A.B.C.D/M longer-prefixes " VRF_CMD_STR,
+       show_ip_route_prefix_longer_lt_cmd,
+       "show ip route A.B.C.D/M longer-prefixes " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "IP prefix <network>/<length>, e.g., 35.0.0.0/8\n"
        "Show route matching the specified Network/Mask pair only\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (show_ip_route_supernets,
        show_ip_route_supernets_cmd,
@@ -1672,12 +1672,12 @@ DEFUN (show_ip_route_supernets,
   struct rib *rib;
   u_int32_t addr;
   int first = 1;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
-  table = zebra_vrf_table (AFI_IP, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -1703,13 +1703,13 @@ DEFUN (show_ip_route_supernets,
 }
 
 ALIAS (show_ip_route_supernets,
-       show_ip_route_supernets_vrf_cmd,
-       "show ip route supernets-only " VRF_CMD_STR,
+       show_ip_route_supernets_lt_cmd,
+       "show ip route supernets-only " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "Show supernet entries only\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (show_ip_route_protocol,
        show_ip_route_protocol_cmd,
@@ -1724,7 +1724,7 @@ DEFUN (show_ip_route_protocol,
   struct route_node *rn;
   struct rib *rib;
   int first = 1;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   type = proto_redistnum (AFI_IP, argv[0]);
   if (type < 0)
@@ -1734,9 +1734,9 @@ DEFUN (show_ip_route_protocol,
     }
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
-  table = zebra_vrf_table (AFI_IP, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -1756,13 +1756,13 @@ DEFUN (show_ip_route_protocol,
 }
 
 ALIAS (show_ip_route_protocol,
-       show_ip_route_protocol_vrf_cmd,
-       "show ip route " QUAGGA_IP_REDIST_STR_ZEBRA " " VRF_CMD_STR,
+       show_ip_route_protocol_lt_cmd,
+       "show ip route " QUAGGA_IP_REDIST_STR_ZEBRA " " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        QUAGGA_IP_REDIST_HELP_STR_ZEBRA
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (show_ip_route_addr,
        show_ip_route_addr_cmd,
@@ -1776,7 +1776,7 @@ DEFUN (show_ip_route_addr,
   struct prefix_ipv4 p;
   struct route_table *table;
   struct route_node *rn;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   ret = str2prefix_ipv4 (argv[0], &p);
   if (ret <= 0)
@@ -1786,9 +1786,9 @@ DEFUN (show_ip_route_addr,
     }
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
-  table = zebra_vrf_table (AFI_IP, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -1807,13 +1807,13 @@ DEFUN (show_ip_route_addr,
 }
 
 ALIAS (show_ip_route_addr,
-       show_ip_route_addr_vrf_cmd,
-       "show ip route A.B.C.D " VRF_CMD_STR,
+       show_ip_route_addr_lt_cmd,
+       "show ip route A.B.C.D " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "Network in the IP routing table to display\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (show_ip_route_prefix,
        show_ip_route_prefix_cmd,
@@ -1827,7 +1827,7 @@ DEFUN (show_ip_route_prefix,
   struct prefix_ipv4 p;
   struct route_table *table;
   struct route_node *rn;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   ret = str2prefix_ipv4 (argv[0], &p);
   if (ret <= 0)
@@ -1837,9 +1837,9 @@ DEFUN (show_ip_route_prefix,
     }
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
-  table = zebra_vrf_table (AFI_IP, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -1860,13 +1860,13 @@ DEFUN (show_ip_route_prefix,
 }
 
 ALIAS (show_ip_route_prefix,
-       show_ip_route_prefix_vrf_cmd,
-       "show ip route A.B.C.D/M " VRF_CMD_STR,
+       show_ip_route_prefix_lt_cmd,
+       "show ip route A.B.C.D/M " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "IP prefix <network>/<length>, e.g., 35.0.0.0/8\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 static void
 vty_show_ip_route_summary (struct vty *vty, struct route_table *table)
@@ -1904,9 +1904,9 @@ vty_show_ip_route_summary (struct vty *vty, struct route_table *table)
 	    }
 	}
 
-  vty_out (vty, "%-20s %-20s %s  (vrf %u)%s",
+  vty_out (vty, "%-20s %-20s %s  (lt %u)%s",
            "Route Source", "Routes", "FIB",
-           ((rib_table_info_t *)table->info)->zvrf->vrf_id,
+           ((rib_table_info_t *)table->info)->zlt->ltid,
            VTY_NEWLINE);
 
   for (i = 0; i < ZEBRA_ROUTE_MAX; i++) 
@@ -1985,9 +1985,9 @@ vty_show_ip_route_summary_prefix (struct vty *vty, struct route_table *table)
 	     }
       }
 
-  vty_out (vty, "%-20s %-20s %s  (vrf %u)%s",
+  vty_out (vty, "%-20s %-20s %s  (lt %u)%s",
            "Route Source", "Prefix Routes", "FIB",
-           ((rib_table_info_t *)table->info)->zvrf->vrf_id,
+           ((rib_table_info_t *)table->info)->zlt->ltid,
            VTY_NEWLINE);
 
   for (i = 0; i < ZEBRA_ROUTE_MAX; i++)
@@ -2026,12 +2026,12 @@ DEFUN (show_ip_route_summary,
        "Summary of all routes\n")
 {
   struct route_table *table;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
-  table = zebra_vrf_table (AFI_IP, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -2041,13 +2041,13 @@ DEFUN (show_ip_route_summary,
 }
 
 ALIAS (show_ip_route_summary,
-       show_ip_route_summary_vrf_cmd,
-       "show ip route summary " VRF_CMD_STR,
+       show_ip_route_summary_lt_cmd,
+       "show ip route summary " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "Summary of all routes\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 /* Show route summary prefix.  */
 DEFUN (show_ip_route_summary_prefix,
@@ -2060,12 +2060,12 @@ DEFUN (show_ip_route_summary_prefix,
        "Prefix routes\n")
 {
   struct route_table *table;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
-  table = zebra_vrf_table (AFI_IP, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -2075,34 +2075,34 @@ DEFUN (show_ip_route_summary_prefix,
 }
 
 ALIAS (show_ip_route_summary_prefix,
-       show_ip_route_summary_prefix_vrf_cmd,
-       "show ip route summary prefix " VRF_CMD_STR,
+       show_ip_route_summary_prefix_lt_cmd,
+       "show ip route summary prefix " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "Summary of all routes\n"
        "Prefix routes\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
-DEFUN (show_ip_route_vrf_all,
-       show_ip_route_vrf_all_cmd,
-       "show ip route " VRF_ALL_CMD_STR,
+DEFUN (show_ip_route_lt_all,
+       show_ip_route_lt_all_cmd,
+       "show ip route " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   struct route_table *table;
   struct route_node *rn;
   struct rib *rib;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
   int first = 1;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP][SAFI_UNICAST]) == NULL)
         continue;
 
       /* Show all IPv4 routes. */
@@ -2121,22 +2121,22 @@ DEFUN (show_ip_route_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ip_route_prefix_longer_vrf_all,
-       show_ip_route_prefix_longer_vrf_all_cmd,
-       "show ip route A.B.C.D/M longer-prefixes " VRF_ALL_CMD_STR,
+DEFUN (show_ip_route_prefix_longer_lt_all,
+       show_ip_route_prefix_longer_lt_all_cmd,
+       "show ip route A.B.C.D/M longer-prefixes " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "IP prefix <network>/<length>, e.g., 35.0.0.0/8\n"
        "Show route matching the specified Network/Mask pair only\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   struct route_table *table;
   struct route_node *rn;
   struct rib *rib;
   struct prefix p;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
   int ret;
   int first = 1;
 
@@ -2147,10 +2147,10 @@ DEFUN (show_ip_route_prefix_longer_vrf_all,
       return CMD_WARNING;
     }
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP][SAFI_UNICAST]) == NULL)
         continue;
 
       /* Show matched type IPv4 routes. */
@@ -2170,27 +2170,27 @@ DEFUN (show_ip_route_prefix_longer_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ip_route_supernets_vrf_all,
-       show_ip_route_supernets_vrf_all_cmd,
-       "show ip route supernets-only " VRF_ALL_CMD_STR,
+DEFUN (show_ip_route_supernets_lt_all,
+       show_ip_route_supernets_lt_all_cmd,
+       "show ip route supernets-only " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "Show supernet entries only\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   struct route_table *table;
   struct route_node *rn;
   struct rib *rib;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
   u_int32_t addr;
   int first = 1;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP][SAFI_UNICAST]) == NULL)
         continue;
 
       /* Show matched type IPv4 routes. */
@@ -2216,21 +2216,21 @@ DEFUN (show_ip_route_supernets_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ip_route_protocol_vrf_all,
-       show_ip_route_protocol_vrf_all_cmd,
-       "show ip route " QUAGGA_IP_REDIST_STR_ZEBRA " " VRF_ALL_CMD_STR,
+DEFUN (show_ip_route_protocol_lt_all,
+       show_ip_route_protocol_lt_all_cmd,
+       "show ip route " QUAGGA_IP_REDIST_STR_ZEBRA " " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        QUAGGA_IP_REDIST_HELP_STR_ZEBRA
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   int type;
   struct route_table *table;
   struct route_node *rn;
   struct rib *rib;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
   int first = 1;
 
   type = proto_redistnum (AFI_IP, argv[0]);
@@ -2240,10 +2240,10 @@ DEFUN (show_ip_route_protocol_vrf_all,
       return CMD_WARNING;
     }
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP][SAFI_UNICAST]) == NULL)
         continue;
 
       /* Show matched type IPv4 routes. */
@@ -2263,21 +2263,21 @@ DEFUN (show_ip_route_protocol_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ip_route_addr_vrf_all,
-       show_ip_route_addr_vrf_all_cmd,
-       "show ip route A.B.C.D " VRF_ALL_CMD_STR,
+DEFUN (show_ip_route_addr_lt_all,
+       show_ip_route_addr_lt_all_cmd,
+       "show ip route A.B.C.D " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "Network in the IP routing table to display\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   int ret;
   struct prefix_ipv4 p;
   struct route_table *table;
   struct route_node *rn;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
 
   ret = str2prefix_ipv4 (argv[0], &p);
   if (ret <= 0)
@@ -2286,10 +2286,10 @@ DEFUN (show_ip_route_addr_vrf_all,
       return CMD_WARNING;
     }
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP][SAFI_UNICAST]) == NULL)
         continue;
 
       rn = route_node_match (table, (struct prefix *) &p);
@@ -2304,21 +2304,21 @@ DEFUN (show_ip_route_addr_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ip_route_prefix_vrf_all,
-       show_ip_route_prefix_vrf_all_cmd,
-       "show ip route A.B.C.D/M " VRF_ALL_CMD_STR,
+DEFUN (show_ip_route_prefix_lt_all,
+       show_ip_route_prefix_lt_all_cmd,
+       "show ip route A.B.C.D/M " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "IP prefix <network>/<length>, e.g., 35.0.0.0/8\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   int ret;
   struct prefix_ipv4 p;
   struct route_table *table;
   struct route_node *rn;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
 
   ret = str2prefix_ipv4 (argv[0], &p);
   if (ret <= 0)
@@ -2327,10 +2327,10 @@ DEFUN (show_ip_route_prefix_vrf_all,
       return CMD_WARNING;
     }
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP][SAFI_UNICAST]) == NULL)
         continue;
 
       rn = route_node_match (table, (struct prefix *) &p);
@@ -2350,41 +2350,41 @@ DEFUN (show_ip_route_prefix_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ip_route_summary_vrf_all,
-       show_ip_route_summary_vrf_all_cmd,
-       "show ip route summary " VRF_ALL_CMD_STR,
+DEFUN (show_ip_route_summary_lt_all,
+       show_ip_route_summary_lt_all_cmd,
+       "show ip route summary " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "Summary of all routes\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
-    if ((zvrf = vrf_iter2info (iter)) != NULL)
-      vty_show_ip_route_summary (vty, zvrf->table[AFI_IP][SAFI_UNICAST]);
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
+    if ((zlt = lt_iter2info (iter)) != NULL)
+      vty_show_ip_route_summary (vty, zlt->table[AFI_IP][SAFI_UNICAST]);
 
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ip_route_summary_prefix_vrf_all,
-       show_ip_route_summary_prefix_vrf_all_cmd,
-       "show ip route summary prefix " VRF_ALL_CMD_STR,
+DEFUN (show_ip_route_summary_prefix_lt_all,
+       show_ip_route_summary_prefix_lt_all_cmd,
+       "show ip route summary prefix " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        "Summary of all routes\n"
        "Prefix routes\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
-    if ((zvrf = vrf_iter2info (iter)) != NULL)
-      vty_show_ip_route_summary_prefix (vty, zvrf->table[AFI_IP][SAFI_UNICAST]);
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
+    if ((zlt = lt_iter2info (iter)) != NULL)
+      vty_show_ip_route_summary_prefix (vty, zlt->table[AFI_IP][SAFI_UNICAST]);
 
   return CMD_SUCCESS;
 }
@@ -2396,16 +2396,16 @@ static_config_ipv4 (struct vty *vty, safi_t safi, const char *cmd)
   struct route_node *rn;
   struct static_ipv4 *si;  
   struct route_table *stable;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
   int write;
 
   write = 0;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (stable = zvrf->stable[AFI_IP][safi]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (stable = zlt->stable[AFI_IP][safi]) == NULL)
         continue;
 
       for (rn = route_top (stable); rn; rn = route_next (rn))
@@ -2440,8 +2440,8 @@ static_config_ipv4 (struct vty *vty, safi_t safi, const char *cmd)
             if (si->distance != ZEBRA_STATIC_DISTANCE_DEFAULT)
               vty_out (vty, " %d", si->distance);
 
-            if (si->vrf_id != VRF_DEFAULT)
-              vty_out (vty, " vrf %u", si->vrf_id);
+            if (si->ltid != LTID_DEFAULT)
+              vty_out (vty, " lt %u", si->ltid);
 
             vty_out (vty, "%s", VTY_NEWLINE);
 
@@ -2495,12 +2495,12 @@ DEFUN (show_ip_mroute,
   struct route_node *rn;
   struct rib *rib;
   int first = 1;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
-  table = zebra_vrf_table (AFI_IP, SAFI_MULTICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP, SAFI_MULTICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -2519,32 +2519,32 @@ DEFUN (show_ip_mroute,
 }
 
 ALIAS (show_ip_mroute,
-       show_ip_mroute_vrf_cmd,
-       "show ip mroute " VRF_CMD_STR,
+       show_ip_mroute_lt_cmd,
+       "show ip mroute " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IP Multicast routing table\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
-DEFUN (show_ip_mroute_vrf_all,
-       show_ip_mroute_vrf_all_cmd,
-       "show ip mroute " VRF_ALL_CMD_STR,
+DEFUN (show_ip_mroute_lt_all,
+       show_ip_mroute_lt_all_cmd,
+       "show ip mroute " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IP Multicast routing table\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   struct route_table *table;
   struct route_node *rn;
   struct rib *rib;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
   int first = 1;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP][SAFI_UNICAST]) == NULL)
         continue;
 
       /* Show all IPv4 routes. */
@@ -2569,7 +2569,7 @@ static int
 static_ipv6_func (struct vty *vty, int add_cmd, const char *dest_str,
 		  const char *gate_str, const char *ifname,
 		  const char *flag_str, const char *distance_str,
-		  const char *vrf_id_str)
+		  const char *ltid_str)
 {
   int ret;
   u_char distance;
@@ -2577,7 +2577,7 @@ static_ipv6_func (struct vty *vty, int add_cmd, const char *dest_str,
   struct in6_addr *gate = NULL;
   struct in6_addr gate_addr;
   u_char type = 0;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
   u_char flag = 0;
   
   ret = str2prefix (dest_str, &p);
@@ -2643,14 +2643,14 @@ static_ipv6_func (struct vty *vty, int add_cmd, const char *dest_str,
 	}
     }
 
-  /* VRF id */
-  if (vrf_id_str)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, vrf_id_str);
+  /* LT id */
+  if (ltid_str)
+    VTY_GET_INTEGER ("LT ID", ltid, ltid_str);
 
   if (add_cmd)
-    static_add_ipv6 (&p, type, gate, ifname, flag, distance, vrf_id);
+    static_add_ipv6 (&p, type, gate, ifname, flag, distance, ltid);
   else
-    static_delete_ipv6 (&p, type, gate, ifname, distance, vrf_id);
+    static_delete_ipv6 (&p, type, gate, ifname, distance, ltid);
 
   return CMD_SUCCESS;
 }
@@ -2888,23 +2888,23 @@ DEFUN (no_ipv6_route_ifname_flags_pref,
                            NULL);
 }
 
-DEFUN (ipv6_route_vrf,
-       ipv6_route_vrf_cmd,
-       "ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) " VRF_CMD_STR,
+DEFUN (ipv6_route_lt,
+       ipv6_route_lt_cmd,
+       "ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
        "IPv6 gateway address\n"
        "IPv6 gateway interface name\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 1, argv[0], argv[1], NULL, NULL, NULL,
                            argv[2]);
 }
 
-DEFUN (ipv6_route_flags_vrf,
-       ipv6_route_flags_vrf_cmd,
-       "ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) (reject|blackhole) " VRF_CMD_STR,
+DEFUN (ipv6_route_flags_lt,
+       ipv6_route_flags_lt_cmd,
+       "ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) (reject|blackhole) " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
@@ -2912,29 +2912,29 @@ DEFUN (ipv6_route_flags_vrf,
        "IPv6 gateway interface name\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 1, argv[0], argv[1], NULL, argv[2], NULL,
                            argv[3]);
 }
 
-DEFUN (ipv6_route_ifname_vrf,
-       ipv6_route_ifname_vrf_cmd,
-       "ipv6 route X:X::X:X/M X:X::X:X INTERFACE " VRF_CMD_STR,
+DEFUN (ipv6_route_ifname_lt,
+       ipv6_route_ifname_lt_cmd,
+       "ipv6 route X:X::X:X/M X:X::X:X INTERFACE " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
        "IPv6 gateway address\n"
        "IPv6 gateway interface name\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 1, argv[0], argv[1], argv[2], NULL, NULL,
                            argv[3]);
 }
 
-DEFUN (ipv6_route_ifname_flags_vrf,
-       ipv6_route_ifname_flags_vrf_cmd,
-       "ipv6 route X:X::X:X/M X:X::X:X INTERFACE (reject|blackhole) " VRF_CMD_STR,
+DEFUN (ipv6_route_ifname_flags_lt,
+       ipv6_route_ifname_flags_lt_cmd,
+       "ipv6 route X:X::X:X/M X:X::X:X INTERFACE (reject|blackhole) " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
@@ -2942,30 +2942,30 @@ DEFUN (ipv6_route_ifname_flags_vrf,
        "IPv6 gateway interface name\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 1, argv[0], argv[1], argv[2], argv[3], NULL,
                            argv[4]);
 }
 
-DEFUN (ipv6_route_pref_vrf,
-       ipv6_route_pref_vrf_cmd,
-       "ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) <1-255> " VRF_CMD_STR,
+DEFUN (ipv6_route_pref_lt,
+       ipv6_route_pref_lt_cmd,
+       "ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) <1-255> " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
        "IPv6 gateway address\n"
        "IPv6 gateway interface name\n"
        "Distance value for this prefix\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 1, argv[0], argv[1], NULL, NULL, argv[2],
                            argv[3]);
 }
 
-DEFUN (ipv6_route_flags_pref_vrf,
-       ipv6_route_flags_pref_vrf_cmd,
-       "ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (ipv6_route_flags_pref_lt,
+       ipv6_route_flags_pref_lt_cmd,
+       "ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) (reject|blackhole) <1-255> " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
@@ -2974,30 +2974,30 @@ DEFUN (ipv6_route_flags_pref_vrf,
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this prefix\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 1, argv[0], argv[1], NULL, argv[2], argv[3],
                            argv[4]);
 }
 
-DEFUN (ipv6_route_ifname_pref_vrf,
-       ipv6_route_ifname_pref_vrf_cmd,
-       "ipv6 route X:X::X:X/M X:X::X:X INTERFACE <1-255> " VRF_CMD_STR,
+DEFUN (ipv6_route_ifname_pref_lt,
+       ipv6_route_ifname_pref_lt_cmd,
+       "ipv6 route X:X::X:X/M X:X::X:X INTERFACE <1-255> " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
        "IPv6 gateway address\n"
        "IPv6 gateway interface name\n"
        "Distance value for this prefix\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 1, argv[0], argv[1], argv[2], NULL, argv[3],
                            argv[4]);
 }
 
-DEFUN (ipv6_route_ifname_flags_pref_vrf,
-       ipv6_route_ifname_flags_pref_vrf_cmd,
-       "ipv6 route X:X::X:X/M X:X::X:X INTERFACE (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (ipv6_route_ifname_flags_pref_lt,
+       ipv6_route_ifname_flags_pref_lt_cmd,
+       "ipv6 route X:X::X:X/M X:X::X:X INTERFACE (reject|blackhole) <1-255> " LT_CMD_STR,
        IP_STR
        "Establish static routes\n"
        "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
@@ -3006,30 +3006,30 @@ DEFUN (ipv6_route_ifname_flags_pref_vrf,
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this prefix\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 1, argv[0], argv[1], argv[2], argv[3], argv[4],
                            argv[5]);
 }
 
-DEFUN (no_ipv6_route_vrf,
-       no_ipv6_route_vrf_cmd,
-       "no ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) " VRF_CMD_STR,
+DEFUN (no_ipv6_route_lt,
+       no_ipv6_route_lt_cmd,
+       "no ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
        "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
        "IPv6 gateway address\n"
        "IPv6 gateway interface name\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 0, argv[0], argv[1], NULL, NULL, NULL,
                            (argc > 3) ? argv[3] : argv[2]);
 }
 
-ALIAS (no_ipv6_route_vrf,
-       no_ipv6_route_flags_vrf_cmd,
-       "no ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) (reject|blackhole) " VRF_CMD_STR,
+ALIAS (no_ipv6_route_lt,
+       no_ipv6_route_flags_lt_cmd,
+       "no ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) (reject|blackhole) " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -3038,26 +3038,26 @@ ALIAS (no_ipv6_route_vrf,
        "IPv6 gateway interface name\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
-DEFUN (no_ipv6_route_ifname_vrf,
-       no_ipv6_route_ifname_vrf_cmd,
-       "no ipv6 route X:X::X:X/M X:X::X:X INTERFACE " VRF_CMD_STR,
+DEFUN (no_ipv6_route_ifname_lt,
+       no_ipv6_route_ifname_lt_cmd,
+       "no ipv6 route X:X::X:X/M X:X::X:X INTERFACE " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
        "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
        "IPv6 gateway address\n"
        "IPv6 gateway interface name\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 0, argv[0], argv[1], argv[2], NULL, NULL,
                            (argc > 4) ? argv[4] : argv[3]);
 }
 
-ALIAS (no_ipv6_route_ifname_vrf,
-       no_ipv6_route_ifname_flags_vrf_cmd,
-       "no ipv6 route X:X::X:X/M X:X::X:X INTERFACE (reject|blackhole) " VRF_CMD_STR,
+ALIAS (no_ipv6_route_ifname_lt,
+       no_ipv6_route_ifname_flags_lt_cmd,
+       "no ipv6 route X:X::X:X/M X:X::X:X INTERFACE (reject|blackhole) " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -3066,11 +3066,11 @@ ALIAS (no_ipv6_route_ifname_vrf,
        "IPv6 gateway interface name\n"
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
-DEFUN (no_ipv6_route_pref_vrf,
-       no_ipv6_route_pref_vrf_cmd,
-       "no ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) <1-255> " VRF_CMD_STR,
+DEFUN (no_ipv6_route_pref_lt,
+       no_ipv6_route_pref_lt_cmd,
+       "no ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) <1-255> " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -3078,15 +3078,15 @@ DEFUN (no_ipv6_route_pref_vrf,
        "IPv6 gateway address\n"
        "IPv6 gateway interface name\n"
        "Distance value for this prefix\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 0, argv[0], argv[1], NULL, NULL, argv[2],
                            argv[3]);
 }
 
-DEFUN (no_ipv6_route_flags_pref_vrf,
-       no_ipv6_route_flags_pref_vrf_cmd,
-       "no ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (no_ipv6_route_flags_pref_lt,
+       no_ipv6_route_flags_pref_lt_cmd,
+       "no ipv6 route X:X::X:X/M (X:X::X:X|INTERFACE) (reject|blackhole) <1-255> " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -3096,16 +3096,16 @@ DEFUN (no_ipv6_route_flags_pref_vrf,
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this prefix\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   /* We do not care about argv[2] */
   return static_ipv6_func (vty, 0, argv[0], argv[1], NULL, argv[2], argv[3],
                            argv[4]);
 }
 
-DEFUN (no_ipv6_route_ifname_pref_vrf,
-       no_ipv6_route_ifname_pref_vrf_cmd,
-       "no ipv6 route X:X::X:X/M X:X::X:X INTERFACE <1-255> " VRF_CMD_STR,
+DEFUN (no_ipv6_route_ifname_pref_lt,
+       no_ipv6_route_ifname_pref_lt_cmd,
+       "no ipv6 route X:X::X:X/M X:X::X:X INTERFACE <1-255> " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -3113,15 +3113,15 @@ DEFUN (no_ipv6_route_ifname_pref_vrf,
        "IPv6 gateway address\n"
        "IPv6 gateway interface name\n"
        "Distance value for this prefix\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 0, argv[0], argv[1], argv[2], NULL, argv[3],
                            argv[4]);
 }
 
-DEFUN (no_ipv6_route_ifname_flags_pref_vrf,
-       no_ipv6_route_ifname_flags_pref_vrf_cmd,
-       "no ipv6 route X:X::X:X/M X:X::X:X INTERFACE (reject|blackhole) <1-255> " VRF_CMD_STR,
+DEFUN (no_ipv6_route_ifname_flags_pref_lt,
+       no_ipv6_route_ifname_flags_pref_lt_cmd,
+       "no ipv6 route X:X::X:X/M X:X::X:X INTERFACE (reject|blackhole) <1-255> " LT_CMD_STR,
        NO_STR
        IP_STR
        "Establish static routes\n"
@@ -3131,7 +3131,7 @@ DEFUN (no_ipv6_route_ifname_flags_pref_vrf,
        "Emit an ICMP unreachable when matched\n"
        "Silently discard pkts when matched\n"
        "Distance value for this prefix\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 {
   return static_ipv6_func (vty, 0, argv[0], argv[1], argv[2], argv[3], argv[4],
                            argv[5]);
@@ -3148,12 +3148,12 @@ DEFUN (show_ipv6_route,
   struct route_node *rn;
   struct rib *rib;
   int first = 1;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
-  table = zebra_vrf_table (AFI_IP6, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP6, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -3172,12 +3172,12 @@ DEFUN (show_ipv6_route,
 }
 
 ALIAS (show_ipv6_route,
-       show_ipv6_route_vrf_cmd,
-       "show ipv6 route " VRF_CMD_STR,
+       show_ipv6_route_lt_cmd,
+       "show ipv6 route " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (show_ipv6_route_prefix_longer,
        show_ipv6_route_prefix_longer_cmd,
@@ -3194,7 +3194,7 @@ DEFUN (show_ipv6_route_prefix_longer,
   struct prefix p;
   int ret;
   int first = 1;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   ret = str2prefix (argv[0], &p);
   if (! ret)
@@ -3204,9 +3204,9 @@ DEFUN (show_ipv6_route_prefix_longer,
     }
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
-  table = zebra_vrf_table (AFI_IP6, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP6, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -3226,14 +3226,14 @@ DEFUN (show_ipv6_route_prefix_longer,
 }
 
 ALIAS (show_ipv6_route_prefix_longer,
-       show_ipv6_route_prefix_longer_vrf_cmd,
-       "show ipv6 route X:X::X:X/M longer-prefixes " VRF_CMD_STR,
+       show_ipv6_route_prefix_longer_lt_cmd,
+       "show ipv6 route X:X::X:X/M longer-prefixes " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
        "IPv6 prefix\n"
        "Show route matching the specified Network/Mask pair only\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (show_ipv6_route_protocol,
        show_ipv6_route_protocol_cmd,
@@ -3248,7 +3248,7 @@ DEFUN (show_ipv6_route_protocol,
   struct route_node *rn;
   struct rib *rib;
   int first = 1;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   type = proto_redistnum (AFI_IP6, argv[0]);
   if (type < 0)
@@ -3258,9 +3258,9 @@ DEFUN (show_ipv6_route_protocol,
     }
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
-  table = zebra_vrf_table (AFI_IP6, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP6, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -3280,13 +3280,13 @@ DEFUN (show_ipv6_route_protocol,
 }
 
 ALIAS (show_ipv6_route_protocol,
-       show_ipv6_route_protocol_vrf_cmd,
-       "show ipv6 route " QUAGGA_IP6_REDIST_STR_ZEBRA " " VRF_CMD_STR,
+       show_ipv6_route_protocol_lt_cmd,
+       "show ipv6 route " QUAGGA_IP6_REDIST_STR_ZEBRA " " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        QUAGGA_IP6_REDIST_HELP_STR_ZEBRA
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (show_ipv6_route_addr,
        show_ipv6_route_addr_cmd,
@@ -3300,7 +3300,7 @@ DEFUN (show_ipv6_route_addr,
   struct prefix_ipv6 p;
   struct route_table *table;
   struct route_node *rn;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   ret = str2prefix_ipv6 (argv[0], &p);
   if (ret <= 0)
@@ -3310,9 +3310,9 @@ DEFUN (show_ipv6_route_addr,
     }
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
-  table = zebra_vrf_table (AFI_IP6, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP6, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -3331,13 +3331,13 @@ DEFUN (show_ipv6_route_addr,
 }
 
 ALIAS (show_ipv6_route_addr,
-       show_ipv6_route_addr_vrf_cmd,
-       "show ipv6 route X:X::X:X " VRF_CMD_STR,
+       show_ipv6_route_addr_lt_cmd,
+       "show ipv6 route X:X::X:X " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
        "IPv6 Address\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 DEFUN (show_ipv6_route_prefix,
        show_ipv6_route_prefix_cmd,
@@ -3351,7 +3351,7 @@ DEFUN (show_ipv6_route_prefix,
   struct prefix_ipv6 p;
   struct route_table *table;
   struct route_node *rn;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   ret = str2prefix_ipv6 (argv[0], &p);
   if (ret <= 0)
@@ -3361,9 +3361,9 @@ DEFUN (show_ipv6_route_prefix,
     }
 
   if (argc > 1)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[1]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[1]);
 
-  table = zebra_vrf_table (AFI_IP6, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP6, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -3384,13 +3384,13 @@ DEFUN (show_ipv6_route_prefix,
 }
 
 ALIAS (show_ipv6_route_prefix,
-       show_ipv6_route_prefix_vrf_cmd,
-       "show ipv6 route X:X::X:X/M " VRF_CMD_STR,
+       show_ipv6_route_prefix_lt_cmd,
+       "show ipv6 route X:X::X:X/M " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
        "IPv6 prefix\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 /* Show route summary.  */
 DEFUN (show_ipv6_route_summary,
@@ -3402,12 +3402,12 @@ DEFUN (show_ipv6_route_summary,
        "Summary of all IPv6 routes\n")
 {
   struct route_table *table;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
-  table = zebra_vrf_table (AFI_IP6, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP6, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -3417,13 +3417,13 @@ DEFUN (show_ipv6_route_summary,
 }
 
 ALIAS (show_ipv6_route_summary,
-       show_ipv6_route_summary_vrf_cmd,
-       "show ipv6 route summary " VRF_CMD_STR,
+       show_ipv6_route_summary_lt_cmd,
+       "show ipv6 route summary " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
        "Summary of all IPv6 routes\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 /* Show ipv6 route summary prefix.  */
 DEFUN (show_ipv6_route_summary_prefix,
@@ -3436,12 +3436,12 @@ DEFUN (show_ipv6_route_summary_prefix,
        "Prefix routes\n")
 {
   struct route_table *table;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
-  table = zebra_vrf_table (AFI_IP6, SAFI_UNICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP6, SAFI_UNICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -3451,14 +3451,14 @@ DEFUN (show_ipv6_route_summary_prefix,
 }
 
 ALIAS (show_ipv6_route_summary_prefix,
-       show_ipv6_route_summary_prefix_vrf_cmd,
-       "show ipv6 route summary prefix " VRF_CMD_STR,
+       show_ipv6_route_summary_prefix_lt_cmd,
+       "show ipv6 route summary prefix " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
        "Summary of all IPv6 routes\n"
        "Prefix routes\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
 /*
  * Show IPv6 mroute command.Used to dump
@@ -3476,12 +3476,12 @@ DEFUN (show_ipv6_mroute,
   struct route_node *rn;
   struct rib *rib;
   int first = 1;
-  vrf_id_t vrf_id = VRF_DEFAULT;
+  ltid_t ltid = LTID_DEFAULT;
 
   if (argc > 0)
-    VTY_GET_INTEGER ("VRF ID", vrf_id, argv[0]);
+    VTY_GET_INTEGER ("LT ID", ltid, argv[0]);
 
-  table = zebra_vrf_table (AFI_IP6, SAFI_MULTICAST, vrf_id);
+  table = zebra_lt_table (AFI_IP6, SAFI_MULTICAST, ltid);
   if (! table)
     return CMD_SUCCESS;
 
@@ -3500,32 +3500,32 @@ DEFUN (show_ipv6_mroute,
 }
 
 ALIAS (show_ipv6_mroute,
-       show_ipv6_mroute_vrf_cmd,
-       "show ipv6 mroute " VRF_CMD_STR,
+       show_ipv6_mroute_lt_cmd,
+       "show ipv6 mroute " LT_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 Multicast routing table\n"
-       VRF_CMD_HELP_STR)
+       LT_CMD_HELP_STR)
 
-DEFUN (show_ipv6_route_vrf_all,
-       show_ipv6_route_vrf_all_cmd,
-       "show ipv6 route " VRF_ALL_CMD_STR,
+DEFUN (show_ipv6_route_lt_all,
+       show_ipv6_route_lt_all_cmd,
+       "show ipv6 route " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   struct route_table *table;
   struct route_node *rn;
   struct rib *rib;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
   int first = 1;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP6][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP6][SAFI_UNICAST]) == NULL)
         continue;
 
       /* Show all IPv6 route. */
@@ -3544,22 +3544,22 @@ DEFUN (show_ipv6_route_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ipv6_route_prefix_longer_vrf_all,
-       show_ipv6_route_prefix_longer_vrf_all_cmd,
-       "show ipv6 route X:X::X:X/M longer-prefixes " VRF_ALL_CMD_STR,
+DEFUN (show_ipv6_route_prefix_longer_lt_all,
+       show_ipv6_route_prefix_longer_lt_all_cmd,
+       "show ipv6 route X:X::X:X/M longer-prefixes " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
        "IPv6 prefix\n"
        "Show route matching the specified Network/Mask pair only\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   struct route_table *table;
   struct route_node *rn;
   struct rib *rib;
   struct prefix p;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
   int ret;
   int first = 1;
 
@@ -3570,10 +3570,10 @@ DEFUN (show_ipv6_route_prefix_longer_vrf_all,
       return CMD_WARNING;
     }
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP6][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP6][SAFI_UNICAST]) == NULL)
         continue;
 
       /* Show matched type IPv6 routes. */
@@ -3593,21 +3593,21 @@ DEFUN (show_ipv6_route_prefix_longer_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ipv6_route_protocol_vrf_all,
-       show_ipv6_route_protocol_vrf_all_cmd,
-       "show ipv6 route " QUAGGA_IP6_REDIST_STR_ZEBRA " " VRF_ALL_CMD_STR,
+DEFUN (show_ipv6_route_protocol_lt_all,
+       show_ipv6_route_protocol_lt_all_cmd,
+       "show ipv6 route " QUAGGA_IP6_REDIST_STR_ZEBRA " " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IP routing table\n"
        QUAGGA_IP6_REDIST_HELP_STR_ZEBRA
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   int type;
   struct route_table *table;
   struct route_node *rn;
   struct rib *rib;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
   int first = 1;
 
   type = proto_redistnum (AFI_IP6, argv[0]);
@@ -3617,10 +3617,10 @@ DEFUN (show_ipv6_route_protocol_vrf_all,
       return CMD_WARNING;
     }
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP6][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP6][SAFI_UNICAST]) == NULL)
         continue;
 
       /* Show matched type IPv6 routes. */
@@ -3640,21 +3640,21 @@ DEFUN (show_ipv6_route_protocol_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ipv6_route_addr_vrf_all,
-       show_ipv6_route_addr_vrf_all_cmd,
-       "show ipv6 route X:X::X:X " VRF_ALL_CMD_STR,
+DEFUN (show_ipv6_route_addr_lt_all,
+       show_ipv6_route_addr_lt_all_cmd,
+       "show ipv6 route X:X::X:X " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
        "IPv6 Address\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   int ret;
   struct prefix_ipv6 p;
   struct route_table *table;
   struct route_node *rn;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
 
   ret = str2prefix_ipv6 (argv[0], &p);
   if (ret <= 0)
@@ -3663,10 +3663,10 @@ DEFUN (show_ipv6_route_addr_vrf_all,
       return CMD_WARNING;
     }
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP6][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP6][SAFI_UNICAST]) == NULL)
         continue;
 
       rn = route_node_match (table, (struct prefix *) &p);
@@ -3681,21 +3681,21 @@ DEFUN (show_ipv6_route_addr_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ipv6_route_prefix_vrf_all,
-       show_ipv6_route_prefix_vrf_all_cmd,
-       "show ipv6 route X:X::X:X/M " VRF_ALL_CMD_STR,
+DEFUN (show_ipv6_route_prefix_lt_all,
+       show_ipv6_route_prefix_lt_all_cmd,
+       "show ipv6 route X:X::X:X/M " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
        "IPv6 prefix\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   int ret;
   struct prefix_ipv6 p;
   struct route_table *table;
   struct route_node *rn;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
 
   ret = str2prefix_ipv6 (argv[0], &p);
   if (ret <= 0)
@@ -3704,10 +3704,10 @@ DEFUN (show_ipv6_route_prefix_vrf_all,
       return CMD_WARNING;
     }
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP6][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP6][SAFI_UNICAST]) == NULL)
         continue;
 
       rn = route_node_match (table, (struct prefix *) &p);
@@ -3728,44 +3728,44 @@ DEFUN (show_ipv6_route_prefix_vrf_all,
 }
 
 /* Show route summary.  */
-DEFUN (show_ipv6_route_summary_vrf_all,
-       show_ipv6_route_summary_vrf_all_cmd,
-       "show ipv6 route summary " VRF_ALL_CMD_STR,
+DEFUN (show_ipv6_route_summary_lt_all,
+       show_ipv6_route_summary_lt_all_cmd,
+       "show ipv6 route summary " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
        "Summary of all IPv6 routes\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
-    if ((zvrf = vrf_iter2info (iter)) != NULL)
-      vty_show_ip_route_summary (vty, zvrf->table[AFI_IP6][SAFI_UNICAST]);
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
+    if ((zlt = lt_iter2info (iter)) != NULL)
+      vty_show_ip_route_summary (vty, zlt->table[AFI_IP6][SAFI_UNICAST]);
 
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ipv6_mroute_vrf_all,
-       show_ipv6_mroute_vrf_all_cmd,
-       "show ipv6 mroute " VRF_ALL_CMD_STR,
+DEFUN (show_ipv6_mroute_lt_all,
+       show_ipv6_mroute_lt_all_cmd,
+       "show ipv6 mroute " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 Multicast routing table\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
   struct route_table *table;
   struct route_node *rn;
   struct rib *rib;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
   int first = 1;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (table = zvrf->table[AFI_IP6][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (table = zlt->table[AFI_IP6][SAFI_UNICAST]) == NULL)
         continue;
 
       /* Show all IPv6 route. */
@@ -3783,22 +3783,22 @@ DEFUN (show_ipv6_mroute_vrf_all,
   return CMD_SUCCESS;
 }
 
-DEFUN (show_ipv6_route_summary_prefix_vrf_all,
-       show_ipv6_route_summary_prefix_vrf_all_cmd,
-       "show ipv6 route summary prefix " VRF_ALL_CMD_STR,
+DEFUN (show_ipv6_route_summary_prefix_lt_all,
+       show_ipv6_route_summary_prefix_lt_all_cmd,
+       "show ipv6 route summary prefix " LT_ALL_CMD_STR,
        SHOW_STR
        IP_STR
        "IPv6 routing table\n"
        "Summary of all IPv6 routes\n"
        "Prefix routes\n"
-       VRF_ALL_CMD_HELP_STR)
+       LT_ALL_CMD_HELP_STR)
 {
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
-    if ((zvrf = vrf_iter2info (iter)) != NULL)
-      vty_show_ip_route_summary_prefix (vty, zvrf->table[AFI_IP6][SAFI_UNICAST]);
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
+    if ((zlt = lt_iter2info (iter)) != NULL)
+      vty_show_ip_route_summary_prefix (vty, zlt->table[AFI_IP6][SAFI_UNICAST]);
 
   return CMD_SUCCESS;
 }
@@ -3812,15 +3812,15 @@ static_config_ipv6 (struct vty *vty)
   int write;
   char buf[BUFSIZ];
   struct route_table *stable;
-  struct zebra_vrf *zvrf;
-  vrf_iter_t iter;
+  struct zebra_lt *zlt;
+  lt_iter_t iter;
 
   write = 0;
 
-  for (iter = vrf_first (); iter != VRF_ITER_INVALID; iter = vrf_next (iter))
+  for (iter = lt_first (); iter != LT_ITER_INVALID; iter = lt_next (iter))
     {
-      if ((zvrf = vrf_iter2info (iter)) == NULL ||
-          (stable = zvrf->stable[AFI_IP6][SAFI_UNICAST]) == NULL)
+      if ((zlt = lt_iter2info (iter)) == NULL ||
+          (stable = zlt->stable[AFI_IP6][SAFI_UNICAST]) == NULL)
         continue;
 
       for (rn = route_top (stable); rn; rn = route_next (rn))
@@ -3853,8 +3853,8 @@ static_config_ipv6 (struct vty *vty)
             if (si->distance != ZEBRA_STATIC_DISTANCE_DEFAULT)
               vty_out (vty, " %d", si->distance);
 
-            if (si->vrf_id != VRF_DEFAULT)
-              vty_out (vty, " vrf %u", si->vrf_id);
+            if (si->ltid != LTID_DEFAULT)
+              vty_out (vty, " lt %u", si->ltid);
 
             vty_out (vty, "%s", VTY_NEWLINE);
 
@@ -3980,85 +3980,85 @@ zebra_vty_init (void)
   install_element (VIEW_NODE, &show_ip_rpf_addr_cmd);
   install_element (ENABLE_NODE, &show_ip_rpf_addr_cmd);
 
-  /* Commands for VRF */
+  /* Commands for LT */
 
-  install_element (CONFIG_NODE, &ip_mroute_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_mroute_dist_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_mroute_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_mroute_dist_vrf_cmd);
+  install_element (CONFIG_NODE, &ip_mroute_lt_cmd);
+  install_element (CONFIG_NODE, &ip_mroute_dist_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_mroute_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_mroute_dist_lt_cmd);
 
-  install_element (CONFIG_NODE, &ip_route_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_route_flags_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_route_flags2_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_route_mask_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_route_mask_flags_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_route_mask_flags2_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_route_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_route_flags_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_route_flags2_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_route_mask_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_route_mask_flags_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_route_mask_flags2_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_route_distance_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_route_flags_distance_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_route_flags_distance2_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_route_mask_distance_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_route_mask_flags_distance_vrf_cmd);
-  install_element (CONFIG_NODE, &ip_route_mask_flags_distance2_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_route_distance_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_route_flags_distance_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_route_flags_distance2_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_route_mask_flags_distance_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ip_route_mask_flags_distance2_vrf_cmd);
+  install_element (CONFIG_NODE, &ip_route_lt_cmd);
+  install_element (CONFIG_NODE, &ip_route_flags_lt_cmd);
+  install_element (CONFIG_NODE, &ip_route_flags2_lt_cmd);
+  install_element (CONFIG_NODE, &ip_route_mask_lt_cmd);
+  install_element (CONFIG_NODE, &ip_route_mask_flags_lt_cmd);
+  install_element (CONFIG_NODE, &ip_route_mask_flags2_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_route_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_route_flags_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_route_flags2_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_route_mask_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_route_mask_flags_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_route_mask_flags2_lt_cmd);
+  install_element (CONFIG_NODE, &ip_route_distance_lt_cmd);
+  install_element (CONFIG_NODE, &ip_route_flags_distance_lt_cmd);
+  install_element (CONFIG_NODE, &ip_route_flags_distance2_lt_cmd);
+  install_element (CONFIG_NODE, &ip_route_mask_distance_lt_cmd);
+  install_element (CONFIG_NODE, &ip_route_mask_flags_distance_lt_cmd);
+  install_element (CONFIG_NODE, &ip_route_mask_flags_distance2_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_route_distance_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_route_flags_distance_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_route_flags_distance2_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_route_mask_flags_distance_lt_cmd);
+  install_element (CONFIG_NODE, &no_ip_route_mask_flags_distance2_lt_cmd);
 
-  install_element (VIEW_NODE, &show_ip_route_vrf_cmd);
-  install_element (VIEW_NODE, &show_ip_route_addr_vrf_cmd);
-  install_element (VIEW_NODE, &show_ip_route_prefix_vrf_cmd);
-  install_element (VIEW_NODE, &show_ip_route_prefix_longer_vrf_cmd);
-  install_element (VIEW_NODE, &show_ip_route_protocol_vrf_cmd);
-  install_element (VIEW_NODE, &show_ip_route_supernets_vrf_cmd);
-  install_element (VIEW_NODE, &show_ip_route_summary_vrf_cmd);
-  install_element (VIEW_NODE, &show_ip_route_summary_prefix_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_addr_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_prefix_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_prefix_longer_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_protocol_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_supernets_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_summary_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_summary_prefix_vrf_cmd);
+  install_element (VIEW_NODE, &show_ip_route_lt_cmd);
+  install_element (VIEW_NODE, &show_ip_route_addr_lt_cmd);
+  install_element (VIEW_NODE, &show_ip_route_prefix_lt_cmd);
+  install_element (VIEW_NODE, &show_ip_route_prefix_longer_lt_cmd);
+  install_element (VIEW_NODE, &show_ip_route_protocol_lt_cmd);
+  install_element (VIEW_NODE, &show_ip_route_supernets_lt_cmd);
+  install_element (VIEW_NODE, &show_ip_route_summary_lt_cmd);
+  install_element (VIEW_NODE, &show_ip_route_summary_prefix_lt_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_lt_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_addr_lt_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_prefix_lt_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_prefix_longer_lt_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_protocol_lt_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_supernets_lt_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_summary_lt_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_summary_prefix_lt_cmd);
 
-  install_element (VIEW_NODE, &show_ip_route_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ip_route_addr_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ip_route_prefix_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ip_route_prefix_longer_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ip_route_protocol_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ip_route_supernets_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ip_route_summary_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ip_route_summary_prefix_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_addr_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_prefix_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_prefix_longer_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_protocol_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_supernets_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_summary_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ip_route_summary_prefix_vrf_all_cmd);
+  install_element (VIEW_NODE, &show_ip_route_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ip_route_addr_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ip_route_prefix_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ip_route_prefix_longer_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ip_route_protocol_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ip_route_supernets_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ip_route_summary_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ip_route_summary_prefix_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_addr_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_prefix_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_prefix_longer_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_protocol_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_supernets_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_summary_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_route_summary_prefix_lt_all_cmd);
 
-  install_element (VIEW_NODE, &show_ip_mroute_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ip_mroute_vrf_cmd);
+  install_element (VIEW_NODE, &show_ip_mroute_lt_cmd);
+  install_element (ENABLE_NODE, &show_ip_mroute_lt_cmd);
 
-  install_element (VIEW_NODE, &show_ip_mroute_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ip_mroute_vrf_all_cmd);
+  install_element (VIEW_NODE, &show_ip_mroute_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_mroute_lt_all_cmd);
 
-  install_element (VIEW_NODE, &show_ip_rpf_vrf_cmd);
-  install_element (VIEW_NODE, &show_ip_rpf_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ip_rpf_addr_vrf_cmd);
-  install_element (VIEW_NODE, &show_ip_rpf_addr_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ip_rpf_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ip_rpf_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ip_rpf_addr_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ip_rpf_addr_vrf_all_cmd);
+  install_element (VIEW_NODE, &show_ip_rpf_lt_cmd);
+  install_element (VIEW_NODE, &show_ip_rpf_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ip_rpf_addr_lt_cmd);
+  install_element (VIEW_NODE, &show_ip_rpf_addr_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_rpf_lt_cmd);
+  install_element (ENABLE_NODE, &show_ip_rpf_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_rpf_addr_lt_cmd);
+  install_element (ENABLE_NODE, &show_ip_rpf_addr_lt_all_cmd);
 
 #ifdef HAVE_IPV6
   install_element (CONFIG_NODE, &ipv6_route_cmd);
@@ -4095,59 +4095,59 @@ zebra_vty_init (void)
   install_element (VIEW_NODE, &show_ipv6_mroute_cmd);
   install_element (ENABLE_NODE, &show_ipv6_mroute_cmd);
 
-  /* Commands for VRF */
+  /* Commands for LT */
 
-  install_element (CONFIG_NODE, &ipv6_route_vrf_cmd);
-  install_element (CONFIG_NODE, &ipv6_route_flags_vrf_cmd);
-  install_element (CONFIG_NODE, &ipv6_route_ifname_vrf_cmd);
-  install_element (CONFIG_NODE, &ipv6_route_ifname_flags_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ipv6_route_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ipv6_route_flags_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ipv6_route_ifname_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ipv6_route_ifname_flags_vrf_cmd);
-  install_element (CONFIG_NODE, &ipv6_route_pref_vrf_cmd);
-  install_element (CONFIG_NODE, &ipv6_route_flags_pref_vrf_cmd);
-  install_element (CONFIG_NODE, &ipv6_route_ifname_pref_vrf_cmd);
-  install_element (CONFIG_NODE, &ipv6_route_ifname_flags_pref_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ipv6_route_pref_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ipv6_route_flags_pref_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ipv6_route_ifname_pref_vrf_cmd);
-  install_element (CONFIG_NODE, &no_ipv6_route_ifname_flags_pref_vrf_cmd);
+  install_element (CONFIG_NODE, &ipv6_route_lt_cmd);
+  install_element (CONFIG_NODE, &ipv6_route_flags_lt_cmd);
+  install_element (CONFIG_NODE, &ipv6_route_ifname_lt_cmd);
+  install_element (CONFIG_NODE, &ipv6_route_ifname_flags_lt_cmd);
+  install_element (CONFIG_NODE, &no_ipv6_route_lt_cmd);
+  install_element (CONFIG_NODE, &no_ipv6_route_flags_lt_cmd);
+  install_element (CONFIG_NODE, &no_ipv6_route_ifname_lt_cmd);
+  install_element (CONFIG_NODE, &no_ipv6_route_ifname_flags_lt_cmd);
+  install_element (CONFIG_NODE, &ipv6_route_pref_lt_cmd);
+  install_element (CONFIG_NODE, &ipv6_route_flags_pref_lt_cmd);
+  install_element (CONFIG_NODE, &ipv6_route_ifname_pref_lt_cmd);
+  install_element (CONFIG_NODE, &ipv6_route_ifname_flags_pref_lt_cmd);
+  install_element (CONFIG_NODE, &no_ipv6_route_pref_lt_cmd);
+  install_element (CONFIG_NODE, &no_ipv6_route_flags_pref_lt_cmd);
+  install_element (CONFIG_NODE, &no_ipv6_route_ifname_pref_lt_cmd);
+  install_element (CONFIG_NODE, &no_ipv6_route_ifname_flags_pref_lt_cmd);
 
-  install_element (VIEW_NODE, &show_ipv6_route_vrf_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_summary_vrf_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_summary_prefix_vrf_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_protocol_vrf_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_addr_vrf_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_prefix_vrf_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_prefix_longer_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_protocol_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_addr_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_prefix_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_prefix_longer_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_summary_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_summary_prefix_vrf_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_lt_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_summary_lt_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_summary_prefix_lt_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_protocol_lt_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_addr_lt_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_prefix_lt_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_prefix_longer_lt_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_lt_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_protocol_lt_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_addr_lt_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_prefix_lt_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_prefix_longer_lt_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_summary_lt_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_summary_prefix_lt_cmd);
 
-  install_element (VIEW_NODE, &show_ipv6_route_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_summary_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_summary_prefix_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_protocol_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_addr_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_prefix_vrf_all_cmd);
-  install_element (VIEW_NODE, &show_ipv6_route_prefix_longer_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_protocol_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_addr_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_prefix_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_prefix_longer_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_summary_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_route_summary_prefix_vrf_all_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_summary_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_summary_prefix_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_protocol_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_addr_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_prefix_lt_all_cmd);
+  install_element (VIEW_NODE, &show_ipv6_route_prefix_longer_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_protocol_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_addr_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_prefix_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_prefix_longer_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_summary_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_route_summary_prefix_lt_all_cmd);
 
-  install_element (VIEW_NODE, &show_ipv6_mroute_vrf_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_mroute_vrf_cmd);
+  install_element (VIEW_NODE, &show_ipv6_mroute_lt_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_mroute_lt_cmd);
 
-  install_element (VIEW_NODE, &show_ipv6_mroute_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_mroute_vrf_all_cmd);
+  install_element (VIEW_NODE, &show_ipv6_mroute_lt_all_cmd);
+  install_element (ENABLE_NODE, &show_ipv6_mroute_lt_all_cmd);
 #endif /* HAVE_IPV6 */
 }

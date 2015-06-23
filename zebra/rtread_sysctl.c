@@ -24,7 +24,7 @@
 
 #include "memory.h"
 #include "log.h"
-#include "vrf.h"
+#include "logical_table.h"
 
 #include "zebra/zserv.h"
 #include "zebra/rt.h"
@@ -32,7 +32,7 @@
 
 /* Kernel routing table read up by sysctl function. */
 void
-route_read (struct zebra_vrf *zvrf)
+route_read (struct zebra_lt *zlt)
 {
   caddr_t buf, end, ref;
   size_t bufsiz;
@@ -49,7 +49,7 @@ route_read (struct zebra_vrf *zvrf)
     0
   };
 
-  if (zvrf->vrf_id != VRF_DEFAULT)
+  if (zlt->ltid != LTID_DEFAULT)
     return;
 
   /* Get buffer size. */
