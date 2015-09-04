@@ -434,6 +434,40 @@ vty_command (struct vty *vty, char *buf)
       snprintf(prompt_str, sizeof(prompt_str), cmd_prompt (vty->node), vty_str);
 
       /* now log the command */
+      zlog(NULL, LOG_EMERG, "%s%s", prompt_str, buf);
+    }
+
+  /*
+   * Log non empty command lines
+   */
+  cp = buf;
+  if (cp != NULL)
+    {
+      /* Skip white spaces. */
+      while (isspace ((int) *cp) && *cp != '\0')
+        cp++;
+    }
+  if (cp != NULL && *cp != '\0')
+    {
+      unsigned i;
+      char	vty_str[VTY_BUFSIZ];
+      char        prompt_str[VTY_BUFSIZ];
+
+      /* format the base vty info */
+      snprintf(vty_str, sizeof(vty_str), "vty[??]@%s", vty->address);
+      if (vty)
+        for (i = 0; i < vector_active (vtyvec); i++)
+          if ((vty == vector_slot (vtyvec, i)))
+            {
+              snprintf(vty_str, sizeof(vty_str), "vty[%d]@%s",
+                                                 i, vty->address);
+              break;
+            }
+
+      /* format the prompt */
+      snprintf(prompt_str, sizeof(prompt_str), cmd_prompt (vty->node), vty_str);
+
+      /* now log the command */
       zlog(NULL, LOG_NOTICE, "%s%s", prompt_str, buf);
     }
   /* Split readline string up into the vector */
