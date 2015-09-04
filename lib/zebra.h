@@ -482,7 +482,8 @@ extern const char *zserv_command_string (unsigned int command);
 typedef enum {
   AFI_IP  = 1,
   AFI_IP6 = 2,
-#define AFI_MAX 3
+  AFI_ETHER = 3,  /* RFC 1700 has "6" for 802.* */
+#define AFI_MAX 4
 } afi_t;
 
 /* Subsequent Address Family Identifier. */
@@ -492,6 +493,11 @@ typedef enum {
 #define SAFI_MPLS_VPN             4
 #define SAFI_ENCAP		  7 /* per IANA */
 #define SAFI_MAX                  8
+
+/* Filter direction.  */
+#define FILTER_IN                 0
+#define FILTER_OUT                1
+#define FILTER_MAX                2
 
 /* Default Administrative Distance of each protocol. */
 #define ZEBRA_KERNEL_DISTANCE_DEFAULT      0

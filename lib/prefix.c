@@ -208,6 +208,8 @@ afi2family (afi_t afi)
   else if (afi == AFI_IP6)
     return AF_INET6;
 #endif /* HAVE_IPV6 */
+  else if (afi == AFI_ETHER)
+    return AF_ETHERNET;
   return 0;
 }
 
@@ -220,6 +222,8 @@ family2afi (int family)
   else if (family == AF_INET6)
     return AFI_IP6;
 #endif /* HAVE_IPV6 */
+  else if (family == AF_ETHERNET)
+    return AFI_ETHER;
   return 0;
 }
 
@@ -286,6 +290,10 @@ prefix_copy (struct prefix *dest, const struct prefix *src)
       dest->u.lp.id = src->u.lp.id;
       dest->u.lp.adv_router = src->u.lp.adv_router;
     }
+  else if (src->family == AF_ETHERNET)
+    {
+      dest->u.prefix_eth = src->u.prefix_eth;
+    }
   else
     {
       zlog (NULL, LOG_ERR, "prefix_copy(): Unknown address family %d",
@@ -315,6 +323,9 @@ prefix_same (const struct prefix *p1, const struct prefix *p2)
 	if (IPV6_ADDR_SAME (&p1->u.prefix6.s6_addr, &p2->u.prefix6.s6_addr))
 	  return 1;
 #endif /* HAVE_IPV6 */
+      if (p1->family == AF_ETHERNET)
+        if (!memcmp(p1->u.prefix_eth.octet, p2->u.prefix_eth.octet, ETHER_ADDR_LEN))
+            return 1;
     }
   return 0;
 }
@@ -406,6 +417,8 @@ prefix_family_str (const struct prefix *p)
   if (p->family == AF_INET6)
     return "inet6";
 #endif /* HAVE_IPV6 */
+  if (p->family == AF_ETHERNET)
+    return "ether";
   return "unspec";
 }
 
@@ -762,6 +775,8 @@ prefix_blen (const struct prefix *p)
       return IPV6_MAX_BYTELEN;
       break;
 #endif /* HAVE_IPV6 */
+    case AF_ETHERNET:
+      return ETHER_ADDR_LEN;
     }
   return 0;
 }
@@ -792,6 +807,22 @@ prefix2str (union prefix46constptr pu, char *str, int size)
 {
   const struct prefix *p = pu.p;
   char buf[BUFSIZ];
+
+  if (p->family == AF_ETHERNET)
+    {
+      int i;
+      char *s = str;
+
+      assert(size > (3*ETHER_ADDR_LEN));
+      for (i = 0; i <= ETHER_ADDR_LEN; ++i)
+        {
+          sprintf(s, "%02x", p->u.prefix_eth.octet[i]);
+          if (i < (ETHER_ADDR_LEN - 1))
+            *(s+2) = ':';
+          s += 3;
+        }
+      return 0;
+    }
 
   inet_ntop (p->family, &p->u.prefix, buf, BUFSIZ);
   snprintf (str, size, "%s/%d", buf, p->prefixlen);

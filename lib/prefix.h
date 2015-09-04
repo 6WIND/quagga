@@ -23,7 +23,33 @@
 #ifndef _ZEBRA_PREFIX_H
 #define _ZEBRA_PREFIX_H
 
+#ifdef SUNOS_5
+# include <sys/ethernet.h>
+# define ETHER_ADDR_LEN ETHERADDRL
+#else
+# include <net/ethernet.h>
+#endif
 #include "sockunion.h"
+
+#ifdef __GNUC__
+#  ifdef __LP64__               /* is m64, 8 byte align */
+#    define PREFIX_GCC_ALIGN_ATTRIBUTES __attribute__ ((aligned (8)))
+#  else                         /* must be m32, 4 byte align */
+#    define PREFIX_GCC_ALIGN_ATTRIBUTES __attribute__ ((aligned (4)))
+#  endif
+#else                           /* not GCC, no alignment attributes */
+#  define PREFIX_GCC_ALIGN_ATTRIBUTES
+#endif
+
+
+/*
+ * there isn't a portable ethernet address type. We define our
+ * own to simplify internal handling
+ */
+struct ethaddr {
+  u_char octet[ETHER_ADDR_LEN];
+} __packed;
+
 
 /*
  * A struct prefix contains an address family, a prefix length, and an
@@ -34,6 +60,15 @@
  * interface.
  */
 
+/* different OSes use different names */
+#if defined(AF_PACKET)
+#define AF_ETHERNET AF_PACKET
+#else
+#if defined(AF_LINK)
+#define AF_ETHERNET AF_LINK
+#endif
+#endif
+
 /* IPv4 and IPv6 unified prefix structure. */
 struct prefix
 {
@@ -42,15 +77,16 @@ struct prefix
   union 
   {
     u_char prefix;
-    struct in_addr prefix4;
+    struct in_addr prefix4;             /* AF_INET */
 #ifdef HAVE_IPV6
-    struct in6_addr prefix6;
+    struct in6_addr prefix6;            /* AF_INET6 */
 #endif /* HAVE_IPV6 */
     struct 
     {
       struct in_addr id;
       struct in_addr adv_router;
     } lp;
+    struct ethaddr prefix_eth;          /* AF_ETHERNET */
     u_char val[8];
     uintptr_t ptr;
   } u __attribute__ ((aligned (8)));
@@ -61,7 +97,7 @@ struct prefix_ipv4
 {
   u_char family;
   u_char prefixlen;
-  struct in_addr prefix __attribute__ ((aligned (8)));
+  struct in_addr prefix PREFIX_GCC_ALIGN_ATTRIBUTES;
 };
 
 /* IPv6 prefix structure. */
@@ -70,7 +106,7 @@ struct prefix_ipv6
 {
   u_char family;
   u_char prefixlen;
-  struct in6_addr prefix __attribute__ ((aligned (8)));
+  struct in6_addr prefix PREFIX_GCC_ALIGN_ATTRIBUTES;
 };
 #endif /* HAVE_IPV6 */
 
@@ -78,7 +114,7 @@ struct prefix_ls
 {
   u_char family;
   u_char prefixlen;
-  struct in_addr id __attribute__ ((aligned (8)));
+  struct in_addr id PREFIX_GCC_ALIGN_ATTRIBUTES;
   struct in_addr adv_router;
 };
 
@@ -87,7 +123,15 @@ struct prefix_rd
 {
   u_char family;
   u_char prefixlen;
-  u_char val[8] __attribute__ ((aligned (8)));
+  u_char val[8] PREFIX_GCC_ALIGN_ATTRIBUTES;
+};
+
+/* Prefix for ethernet. */
+struct prefix_eth
+{
+  u_char family;
+  u_char prefixlen;
+  struct ethaddr eth_addr;      /* AF_ETHERNET */
 };
 
 /* Prefix for a generic pointer */
