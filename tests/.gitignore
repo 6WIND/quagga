@@ -38,4 +38,5 @@ teststream
 testnexthopiter
 testcommands
 test-commands-defun.c
+test_zmq_event
 site.exp
