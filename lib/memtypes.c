@@ -74,6 +74,7 @@ struct memory_list memory_list_lib[] =
   { MTYPE_VRF_BITMAP,		"VRF bit-map"			},
   { MTYPE_IF_LINK_PARAMS,       "Informational Link Parameters" },
   { MTYPE_LIB_NEXTHOP,		"Nexthop"			},
+  { MTYPE_ZEROMQ_CB,	        "ZEROMQ_CB"	},
   { -1, NULL },
 };
 

@@ -1,7 +1,7 @@
 ## Process this file with automake to produce Makefile.in.
 
 AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib
-AM_CFLAGS = $(WERROR)
+AM_CFLAGS = $(WERROR) @CAPN_C_CFLAGS@ @ZEROMQ_CFLAGS@
 DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\"
 
 lib_LTLIBRARIES = libzebra.la
@@ -34,6 +34,11 @@ pkginclude_HEADERS = \
 
 noinst_HEADERS = \
 	plist_int.h
+
+if HAVE_ZEROMQ
+libzebra_la_SOURCES += qzmq.c
+pkginclude_HEADERS += qzmq.h
+endif
 
 EXTRA_DIST = \
 	regex.c regex-gnu.h \
