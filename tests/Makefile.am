@@ -31,6 +31,10 @@ check_PROGRAMS = testsig testsegv testbuffer testmemory heavy heavywq heavythrea
 		testcli \
 		$(TESTS_BGPD)
 
+if HAVE_ZEROMQ
+check_PROGRAMS += test_zmq_event
+endif
+
 ../vtysh/vtysh_cmd.c:
 	$(MAKE) -C ../vtysh vtysh_cmd.c
 
@@ -66,6 +70,7 @@ testnexthopiter_SOURCES = test-nexthop-iter.c prng.c
 testcommands_SOURCES = test-commands-defun.c test-commands.c prng.c
 test_timer_correctness_SOURCES = test-timer-correctness.c prng.c
 test_timer_performance_SOURCES = test-timer-performance.c prng.c
+test_zmq_event_SOURCES = test-zmq-event.c common-cli.c
 
 testcli_LDADD = ../lib/libzebra.la @LIBCAP@
 testsig_LDADD = ../lib/libzebra.la @LIBCAP@
@@ -88,3 +93,4 @@ testnexthopiter_LDADD = ../lib/libzebra.la @LIBCAP@
 testcommands_LDADD = ../lib/libzebra.la @LIBCAP@
 test_timer_correctness_LDADD = ../lib/libzebra.la @LIBCAP@
 test_timer_performance_LDADD = ../lib/libzebra.la @LIBCAP@
+test_zmq_event_LDADD = ../lib/libzebra.la @LIBCAP@ $(ZEROMQ_LIBS)
