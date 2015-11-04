@@ -36,6 +36,11 @@ pkginclude_HEADERS = \
 noinst_HEADERS = \
 	plist_int.h
 
+if HAVE_ZEROMQ
+libzebra_la_SOURCES += qzmq.c
+pkginclude_HEADERS += qzmq.h
+endif
+
 EXTRA_DIST = \
 	regex.c regex-gnu.h \
 	queue.h \
