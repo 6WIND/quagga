@@ -17,6 +17,11 @@ libzebra_la_SOURCES = \
 	memory.c \
 	memory_cli.c
 
+libzebra_la_SOURCES += \
+	c-capnproto/capn-malloc.c \
+	c-capnproto/capn-stream.c \
+	c-capnproto/capn.c
+
 BUILT_SOURCES = route_types.h gitversion.h
 
 libzebra_la_DEPENDENCIES = @LIB_REGEX@
@@ -35,6 +40,9 @@ pkginclude_HEADERS = \
 
 noinst_HEADERS = \
 	plist_int.h
+
+noinst_HEADERS += \
+	c-capnproto/capn.h
 
 if HAVE_ZEROMQ
 libzebra_la_SOURCES += qzmq.c
