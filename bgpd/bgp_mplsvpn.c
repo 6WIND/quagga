@@ -43,12 +43,6 @@ decode_rd_type (u_char *pnt)
   v = ((u_int16_t) *pnt++ << 8);
   v |= (u_int16_t) *pnt;
 
-  /*
-   * Ethernet over IPSEC stores LHI in lower byte, so mask it off
-   */
-  if ((v & 0xff00) == 0xff00)
-    v = 0xff00;
-
   return v;
 }
 
