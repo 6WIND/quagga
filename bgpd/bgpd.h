@@ -25,6 +25,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "sockunion.h"
 #include "bgp_ecommunity.h"
 #include "prefix.h"
+#include "qzc.h"
 
 /* Typedef BGP specific types.  */
 typedef u_int32_t as_t;
@@ -74,6 +75,8 @@ struct bgp_master
 #define BGP_OPT_MULTIPLE_INSTANCE        (1 << 1)
 #define BGP_OPT_CONFIG_CISCO             (1 << 2)
 #define BGP_OPT_NO_LISTEN                (1 << 3)
+
+  QZC_NODE
 };
 
 /* BGP instance structure.  */
@@ -202,6 +205,7 @@ struct bgp
 
   struct hash *rt_subscribers;
 
+  QZC_NODE
 };
 
 struct bgp_rt_sub
@@ -251,6 +255,8 @@ struct bgp_vrf
   /* internal flag */
 #define BGP_VRF_RD_UNSET 1
   uint16_t flag;
+
+  QZC_NODE
 };
 
 struct bgp_api_route
@@ -645,6 +651,8 @@ struct peer
 #define PEER_RMAP_TYPE_NOSET          (1 << 5) /* not allow to set commands */
 #define PEER_RMAP_TYPE_IMPORT         (1 << 6) /* neighbor route-map import */
 #define PEER_RMAP_TYPE_EXPORT         (1 << 7) /* neighbor route-map export */
+
+  QZC_NODE
 };
 
 #define PEER_PASSWORD_MINLEN	(1)
@@ -913,6 +921,7 @@ extern int bgp_nexthop_set (union sockunion *, union sockunion *,
 extern struct bgp *bgp_get_default (void);
 extern struct bgp *bgp_lookup (as_t, const char *);
 extern struct bgp *bgp_lookup_by_name (const char *);
+extern struct bgp *bgp_create_api (struct bgp_master *, as_t as);
 extern struct peer *peer_lookup (struct bgp *, union sockunion *);
 extern struct peer_group *peer_group_lookup (struct bgp *, const char *);
 extern struct peer_group *peer_group_get (struct bgp *, const char *);
@@ -959,6 +968,7 @@ extern void bgp_lock (struct bgp *);
 extern void bgp_unlock (struct bgp *);
 
 extern void bgp_router_id_zebra_bump (void);
+extern int bgp_router_id_set (struct bgp *, struct in_addr *);
 extern int bgp_router_id_static_set (struct bgp *, struct in_addr);
 
 extern int bgp_cluster_id_set (struct bgp *, struct in_addr *);
@@ -981,6 +991,7 @@ extern int peer_rsclient_active (struct peer *);
 
 extern int peer_remote_as (struct bgp *, union sockunion *, as_t *, afi_t, safi_t);
 extern int peer_group_remote_as (struct bgp *, const char *, as_t *);
+extern struct peer *peer_create_api (struct bgp *, const char * host, as_t as);
 extern int peer_delete (struct peer *peer);
 extern int peer_group_delete (struct peer_group *);
 extern int peer_group_remote_as_delete (struct peer_group *);
