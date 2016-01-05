@@ -12,6 +12,11 @@ TAGS
 *.la
 *.a
 *.libs
+*.bcapnp
+*.bcapnp.c
+*.bcapnp.h
+*.ndef.i
+*.ndef.hi
 .arch-inventory
 .arch-ids
 *~

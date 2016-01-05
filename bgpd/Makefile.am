@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in.
 
-AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib
+AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib -I$(top_srcdir)/lib/c-capnproto
 DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\"
 INSTALL_SDATA=@INSTALL@ -m 600
 
@@ -39,3 +39,5 @@ dist_examples_DATA = bgpd.conf.sample bgpd.conf.sample2
 
 EXTRA_DIST = BGP4-MIB.txt
 
+EXTRA_DIST += bgpd.ndef.i bgpd.ndef.hi bgp.bcapnp.c bgp.bcapnp.h
+libbgp_a_SOURCES += bgp.bcapnp.c

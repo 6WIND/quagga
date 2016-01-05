@@ -63,6 +63,8 @@ struct bgp_master
 #define BGP_OPT_MULTIPLE_INSTANCE        (1 << 1)
 #define BGP_OPT_CONFIG_CISCO             (1 << 2)
 #define BGP_OPT_NO_LISTEN                (1 << 3)
+
+  QZC_NODE
 };
 
 /* BGP instance structure.  */
@@ -176,6 +178,8 @@ struct bgp
     u_int16_t maxpaths_ebgp;
     u_int16_t maxpaths_ibgp;
   } maxpaths[AFI_MAX][SAFI_MAX];
+
+  QZC_NODE
 };
 
 /* BGP peer-group support. */
@@ -575,6 +579,8 @@ struct peer
 #define PEER_RMAP_TYPE_NOSET          (1 << 5) /* not allow to set commands */
 #define PEER_RMAP_TYPE_IMPORT         (1 << 6) /* neighbor route-map import */
 #define PEER_RMAP_TYPE_EXPORT         (1 << 7) /* neighbor route-map export */
+
+  QZC_NODE
 };
 
 #define PEER_PASSWORD_MINLEN	(1)

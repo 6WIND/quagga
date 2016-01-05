@@ -66,6 +66,9 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_snmp.h"
 #endif /* HAVE_SNMP */
 
+#include "bgp.bcapnp.h"
+#include "bgpd.ndef.hi"
+
 /* BGP process wide configuration.  */
 static struct bgp_master bgp_master;
 
@@ -716,6 +719,8 @@ peer_free (struct peer *peer)
 
   bgp_unlock(peer->bgp);
 
+  QZC_NODE_UNREG(peer)
+
   /* this /ought/ to have been done already through bgp_stop earlier,
    * but just to be sure.. 
    */
@@ -856,6 +861,8 @@ peer_new (struct bgp *bgp)
   /* Get service port number.  */
   sp = getservbyname ("bgp", "tcp");
   peer->port = (sp == NULL) ? BGP_PORT_DEFAULT : ntohs (sp->s_port);
+
+  QZC_NODE_REG(peer, peer)
 
   return peer;
 }
@@ -2091,6 +2098,7 @@ bgp_create (as_t *as, const char *name)
   if (name)
     bgp->name = strdup (name);
 
+  QZC_NODE_REG(bgp, bgp)
   THREAD_TIMER_ON (bm->master, bgp->t_startup, bgp_startup_timer_expire,
                    bgp, bgp->restart_time);
 
@@ -2213,6 +2221,7 @@ bgp_delete (struct bgp *bgp)
   SET_FLAG(bgp->flags, BGP_FLAG_DELETING);
 
   THREAD_OFF (bgp->t_startup);
+  QZC_NODE_UNREG(bgp)
 
   /* Delete static route. */
   bgp_static_delete (bgp);
@@ -5626,6 +5635,9 @@ bgp_master_init (void)
   bm->port = BGP_PORT_DEFAULT;
   bm->master = thread_master_create ();
   bm->start_time = bgp_clock ();
+
+  qzc_init ();
+  QZC_NODE_REG(bm, bgp_master)
 }
 
 
@@ -5699,3 +5711,6 @@ bgp_terminate (void)
       bm->process_rsclient_queue = NULL;
     }
 }
+
+#include "bgpd.ndef.i"
+
