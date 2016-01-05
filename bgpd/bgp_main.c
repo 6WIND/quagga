@@ -39,6 +39,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "stream.h"
 #include "vrf.h"
 #include "workqueue.h"
+#include "qzc.h"
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_attr.h"
@@ -68,6 +69,7 @@ static const struct option longopts[] =
   { "no_kernel",   no_argument,       NULL, 'n'},
   { "user",        required_argument, NULL, 'u'},
   { "group",       required_argument, NULL, 'g'},
+  { "zeromq",      required_argument, NULL, 'Z'},
   { "version",     no_argument,       NULL, 'v'},
   { "dryrun",      no_argument,       NULL, 'C'},
   { "help",        no_argument,       NULL, 'h'},
@@ -345,6 +347,7 @@ main (int argc, char **argv)
   int daemon_mode = 0;
   int dryrun = 0;
   char *progname;
+  char *zmq_sock = NULL;
   struct thread thread;
   int tmp_port;
 
@@ -363,7 +366,7 @@ main (int argc, char **argv)
   /* Command line argument treatment. */
   while (1) 
     {
-      opt = getopt_long (argc, argv, "df:i:z:hp:l:A:P:rnu:g:vC", longopts, 0);
+      opt = getopt_long (argc, argv, "df:i:z:hp:l:A:P:rnu:g:Z:vC", longopts, 0);
     
       if (opt == EOF)
 	break;
@@ -421,6 +424,9 @@ main (int argc, char **argv)
 	case 'g':
 	  bgpd_privs.group = optarg;
 	  break;
+	case 'Z':
+	  zmq_sock = optarg;
+	  break;
 	case 'v':
 	  print_version (progname);
 	  exit (0);
@@ -448,6 +454,9 @@ main (int argc, char **argv)
 
   /* BGP related initialization.  */
   bgp_init ();
+
+  if (zmq_sock)
+    qzc_bind (bm->master, zmq_sock);
 
   /* Parse config file. */
   vty_read_config (config_file, config_default);

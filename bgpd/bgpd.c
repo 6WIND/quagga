@@ -37,6 +37,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "linklist.h"
 #include "workqueue.h"
 #include "table.h"
+#include "qzc.h"
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_table.h"
@@ -1064,6 +1065,39 @@ peer_remote_as (struct bgp *bgp, union sockunion *su, as_t *as,
     }
 
   return 0;
+}
+
+struct peer *
+peer_create_api (struct bgp *bgp, const char *host, as_t as)
+{
+  int ret;
+  union sockunion su;
+  struct peer *peer;
+  as_t local_as;
+
+  ret = str2sockunion (host, &su);
+  if (ret < 0)
+    return NULL;
+
+#if 0
+  if (peer_address_self_check (&su))
+    return NULL;
+#endif
+
+  peer = peer_lookup (bgp, &su);
+  if (peer)
+    return NULL;
+
+  /* If the peer is not part of our confederation, and its not an
+     iBGP peer then spoof the source AS */
+  if (bgp_config_check (bgp, BGP_CONFIG_CONFEDERATION)
+      && ! bgp_confederation_peers_check (bgp, as)
+      && bgp->as != as)
+    local_as = bgp->confed_id;
+  else
+    local_as = bgp->as;
+
+  return peer_create (&su, bgp, local_as, as, 0, 0);
 }
 
 /* Activate the peer or peer group for specified AFI and SAFI.  */

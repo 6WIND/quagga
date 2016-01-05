@@ -24,6 +24,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 /* For union sockunion.  */
 #include "sockunion.h"
 #include "bgp_memory.h"
+#include "vty.h"
+#include "qzc.h"
 
 /* Typedef BGP specific types.  */
 typedef u_int32_t as_t;
@@ -907,6 +909,7 @@ extern int peer_rsclient_active (struct peer *);
 
 extern int peer_remote_as (struct bgp *, union sockunion *, as_t *, afi_t, safi_t);
 extern int peer_group_remote_as (struct bgp *, const char *, as_t *);
+extern struct peer *peer_create_api (struct bgp *, const char * host, as_t as);
 extern int peer_delete (struct peer *peer);
 extern int peer_group_delete (struct peer_group *);
 extern int peer_group_remote_as_delete (struct peer_group *);
