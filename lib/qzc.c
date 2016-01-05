@@ -179,6 +179,30 @@ out:
   write_QZCCreateRep(&crep, rep->create);
 }
 
+static void qzc_set (struct QZCRequest *req, struct QZCReply *rep,
+                     struct capn_segment *cs)
+{
+  struct QZCSetReq sreq;
+  struct qzc_node *node;
+
+  read_QZCSetReq(&sreq, req->set);
+  node = qzc_node_get(sreq.nid);
+
+  rep->which = QZCReply_set;
+
+  if (!node || !node->type || !node->type->get)
+    {
+      rep->error = 1;
+      return;
+    }
+
+  rep->error = 0;
+
+  void *entity = ((char *)node) - node->type->node_member_offset;
+  node->type->set(entity, &sreq, cs);
+}
+
+
 static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
 {
   int64_t more = 0;
@@ -219,6 +243,9 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
       break;
     case QZCRequest_create:
       qzc_create(&req, &rep, cs);
+      break;
+    case QZCRequest_set:
+      qzc_set(&req, &rep, cs);
       break;
     };
 

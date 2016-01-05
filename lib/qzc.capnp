@@ -58,6 +58,15 @@ struct QZCCreateRep {
 	newnid		@0 :UInt64;
 }
 
+struct QZCSetReq {
+	nid		@0 :UInt64;
+	elem		@1 :UInt64;
+	ctxtype		@2 :UInt64;
+	ctxdata		@3 :AnyPointer;
+	datatype	@4 :UInt64;
+	data		@5 :AnyPointer;
+}
+
 struct QZCRequest {
 	union {
 		ping		@0 :Void;
@@ -65,6 +74,7 @@ struct QZCRequest {
 		wknresolve	@2 :QZCWKNResolveReq;
 		get		@3 :QZCGet;
 		create		@4 :QZCCreateReq;
+		set		@5 :QZCSetReq;
 	}
 }
 
@@ -76,6 +86,7 @@ struct QZCReply {
 		wknresolve	@3 :QZCWKNResolveRep;
 		get		@4 :QZCGet;
 		create		@5 :QZCCreateRep;
+		set		@6 :Void;
 	}
 }
 
