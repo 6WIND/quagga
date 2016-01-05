@@ -38,6 +38,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "stream.h"
 #include "vrf.h"
 #include "workqueue.h"
+#include "qzc.h"
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_attr.h"
@@ -68,6 +69,7 @@ static const struct option longopts[] =
   { "user",        required_argument, NULL, 'u'},
   { "group",       required_argument, NULL, 'g'},
   { "skip_runas",  no_argument,       NULL, 'S'},
+  { "zeromq",      required_argument, NULL, 'Z'},
   { "version",     no_argument,       NULL, 'v'},
   { "dryrun",      no_argument,       NULL, 'C'},
   { "help",        no_argument,       NULL, 'h'},
@@ -216,6 +218,10 @@ sigusr1 (void)
   zlog_rotate (NULL);
 }
 
+#ifdef HAVE_CCAPNPROTO
+static struct qzc_sock *qzc_sock = NULL;
+#endif /* HAVE_CCAPNPROTO */
+
 /*
   Try to free up allocations we know about so that diagnostic tools such as
   valgrind are able to better illuminate leaks.
@@ -333,6 +339,13 @@ bgp_exit (int status)
   /* reverse bgp_scan_init */
   bgp_scan_finish ();
 
+  QZC_NODE_UNREG(bm)
+#ifdef HAVE_CCAPNPROTO
+  if (qzc_sock)
+    qzc_close (qzc_sock);
+  qzc_finish ();
+#endif /* HAVE_CCAPNPROTO */
+
   /* reverse bgp_master_init */
   if (bm->master)
     thread_master_free (bm->master);
@@ -356,6 +369,9 @@ main (int argc, char **argv)
   int daemon_mode = 0;
   int dryrun = 0;
   char *progname;
+#ifdef HAVE_ZEROMQ
+  char *zmq_sock = NULL;
+#endif /* HAVE_ZEROMQ */
   struct thread thread;
   int tmp_port;
   int skip_runas = 0;
@@ -375,7 +391,7 @@ main (int argc, char **argv)
   /* Command line argument treatment. */
   while (1) 
     {
-      opt = getopt_long (argc, argv, "df:i:z:hp:l:A:P:rnu:g:vCS", longopts, 0);
+      opt = getopt_long (argc, argv, "df:i:z:hp:l:A:P:rnu:g:Z:vCS", longopts, 0);
     
       if (opt == EOF)
 	break;
@@ -436,6 +452,11 @@ main (int argc, char **argv)
 	case 'S':   /* skip run as = override bgpd_privs */
           skip_runas = 1;
 	  break;
+	case 'Z':
+#ifdef HAVE_ZEROMQ
+	  zmq_sock = optarg;
+#endif /* HAVE_ZEROMQ */
+	  break;
 	case 'v':
 	  print_version (progname);
 	  exit (0);
@@ -465,6 +486,11 @@ main (int argc, char **argv)
 
   /* BGP related initialization.  */
   bgp_init ();
+
+#ifdef HAVE_ZEROMQ
+  if (zmq_sock)
+    qzc_sock = qzc_bind (bm->master, zmq_sock);
+#endif /* HAVE_ZEROMQ */
 
   /* Parse config file. */
   vty_read_config (config_file, config_default);
