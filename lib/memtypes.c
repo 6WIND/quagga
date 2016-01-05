@@ -75,6 +75,7 @@ struct memory_list memory_list_lib[] =
   { MTYPE_IF_LINK_PARAMS,       "Informational Link Parameters" },
   { MTYPE_LIB_NEXTHOP,		"Nexthop"			},
   { MTYPE_ZEROMQ_CB,	        "ZEROMQ_CB"	},
+  { MTYPE_QZC_SOCK,	        "QZC"	},
   { -1, NULL },
 };
 

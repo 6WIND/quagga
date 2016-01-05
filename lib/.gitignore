@@ -3,6 +3,8 @@ Makefile.in
 *.o
 *.lo
 *.la
+*.capnp.c
+*.capnp.h
 version.c
 version.h
 gitversion.h

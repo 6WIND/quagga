@@ -36,11 +36,17 @@ noinst_HEADERS = \
 	plist_int.h
 
 if HAVE_ZEROMQ
-libzebra_la_SOURCES += qzmq.c
-pkginclude_HEADERS += qzmq.h
+libzebra_la_SOURCES += qzmq.c qzc.c
+pkginclude_HEADERS += qzmq.h qzc.h
+endif
+
+if HAVE_CCAPNPROTO
+libzebra_la_SOURCES += qzc.capnp.c
+BUILT_SOURCES += qzc.capnp.c
 endif
 
 EXTRA_DIST = \
+	qzc.capnp \
 	regex.c regex-gnu.h \
 	queue.h \
 	memtypes.awk \
