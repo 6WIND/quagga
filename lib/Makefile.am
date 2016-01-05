@@ -1,7 +1,7 @@
 ## Process this file with automake to produce Makefile.in.
 
-AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib
-AM_CFLAGS = $(WERROR)
+AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_srcdir)/lib/c-capnproto -I$(top_builddir)/lib
+AM_CFLAGS = $(WERROR) $(ZEROMQ_CFLAGS)
 DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\"
 
 lib_LTLIBRARIES = libzebra.la
@@ -45,11 +45,20 @@ noinst_HEADERS += \
 	c-capnproto/capn.h
 
 if HAVE_ZEROMQ
-libzebra_la_SOURCES += qzmq.c
-pkginclude_HEADERS += qzmq.h
+libzebra_la_SOURCES += qzmq.c qzc.c
+pkginclude_HEADERS += qzmq.h qzc.h
 endif
 
+$(top_srcdir)/lib/c-capnproto/capnpc-c:
+	make -C "$(top_srcdir)/lib/c-capnproto" capnpc-c
+%.capnp.c: %.capnp $(top_srcdir)/lib/c-capnproto/capnpc-c
+	$(AM_V_GEN) PATH="$(top_srcdir)/lib/c-capnproto:$(PATH)" capnp compile -oc $<
+%.capnp.h: %.capnp.c
+libzebra_la_SOURCES += qzc.capnp.c
+BUILT_SOURCES += qzc.capnp.c
+
 EXTRA_DIST = \
+	qzc.capnp \
 	regex.c regex-gnu.h \
 	queue.h \
 	route_types.pl route_types.txt \
