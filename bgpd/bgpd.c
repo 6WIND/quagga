@@ -38,6 +38,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "hash.h"
 #include "workqueue.h"
 #include "table.h"
+#include "qzc.h"
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_table.h"
@@ -66,6 +67,11 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #ifdef HAVE_SNMP
 #include "bgpd/bgp_snmp.h"
 #endif /* HAVE_SNMP */
+
+#ifdef HAVE_CCAPNPROTO
+#include "bgp.bcapnp.h"
+#include "bgpd.ndef.hi"
+#endif /* HAVE_CCAPNPROTO */
 
 /* BGP process wide configuration.  */
 static struct bgp_master bgp_master;
@@ -179,7 +185,7 @@ bgp_config_check (struct bgp *bgp, int config)
 }
 
 /* Set BGP router identifier. */
-static int
+int
 bgp_router_id_set (struct bgp *bgp, struct in_addr *id)
 {
   struct peer *peer;
@@ -755,6 +761,8 @@ peer_free (struct peer *peer)
 
   bgp_unlock(peer->bgp);
 
+  QZC_NODE_UNREG(peer)
+
   /* this /ought/ to have been done already through bgp_stop earlier,
    * but just to be sure.. 
    */
@@ -907,6 +915,8 @@ peer_new (struct bgp *bgp)
   /* Get service port number.  */
   sp = getservbyname ("bgp", "tcp");
   peer->port = (sp == NULL) ? BGP_PORT_DEFAULT : ntohs (sp->s_port);
+
+  QZC_NODE_REG(peer, peer)
 
   return peer;
 }
@@ -1119,6 +1129,39 @@ peer_remote_as (struct bgp *bgp, union sockunion *su, as_t *as,
     }
 
   return 0;
+}
+
+struct peer *
+peer_create_api (struct bgp *bgp, const char *host, as_t as)
+{
+  int ret;
+  union sockunion su;
+  struct peer *peer;
+  as_t local_as;
+
+  ret = str2sockunion (host, &su);
+  if (ret < 0)
+    return NULL;
+
+#if 0
+  if (peer_address_self_check (&su))
+    return NULL;
+#endif
+
+  peer = peer_lookup (bgp, &su);
+  if (peer)
+    return NULL;
+
+  /* If the peer is not part of our confederation, and its not an
+     iBGP peer then spoof the source AS */
+  if (bgp_config_check (bgp, BGP_CONFIG_CONFEDERATION)
+      && ! bgp_confederation_peers_check (bgp, as)
+      && bgp->as != as)
+    local_as = bgp->confed_id;
+  else
+    local_as = bgp->as;
+
+  return peer_create (&su, bgp, local_as, as, 0, 0);
 }
 
 /* Activate the peer or peer group for specified AFI and SAFI.  */
@@ -2150,6 +2193,7 @@ bgp_vrf_lookup_per_name (struct bgp *bgp, const char *name, int create)
       vrf->rib[afi]->type = BGP_TABLE_VRF;
     }
 
+  QZC_NODE_REG(vrf, bgp_vrf)
   listnode_add (bgp->vrfs, vrf);
   return vrf;
 }
@@ -2283,6 +2327,8 @@ bgp_vrf_delete_rd (struct bgp_vrf *vrf)
   prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
   zlog_info ("deleting rd %s", vrf_rd_str);
 
+  QZC_NODE_UNREG(vrf)
+
   bgp_vrf_clean_tables (vrf);
 
   bgp_vrf_rt_import_unset (vrf);
@@ -2301,6 +2347,7 @@ bgp_vrf_delete_int (void *arg)
   zlog_info ("deleting vrf %s", vrf_rd_str);
 
   bgp_vrf_delete_rd (vrf);
+  QZC_NODE_UNREG(vrf)
 
   if (vrf->name)
     free (vrf->name);
@@ -2364,6 +2411,7 @@ bgp_create (as_t *as, const char *name)
   bgp->vrfs->del = bgp_vrf_delete_int;
   bgp->rt_subscribers = hash_create(bgp_rt_hash_key, bgp_rt_hash_cmp);
 
+  QZC_NODE_REG(bgp, bgp)
   THREAD_TIMER_ON (bm->master, bgp->t_startup, bgp_startup_timer_expire,
                    bgp, bgp->restart_time);
 
@@ -2406,6 +2454,30 @@ bgp_lookup_by_name (const char *name)
 	|| (bgp->name && name && strcmp (bgp->name, name) == 0))
       return bgp;
   return NULL;
+}
+
+struct bgp *
+bgp_create_api (struct bgp_master *ignore, as_t as)
+{
+  struct bgp *bgp = NULL;
+
+  if (bgp_get_default ())
+    return NULL;
+
+  bgp = bgp_create (&as, NULL);
+  bgp_router_id_set(bgp, &router_id_zebra);
+
+  /* Create BGP server socket, if first instance.  */
+  if (list_isempty(bm->bgp)
+      && !bgp_option_check (BGP_OPT_NO_LISTEN))
+    if (bgp_socket (bm->port, bm->address) < 0)
+      {
+        bgp_delete (bgp);
+        return NULL;
+      }
+
+  listnode_add (bm->bgp, bgp);
+  return bgp;
 }
 
 /* Called from VTY commands. */
@@ -2486,6 +2558,7 @@ bgp_delete (struct bgp *bgp)
   SET_FLAG(bgp->flags, BGP_FLAG_DELETING);
 
   THREAD_OFF (bgp->t_startup);
+  QZC_NODE_UNREG(bgp)
 
   for (ALL_LIST_ELEMENTS (bgp->peer, node, next, peer))
     {
@@ -2522,8 +2595,6 @@ bgp_delete (struct bgp *bgp)
               !bgp_flag_check (bgp, BGP_FLAG_GR_PRESERVE_FWD))
             bgp_notify_send (peer, BGP_NOTIFY_CEASE, BGP_NOTIFY_CEASE_ADMIN_SHUTDOWN);
 	}
-
-      peer_delete (peer);
     }
 
   for (ALL_LIST_ELEMENTS (bgp->group, node, next, group))
@@ -2538,15 +2609,7 @@ bgp_delete (struct bgp *bgp)
                 bgp_notify_send (peer, BGP_NOTIFY_CEASE, BGP_NOTIFY_CEASE_ADMIN_SHUTDOWN);
 	    }
 	}
-      peer_group_delete (group);
     }
-
-  assert (listcount (bgp->rsclient) == 0);
-
-  if (bgp->peer_self) {
-    peer_delete(bgp->peer_self);
-    bgp->peer_self = NULL;
-  }
 
   /*
    * Free pending deleted routes. Unfortunately, it also has to process
@@ -2556,6 +2619,19 @@ bgp_delete (struct bgp *bgp)
    * for the sake of valgrind.
    */
   bgp_process_queues_drain_immediate();
+
+  /* workqueues hold references to peers */
+  for (ALL_LIST_ELEMENTS (bgp->peer, node, next, peer))
+    peer_delete (peer);
+  for (ALL_LIST_ELEMENTS (bgp->group, node, next, group))
+    peer_group_delete (group);
+
+  assert (listcount (bgp->rsclient) == 0);
+
+  if (bgp->peer_self) {
+    peer_delete(bgp->peer_self);
+    bgp->peer_self = NULL;
+  }
 
   /* Remove visibility via the master list - there may however still be
    * routes to be processed still referencing the struct bgp.
@@ -6117,6 +6193,11 @@ bgp_master_init (void)
   bm->port = BGP_PORT_DEFAULT;
   bm->master = thread_master_create ();
   bm->start_time = bgp_clock ();
+
+#ifdef HAVE_CCAPNPROTO
+  qzc_init ();
+#endif
+  QZC_NODE_REG(bm, bgp_master)
 }
 
 
@@ -6200,3 +6281,8 @@ bgp_terminate (void)
       bm->process_vrf_queue = NULL;
     }
 }
+
+#ifdef HAVE_CCAPNPROTO
+#include "bgpd.ndef.i"
+#endif /*HAVE_CCAPNPROTO */
+

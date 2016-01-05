@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in.
 
-AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib
+AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib @CAPN_C_CFLAGS@ @ZEROMQ_CFLAGS@
 DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\"
 INSTALL_SDATA=@INSTALL@ -m 600
 
@@ -27,13 +27,16 @@ noinst_HEADERS = \
 	bgp_encap.h bgp_encap_tlv.h bgp_encap_types.h bgp_nht.h
 
 bgpd_SOURCES = bgp_main.c
-bgpd_LDADD = libbgp.a ../lib/libzebra.la @LIBCAP@ @LIBM@
+
+bgpd_LDADD = libbgp.a ../lib/libzebra.la @LIBCAP@ @LIBM@ @ZEROMQ_LIBS@ @CAPN_C_LIBS@
 
 bgp_btoa_SOURCES = bgp_btoa.c
-bgp_btoa_LDADD = libbgp.a ../lib/libzebra.la @LIBCAP@ @LIBM@
+bgp_btoa_LDADD = libbgp.a ../lib/libzebra.la @LIBCAP@ @LIBM@ @ZEROMQ_LIBS@ @CAPN_C_LIBS@
 
 examplesdir = $(exampledir)
 dist_examples_DATA = bgpd.conf.sample bgpd.conf.sample2
 
 EXTRA_DIST = BGP4-MIB.txt
 
+EXTRA_DIST += bgpd.ndef.i bgpd.ndef.hi bgp.bcapnp.c bgp.bcapnp.h
+libbgp_a_SOURCES += bgp.bcapnp.c
