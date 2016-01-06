@@ -185,7 +185,8 @@ bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
       if (stream_empty (s))
 	{
 	  struct prefix_rd *prd = NULL;
-	  u_char *tag = NULL;
+	  uint32_t *labels = NULL;
+	  size_t nlabels = 0;
 	  struct peer *from = NULL;
 
 	  if (rn->prn)
@@ -194,7 +195,10 @@ bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
             {
               from = binfo->peer;
               if (binfo->extra)
-                tag = binfo->extra->tag;
+                {
+                  labels = binfo->extra->labels;
+                  nlabels = binfo->extra->nlabels;
+                }
             }
 
 	  /* 1: Write the BGP message header - 16 bytes marker, 2 bytes length,
@@ -218,10 +222,8 @@ bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
 	  /* 5: Encode all the attributes, except MP_REACH_NLRI attr. */
 	  total_attr_len = bgp_packet_attribute (NULL, peer, s,
 	                                         adv->baa->attr,
-                                                 ((afi == AFI_IP && safi == SAFI_UNICAST) ?
-                                                  &rn->p : NULL),
-                                                 afi, safi,
-	                                         from, prd, tag);
+                                                 &rn->p, afi, safi,
+	                                         from, prd, labels, nlabels);
           space_remaining = STREAM_CONCAT_REMAIN (s, snlri, STREAM_SIZE(s)) -
                             BGP_MAX_PACKET_SIZE_OVERFLOW;
           space_needed = BGP_NLRI_LENGTH + bgp_packet_mpattr_prefix_size (afi, safi, &rn->p);;
@@ -237,7 +239,6 @@ bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
                 adv = bgp_advertise_clean (peer, adv->adj, afi, safi);
               return NULL;
             } 
-
 	}
 
       if (afi == AFI_IP && safi == SAFI_UNICAST)
@@ -246,17 +247,21 @@ bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
 	{
 	  /* Encode the prefix in MP_REACH_NLRI attribute */
 	  struct prefix_rd *prd = NULL;
-	  u_char *tag = NULL;
+	  uint32_t *labels = NULL;
+	  size_t nlabels = 0;
 
 	  if (rn->prn)
 	    prd = (struct prefix_rd *) &rn->prn->p;
 	  if (binfo && binfo->extra)
-	    tag = binfo->extra->tag;
+            {
+              labels = binfo->extra->labels;
+              nlabels = binfo->extra->nlabels;
+            }
 
 	  if (stream_empty(snlri))
 	    mpattrlen_pos = bgp_packet_mpattr_start(snlri, afi, safi,
 						    adv->baa->attr);
-	  bgp_packet_mpattr_prefix(snlri, afi, safi, &rn->p, prd, tag);
+	  bgp_packet_mpattr_prefix(snlri, afi, safi, &rn->p, prd, labels, nlabels);
 	}
       if (BGP_DEBUG (update, UPDATE_OUT))
         {
@@ -415,7 +420,7 @@ bgp_withdraw_packet (struct peer *peer, afi_t afi, safi_t safi)
 	      mplen_pos = bgp_packet_mpunreach_start(s, afi, safi);
 	    }
 
-	  bgp_packet_mpunreach_prefix(s, &rn->p, afi, safi, prd, NULL);
+	  bgp_packet_mpunreach_prefix(s, &rn->p, afi, safi, prd, NULL, 0);
 	}
 
       if (BGP_DEBUG (update, UPDATE_OUT))
@@ -503,7 +508,7 @@ bgp_default_update_send (struct peer *peer, struct attr *attr,
   /* Make place for total attribute length.  */
   pos = stream_get_endp (s);
   stream_putw (s, 0);
-  total_attr_len = bgp_packet_attribute (NULL, peer, s, attr, &p, afi, safi, from, NULL, NULL);
+  total_attr_len = bgp_packet_attribute (NULL, peer, s, attr, &p, afi, safi, from, NULL, NULL, 0);
 
   /* Set Total Path Attribute Length. */
   stream_putw_at (s, pos, total_attr_len);
@@ -585,7 +590,7 @@ bgp_default_withdraw_send (struct peer *peer, afi_t afi, safi_t safi)
       stream_putw (s, 0);
       mp_start = stream_get_endp (s);
       mplen_pos = bgp_packet_mpunreach_start(s, afi, safi);
-      bgp_packet_mpunreach_prefix(s, &p, afi, safi, NULL, NULL);
+      bgp_packet_mpunreach_prefix(s, &p, afi, safi, NULL, NULL, 0);
 
       /* Set the mp_unreach attr's length */
       bgp_packet_mpunreach_end(s, mplen_pos);

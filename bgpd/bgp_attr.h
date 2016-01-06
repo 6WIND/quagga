@@ -173,7 +173,7 @@ extern bgp_size_t bgp_packet_attribute (struct bgp *bgp, struct peer *,
 					struct stream *, struct attr *,
 					struct prefix *, afi_t, safi_t,
 					struct peer *, struct prefix_rd *,
-					u_char *);
+					uint32_t *labels, size_t nlabels);
 extern void bgp_dump_routes_attr (struct stream *, struct attr *,
 				  struct prefix *);
 extern int attrhash_cmp (const void *, const void *);
@@ -220,7 +220,7 @@ extern size_t bgp_packet_mpattr_start(struct stream *s, afi_t afi, safi_t safi,
 				      struct attr *attr);
 extern void bgp_packet_mpattr_prefix(struct stream *s, afi_t afi, safi_t safi,
 				     struct prefix *p, struct prefix_rd *prd,
-				     u_char *tag);
+				     uint32_t *labels, size_t nlabels);
 extern size_t bgp_packet_mpattr_prefix_size(afi_t afi, safi_t safi,
                                             struct prefix *p);
 extern void bgp_packet_mpattr_end(struct stream *s, size_t sizep);
@@ -229,7 +229,7 @@ extern size_t bgp_packet_mpunreach_start (struct stream *s, afi_t afi,
 					  safi_t safi);
 extern void bgp_packet_mpunreach_prefix (struct stream *s, struct prefix *p,
 			     afi_t afi, safi_t safi, struct prefix_rd *prd,
-			     u_char *tag);
+			     uint32_t *labels, size_t nlabels);
 extern void bgp_packet_mpunreach_end (struct stream *s, size_t attrlen_pnt);
 
 #endif /* _QUAGGA_BGP_ATTR_H */
