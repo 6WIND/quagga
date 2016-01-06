@@ -34,6 +34,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "plist.h"
 #include "thread.h"
 #include "workqueue.h"
+#include "hash.h"
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_table.h"
@@ -76,7 +77,11 @@ bgp_afi_node_get (struct bgp_table *table, afi_t afi, safi_t safi, struct prefix
       prn = bgp_node_get (table, (struct prefix *) prd);
 
       if (prn->info == NULL)
-	prn->info = bgp_table_init (afi, safi);
+        {
+          struct bgp_table *newtab = bgp_table_init (afi, safi);
+          newtab->prd = *prd;
+          prn->info = newtab;
+        }
       else
 	bgp_unlock_node (prn);
       table = prn->info;
@@ -1516,6 +1521,224 @@ bgp_process_announce_selected (struct peer *peer, struct bgp_info *selected,
   return 0;
 }
 
+static bool rd_same (const struct prefix_rd *a, const struct prefix_rd *b)
+{
+  return !memcmp(&a->val, &b->val, sizeof(a->val));
+}
+
+static void
+bgp_vrf_withdraw (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn)
+{
+  char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+
+  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+  prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+
+  zlog_info ("vrf[%s] %s: prefix withdrawn", vrf_rd_str, pfx_str);
+}
+
+static void
+bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
+                struct bgp_info *selected)
+{
+  char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+  char label_str[BUFSIZ] = "<?>", nh_str[BUFSIZ] = "<?>";
+
+  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+  prefix_rd2str(&selected->extra->vrf_rd, rd_str, sizeof(rd_str));
+  prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+  labels2str(label_str, sizeof(label_str),
+                  selected->extra->labels, selected->extra->nlabels);
+
+  if (selected->attr && selected->attr->extra)
+    {
+      if (afi == AFI_IP)
+        strcpy (nh_str, inet_ntoa (selected->attr->extra->mp_nexthop_global_in));
+      else if (afi == AFI_IP6)
+        inet_ntop (AF_INET6, &selected->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+    }
+
+  zlog_info ("vrf[%s] %s: prefix updated, best RD %s labels %s nexthop %s",
+                  vrf_rd_str, pfx_str, rd_str, label_str, nh_str);
+}
+
+static void
+bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_node *rn,
+                     struct bgp_info *old_select, struct bgp_info *new_select)
+{
+  char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+  struct bgp_node *vrf_rn;
+  struct bgp_info *old = NULL, *new = NULL, *sel = NULL, *newsel = NULL, *iter;
+  struct prefix_rd *prd;
+
+  prd = &bgp_node_table (rn)->prd;
+
+  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+  prefix_rd2str(prd, rd_str, sizeof(rd_str));
+  prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+
+  zlog_debug ("vrf[%s] %s: [%s] updating %p->%p", vrf_rd_str, pfx_str, rd_str,
+                  (void *)old_select, (void *)new_select);
+
+  if (new_select)
+    {
+      vrf_rn = bgp_node_get (vrf->rib[afi], &rn->p);
+      new = bgp_info_new ();
+      if (new_select->attr)
+        new->attr = bgp_attr_intern (new_select->attr);
+      new->extra = bgp_info_extra_new();
+      new->extra->vrf_rd = *prd;
+      if (new_select->extra)
+        {
+          new->extra->nlabels = new_select->extra->nlabels;
+          memcpy (new->extra->labels, new_select->extra->labels,
+                  new_select->extra->nlabels * sizeof(new_select->extra->labels[0]));
+        }
+      new->type = new_select->type;
+      new->sub_type = new_select->sub_type;
+      new->uptime = bgp_clock ();
+      new->peer = new_select->peer;
+
+      SET_FLAG (new->flags, BGP_INFO_VALID);
+      bgp_info_add (vrf_rn, new);
+      bgp_unlock_node (vrf_rn);
+    }
+  else
+    {
+      vrf_rn = bgp_node_lookup (vrf->rib[afi], &rn->p);
+      if (!vrf_rn)
+        return;
+    }
+
+  for (iter = vrf_rn->info; iter; iter = iter->next)
+    {
+      if (rd_same (&iter->extra->vrf_rd, prd) && iter != new)
+        old = iter;
+      if (CHECK_FLAG (iter->flags, BGP_INFO_SELECTED))
+        sel = iter;
+    }
+
+  if (old)
+    {
+      bool del_not_sel = sel && sel != old && !new;
+      bool del_last = (vrf_rn->info == old) && (old->next == NULL);
+
+      bgp_info_reap (vrf_rn, old);
+      if (del_last)
+        {
+          bgp_vrf_withdraw (vrf, afi, vrf_rn);
+          return;
+        }
+      if (del_not_sel)
+        return;
+
+      if (old == sel)
+        sel = NULL;
+    }
+
+  if (sel && new)
+    {
+      int cmpret;
+      if ((cmpret = bgp_info_cmp (vrf->bgp, new, sel, afi, safi)) == -1)
+        return;
+
+      UNSET_FLAG (sel->flags, BGP_INFO_SELECTED);
+      SET_FLAG (new->flags, BGP_INFO_SELECTED);
+      bgp_vrf_update (vrf, afi, vrf_rn, new);
+      return;
+    }
+
+  for (iter = vrf_rn->info; iter; iter = iter->next)
+    {
+      if (newsel == NULL || bgp_info_cmp (vrf->bgp, iter, newsel, af, safi))
+        newsel = iter;
+    }
+  if (sel == newsel)
+    return;
+
+  if (sel)
+    UNSET_FLAG (sel->flags, BGP_INFO_SELECTED);
+  SET_FLAG (newsel->flags, BGP_INFO_SELECTED);
+  bgp_vrf_update (vrf, afi, vrf_rn, newsel);
+}
+
+static void
+bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
+                         struct bgp_node *rn,
+                         struct bgp_info *old_select,
+                         struct bgp_info *new_select)
+{
+  struct ecommunity *old_ecom = NULL, *new_ecom = NULL;
+  struct bgp_vrf *vrf;
+  struct listnode *node;
+  size_t i, j;
+
+  if (safi != SAFI_MPLS_VPN)
+    return;
+
+  if (old_select && old_select->attr && old_select->attr->extra)
+    old_ecom = old_select->attr->extra->ecommunity;
+  if (new_select && new_select->attr && new_select->attr->extra)
+    new_ecom = new_select->attr->extra->ecommunity;
+
+  if (old_ecom)
+    for (i = 0; i < (size_t)old_ecom->size; i++)
+      {
+        struct bgp_rt_sub dummy, *rt_sub;
+        uint8_t *val = old_ecom->val + 8 * i;
+        uint8_t type = val[1];
+        bool withdraw = true;
+
+        if (type != ECOMMUNITY_ROUTE_TARGET)
+          continue;
+
+        memcpy(&dummy.rt, val, 8);
+        rt_sub = hash_lookup (bgp->rt_subscribers, &dummy);
+        if (!rt_sub)
+          continue;
+
+        if (new_ecom)
+          for (j = 0; j < (size_t)new_ecom->size; j++)
+            if (!memcmp(new_ecom->val + j * 8, val, 8))
+              {
+                withdraw = false;
+                break;
+              }
+
+        for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
+          bgp_vrf_process_one (vrf, afi, safi, rn, old_select, withdraw ? NULL : new_select);
+      }
+
+  if (new_ecom)
+    for (i = 0; i < (size_t)new_ecom->size; i++)
+      {
+        struct bgp_rt_sub dummy, *rt_sub;
+        uint8_t *val = new_ecom->val + 8 * i;
+        uint8_t type = val[1];
+        bool found = false;
+
+        if (type != ECOMMUNITY_ROUTE_TARGET)
+          continue;
+
+        memcpy(&dummy.rt, val, 8);
+        rt_sub = hash_lookup (bgp->rt_subscribers, &dummy);
+        if (!rt_sub)
+          continue;
+
+        if (old_ecom)
+          for (j = 0; j < (size_t)old_ecom->size; j++)
+            if (!memcmp(old_ecom->val + j * 8, val, 8))
+              {
+                found = true;
+                break;
+              }
+
+        if (!found)
+          for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
+            bgp_vrf_process_one (vrf, afi, safi, rn, NULL, new_select);
+      }
+}
+
 struct bgp_process_queue 
 {
   struct bgp *bgp;
@@ -1636,6 +1859,8 @@ bgp_process_main (struct work_queue *wq, void *data)
     {
       bgp_process_announce_selected (peer, new_select, rn, afi, safi);
     }
+
+  bgp_vrf_process_imports (bgp, afi, safi, rn, old_select, new_select);
 
   /* FIB update. */
   if ((safi == SAFI_UNICAST || safi == SAFI_MULTICAST) && (! bgp->name &&

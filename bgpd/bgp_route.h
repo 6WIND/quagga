@@ -43,6 +43,8 @@ struct bgp_info_extra
   /* MPLS label.  */
   uint32_t labels[BGP_MAX_LABELS];
   size_t nlabels;
+
+  struct prefix_rd vrf_rd;
 };
 
 struct bgp_info

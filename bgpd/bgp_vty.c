@@ -9734,6 +9734,149 @@ bgp_config_write_redistribute (struct vty *vty, struct bgp *bgp, afi_t afi,
   return *write;
 }
 
+DEFUN (bgp_vrf,
+       bgp_vrf_cmd,
+       "vrf rd WORD",
+       "BGP VPN VRF\n"
+       "Route Distinguisher\n"
+       "Route Distinguisher\n"
+)
+{
+  struct bgp *bgp = vty->index;
+  struct bgp_vrf *vrf;
+  struct prefix_rd prd;
+
+  if (! str2prefix_rd (argv[0], &prd))
+    {
+      vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  vrf = bgp_vrf_lookup (bgp, &prd);
+  if (vrf)
+    {
+      vty_out (vty, "%% VRF with RD '%s' already exists%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  bgp_vrf_create (bgp, &prd);
+  return CMD_SUCCESS;
+}
+
+DEFUN (bgp_vrf_exports,
+       bgp_vrf_exports_cmd,
+       "vrf rd WORD exports .LINE",
+       "BGP VPN VRF\n"
+       "Route Distinguisher\n"
+       "Route Distinguisher\n"
+       "Export RT values\n"
+       "Export RT values\n"
+)
+{
+  struct bgp *bgp = vty->index;
+  struct bgp_vrf *vrf;
+  struct prefix_rd prd;
+  struct ecommunity *ecom = NULL;
+  int fail = 0;
+
+  if (! str2prefix_rd (argv[0], &prd))
+    {
+      vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
+      fail++;
+    }
+  ecom = ecommunity_str2com (argv[1], ECOMMUNITY_ROUTE_TARGET, 0);
+  if (! ecom)
+    {
+      vty_out (vty, "%% Invalid RT '%s'%s", argv[1], VTY_NEWLINE);
+      fail++;
+    }
+  if (fail)
+    return CMD_WARNING;
+
+  vrf = bgp_vrf_lookup (bgp, &prd);
+  if (! vrf)
+    {
+      ecommunity_free (&ecom);
+      vty_out (vty, "%% No VRF with RD '%s'%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  bgp_vrf_export_set (vrf, ecom);
+  return CMD_SUCCESS;
+}
+
+DEFUN (bgp_vrf_imports,
+       bgp_vrf_imports_cmd,
+       "vrf rd WORD imports .LINE",
+       "BGP VPN VRF\n"
+       "Route Distinguisher\n"
+       "Route Distinguisher\n"
+       "Import RT values\n"
+       "Import RT values\n"
+)
+{
+  struct bgp *bgp = vty->index;
+  struct bgp_vrf *vrf;
+  struct prefix_rd prd;
+  struct ecommunity *ecom = NULL;
+  int fail = 0;
+
+  if (! str2prefix_rd (argv[0], &prd))
+    {
+      vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
+      fail++;
+    }
+  ecom = ecommunity_str2com (argv[1], ECOMMUNITY_ROUTE_TARGET, 0);
+  if (! ecom)
+    {
+      vty_out (vty, "%% Invalid RT '%s'%s", argv[1], VTY_NEWLINE);
+      fail++;
+    }
+  if (fail)
+    return CMD_WARNING;
+
+  vrf = bgp_vrf_lookup (bgp, &prd);
+  if (! vrf)
+    {
+      ecommunity_free (&ecom);
+      vty_out (vty, "%% No VRF with RD '%s'%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  bgp_vrf_import_set (vrf, (struct ecommunity_val *)ecom->val, ecom->size);
+  ecommunity_free (&ecom);
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_vrf,
+       no_bgp_vrf_cmd,
+       "no vrf rd WORD",
+       NO_STR
+       "BGP VPN VRF\n"
+       "Route Distinguisher\n"
+       "Route Distinguisher\n"
+)
+{
+  struct bgp *bgp = vty->index;
+  struct bgp_vrf *vrf;
+  struct prefix_rd prd;
+
+  if (! str2prefix_rd (argv[0], &prd))
+    {
+      vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  vrf = bgp_vrf_lookup (bgp, &prd);
+  if (! vrf)
+    {
+      vty_out (vty, "%% No VRF with RD '%s'%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  bgp_vrf_delete (vrf);
+  return CMD_SUCCESS;
+}
+
 /* BGP node structure. */
 static struct cmd_node bgp_node =
 {
@@ -9825,6 +9968,11 @@ bgp_vty_init (void)
   install_default (BGP_ENCAP_NODE);
   install_default (BGP_ENCAPV6_NODE);
   
+  install_element (BGP_NODE, &bgp_vrf_cmd);
+  install_element (BGP_NODE, &bgp_vrf_exports_cmd);
+  install_element (BGP_NODE, &bgp_vrf_imports_cmd);
+  install_element (BGP_NODE, &no_bgp_vrf_cmd);
+
   /* "bgp multiple-instance" commands. */
   install_element (CONFIG_NODE, &bgp_multiple_instance_cmd);
   install_element (CONFIG_NODE, &no_bgp_multiple_instance_cmd);

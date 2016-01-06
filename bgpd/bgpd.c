@@ -19,6 +19,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
 #include <zebra.h>
+#include "bgp_memory.h"
 
 #include "prefix.h"
 #include "thread.h"
@@ -35,6 +36,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "log.h"
 #include "plist.h"
 #include "linklist.h"
+#include "hash.h"
 #include "workqueue.h"
 #include "table.h"
 #include "qzc.h"
@@ -68,6 +70,10 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 #include "bgp.bcapnp.h"
 #include "bgpd.ndef.hi"
+
+DEFINE_MTYPE_STATIC(BGPD, BGP_VRF,         "BGP VRF")
+DEFINE_MTYPE_STATIC(BGPD, BGP_VRF_IMPORTS, "BGP VRF Import List")
+DEFINE_MTYPE_STATIC(BGPD, BGP_RT_SUB,      "BGP Route Target Subscribers")
 
 /* BGP process wide configuration.  */
 static struct bgp_master bgp_master;
@@ -2061,6 +2067,157 @@ bgp_startup_timer_expire (struct thread *thread)
   return 0;
 }
 
+/* VRFs */
+
+static unsigned int bgp_rt_hash_key (void *arg)
+{
+  const struct bgp_rt_sub *rt_sub = arg;
+  uint32_t *rtval = (uint32_t *)(char *)&rt_sub->rt;
+  return rtval[0] ^ rtval[1];
+}
+
+static int bgp_rt_hash_cmp (const void *a, const void *b)
+{
+  const struct bgp_rt_sub *aa = a, *bb = b;
+  return !memcmp(&aa->rt, &bb->rt, sizeof(aa->rt));
+}
+
+static void *
+bgp_rt_hash_alloc (void *dummy)
+{
+  struct bgp_rt_sub *ddummy = dummy, *rt_sub;
+  rt_sub = XMALLOC (MTYPE_BGP_RT_SUB, sizeof (*rt_sub));
+  rt_sub->rt = ddummy->rt;
+  rt_sub->vrfs = list_new();
+  return rt_sub;
+}
+
+static void
+bgp_rt_hash_dealloc (struct bgp_rt_sub *rt_sub)
+{
+  list_delete (rt_sub->vrfs);
+  XFREE (MTYPE_BGP_RT_SUB, rt_sub);
+}
+
+struct bgp_vrf *
+bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd)
+{
+  struct listnode *node;
+  struct bgp_vrf *vrf;
+
+  for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+    if (!memcmp (outbound_rd->val, vrf->outbound_rd.val, 8))
+      return vrf;
+  return NULL;
+}
+
+struct bgp_vrf *
+bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
+{
+  struct bgp_vrf *vrf;
+  afi_t afi;
+
+  if ( (vrf = XCALLOC (MTYPE_BGP_VRF, sizeof (struct bgp_vrf))) == NULL)
+    return NULL;
+
+  vrf->bgp = bgp;
+  vrf->outbound_rd = *outbound_rd;
+
+  for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    {
+      vrf->route[afi] = bgp_table_init (afi, SAFI_UNICAST);
+      vrf->rib[afi] = bgp_table_init (afi, SAFI_UNICAST);
+    }
+
+  listnode_add (bgp->vrfs, vrf);
+  return vrf;
+}
+
+void
+bgp_vrf_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export)
+{
+  if (vrf->rt_export)
+    ecommunity_unintern (&vrf->rt_export);
+
+  vrf->rt_export = ecommunity_intern (rt_export);
+}
+
+static void
+bgp_vrf_import_unset (struct bgp_vrf *vrf)
+{
+  size_t i;
+
+  if (!vrf->rt_import)
+    return;
+
+  for (i = 0; i < vrf->n_rt_import; i++)
+    {
+      struct bgp_rt_sub dummy, *rt_sub;
+      dummy.rt = vrf->rt_import[i];
+
+      rt_sub = hash_lookup (vrf->bgp->rt_subscribers, &dummy);
+      assert(rt_sub);
+      listnode_delete (rt_sub->vrfs, vrf);
+      if (list_isempty (rt_sub->vrfs))
+        {
+          hash_release (vrf->bgp->rt_subscribers, rt_sub);
+          bgp_rt_hash_dealloc (rt_sub);
+        }
+    }
+
+  vrf->rt_import = NULL;
+  vrf->n_rt_import = 0;
+}
+
+void
+bgp_vrf_import_set (struct bgp_vrf *vrf, struct ecommunity_val *rt_import, size_t n_rt_import)
+{
+  size_t i;
+
+  bgp_vrf_import_unset (vrf);
+
+  vrf->rt_import = XMALLOC (MTYPE_BGP_VRF_IMPORTS, sizeof (*rt_import) * n_rt_import);
+  memcpy(vrf->rt_import, rt_import, sizeof (*rt_import) * n_rt_import);
+  vrf->n_rt_import = n_rt_import;
+
+  for (i = 0; i < n_rt_import; i++)
+    {
+      struct bgp_rt_sub dummy, *rt_sub;
+      dummy.rt = rt_import[i];
+
+      rt_sub = hash_get (vrf->bgp->rt_subscribers, &dummy, bgp_rt_hash_alloc);
+      listnode_add (rt_sub->vrfs, vrf);
+    }
+}
+
+static void
+bgp_vrf_delete_int (void *arg)
+{
+  struct bgp_vrf *vrf = arg;
+  afi_t afi;
+
+  if (vrf->rt_export)
+    ecommunity_unintern (&vrf->rt_export);
+
+  bgp_vrf_import_unset (vrf);
+
+  for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    {
+      bgp_table_finish (&vrf->rib[afi]);
+      bgp_table_finish (&vrf->route[afi]);
+    }
+
+  XFREE (MTYPE_BGP_VRF_IMPORTS, vrf->rt_import);
+  XFREE (MTYPE_BGP_VRF, vrf);
+}
+
+void
+bgp_vrf_delete (struct bgp_vrf *vrf)
+{
+  listnode_delete (vrf->bgp->vrfs, vrf);
+  bgp_vrf_delete_int(vrf);
+}
+
 /* BGP instance creation by `router bgp' commands. */
 static struct bgp *
 bgp_create (as_t *as, const char *name)
@@ -2106,6 +2263,10 @@ bgp_create (as_t *as, const char *name)
 
   if (name)
     bgp->name = strdup (name);
+
+  bgp->vrfs = list_new();
+  bgp->vrfs->del = bgp_vrf_delete_int;
+  bgp->rt_subscribers = hash_create(bgp_rt_hash_key, bgp_rt_hash_cmp);
 
   QZC_NODE_REG(bgp, bgp)
   THREAD_TIMER_ON (bm->master, bgp->t_startup, bgp_startup_timer_expire,
@@ -2231,6 +2392,10 @@ bgp_delete (struct bgp *bgp)
 
   THREAD_OFF (bgp->t_startup);
   QZC_NODE_UNREG(bgp)
+
+  list_delete (bgp->vrfs);
+  hash_clean (bgp->rt_subscribers, NULL);
+  hash_free (bgp->rt_subscribers);
 
   /* Delete static route. */
   bgp_static_delete (bgp);
