@@ -24,6 +24,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "queue.h"
 #include "bgp_table.h"
 
+#define BGP_MAX_LABELS 6
+
 struct bgp_nexthop_cache;
 
 /* Ancillary information to struct bgp_info, 
@@ -42,7 +44,8 @@ struct bgp_info_extra
   u_int32_t igpmetric;
 
   /* MPLS label.  */
-  u_char tag[3];  
+  uint32_t labels[BGP_MAX_LABELS];
+  size_t nlabels;
 
   struct prefix_rd vrf_rd;
 };
@@ -139,8 +142,9 @@ struct bgp_static
 
   struct ecommunity	*ecomm;
 
-  /* MPLS label.  */
-  u_char tag[3];
+  /* MPLS label. */
+  uint32_t labels[BGP_MAX_LABELS];
+  size_t nlabels;
 };
 
 #define BGP_INFO_COUNTABLE(BI) \
@@ -247,9 +251,10 @@ extern int bgp_static_unset_safi (safi_t safi, struct vty *, const char *,
 /* this is primarily for MPLS-VPN */
 extern int bgp_update (struct peer *, struct prefix *, struct attr *,
 		       afi_t, safi_t, int, int, struct prefix_rd *, 
-		       u_char *, int);
+		       uint32_t *labels, size_t nlabels, int);
 extern int bgp_withdraw (struct peer *, struct prefix *, struct attr *,
-			 afi_t, safi_t, int, int, struct prefix_rd *, u_char *);
+			 afi_t, safi_t, int, int, struct prefix_rd *,
+			 uint32_t *labels, size_t nlabels);
 
 /* for bgp_nexthop and bgp_damp */
 extern void bgp_process (struct bgp *, struct bgp_node *, afi_t, safi_t);
