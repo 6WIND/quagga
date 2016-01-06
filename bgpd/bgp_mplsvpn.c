@@ -99,7 +99,7 @@ bgp_nlri_parse_vpn (struct peer *peer, struct attr *attr,
                     struct bgp_nlri *packet)
 {
   u_char *pnt;
-  u_char *lim;
+  u_char *lim, *lim2;
   struct prefix p;
   int psize = 0;
   int prefixlen;
@@ -107,7 +107,8 @@ bgp_nlri_parse_vpn (struct peer *peer, struct attr *attr,
   struct rd_as rd_as;
   struct rd_ip rd_ip;
   struct prefix_rd prd;
-  u_char *tagpnt;
+  uint32_t labels[BGP_MAX_LABELS];
+  size_t nlabels;
 
   /* Check peer status. */
   if (peer->status != Established)
@@ -149,7 +150,31 @@ bgp_nlri_parse_vpn (struct peer *peer, struct attr *attr,
                     prefixlen, (uint)(lim-pnt));
           return -1;
         }
-      
+      lim2 = pnt + psize;
+#if 1
+      nlabels = 1;
+      labels[0] = (pnt[0] << 16) + (pnt[1] << 8) + pnt[2];
+#else
+      nlabels = 0;
+      while (1)
+        {
+          if (pnt + 3 > lim2)
+            {
+              zlog_err ("label stack running past prefix length");
+              return -1;
+            }
+          uint32_t label = (pnt[0] << 16) + (pnt[1] << 8) + pnt[2];
+          pnt += 3;
+          if (nlabels == BGP_MAX_LABELS)
+            {
+              zlog_err ("label stack too deep");
+              return -1;
+            }
+          labels[nlabels++] = label;
+          if (label == 0 || label == 0x800000 || label & 0x000001)
+            break;
+        }
+#endif
       /* sanity check against storage for the IP address portion */
       if ((psize - VPN_PREFIXLEN_MIN_BYTES) > (ssize_t) sizeof(p.u))
         {
@@ -173,9 +198,6 @@ bgp_nlri_parse_vpn (struct peer *peer, struct attr *attr,
           return -1;
         }
       
-      /* Copyr label to prefix. */
-      tagpnt = pnt;
-
       /* Copy routing distinguisher to rd. */
       memcpy (&prd.val, pnt + 3, 8);
 
@@ -213,10 +235,10 @@ bgp_nlri_parse_vpn (struct peer *peer, struct attr *attr,
 
       if (attr)
         bgp_update (peer, &p, attr, packet->afi, SAFI_MPLS_VPN,
-                    ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, tagpnt, 0);
+                    ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, labels, nlabels, 0);
       else
         bgp_withdraw (peer, &p, attr, packet->afi, SAFI_MPLS_VPN,
-                      ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, tagpnt);
+                      ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, labels, nlabels);
     }
   /* Packet length consistency check. */
   if (pnt != lim)
@@ -293,28 +315,33 @@ out:
 }
 
 int
-str2tag (const char *str, u_char *tag)
+str2labels (const char *str, uint32_t*labels, size_t *nlabels)
 {
   unsigned long l;
   char *endptr;
-  u_int32_t t;
 
   if (*str == '-')
     return 0;
   
-  errno = 0;
-  l = strtoul (str, &endptr, 10);
+  if (str[0] == ':' && str[1] == '\0')
+    return 1;
 
-  if (*endptr != '\0' || errno || l > UINT32_MAX)
-    return 0;
-
-  t = (u_int32_t) l;
-  
-  tag[0] = (u_char)(t >> 12);
-  tag[1] = (u_char)(t >> 4);
-  tag[2] = (u_char)(t << 4);
-
-  return 1;
+  *nlabels = 0;
+  while (*nlabels < BGP_MAX_LABELS)
+    {
+      errno = 0;
+      l = strtoul (str, &endptr, 0);
+      if (endptr == str || (*endptr != '\0' && *endptr != ':') || l >= 0x100000)
+        return 0;
+      labels[*nlabels] = l << 4;
+      (*nlabels)++;
+      if (*endptr == '\0')
+        {
+          labels[*nlabels - 1] |= 1;
+          break;
+        }
+    }
+  return *endptr == '\0';
 }
 
 char *
