@@ -28,6 +28,7 @@
 #include "command.h"
 #include "vty.h"
 #include "memory.h"
+#include "memory_cli.h"
 #include "if.h"
 #include "filter.h"
 #include "prefix.h"

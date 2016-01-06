@@ -32,6 +32,7 @@
 
 #include "memory.h"
 #include "vrf.h"
+#include "memory_cli.h"
 #include "filter.h"
 #include "vty.h"
 #include "sigevent.h"

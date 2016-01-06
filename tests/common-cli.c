@@ -26,6 +26,7 @@
 #include "vty.h"
 #include "command.h"
 #include "memory.h"
+#include "memory_cli.h"
 #include "log.h"
 
 #include "common-cli.h"
