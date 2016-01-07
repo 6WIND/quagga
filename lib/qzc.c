@@ -124,14 +124,15 @@ static void qzc_nodeinforeq (struct QZCRequest *req, struct QZCReply *rep,
 static void qzc_get (struct QZCRequest *req, struct QZCReply *rep,
                      struct capn_segment *cs)
 {
-  struct QZCGet greq, grep;
+  struct QZCGetReq greq;
+  struct QZCGetRep grep;
   struct qzc_node *node;
 
-  read_QZCGet(&greq, req->get);
+  read_QZCGetReq(&greq, req->get);
   node = qzc_node_get(greq.nid);
 
   rep->which = QZCReply_get;
-  rep->get = new_QZCGet(cs);
+  rep->get = new_QZCGetRep(cs);
 
   grep.nid = greq.nid;
   grep.elem = greq.elem;
@@ -149,7 +150,7 @@ static void qzc_get (struct QZCRequest *req, struct QZCReply *rep,
                   &greq, &grep, cs);
 
 out:
-  write_QZCGet(&grep, rep->get);
+  write_QZCGetRep(&grep, rep->get);
 }
 
 static void qzc_create (struct QZCRequest *req, struct QZCReply *rep,

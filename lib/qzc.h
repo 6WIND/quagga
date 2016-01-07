@@ -31,7 +31,7 @@
 struct qzc_nodetype {
 	uint64_t tid;
 	ptrdiff_t node_member_offset;
-	void (*get)(void *entity, struct QZCGet *req, struct QZCGet *rep,
+	void (*get)(void *entity, struct QZCGetReq *req, struct QZCGetRep *rep,
 			struct capn_segment *seg);
 	void (*createchild)(void *parent, struct QZCCreateReq *req,
 			struct QZCCreateRep *rep, struct capn_segment *seg);

@@ -66,14 +66,19 @@ struct QZCWKNResolveRep {
 }
 
 # get data for a specific node element
-# (TBD: need ctxtype/ctxdata
-#  TBD: split req/rep)
 #
-struct QZCGet {
+struct QZCGetReq {
 	nid		@0 :UInt64;
 	elem		@1 :UInt64;
-        datatype        @2 :UInt64;
-        data            @3 :AnyPointer;
+	ctxtype		@2 :UInt64;
+	ctxdata		@3 :AnyPointer;
+}
+
+struct QZCGetRep {
+	nid		@0 :UInt64;
+	elem		@1 :UInt64;
+	datatype	@2 :UInt64;
+	data		@3 :AnyPointer;
 }
 
 # create child in context of a parent node/element
@@ -103,7 +108,7 @@ struct QZCRequest {
 		ping		@0 :Void;
 		nodeinforeq	@1 :QZCNodeInfoReq;
 		wknresolve	@2 :QZCWKNResolveReq;
-		get		@3 :QZCGet;
+		get		@3 :QZCGetReq;
 		create		@4 :QZCCreateReq;
 		set		@5 :QZCSetReq;
 	}
@@ -116,7 +121,7 @@ struct QZCReply {
 		pong		@1 :Void;
 		nodeinforep	@2 :QZCNodeInfoRep;
 		wknresolve	@3 :QZCWKNResolveRep;
-		get		@4 :QZCGet;
+		get		@4 :QZCGetRep;
 		create		@5 :QZCCreateRep;
 		set		@6 :Void;
 	}
