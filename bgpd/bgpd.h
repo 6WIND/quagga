@@ -928,6 +928,7 @@ extern void bgp_lock (struct bgp *);
 extern void bgp_unlock (struct bgp *);
 
 extern int bgp_router_id_set (struct bgp *, struct in_addr *);
+extern int bgp_router_id_static_set (struct bgp *, struct in_addr);
 
 extern int bgp_cluster_id_set (struct bgp *, struct in_addr *);
 extern int bgp_cluster_id_unset (struct bgp *);

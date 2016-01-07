@@ -197,6 +197,16 @@ bgp_router_id_set (struct bgp *bgp, struct in_addr *id)
   return 0;
 }
 
+extern struct in_addr router_id_zebra;
+
+int
+bgp_router_id_static_set (struct bgp *bgp, struct in_addr id)
+{
+  bgp->router_id_static = id;
+  bgp_router_id_set (bgp, id.s_addr ? &id : &router_id_zebra);
+  return 0;
+}
+
 /* BGP's cluster-id control. */
 int
 bgp_cluster_id_set (struct bgp *bgp, struct in_addr *cluster_id)
