@@ -2148,6 +2148,29 @@ bgp_rib_withdraw (struct bgp_node *rn, struct bgp_info *ri, struct peer *peer,
   bgp_rib_remove (rn, ri, peer, afi, safi);
 }
 
+static bool
+labels_equal(struct bgp_info *info, uint32_t *labels, size_t nlabels)
+{
+	uint32_t *info_labels;
+	size_t info_nlabels;
+
+	if (!info->extra) {
+		info_labels = NULL;
+		info_nlabels = 0;
+	} else {
+		info_labels = info->extra->labels;
+		info_nlabels = info->extra->nlabels;
+	}
+
+	if (info_nlabels != nlabels)
+		return false;
+
+	if (!nlabels)
+		return true;
+
+	return !memcmp(labels, info_labels, nlabels * sizeof(labels[0]));
+}
+
 static void
 bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
       struct attr *attr, struct peer *peer, struct prefix *p, int type,
@@ -2237,7 +2260,8 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
 
       /* Same attribute comes in. */
       if (!CHECK_FLAG(ri->flags, BGP_INFO_REMOVED)
-          && attrhash_cmp (ri->attr, attr_new))
+          && attrhash_cmp (ri->attr, attr_new)
+          && labels_equal (ri, labels, nlabels))
         {
 
           bgp_info_unset_flag (rn, ri, BGP_INFO_ATTR_CHANGED);
@@ -2507,7 +2531,8 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 
       /* Same attribute comes in. */
       if (!CHECK_FLAG (ri->flags, BGP_INFO_REMOVED) 
-          && attrhash_cmp (ri->attr, attr_new))
+          && attrhash_cmp (ri->attr, attr_new)
+          && labels_equal (ri, labels, nlabels))
 	{
 	  bgp_info_unset_flag (rn, ri, BGP_INFO_ATTR_CHANGED);
 
