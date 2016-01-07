@@ -2175,6 +2175,7 @@ void
 bgp_vrf_import_set (struct bgp_vrf *vrf, struct ecommunity_val *rt_import, size_t n_rt_import)
 {
   size_t i;
+  afi_t afi;
 
   bgp_vrf_import_unset (vrf);
 
@@ -2190,6 +2191,9 @@ bgp_vrf_import_set (struct bgp_vrf *vrf, struct ecommunity_val *rt_import, size_
       rt_sub = hash_get (vrf->bgp->rt_subscribers, &dummy, bgp_rt_hash_alloc);
       listnode_add (rt_sub->vrfs, vrf);
     }
+
+  for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    bgp_vrf_apply_new_imports (vrf, afi);
 }
 
 static void

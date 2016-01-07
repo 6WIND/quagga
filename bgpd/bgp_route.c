@@ -1564,7 +1564,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
 
 static void
 bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_node *rn,
-                     struct bgp_info *old_select, struct bgp_info *new_select)
+                     struct bgp_info *new_select)
 {
   char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
   struct bgp_node *vrf_rn;
@@ -1577,8 +1577,8 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
   prefix_rd2str(prd, rd_str, sizeof(rd_str));
   prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
 
-  zlog_debug ("vrf[%s] %s: [%s] updating %p->%p", vrf_rd_str, pfx_str, rd_str,
-                  (void *)old_select, (void *)new_select);
+  zlog_debug ("vrf[%s] %s: [%s] %s", vrf_rd_str, pfx_str, rd_str,
+                  new_select ? "updating" : "withdrawing");
 
   if (new_select)
     {
@@ -1706,7 +1706,7 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
               }
 
         for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
-          bgp_vrf_process_one (vrf, afi, safi, rn, old_select, withdraw ? NULL : new_select);
+          bgp_vrf_process_one (vrf, afi, safi, rn, withdraw ? NULL : new_select);
       }
 
   if (new_ecom)
@@ -1735,7 +1735,48 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
 
         if (!found)
           for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
-            bgp_vrf_process_one (vrf, afi, safi, rn, NULL, new_select);
+            bgp_vrf_process_one (vrf, afi, safi, rn, new_select);
+      }
+}
+
+void
+bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
+{
+  struct bgp_node *rd_rn, *rn;
+  struct bgp_info *sel;
+  struct bgp_table *table;
+  struct ecommunity *ecom;
+  size_t i, j;
+  bool found;
+
+  if (vrf->n_rt_import == 0)
+    return;
+
+  for (rd_rn = bgp_table_top (vrf->bgp->rib[afi][SAFI_MPLS_VPN]); rd_rn;
+                  rd_rn = bgp_route_next (rd_rn))
+    if (rd_rn->info != NULL)
+      {
+        table = rd_rn->info;
+
+        for (rn = bgp_table_top (table); rn; rn = bgp_route_next (rn))
+          {
+            for (sel = rn->info; sel; sel = sel->next)
+              if (CHECK_FLAG (sel->flags, BGP_INFO_SELECTED))
+                break;
+            if (!sel || !sel->attr || !sel->attr->extra)
+              continue;
+            ecom = sel->attr->extra->ecommunity;
+
+            found = false;
+            for (i = 0; i < (size_t)ecom->size && !found; i++)
+              for (j = 0; j < vrf->n_rt_import && !found; j++)
+                if (!memcmp(ecom->val + i * 8, vrf->rt_import[j].val, 8))
+                  found = true;
+            if (!found)
+              continue;
+
+            bgp_vrf_process_one (vrf, afi, safi, rn, sel);
+          }
       }
 }
 

@@ -253,4 +253,6 @@ extern void route_vty_out_tmp (struct vty *, struct prefix *, struct attr *, saf
 extern void bgp_peer_clear_node_queue_drain_immediate (struct peer *peer);
 extern void bgp_process_queues_drain_immediate (void);
 
+extern void bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi);
+
 #endif /* _QUAGGA_BGP_ROUTE_H */
