@@ -2126,7 +2126,9 @@ bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     {
       vrf->route[afi] = bgp_table_init (afi, SAFI_UNICAST);
+      vrf->route[afi]->type = BGP_TABLE_VRF;
       vrf->rib[afi] = bgp_table_init (afi, SAFI_UNICAST);
+      vrf->rib[afi]->type = BGP_TABLE_VRF;
     }
 
   listnode_add (bgp->vrfs, vrf);

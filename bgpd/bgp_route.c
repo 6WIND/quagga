@@ -6464,6 +6464,9 @@ route_vty_out_detail (struct vty *vty, struct bgp *bgp, struct prefix *p,
 	
   attr = binfo->attr;
 
+  if (safi == SAFI_MPLS_LABELED_VPN)
+    safi = SAFI_MPLS_VPN;
+
   if (attr)
     {
       /* Line1 display AS-path, Aggregator */
@@ -6678,6 +6681,7 @@ bgp_show_table (struct vty *vty, struct bgp_table *table, struct in_addr *router
   int display;
   unsigned long output_count;
   unsigned long total_count;
+  safi_t safi = table->type == BGP_TABLE_VRF ? SAFI_MPLS_VPN : SAFI_UNICAST;
 
   /* This is first entry point, so reset total line. */
   output_count = 0;
@@ -6862,7 +6866,7 @@ bgp_show_table (struct vty *vty, struct bgp_table *table, struct in_addr *router
 
 	    if (type == bgp_show_type_dampend_paths
 		|| type == bgp_show_type_damp_neighbor)
-	      damp_route_vty_out (vty, &rn->p, ri, display, SAFI_UNICAST);
+	      damp_route_vty_out (vty, &rn->p, ri, display, safi);
 	    else if (type == bgp_show_type_flap_statistics
 		     || type == bgp_show_type_flap_address
 		     || type == bgp_show_type_flap_prefix
@@ -6873,9 +6877,9 @@ bgp_show_table (struct vty *vty, struct bgp_table *table, struct in_addr *router
 		     || type == bgp_show_type_flap_prefix_longer
 		     || type == bgp_show_type_flap_route_map
 		     || type == bgp_show_type_flap_neighbor)
-	      flap_route_vty_out (vty, &rn->p, ri, display, SAFI_UNICAST);
+	      flap_route_vty_out (vty, &rn->p, ri, display, safi);
 	    else
-	      route_vty_out (vty, &rn->p, ri, display, SAFI_UNICAST);
+	      route_vty_out (vty, &rn->p, ri, display, safi);
 	    display++;
 	  }
 	if (display)
@@ -6915,6 +6919,35 @@ bgp_show (struct vty *vty, struct bgp *bgp, afi_t afi, safi_t safi,
   table = bgp->rib[afi][safi];
 
   return bgp_show_table (vty, table, &bgp->router_id, type, output_arg);
+}
+
+static int
+bgp_show_vrf (struct vty *vty, const char *vrf_name, afi_t afi,
+         enum bgp_show_type type, void *output_arg)
+{
+  struct bgp *bgp = bgp_get_default();
+  struct bgp_vrf *vrf;
+  struct prefix_rd prd;
+
+  if (! bgp)
+    {
+      vty_out (vty, "%% No default BGP instance%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  if (! str2prefix_rd (vrf_name, &prd))
+    {
+      vty_out (vty, "%% Invalid RD '%s'%s", vrf_name, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  vrf = bgp_vrf_lookup (bgp, &prd);
+  if (! vrf)
+    {
+      vty_out (vty, "%% No VRF with RD '%s'%s", vrf_name, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  return bgp_show_table (vty, vrf->rib[afi], &bgp->router_id, type, output_arg);
 }
 
 /* Header of detailed BGP route information */
@@ -6983,6 +7016,12 @@ route_vty_out_detail_header (struct vty *vty, struct bgp *bgp,
   if (suppress)
     vty_out (vty, ", Advertisements suppressed by an aggregate.");
   vty_out (vty, ")%s", VTY_NEWLINE);
+
+  if (safi == SAFI_MPLS_LABELED_VPN)
+    {
+      vty_out (vty, "%s", VTY_NEWLINE);
+      return;
+    }
 
   /* advertised peer */
   for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
@@ -7097,6 +7136,36 @@ bgp_show_route_in_table (struct vty *vty, struct bgp *bgp,
   return CMD_SUCCESS;
 }
 
+static int
+bgp_show_vrf_route (struct vty *vty, const char *vrf_name, const char *ip_str,
+		afi_t afi, int prefix_check)
+{
+  struct bgp *bgp = bgp_get_default();
+  struct bgp_vrf *vrf;
+  struct prefix_rd prd;
+
+  if (! bgp)
+    {
+      vty_out (vty, "%% No default BGP instance%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  if (! str2prefix_rd (vrf_name, &prd))
+    {
+      vty_out (vty, "%% Invalid RD '%s'%s", vrf_name, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  vrf = bgp_vrf_lookup (bgp, &prd);
+  if (! vrf)
+    {
+      vty_out (vty, "%% No VRF with RD '%s'%s", vrf_name, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  return bgp_show_route_in_table (vty, bgp, vrf->rib[afi], ip_str,
+                                   afi, SAFI_MPLS_LABELED_VPN, NULL, prefix_check);
+}
+
 /* Display specified route of Main RIB */
 static int
 bgp_show_route (struct vty *vty, const char *view_name, const char *ip_str,
@@ -7140,6 +7209,16 @@ DEFUN (show_ip_bgp,
   return bgp_show (vty, NULL, AFI_IP, SAFI_UNICAST, bgp_show_type_normal, NULL);
 }
 
+DEFUN (show_ip_bgp_vrf,
+       show_ip_bgp_vrf_cmd,
+       "show ip bgp vrf WORD",
+       SHOW_STR
+       IP_STR
+       BGP_STR)
+{
+  return bgp_show_vrf (vty, argv[0], AFI_IP, bgp_show_type_normal, NULL);
+}
+
 DEFUN (show_ip_bgp_ipv4,
        show_ip_bgp_ipv4_cmd,
        "show ip bgp ipv4 (unicast|multicast)",
@@ -7166,6 +7245,19 @@ DEFUN (show_ip_bgp_route,
        "Network in the BGP routing table to display\n")
 {
   return bgp_show_route (vty, NULL, argv[0], AFI_IP, SAFI_UNICAST, NULL, 0);
+}
+
+DEFUN (show_ip_bgp_vrf_route,
+       show_ip_bgp_vrf_route_cmd,
+       "show ip bgp vrf WORD (ipv4|ipv6) (A.B.C.D|X:X::X:X)",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "VRF\n"
+       "Route Distinguisher\n")
+{
+  afi_t afi = (strncmp (argv[1], "ipv6", 4) == 0) ? AFI_IP6 : AFI_IP;
+  return bgp_show_vrf_route (vty, argv[0], argv[2], afi, 0);
 }
 
 DEFUN (show_ip_bgp_ipv4_route,
@@ -16563,8 +16655,10 @@ bgp_route_init (void)
 
   /* old style commands */
   install_element (VIEW_NODE, &show_ip_bgp_cmd);
+  install_element (VIEW_NODE, &show_ip_bgp_vrf_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_route_cmd);
+  install_element (VIEW_NODE, &show_ip_bgp_vrf_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_rd_route_cmd);
@@ -16647,6 +16741,7 @@ bgp_route_init (void)
   install_element (VIEW_NODE, &show_ip_bgp_view_rsclient_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_view_rsclient_prefix_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_route_cmd);
+  install_element (RESTRICTED_NODE, &show_ip_bgp_vrf_route_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_ipv4_route_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv4_rd_route_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_prefix_cmd);
@@ -16676,8 +16771,10 @@ bgp_route_init (void)
   install_element (RESTRICTED_NODE, &show_ip_bgp_view_rsclient_route_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_view_rsclient_prefix_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_cmd);
+  install_element (ENABLE_NODE, &show_ip_bgp_vrf_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_ipv4_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_route_cmd);
+  install_element (ENABLE_NODE, &show_ip_bgp_vrf_route_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_ipv4_route_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_vpnv4_all_route_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_vpnv4_rd_route_cmd);
