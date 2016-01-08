@@ -40,6 +40,9 @@ struct AfiSafiKey $cgennaked $cgetfield {
 	afi			 @0 :UInt8 $ctype("afi_t");
 	safi			 @1 :UInt8 $ctype("safi_t");
 }
+struct ExtCommunityList {
+	values			 @0 :List(UInt64);
+}
 
 struct BGP $ctype("struct bgp") $cgen
 		$csetter("bgp_%%_set")
@@ -136,5 +139,13 @@ struct BGPPeerAfiSafi $ctype("struct peer") $cgen
 	cfNexthopSelfAll	@18 :Bool $cflag(field = "af_flags", setter = "peer_af_flag_set", value = "PEER_FLAG_NEXTHOP_SELF_ALL");
 
 	allowAsIn		@19 :Int8;
+}
+
+struct BGPVRF $ctype("struct bgp_vrf") $cgen 
+		$csetter("bgp_vrf_%%_set")
+{
+	outboundRd		 @0 :UInt64 $cgetfield;
+	rtImport		 @1 :ExtCommunityList;
+	rtExport		 @2 :ExtCommunityList;
 }
 
