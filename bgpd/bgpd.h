@@ -212,9 +212,7 @@ struct bgp_vrf
   struct prefix_rd outbound_rd;
 
   /* import and export lists */
-  struct ecommunity_val *rt_import;
-  size_t n_rt_import;
-
+  struct ecommunity *rt_import;
   struct ecommunity *rt_export;
 
   /* BGP routing information base.  */
@@ -1040,8 +1038,7 @@ extern int peer_ttl_security_hops_unset (struct peer *);
 extern struct bgp_vrf *bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd);
 extern struct bgp_vrf *bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd);
 extern void bgp_vrf_delete (struct bgp_vrf *vrf);
-extern void bgp_vrf_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export);
-extern void bgp_vrf_import_set (struct bgp_vrf *vrf,
-		struct ecommunity_val *rt_import, size_t n_rt_import);
+extern void bgp_vrf_rt_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export);
+extern void bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import);
 
 #endif /* _QUAGGA_BGPD_H */

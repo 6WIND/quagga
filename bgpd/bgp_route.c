@@ -1749,7 +1749,7 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
   size_t i, j;
   bool found;
 
-  if (vrf->n_rt_import == 0)
+  if (!vrf->rt_import || vrf->rt_import->size == 0)
     return;
 
   for (rd_rn = bgp_table_top (vrf->bgp->rib[afi][SAFI_MPLS_VPN]); rd_rn;
@@ -1769,8 +1769,8 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
 
             found = false;
             for (i = 0; i < (size_t)ecom->size && !found; i++)
-              for (j = 0; j < vrf->n_rt_import && !found; j++)
-                if (!memcmp(ecom->val + i * 8, vrf->rt_import[j].val, 8))
+              for (j = 0; j < vrf->rt_import->size && !found; j++)
+                if (!memcmp(ecom->val + i * 8, vrf->rt_import->val + j * 8, 8))
                   found = true;
             if (!found)
               continue;

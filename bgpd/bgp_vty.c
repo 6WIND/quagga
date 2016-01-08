@@ -9801,7 +9801,7 @@ DEFUN (bgp_vrf_exports,
       return CMD_WARNING;
     }
 
-  bgp_vrf_export_set (vrf, ecom);
+  bgp_vrf_rt_export_set (vrf, ecom);
   return CMD_SUCCESS;
 }
 
@@ -9843,8 +9843,9 @@ DEFUN (bgp_vrf_imports,
       return CMD_WARNING;
     }
 
-  bgp_vrf_import_set (vrf, (struct ecommunity_val *)ecom->val, ecom->size);
-  ecommunity_free (&ecom);
+  ecom = ecommunity_intern (ecom);
+  bgp_vrf_rt_import_set (vrf, ecom);
+  ecommunity_unintern (&ecom);
   return CMD_SUCCESS;
 }
 

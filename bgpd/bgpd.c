@@ -72,7 +72,6 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd.ndef.hi"
 
 DEFINE_MTYPE_STATIC(BGPD, BGP_VRF,         "BGP VRF")
-DEFINE_MTYPE_STATIC(BGPD, BGP_VRF_IMPORTS, "BGP VRF Import List")
 DEFINE_MTYPE_STATIC(BGPD, BGP_RT_SUB,      "BGP Route Target Subscribers")
 
 /* BGP process wide configuration.  */
@@ -2136,7 +2135,7 @@ bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
 }
 
 void
-bgp_vrf_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export)
+bgp_vrf_rt_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export)
 {
   if (vrf->rt_export)
     ecommunity_unintern (&vrf->rt_export);
@@ -2145,17 +2144,17 @@ bgp_vrf_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export)
 }
 
 static void
-bgp_vrf_import_unset (struct bgp_vrf *vrf)
+bgp_vrf_rt_import_unset (struct bgp_vrf *vrf)
 {
   size_t i;
 
   if (!vrf->rt_import)
     return;
 
-  for (i = 0; i < vrf->n_rt_import; i++)
+  for (i = 0; i < (size_t)vrf->rt_import->size; i++)
     {
       struct bgp_rt_sub dummy, *rt_sub;
-      dummy.rt = vrf->rt_import[i];
+      memcpy (&dummy.rt, vrf->rt_import->val + 8 * i, 8);
 
       rt_sub = hash_lookup (vrf->bgp->rt_subscribers, &dummy);
       assert(rt_sub);
@@ -2167,26 +2166,23 @@ bgp_vrf_import_unset (struct bgp_vrf *vrf)
         }
     }
 
-  vrf->rt_import = NULL;
-  vrf->n_rt_import = 0;
+  ecommunity_unintern (&vrf->rt_import);
 }
 
 void
-bgp_vrf_import_set (struct bgp_vrf *vrf, struct ecommunity_val *rt_import, size_t n_rt_import)
+bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import)
 {
   size_t i;
   afi_t afi;
 
-  bgp_vrf_import_unset (vrf);
+  bgp_vrf_rt_import_unset (vrf);
 
-  vrf->rt_import = XMALLOC (MTYPE_BGP_VRF_IMPORTS, sizeof (*rt_import) * n_rt_import);
-  memcpy(vrf->rt_import, rt_import, sizeof (*rt_import) * n_rt_import);
-  vrf->n_rt_import = n_rt_import;
+  vrf->rt_import = ecommunity_intern (rt_import);
 
-  for (i = 0; i < n_rt_import; i++)
+  for (i = 0; i < (size_t)vrf->rt_import->size; i++)
     {
       struct bgp_rt_sub dummy, *rt_sub;
-      dummy.rt = rt_import[i];
+      memcpy (&dummy.rt, vrf->rt_import->val + 8 * i, 8);
 
       rt_sub = hash_get (vrf->bgp->rt_subscribers, &dummy, bgp_rt_hash_alloc);
       listnode_add (rt_sub->vrfs, vrf);
@@ -2202,10 +2198,12 @@ bgp_vrf_delete_int (void *arg)
   struct bgp_vrf *vrf = arg;
   afi_t afi;
 
+  bgp_vrf_rt_import_unset (vrf);
+
   if (vrf->rt_export)
     ecommunity_unintern (&vrf->rt_export);
-
-  bgp_vrf_import_unset (vrf);
+  if (vrf->rt_import)
+    ecommunity_unintern (&vrf->rt_import);
 
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     {
@@ -2213,7 +2211,6 @@ bgp_vrf_delete_int (void *arg)
       bgp_table_finish (&vrf->route[afi]);
     }
 
-  XFREE (MTYPE_BGP_VRF_IMPORTS, vrf->rt_import);
   XFREE (MTYPE_BGP_VRF, vrf);
 }
 
