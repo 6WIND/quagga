@@ -523,6 +523,7 @@ zlog_backtrace_sigsafe(int priority, void *program_counter)
 	vty_log_fixed(buf,s-buf);
       if (priority <= zlog_default->maxlvl[ZLOG_DEST_SYSLOG])
 	syslog_sigsafe(priority|zlog_default->facility,buf,s-buf);
+#if 0
       {
 	int i;
 #ifdef HAVE_GLIBC_BACKTRACE
@@ -549,6 +550,7 @@ zlog_backtrace_sigsafe(int priority, void *program_counter)
 	  if (bt)
 	    free(bt);
       }
+#endif
     }
 #undef DUMP
 #undef LOC
@@ -692,7 +694,12 @@ openzlog (const char *progname, zlog_proto_t protocol,
   zl->default_lvl = LOG_DEBUG;
 
   openlog (progname, syslog_flags, zl->facility);
-  
+
+  /* work around backtrace() using lazily resolved dynamically linked
+   * symbols, which will otherwise cause funny breakage in the SEGV handler */
+  void *bt[4];
+  backtrace(bt, array_size(bt));
+
   return zl;
 }
 
