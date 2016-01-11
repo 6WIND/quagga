@@ -43,6 +43,10 @@ struct AfiSafiKey $cgennaked $cgetfield {
 struct ExtCommunityList {
 	values			 @0 :List(UInt64);
 }
+struct PrefixV4 {
+	addr			 @0 :UInt32;
+	prefixlen		 @1 :UInt8;
+}
 
 struct BGP $ctype("struct bgp") $cgen
 		$csetter("bgp_%%_set")
@@ -79,6 +83,8 @@ struct BGP $ctype("struct bgp") $cgen
 
 	restartTime		@24 :UInt32;  # XXX: can't be set in CLI?
 	stalepathTime		@25 :UInt32 $csetwrite;
+
+	notifyZMQUrl		@26 :Text;
 }
 
 struct BGPAfiSafi $ctype("struct bgp") $cgen $carraykey("AfiSafiKey") {
@@ -149,3 +155,18 @@ struct BGPVRF $ctype("struct bgp_vrf") $cgen
 	rtExport		 @2 :ExtCommunityList;
 }
 
+struct BGPEventVRFRoute $ctype("struct bgp_event_vrf") $cgen
+{
+	announce		 @0 :Bool;
+	outboundRd		 @1 :UInt64;
+	prefix			 @2 :PrefixV4;
+	nexthop			 @3 :IPv4;
+	label			 @4 :UInt32;
+}
+
+struct BGPEventShut $ctype("struct bgp_event_shut") $cgen
+{
+	peer			 @0 :IPv4;
+	type			 @1 :UInt8;
+	subtype			 @2 :UInt8;
+}

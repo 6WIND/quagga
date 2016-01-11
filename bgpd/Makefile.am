@@ -17,7 +17,7 @@ libbgp_a_SOURCES = \
 	bgp_packet.c bgp_network.c bgp_filter.c bgp_regex.c bgp_clist.c \
 	bgp_dump.c bgp_snmp.c bgp_ecommunity.c bgp_mplsvpn.c bgp_nexthop.c \
 	bgp_damp.c bgp_table.c bgp_advertise.c bgp_vty.c bgp_mpath.c \
-	bgp_encap.c bgp_encap_tlv.c
+	bgp_encap.c bgp_encap_tlv.c bgp_zmq.c
 
 noinst_HEADERS = \
 	bgp_memory.h \

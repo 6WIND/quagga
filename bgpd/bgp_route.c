@@ -1532,6 +1532,17 @@ static bool rd_same (const struct prefix_rd *a, const struct prefix_rd *b)
 static void
 bgp_vrf_withdraw (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn)
 {
+  struct bgp_event_vrf event = {
+    .announce         = false,
+    .outbound_rd      = vrf->outbound_rd,
+    .prefix.family    = rn->p.family,
+    .prefix.prefixlen = rn->p.prefixlen,
+    .prefix.prefix    = rn->p.u.prefix4,
+  };
+
+  if (afi == AFI_IP)
+    bgp_notify_route (vrf->bgp, &event);
+
   char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
 
   prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
@@ -1544,6 +1555,23 @@ static void
 bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                 struct bgp_info *selected)
 {
+  struct bgp_event_vrf event = {
+    .announce         = true,
+    .outbound_rd      = vrf->outbound_rd,
+    .prefix.family    = rn->p.family,
+    .prefix.prefixlen = rn->p.prefixlen,
+    .prefix.prefix    = rn->p.u.prefix4,
+  };
+
+  if (afi == AFI_IP)
+    {
+      if (selected->attr && selected->attr->extra)
+        event.nexthop = selected->attr->extra->mp_nexthop_global_in;
+      if (selected->extra->nlabels)
+        event.label = selected->extra->labels[0];
+      bgp_notify_route (vrf->bgp, &event);
+    }
+
   char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
   char label_str[BUFSIZ] = "<?>", nh_str[BUFSIZ] = "<?>";
 

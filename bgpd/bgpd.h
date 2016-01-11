@@ -194,6 +194,10 @@ struct bgp
 
   struct hash *rt_subscribers;
 
+  /* outbound update feeds */
+  char *notify_zmq_url;
+  void *notify_zmq;
+
   QZC_NODE
 };
 
@@ -222,6 +226,22 @@ struct bgp_vrf
   struct bgp_table *route[AFI_MAX];
 
   QZC_NODE
+};
+
+struct bgp_event_vrf
+{
+  bool announce;
+
+  struct prefix_rd outbound_rd;
+  struct prefix_ipv4 prefix;
+  struct in_addr nexthop;
+  uint32_t label;
+};
+
+struct bgp_event_shut
+{
+  struct in_addr peer;
+  uint8_t type, subtype;
 };
 
 /* BGP peer-group support. */
@@ -945,6 +965,11 @@ extern int bgp_timers_unset (struct bgp *);
 
 extern int bgp_default_local_preference_set (struct bgp *, u_int32_t);
 extern int bgp_default_local_preference_unset (struct bgp *);
+
+extern int bgp_notify_zmq_url_set (struct bgp *, const char *url);
+extern void bgp_notify_route (struct bgp *, struct bgp_event_vrf *update);
+extern void bgp_notify_shut (struct bgp *, struct bgp_event_shut *shut);
+extern void bgp_notify_cleanup (struct bgp *);
 
 extern int peer_rsclient_active (struct peer *);
 
