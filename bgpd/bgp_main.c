@@ -216,6 +216,8 @@ sigusr1 (void)
   zlog_rotate (NULL);
 }
 
+static void *qzc_sock = NULL;
+
 /*
   Try to free up allocations we know about so that diagnostic tools such as
   valgrind are able to better illuminate leaks.
@@ -456,7 +458,7 @@ main (int argc, char **argv)
   bgp_init ();
 
   if (zmq_sock)
-    qzc_bind (bm->master, zmq_sock);
+    qzc_sock = qzc_bind (bm->master, zmq_sock);
 
   /* Parse config file. */
   vty_read_config (config_file, config_default);
