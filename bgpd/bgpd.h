@@ -904,6 +904,7 @@ extern int bgp_nexthop_set (union sockunion *, union sockunion *,
 extern struct bgp *bgp_get_default (void);
 extern struct bgp *bgp_lookup (as_t, const char *);
 extern struct bgp *bgp_lookup_by_name (const char *);
+extern struct bgp *bgp_create_api (struct bgp_master *, as_t as);
 extern struct peer *peer_lookup (struct bgp *, union sockunion *);
 extern struct peer_group *peer_group_lookup (struct bgp *, const char *);
 extern struct peer_group *peer_group_get (struct bgp *, const char *);

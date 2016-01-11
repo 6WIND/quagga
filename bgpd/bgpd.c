@@ -2331,6 +2331,30 @@ bgp_lookup_by_name (const char *name)
   return NULL;
 }
 
+struct bgp *
+bgp_create_api (struct bgp_master *ignore, as_t as)
+{
+  struct bgp *bgp = NULL;
+
+  if (bgp_get_default ())
+    return NULL;
+
+  bgp = bgp_create (&as, NULL);
+  bgp_router_id_set(bgp, &router_id_zebra);
+
+  /* Create BGP server socket, if first instance.  */
+  if (list_isempty(bm->bgp)
+      && !bgp_option_check (BGP_OPT_NO_LISTEN))
+    if (bgp_socket (bm->port, bm->address) < 0)
+      {
+        bgp_delete (bgp);
+        return NULL;
+      }
+
+  listnode_add (bm->bgp, bgp);
+  return bgp;
+}
+
 /* Called from VTY commands. */
 int
 bgp_get (struct bgp **bgp_val, as_t *as, const char *name)

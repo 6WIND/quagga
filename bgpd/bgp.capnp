@@ -52,7 +52,7 @@ struct BGP $ctype("struct bgp") $cgen
 		$csetter("bgp_%%_set")
 		$csetter("bgp_timers_set")
 {
-	as			 @0 :UInt32;
+	as			 @0 :UInt32 $cgetfield;
 	name			 @1 :Text;
 
 	routerIdStatic		 @2 :IPv4;
@@ -91,40 +91,38 @@ struct BGPAfiSafi $ctype("struct bgp") $cgen $carraykey("AfiSafiKey") {
 	cfDampening		 @0 :Bool $cflag(field = "af_flags", value = "BGP_CONFIG_DAMPENING");
 }
 
-struct BGPPeerKey $ctype("struct peer") $cgen $cgetfield {
-	as			 @0 :UInt32;
-	host			 @1 :Text;
-}
-
 struct BGPPeer $ctype("struct peer") $cgen
 		$csetter("peer_%%_set")
 		$csetter("peer_timers_set")
 {
-	localAs			 @0 :UInt32;   # not implemented really
+	as			 @0 :UInt32 $cgetfield;
+	host			 @1 :Text   $cgetfield;
 
-	desc			 @1 :Text $csetter("peer_description_set");
-	port			 @2 :UInt16;
-	weight			 @3 :UInt32;
-	holdtime		 @4 :UInt32;
-	keepalive		 @5 :UInt32;
+#	localAs			 @2 :UInt32;	# TBD
 
-	cfPassive		 @6 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_PASSIVE");
-	cfShutdown		 @7 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_SHUTDOWN");
-	cfDontCapability	 @8 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_DONT_CAPABILITY");
-	cfOverrideCapability	 @9 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_OVERRIDE_CAPABILITY");
-	cfStrictCapMatch	@10 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_STRICT_CAP_MATCH");
-	cfDynamicCapability	@11 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_DYNAMIC_CAPABILITY");
-	cfDisableConnectedCheck	@12 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_DISABLE_CONNECTED_CHECK");
-#	cfLocalAsNoPrepend	@13 :Bool $cflag(field = "flags", setter = "peer_local_as_set", value = "PEER_FLAG_LOCAL_AS_NO_PREPEND") $caltname("no_prepend");
-#	cfLocalAsReplaceAs	@14 :Bool $cflag(field = "flags", setter = "peer_local_as_set", value = "PEER_FLAG_LOCAL_AS_REPLACE_AS") $caltname("replace_as");
+	desc			 @2 :Text $csetter("peer_description_set");
+	port			 @3 :UInt16;
+	weight			 @4 :UInt32;
+	holdtime		 @5 :UInt32;
+	keepalive		 @6 :UInt32;
+
+	cfPassive		 @7 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_PASSIVE");
+	cfShutdown		 @8 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_SHUTDOWN");
+	cfDontCapability	 @9 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_DONT_CAPABILITY");
+	cfOverrideCapability	@10 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_OVERRIDE_CAPABILITY");
+	cfStrictCapMatch	@11 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_STRICT_CAP_MATCH");
+	cfDynamicCapability	@12 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_DYNAMIC_CAPABILITY");
+	cfDisableConnectedCheck	@13 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_DISABLE_CONNECTED_CHECK");
+#	cfLocalAsNoPrepend	@14 :Bool $cflag(field = "flags", setter = "peer_local_as_set", value = "PEER_FLAG_LOCAL_AS_NO_PREPEND") $caltname("no_prepend");
+#	cfLocalAsReplaceAs	@15 :Bool $cflag(field = "flags", setter = "peer_local_as_set", value = "PEER_FLAG_LOCAL_AS_REPLACE_AS") $caltname("replace_as");
 }
 
-struct BGPPeerAfiSafi $ctype("struct peer") $cgen 
+struct BGPPeerAfiSafi $ctype("struct peer") $cgen
 		$carraykey("AfiSafiKey")
 		$csetter("peer_%%_set")
 {
 	afc			 @0 :Bool;
-	
+
 	cfSendCommunity		 @1 :Bool $cflag(field = "af_flags", setter = "peer_af_flag_set", value = "PEER_FLAG_SEND_COMMUNITY");
 	cfSendExtCommunity	 @2 :Bool $cflag(field = "af_flags", setter = "peer_af_flag_set", value = "PEER_FLAG_SEND_EXT_COMMUNITY");
 	cfNexthopSelf		 @3 :Bool $cflag(field = "af_flags", setter = "peer_af_flag_set", value = "PEER_FLAG_NEXTHOP_SELF");
@@ -147,7 +145,7 @@ struct BGPPeerAfiSafi $ctype("struct peer") $cgen
 	allowAsIn		@19 :Int8;
 }
 
-struct BGPVRF $ctype("struct bgp_vrf") $cgen 
+struct BGPVRF $ctype("struct bgp_vrf") $cgen
 		$csetter("bgp_vrf_%%_set")
 {
 	outboundRd		 @0 :UInt64 $cgetfield;
@@ -170,3 +168,5 @@ struct BGPEventShut $ctype("struct bgp_event_shut") $cgen
 	type			 @1 :UInt8;
 	subtype			 @2 :UInt8;
 }
+
+# vim: set noet ts=8 nowrap tw=0:
