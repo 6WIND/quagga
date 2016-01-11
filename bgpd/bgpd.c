@@ -2144,13 +2144,20 @@ bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
   return vrf;
 }
 
+static struct ecommunity * ecommunity_reintern (struct ecommunity *ecom)
+{
+  assert (ecom->refcnt > 0);
+  ecom->refcnt++;
+  return ecom;
+}
+
 void
 bgp_vrf_rt_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export)
 {
   if (vrf->rt_export)
     ecommunity_unintern (&vrf->rt_export);
 
-  vrf->rt_export = ecommunity_intern (rt_export);
+  vrf->rt_export = ecommunity_reintern (rt_export);
 }
 
 static void
@@ -2187,7 +2194,7 @@ bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import)
 
   bgp_vrf_rt_import_unset (vrf);
 
-  vrf->rt_import = ecommunity_intern (rt_import);
+  vrf->rt_import = ecommunity_reintern (rt_import);
 
   for (i = 0; i < (size_t)vrf->rt_import->size; i++)
     {
@@ -2212,8 +2219,6 @@ bgp_vrf_delete_int (void *arg)
 
   if (vrf->rt_export)
     ecommunity_unintern (&vrf->rt_export);
-  if (vrf->rt_import)
-    ecommunity_unintern (&vrf->rt_import);
 
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     {

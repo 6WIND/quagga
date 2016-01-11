@@ -9801,7 +9801,9 @@ DEFUN (bgp_vrf_exports,
       return CMD_WARNING;
     }
 
+  ecom = ecommunity_intern (ecom);
   bgp_vrf_rt_export_set (vrf, ecom);
+  ecommunity_unintern (&ecom);
   return CMD_SUCCESS;
 }
 
