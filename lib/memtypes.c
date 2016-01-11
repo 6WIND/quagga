@@ -161,6 +161,7 @@ struct memory_list memory_list_bgp[] =
   { MTYPE_ENCAP_TLV,		"ENCAP TLV",			},
   { MTYPE_BGP_VRF,		"BGP VRF",			},
   { MTYPE_BGP_RT_SUB,		"BGP RT SUB",			},
+  { MTYPE_ZMQ_NOTIFY,		"ZMQ notify",			},
   { -1, NULL }
 };
 

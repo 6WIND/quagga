@@ -1590,8 +1590,22 @@ void
 bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                 struct bgp_info *selected, uint8_t announce)
 {
+  struct bgp_event_vrf event = {
+    .announce         = announce,
+    .outbound_rd      = vrf->outbound_rd,
+    .prefix.family    = rn->p.family,
+    .prefix.prefixlen = rn->p.prefixlen,
+    .prefix.prefix    = rn->p.u.prefix4,
+  };
+
   if(!vrf || (rn && bgp_node_table (rn)->type != BGP_TABLE_VRF))
     return;
+
+  if (selected->extra->nlabels)
+    event.label = selected->extra->labels[0] >> 4;
+  else
+    event.label = 0;
+
   if (announce == true)
     {
       if(CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
@@ -1634,6 +1648,14 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
       else
         zlog_debug ("vrf[%s] %s: prefix withdrawn nh %s label %s",
                     vrf_rd_str, pfx_str, nh_str, label_str);
+    }
+  if (afi == AFI_IP)
+    {
+      if (selected->attr && selected->attr->extra)
+        event.nexthop = selected->attr->extra->mp_nexthop_global_in;
+#ifdef HAVE_ZEROMQ
+      bgp_notify_route (vrf->bgp, &event);
+#endif /* HAVE_ZEROMQ */
     }
 }
 
