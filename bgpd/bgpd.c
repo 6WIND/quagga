@@ -2140,6 +2140,7 @@ bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
       vrf->rib[afi]->type = BGP_TABLE_VRF;
     }
 
+  QZC_NODE_REG(vrf, bgp_vrf)
   listnode_add (bgp->vrfs, vrf);
   return vrf;
 }
@@ -2232,6 +2233,7 @@ bgp_vrf_delete_int (void *arg)
 void
 bgp_vrf_delete (struct bgp_vrf *vrf)
 {
+  QZC_NODE_UNREG(vrf)
   listnode_delete (vrf->bgp->vrfs, vrf);
   bgp_vrf_delete_int(vrf);
 }
