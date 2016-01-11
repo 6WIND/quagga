@@ -1515,6 +1515,9 @@ bgp_process_announce_selected (struct peer *peer, struct bgp_info *selected,
         else
 	  bgp_adj_out_unset (rn, peer, p, afi, safi);
         break;
+      case BGP_TABLE_VRF:
+        /* never called */
+        assert (0);
     }
 
   bgp_attr_flush (&attr);
@@ -1769,7 +1772,7 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
 
             found = false;
             for (i = 0; i < (size_t)ecom->size && !found; i++)
-              for (j = 0; j < vrf->rt_import->size && !found; j++)
+              for (j = 0; j < (size_t)vrf->rt_import->size && !found; j++)
                 if (!memcmp(ecom->val + i * 8, vrf->rt_import->val + j * 8, 8))
                   found = true;
             if (!found)
@@ -2013,6 +2016,9 @@ bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
       case BGP_TABLE_RSCLIENT:
         work_queue_add (bm->process_rsclient_queue, pqnode);
         break;
+      case BGP_TABLE_VRF:
+        /* never called */
+        assert (0);
     }
   
   SET_FLAG (rn->flags, BGP_NODE_PROCESS_SCHEDULED);
