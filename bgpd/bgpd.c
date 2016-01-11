@@ -2557,6 +2557,10 @@ bgp_delete (struct bgp *bgp)
 
   SET_FLAG(bgp->flags, BGP_FLAG_DELETING);
 
+#ifdef HAVE_ZEROMQ
+  bgp_notify_cleanup (bgp);
+#endif /* HAVE_ZEROMQ */
+
   THREAD_OFF (bgp->t_startup);
   QZC_NODE_UNREG(bgp)
 

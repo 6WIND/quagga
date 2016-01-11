@@ -26,6 +26,10 @@ noinst_HEADERS = \
 	bgp_advertise.h bgp_snmp.h bgp_vty.h bgp_mpath.h \
 	bgp_encap.h bgp_encap_tlv.h bgp_encap_types.h bgp_nht.h
 
+if HAVE_ZEROMQ
+libbgp_a_SOURCES += bgp_zmq.c
+endif
+
 bgpd_SOURCES = bgp_main.c
 
 bgpd_LDADD = libbgp.a ../lib/libzebra.la @LIBCAP@ @LIBM@ @ZEROMQ_LIBS@ @CAPN_C_LIBS@
