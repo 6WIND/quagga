@@ -191,7 +191,7 @@ static void qzc_set (struct QZCRequest *req, struct QZCReply *rep,
 
   rep->which = QZCReply_set;
 
-  if (!node || !node->type || !node->type->get)
+  if (!node || !node->type || !node->type->set)
     {
       rep->error = 1;
       return;
@@ -201,6 +201,29 @@ static void qzc_set (struct QZCRequest *req, struct QZCReply *rep,
 
   void *entity = ((char *)node) - node->type->node_member_offset;
   node->type->set(entity, &sreq, cs);
+}
+
+static void qzc_del (struct QZCRequest *req, struct QZCReply *rep,
+                     struct capn_segment *cs)
+{
+  struct QZCDelReq dreq;
+  struct qzc_node *node;
+
+  read_QZCDelReq(&dreq, req->del);
+  node = qzc_node_get(dreq.nid);
+
+  rep->which = QZCReply_del;
+
+  if (!node || !node->type || !node->type->destroy)
+    {
+      rep->error = 1;
+      return;
+    }
+
+  rep->error = 0;
+
+  void *entity = ((char *)node) - node->type->node_member_offset;
+  node->type->destroy(entity, &dreq, cs);
 }
 
 
@@ -247,6 +270,9 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
       break;
     case QZCRequest_set:
       qzc_set(&req, &rep, cs);
+      break;
+    case QZCRequest_del:
+      qzc_del(&req, &rep, cs);
       break;
     };
 

@@ -103,6 +103,10 @@ struct QZCSetReq {
 	data		@5 :AnyPointer;
 }
 
+struct QZCDelReq {
+	nid		@0 :UInt64;
+}
+
 struct QZCRequest {
 	union {
 		ping		@0 :Void;
@@ -111,6 +115,7 @@ struct QZCRequest {
 		get		@3 :QZCGetReq;
 		create		@4 :QZCCreateReq;
 		set		@5 :QZCSetReq;
+		del		@6 :QZCDelReq;
 	}
 }
 
@@ -124,6 +129,7 @@ struct QZCReply {
 		get		@4 :QZCGetRep;
 		create		@5 :QZCCreateRep;
 		set		@6 :Void;
+		del		@7 :Void;
 	}
 }
 
