@@ -278,6 +278,11 @@ struct bgp_event_shut
   uint8_t type, subtype;
 };
 
+struct tbliter_v4
+{
+  struct prefix_ipv4 prefix;
+};
+
 struct bgp_api_route
 {
   struct prefix_ipv4 prefix;
@@ -1120,5 +1125,8 @@ extern void bgp_vrf_rt_import_unset (struct bgp_vrf *vrf);
 extern void bgp_vrf_rt_export_unset (struct bgp_vrf *vrf);
 extern int bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
 extern int bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
-
+extern bool bgp_api_route_get (struct bgp_api_route *out, 
+                               struct bgp_node *bn,
+                               int iter_on_multipath, 
+                               void **next);
 #endif /* _QUAGGA_BGPD_H */
