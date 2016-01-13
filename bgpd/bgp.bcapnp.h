@@ -43,7 +43,7 @@ capn_ptr qcapn_new_BGPVRF(struct capn_segment *s);
 void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p);
 void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p);
 void qcapn_BGPVRFRoute_set(struct bgp_api_route *s, capn_ptr p);
-capn_ptr qcapn_new_BGPVRFRoute(struct capn_segment *s);
+capn_ptr qcapn_new_BGPVRFRoute(struct capn_segment *s, uint8_t extend_by);
 void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p);
 void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p);
 void qcapn_BGPEventVRFRoute_set(struct bgp_event_vrf *s, capn_ptr p);
@@ -52,5 +52,9 @@ void qcapn_BGPEventShut_read(struct bgp_event_shut *s, capn_ptr p);
 void qcapn_BGPEventShut_write(const struct bgp_event_shut *s, capn_ptr p);
 void qcapn_BGPEventShut_set(struct bgp_event_shut *s, capn_ptr p);
 capn_ptr qcapn_new_BGPEventShut(struct capn_segment *s);
+capn_ptr qcapn_new_BGPVRFInfoIter(struct capn_segment *s);
+void qcapn_BGPVRFInfoIter_write(const unsigned long s, capn_ptr p, int offset);
+void qcapn_BGPVRFInfoIter_read(unsigned long *s, capn_ptr p, int offset);
 
+#define  CAPN_BGPVRF_ROUTE_DEF_SIZE  8
 #endif /* CAPN_C4C948A17D3B2250 */
