@@ -1,0 +1,15 @@
+/*
+ * derived from GPLv2+ sources
+ */
+
+/* [3dd958b139b0da5d] bgpd <> bgp_master */
+EXT_QZC_NODETYPE(bgp_master)
+
+/* [3fafaa5ff15d4317] bgp <> bgp */
+EXT_QZC_NODETYPE(bgp)
+
+/* [b7f3d8126eeb7a2b] bgp_peer <> peer */
+EXT_QZC_NODETYPE(peer)
+
+/* [cda67afc021c23cf] bgp_vrf <> bgp_vrf */
+EXT_QZC_NODETYPE(bgp_vrf)
