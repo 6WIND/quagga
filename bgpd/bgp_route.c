@@ -1524,6 +1524,31 @@ bgp_process_announce_selected (struct peer *peer, struct bgp_info *selected,
   return 0;
 }
 
+bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn)
+{
+  struct bgp_info *sel;
+
+  memset(out, 0, sizeof (*out));
+  if (bn->p.family != AF_INET)
+    return false;
+  if (!bn->info)
+    return false;
+
+  prefix_copy ((struct prefix *)&out->prefix, &bn->p);
+
+  for (sel = bn->info; sel; sel = sel->next)
+    if (CHECK_FLAG (sel->flags, BGP_INFO_SELECTED))
+      break;
+  if (!sel)
+    return false;
+
+  if (sel->attr && sel->attr->extra)
+    out->nexthop = sel->attr->extra->mp_nexthop_global_in;
+  if (sel->extra && sel->extra->nlabels)
+    out->label = sel->extra->labels[0];
+  return true;
+}
+
 static bool rd_same (const struct prefix_rd *a, const struct prefix_rd *b)
 {
   return !memcmp(&a->val, &b->val, sizeof(a->val));

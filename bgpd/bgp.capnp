@@ -40,12 +40,18 @@ struct AfiSafiKey $cgennaked $cgetfield {
 	afi			 @0 :UInt8 $ctype("afi_t");
 	safi			 @1 :UInt8 $ctype("safi_t");
 }
+struct AfiKey $cgennaked $cgetfield {
+	afi			 @0 :UInt8 $ctype("afi_t");
+}
 struct ExtCommunityList {
 	values			 @0 :List(UInt64);
 }
 struct PrefixV4 {
 	addr			 @0 :UInt32;
 	prefixlen		 @1 :UInt8;
+}
+struct VRFTableIter $ctype("struct tbliter_v4") $cgen {
+	prefix			 @0 :PrefixV4;
 }
 
 struct BGP $ctype("struct bgp") $cgen
@@ -154,6 +160,13 @@ struct BGPVRF $ctype("struct bgp_vrf") $cgen
 	outboundRd		 @0 :UInt64 $cgetfield;
 	rtImport		 @1 :ExtCommunityList;
 	rtExport		 @2 :ExtCommunityList;
+}
+
+struct BGPVRFRoute $ctype("struct bgp_api_route") $cgen
+{
+	prefix			 @0 :PrefixV4;
+	nexthop			 @1 :IPv4;
+	label			 @2 :UInt32;
 }
 
 struct BGPEventVRFRoute $ctype("struct bgp_event_vrf") $cgen

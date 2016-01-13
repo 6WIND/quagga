@@ -34,6 +34,8 @@ typedef u_int32_t as_t;
 typedef u_int16_t as16_t; /* we may still encounter 16 Bit asnums */
 typedef u_int16_t bgp_size_t;
 
+struct bgp_node;
+
 /* BGP router distinguisher value.  */
 #define BGP_RD_SIZE                8
 
@@ -242,6 +244,18 @@ struct bgp_event_shut
 {
   struct in_addr peer;
   uint8_t type, subtype;
+};
+
+struct tbliter_v4
+{
+  struct prefix_ipv4 prefix;
+};
+
+struct bgp_api_route
+{
+  struct prefix_ipv4 prefix;
+  struct in_addr nexthop;
+  uint32_t label;
 };
 
 /* BGP peer-group support. */
@@ -1067,5 +1081,6 @@ extern struct bgp_vrf *bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbou
 extern void bgp_vrf_delete (struct bgp_vrf *vrf);
 extern void bgp_vrf_rt_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export);
 extern void bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import);
+extern bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn);
 
 #endif /* _QUAGGA_BGPD_H */
