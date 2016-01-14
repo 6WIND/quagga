@@ -1524,6 +1524,15 @@ bgp_process_announce_selected (struct peer *peer, struct bgp_info *selected,
   return 0;
 }
 
+/* API foo */
+static struct bgp_static * bgp_static_new (void);
+static void bgp_static_free (struct bgp_static *bgp_static);
+static void bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
+                        struct bgp_static *bgp_static, afi_t afi, safi_t safi);
+static void bgp_static_withdraw_safi (struct bgp *bgp, struct prefix *p,
+                        afi_t afi, safi_t safi, struct prefix_rd *prd,
+                        uint32_t *labels, size_t nlabels);
+
 bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn)
 {
   struct bgp_info *sel;
@@ -1545,7 +1554,24 @@ bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn)
   if (sel->attr && sel->attr->extra)
     out->nexthop = sel->attr->extra->mp_nexthop_global_in;
   if (sel->extra && sel->extra->nlabels)
-    out->label = sel->extra->labels[0];
+    out->label = sel->extra->labels[0] >> 4;
+  return true;
+}
+
+bool bgp_api_static_get (struct bgp_api_route *out, struct bgp_node *bn)
+{
+  struct bgp_static *bgp_static;
+
+  memset(out, 0, sizeof (*out));
+  if (bn->p.family != AF_INET)
+    return false;
+  if (!bn->info)
+    return false;
+  bgp_static = bn->info;
+
+  prefix_copy ((struct prefix *)&out->prefix, &bn->p);
+  out->nexthop = bgp_static->igpnexthop;
+  out->label = bgp_static->nlabels ? (bgp_static->labels[0] >> 4) : 0;
   return true;
 }
 
@@ -1593,7 +1619,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
       if (selected->attr && selected->attr->extra)
         event.nexthop = selected->attr->extra->mp_nexthop_global_in;
       if (selected->extra->nlabels)
-        event.label = selected->extra->labels[0];
+        event.label = selected->extra->labels[0] >> 4;
       bgp_notify_route (vrf->bgp, &event);
     }
 
@@ -1616,6 +1642,73 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
 
   zlog_info ("vrf[%s] %s: prefix updated, best RD %s labels %s nexthop %s",
                   vrf_rd_str, pfx_str, rd_str, label_str, nh_str);
+}
+
+int
+bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route)
+{
+  struct bgp_static *bgp_static;
+  struct prefix *p = (struct prefix *)&route->prefix;
+  struct bgp_node *rn;
+
+  if (afi != AFI_IP)
+    return -1;
+
+  bgp_static = bgp_static_new ();
+  bgp_static->backdoor = 0;
+  bgp_static->valid = 1;
+  bgp_static->igpmetric = 0;
+  bgp_static->igpnexthop = route->nexthop;
+  bgp_static->labels[0] = (route->label << 4) | 1;
+  bgp_static->nlabels = route->label ? 1 : 0;
+  bgp_static->prd = vrf->outbound_rd;
+  bgp_static->ecomm = vrf->rt_export;
+  if (bgp_static->ecomm)
+    {
+      assert(bgp_static->ecomm->refcnt > 0);
+      bgp_static->ecomm->refcnt++;
+    }
+
+  rn = bgp_node_get (vrf->route[afi], p);
+  if (rn->info)
+    {
+      struct bgp_static *old = rn->info;
+      if (old->ecomm)
+        ecommunity_unintern (&old->ecomm);
+      bgp_static_free (rn->info);
+      /* reference only dropped if we're replacing a route */
+      bgp_unlock_node (rn);
+    }
+  rn->info = bgp_static;
+
+  bgp_static_update_safi (vrf->bgp, p, bgp_static, afi, SAFI_MPLS_VPN);
+  return 0;
+}
+
+int
+bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route)
+{
+  struct prefix *p = (struct prefix *)&route->prefix;
+  struct bgp_static *old;
+  struct bgp_node *rn;
+
+  if (afi != AFI_IP)
+    return -1;
+
+  rn = bgp_node_lookup (vrf->route[afi], p);
+  if (!rn || !rn->info)
+    return -1;
+
+  bgp_static_withdraw_safi (vrf->bgp, p, afi, SAFI_MPLS_VPN,
+                            &vrf->outbound_rd, NULL, 0);
+
+  old = rn->info;
+  if (old->ecomm)
+    ecommunity_unintern (&old->ecomm);
+  bgp_static_free (old);
+  rn->info = NULL;
+  bgp_unlock_node (rn);
+  return 0;
 }
 
 static void
@@ -4170,6 +4263,14 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   attr.med = bgp_static->igpmetric;
   attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_MULTI_EXIT_DISC);
 
+  if (bgp_static->ecomm)
+    {
+      bgp_attr_extra_get (&attr)->ecommunity = ecommunity_dup (bgp_static->ecomm);
+      attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
+    }
+  if (bgp_static->igpnexthop.s_addr)
+    bgp_attr_extra_get (&attr)->mp_nexthop_global_in = bgp_static->igpnexthop;
+
   /* Apply route-map. */
   if (bgp_static->rmap.name)
     {
@@ -4214,6 +4315,7 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   if (ri)
     {
       if (attrhash_cmp (ri->attr, attr_new) &&
+          labels_equal (ri, bgp_static->labels, bgp_static->nlabels) &&
           !CHECK_FLAG(ri->flags, BGP_INFO_REMOVED))
         {
           bgp_unlock_node (rn);

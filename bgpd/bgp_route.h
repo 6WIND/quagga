@@ -128,6 +128,8 @@ struct bgp_static
   /* Route Distinguisher */
   struct prefix_rd     prd;
 
+  struct ecommunity	*ecomm;
+
   /* MPLS label. */
   uint32_t labels[BGP_MAX_LABELS];
   size_t nlabels;

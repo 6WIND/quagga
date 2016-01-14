@@ -1082,5 +1082,8 @@ extern void bgp_vrf_delete (struct bgp_vrf *vrf);
 extern void bgp_vrf_rt_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export);
 extern void bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import);
 extern bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn);
+extern bool bgp_api_static_get (struct bgp_api_route *out, struct bgp_node *bn);
+extern int bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
+extern int bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
 
 #endif /* _QUAGGA_BGPD_H */
