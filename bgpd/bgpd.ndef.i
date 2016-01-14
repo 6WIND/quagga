@@ -492,7 +492,7 @@ _qzc_get_bgp_vrf_1(struct bgp_vrf *p,
     rep->datatype = 0x912c4b0c412022b1;
 }
 
-static struct bgp_node * qcap_iterate(struct bgp_table *table,
+static struct bgp_node * qcap_iter_bgp_vrf_rib(struct bgp_table *table,
         const struct tbliter_v4 *prev_iter,
         struct tbliter_v4 *next_iter,
         bool *hasnext)
@@ -544,7 +544,7 @@ _qzc_get_bgp_vrf_2(struct bgp_vrf *p,
     }
 
     bool hasnext = false;
-    struct bgp_node * val = qcap_iterate(table, iterptr, &nextiter, &hasnext);
+    struct bgp_node * val = qcap_iter_bgp_vrf_rib(table, iterptr, &nextiter, &hasnext);
 
     if (hasnext) {
         rep->itertype = 0xeb8ab4f58b7753ee;
@@ -558,6 +558,82 @@ _qzc_get_bgp_vrf_2(struct bgp_vrf *p,
         struct bgp_api_route *outptr;
         struct bgp_api_route tmpval;
         if (!bgp_api_route_get(&tmpval, val))
+            return;
+        outptr = &tmpval;
+        rep->data = qcapn_new_BGPVRFRoute(seg);
+        qcapn_BGPVRFRoute_write(outptr, rep->data);
+        rep->datatype = 0x8f217eb4bad6c06f;
+    }
+}
+
+
+
+static struct bgp_node * qcap_iter_bgp_vrf_route(struct bgp_table *table,
+        const struct tbliter_v4 *prev_iter,
+        struct tbliter_v4 *next_iter,
+        bool *hasnext)
+{
+    struct bgp_node *bn;
+    if (!prev_iter) {
+        bn = bgp_table_top_nolock (table);
+    } else {
+        bn = bgp_table_get_next (table, (struct prefix *)&prev_iter->prefix);
+        if (bn)
+            bgp_unlock_node(bn);
+    }
+    if (bn) {
+        prefix_copy ((struct prefix *)&next_iter->prefix, &bn->p);
+        *hasnext = true;
+    } else
+        *hasnext = false;
+    return bn;
+}
+
+
+/* Iterated GET bgp_vrf:3 <> bgp_vrf->route ()*/
+
+static void
+_qzc_get_bgp_vrf_3(struct bgp_vrf *p,
+        struct QZCGetReq *req, struct QZCGetRep *rep,
+        struct capn_segment *seg)
+{
+    struct bgp_table * table;
+    struct tbliter_v4 iter, nextiter;
+    const struct tbliter_v4 *iterptr;
+    afi_t afi;
+
+    if (req->ctxtype != 0xac25a73c3ff455c0)
+        /* error */
+        return;
+
+    afi = qcapn_AfiKey_get_afi (req->ctxdata);
+    table = p->route[afi];
+
+    if (req->itertype == 0xeb8ab4f58b7753ee) {
+        qcapn_VRFTableIter_read(&iter, req->iterdata);
+        iterptr = &iter;
+    } else if (req->itertype == 0) {
+        iterptr = NULL;
+    } else {
+        /* error */
+        return;
+    }
+
+    bool hasnext = false;
+    struct bgp_node * val = qcap_iter_bgp_vrf_route(table, iterptr, &nextiter, &hasnext);
+
+    if (hasnext) {
+        rep->itertype = 0xeb8ab4f58b7753ee;
+        rep->nextiter = qcapn_new_VRFTableIter(seg);
+        qcapn_VRFTableIter_write(&nextiter, rep->nextiter);
+    } else
+        rep->itertype = 0;
+
+    rep->datatype = 0;
+    if (val) {
+        struct bgp_api_route *outptr;
+        struct bgp_api_route tmpval;
+        if (!bgp_api_static_get(&tmpval, val))
             return;
         outptr = &tmpval;
         rep->data = qcapn_new_BGPVRFRoute(seg);
@@ -588,6 +664,60 @@ _qzc_set_bgp_vrf_1(struct bgp_vrf *p,
     qcapn_BGPVRF_set(p, req->data);
 }
 
+/* Iterated item SET bgp_vrf:3 <> bgp_vrf-> ()*/
+
+static void
+_qzc_set_bgp_vrf_3(struct bgp_vrf *p,
+        struct QZCSetReq *req,
+        struct capn_segment *seg)
+{
+    afi_t afi;
+
+    if (req->ctxtype != 0xac25a73c3ff455c0)
+        /* error */
+        return;
+
+    afi = qcapn_AfiKey_get_afi (req->ctxdata);
+
+    if (req->datatype != 0x8f217eb4bad6c06f)
+        /* error */
+        return;
+
+    struct bgp_api_route data;
+    qcapn_BGPVRFRoute_read(&data, req->data);
+
+    bgp_vrf_static_set(p, afi, &data);
+}
+
+
+
+/* Iterated item SET bgp_vrf:3 <> bgp_vrf-> ()*/
+
+static void
+_qzc_unset_bgp_vrf_3(struct bgp_vrf *p,
+        struct QZCSetReq *req,
+        struct capn_segment *seg)
+{
+    afi_t afi;
+
+    if (req->ctxtype != 0xac25a73c3ff455c0)
+        /* error */
+        return;
+
+    afi = qcapn_AfiKey_get_afi (req->ctxdata);
+
+    if (req->datatype != 0x8f217eb4bad6c06f)
+        /* error */
+        return;
+
+    struct bgp_api_route data;
+    qcapn_BGPVRFRoute_read(&data, req->data);
+
+    bgp_vrf_static_unset(p, afi, &data);
+}
+
+
+
 /* [cda67afc021c23cf] bgp_vrf <> bgp_vrf */
 static void
 _qzc_get_bgp_vrf(void *entity, struct QZCGetReq *req, struct QZCGetRep *rep,
@@ -601,6 +731,9 @@ _qzc_get_bgp_vrf(void *entity, struct QZCGetReq *req, struct QZCGetRep *rep,
         return;
     case 2:
         _qzc_get_bgp_vrf_2(p, req, rep, seg);
+        return;
+    case 3:
+        _qzc_get_bgp_vrf_3(p, req, rep, seg);
         return;
     default:
         return;
@@ -616,6 +749,24 @@ _qzc_set_bgp_vrf(void *entity,
     switch (req->elem) {
     case 1:
         _qzc_set_bgp_vrf_1(p, req, seg);
+        return;
+    case 3:
+        _qzc_set_bgp_vrf_3(p, req, seg);
+        return;
+    default:
+        return;
+    }
+}
+static void
+_qzc_unset_bgp_vrf(void *entity,
+		    struct QZCSetReq *req,
+		    struct capn_segment *seg)
+{
+    struct bgp_vrf *p;
+    p = (struct bgp_vrf *)entity;
+    switch (req->elem) {
+    case 3:
+        _qzc_unset_bgp_vrf_3(p, req, seg);
         return;
     default:
         return;
@@ -636,5 +787,6 @@ struct qzc_nodetype qzc_t_bgp_vrf = {
 	.node_member_offset = (ptrdiff_t)offsetof(struct bgp_vrf, qzc_node),
 	.get = _qzc_get_bgp_vrf,
 	.set = _qzc_set_bgp_vrf,
+	.unset = _qzc_unset_bgp_vrf,
 	.destroy = _qzc_destroy_bgp_vrf,
 };
