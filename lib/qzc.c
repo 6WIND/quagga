@@ -181,7 +181,7 @@ out:
 }
 
 static void qzc_set (struct QZCRequest *req, struct QZCReply *rep,
-                     struct capn_segment *cs)
+                     struct capn_segment *cs, bool unset)
 {
   struct QZCSetReq sreq;
   struct qzc_node *node;
@@ -191,7 +191,7 @@ static void qzc_set (struct QZCRequest *req, struct QZCReply *rep,
 
   rep->which = QZCReply_set;
 
-  if (!node || !node->type || !node->type->set)
+  if (!node || !node->type || !(unset ? node->type->unset : node->type->set))
     {
       rep->error = 1;
       return;
@@ -200,7 +200,10 @@ static void qzc_set (struct QZCRequest *req, struct QZCReply *rep,
   rep->error = 0;
 
   void *entity = ((char *)node) - node->type->node_member_offset;
-  node->type->set(entity, &sreq, cs);
+  if (unset)
+    node->type->unset(entity, &sreq, cs);
+  else
+    node->type->set(entity, &sreq, cs);
 }
 
 static void qzc_del (struct QZCRequest *req, struct QZCReply *rep,
@@ -269,7 +272,10 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
       qzc_create(&req, &rep, cs);
       break;
     case QZCRequest_set:
-      qzc_set(&req, &rep, cs);
+      qzc_set(&req, &rep, cs, false);
+      break;
+    case QZCRequest_unset:
+      qzc_set(&req, &rep, cs, true);
       break;
     case QZCRequest_del:
       qzc_del(&req, &rep, cs);
