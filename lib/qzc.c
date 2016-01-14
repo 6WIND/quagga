@@ -89,6 +89,7 @@ static void qzc_wknresolve (struct QZCRequest *req, struct QZCReply *rep,
 {
   struct QZCWKNResolveReq wknreq;
   struct QZCWKNResolveRep wknrep;
+  memset(&wknrep, 0, sizeof(wknrep));
 
   read_QZCWKNResolveReq(&wknreq, req->wknresolve);
 
@@ -108,6 +109,7 @@ static void qzc_nodeinforeq (struct QZCRequest *req, struct QZCReply *rep,
   struct QZCNodeInfoReq nireq;
   struct QZCNodeInfoRep nirep;
   struct qzc_node *node;
+  memset(&nirep, 0, sizeof(nirep));
 
   read_QZCNodeInfoReq(&nireq, req->nodeinforeq);
   node = qzc_node_get(nireq.nid);
@@ -127,6 +129,7 @@ static void qzc_get (struct QZCRequest *req, struct QZCReply *rep,
   struct QZCGetReq greq;
   struct QZCGetRep grep;
   struct qzc_node *node;
+  memset(&grep, 0, sizeof(grep));
 
   read_QZCGetReq(&greq, req->get);
   node = qzc_node_get(greq.nid);
@@ -134,6 +137,7 @@ static void qzc_get (struct QZCRequest *req, struct QZCReply *rep,
   rep->which = QZCReply_get;
   rep->get = new_QZCGetRep(cs);
 
+  memset(&grep, 0, sizeof(grep));
   grep.nid = greq.nid;
   grep.elem = greq.elem;
 
@@ -159,6 +163,7 @@ static void qzc_create (struct QZCRequest *req, struct QZCReply *rep,
   struct QZCCreateReq creq;
   struct QZCCreateRep crep;
   struct qzc_node *node;
+  memset(&crep, 0, sizeof(crep));
 
   rep->error = 1;
 
