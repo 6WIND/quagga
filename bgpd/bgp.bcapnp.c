@@ -905,6 +905,8 @@ void qcapn_BGPVRF_read(struct bgp_vrf *s, capn_ptr p)
 {
     capn_resolve(&p);
     *(uint64_t *)s->outbound_rd.val = capn_read64(p, 0);
+    s->outbound_rd.family = AF_UNSPEC;
+    s->outbound_rd.prefixlen = 64;
     
     {
         capn_ptr tmp_p = capn_getp(p, 0, 1);
@@ -1001,7 +1003,10 @@ void qcapn_BGPVRF_set(struct bgp_vrf *s, capn_ptr p)
 struct prefix_rd qcapn_BGPVRF_get_outbound_rd(capn_ptr p)
 {
     capn_resolve(&p);
-    struct prefix_rd tp; *(uint64_t *)tp.val = capn_read64(p, 0); return tp;
+    struct prefix_rd tp;
+    tp.family = AF_UNSPEC;
+    tp.prefixlen = 64;
+    *(uint64_t *)tp.val = capn_read64(p, 0); return tp;
 }
 
 
@@ -1080,6 +1085,8 @@ void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
     capn_resolve(&p);
     s->announce = !!(capn_read8(p, 0) & (1 << 0));
     *(uint64_t *)s->outbound_rd.val = capn_read64(p, 8);
+    s->outbound_rd.family = AF_UNSPEC;
+    s->outbound_rd.prefixlen = 64;
     
     {
         capn_ptr tmp_p = capn_getp(p, 0, 1);
