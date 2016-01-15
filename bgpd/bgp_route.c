@@ -1580,6 +1580,36 @@ static bool rd_same (const struct prefix_rd *a, const struct prefix_rd *b)
   return !memcmp(&a->val, &b->val, sizeof(a->val));
 }
 
+void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
+{
+  afi_t afi;
+  for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    {
+      struct bgp_info *ri, *ri_next;
+      struct bgp_node *rn;
+
+      for (rn = bgp_table_top (vrf->rib[afi]); rn; rn = bgp_route_next (rn))
+        for (ri = rn->info; ri; ri = ri_next)
+          {
+            ri_next = ri->next;
+            bgp_info_reap (rn, ri);
+          }
+      bgp_table_finish (&vrf->rib[afi]);
+
+      for (rn = bgp_table_top (vrf->route[afi]); rn; rn = bgp_route_next (rn))
+        if (rn->info)
+          {
+            struct bgp_static *bs = rn->info;
+            bgp_static_withdraw_safi (vrf->bgp, &rn->p, afi, SAFI_MPLS_VPN,
+                        &vrf->outbound_rd, NULL, 0);
+            bgp_static_free (bs);
+            rn->info = NULL;
+            bgp_unlock_node (rn);
+          }
+      bgp_table_finish (&vrf->route[afi]);
+    }
+}
+
 static void
 bgp_vrf_withdraw (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn)
 {

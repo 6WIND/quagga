@@ -2214,18 +2214,18 @@ static void
 bgp_vrf_delete_int (void *arg)
 {
   struct bgp_vrf *vrf = arg;
-  afi_t afi;
+  char vrf_rd_str[RD_ADDRSTRLEN];
+
+  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+  zlog_info ("deleting vrf %s", vrf_rd_str);
+
+  QZC_NODE_UNREG(vrf)
+
+  bgp_vrf_clean_tables (vrf);
 
   bgp_vrf_rt_import_unset (vrf);
-
   if (vrf->rt_export)
     ecommunity_unintern (&vrf->rt_export);
-
-  for (afi = AFI_IP; afi < AFI_MAX; afi++)
-    {
-      bgp_table_finish (&vrf->rib[afi]);
-      bgp_table_finish (&vrf->route[afi]);
-    }
 
   XFREE (MTYPE_BGP_VRF, vrf);
 }
@@ -2233,7 +2233,6 @@ bgp_vrf_delete_int (void *arg)
 void
 bgp_vrf_delete (struct bgp_vrf *vrf)
 {
-  QZC_NODE_UNREG(vrf)
   listnode_delete (vrf->bgp->vrfs, vrf);
   bgp_vrf_delete_int(vrf);
 }

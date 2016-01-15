@@ -326,6 +326,7 @@ bgp_exit (int status)
   if (bgp_nexthop_buf)
     stream_free (bgp_nexthop_buf);
 
+  QZC_NODE_UNREG(bm)
   if (qzc_sock)
     qzc_close (qzc_sock);
   qzc_finish ();

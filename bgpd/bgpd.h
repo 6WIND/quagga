@@ -1085,5 +1085,7 @@ extern bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn);
 extern bool bgp_api_static_get (struct bgp_api_route *out, struct bgp_node *bn);
 extern int bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
 extern int bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
+extern void bgp_vrf_clean_tables (struct bgp_vrf *vrf);
+
 
 #endif /* _QUAGGA_BGPD_H */
