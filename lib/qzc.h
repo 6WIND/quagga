@@ -69,8 +69,12 @@ void qzc_node_unreg(struct qzc_node *node);
 	};
 void qzc_nodetype_init(struct qzc_nodetype *type);
 
+struct qzc_sock;
+
 void qzc_init(void);
-void *qzc_bind(struct thread_master *master, const char *url);
+void qzc_finish(void);
+struct qzc_sock *qzc_bind(struct thread_master *master, const char *url);
+void qzc_close(struct qzc_sock *sock);
 
 struct qzc_wkn {
 	uint64_t wid;

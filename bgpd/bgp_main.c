@@ -216,7 +216,7 @@ sigusr1 (void)
   zlog_rotate (NULL);
 }
 
-static void *qzc_sock = NULL;
+static struct qzc_sock *qzc_sock = NULL;
 
 /*
   Try to free up allocations we know about so that diagnostic tools such as
@@ -325,6 +325,10 @@ bgp_exit (int status)
     zclient_free (zlookup);
   if (bgp_nexthop_buf)
     stream_free (bgp_nexthop_buf);
+
+  if (qzc_sock)
+    qzc_close (qzc_sock);
+  qzc_finish ();
 
   /* reverse bgp_master_init */
   if (bm->master)

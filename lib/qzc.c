@@ -31,6 +31,8 @@
 
 #include "qzc.capnp.h"
 
+DEFINE_MTYPE_STATIC(LIB, QZC_SOCK, "QZC Socket")
+
 static struct qzc_wkn *wkn_first = NULL;
 
 void qzc_wkn_reg(struct qzc_wkn *wkn)
@@ -324,9 +326,23 @@ void qzc_init (void)
   nodes = hash_create (qzc_key, qzc_cmp);
 }
 
-void *qzc_bind (struct thread_master *master, const char *url)
+void qzc_finish (void)
+{
+  hash_free (nodes);
+  nodes = NULL;
+
+  qzmq_finish();
+}
+
+struct qzc_sock {
+	void *zmq;
+	struct qzmq_cb *cb;
+};
+
+struct qzc_sock *qzc_bind (struct thread_master *master, const char *url)
 {
   void *qzc_sock;
+  struct qzc_sock *ret;
 
   qzc_sock = zmq_socket (qzmq_context, ZMQ_REP);
 
@@ -343,6 +359,15 @@ void *qzc_bind (struct thread_master *master, const char *url)
       return NULL;
     }
 
-  qzmq_thread_read_msg (master, qzc_callback, NULL, qzc_sock);
-  return qzc_sock;
+  ret = XCALLOC(MTYPE_QZC_SOCK, sizeof(*ret));
+  ret->zmq = qzc_sock;
+  ret->cb = qzmq_thread_read_msg (master, qzc_callback, NULL, qzc_sock);
+  return ret;
+}
+
+void qzc_close (struct qzc_sock *sock)
+{
+  qzmq_thread_cancel (sock->cb);
+  zmq_close (sock->zmq);
+  XFREE(MTYPE_QZC_SOCK, sock);
 }
