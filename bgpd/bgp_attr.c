@@ -2478,12 +2478,19 @@ bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
 {
   if (safi == SAFI_MPLS_VPN)
     {
-      /* Tag, RD, Prefix write. */
-      stream_putc (s, p->prefixlen + 8 * (8 + 3 * nlabels));
-      for (size_t i = 0; i < nlabels; i++)
-        stream_put3 (s, labels[i]);
-      if (nlabels == 0)
-        stream_put3 (s, 0x1);
+      if (nlabels != 0)
+        {
+          /* Tag, RD, Prefix write. */
+          stream_putc (s, p->prefixlen + 8 * (8 + 3 * nlabels));
+          for (size_t i = 0; i < nlabels; i++)
+            stream_put3 (s, labels[i]);
+        }
+      else
+        {
+          /* Withdraw, put bottom of stack as only label */
+          stream_putc (s, p->prefixlen + 8 * (8 + 3));
+          stream_put3 (s, 0x1);
+        }
       stream_put (s, prd->val, 8);
       stream_put (s, &p->u.prefix, PSIZE (p->prefixlen));
     }
