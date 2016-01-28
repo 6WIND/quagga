@@ -1478,8 +1478,8 @@ dnl -----------
 dnl Cap'n Proto
 dnl -----------
 if test "$with_zeromq" != "no"; then
-  PKG_CHECK_MODULES(CAPNP, [capnp >= 0.6], [], [
-    AC_MSG_ERROR([configuration specifies --with-zeromq but cap'n proto not found or too old (0.6-dev required)])
+  PKG_CHECK_MODULES(CAPNP, [capnp >= 0.5.99], [], [
+    AC_MSG_ERROR([configuration specifies --with-zeromq but cap'n proto not found or too old (0.5.99 or higher required)])
   ])
 fi
 
