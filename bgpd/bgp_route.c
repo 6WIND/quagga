@@ -1945,6 +1945,8 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
             if (!sel || !sel->attr || !sel->attr->extra)
               continue;
             ecom = sel->attr->extra->ecommunity;
+            if (!ecom)
+              continue;
 
             found = false;
             for (i = 0; i < (size_t)ecom->size && !found; i++)
