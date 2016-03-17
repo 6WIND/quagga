@@ -179,7 +179,7 @@ static void
 nexthop_free (struct nexthop *nexthop)
 {
   if (nexthop->ifname)
-    XFREE (0, nexthop->ifname);
+    XFREE (MTYPE_TMP, nexthop->ifname);
   if (nexthop->resolved)
     nexthops_free(nexthop->resolved);
   XFREE (MTYPE_NEXTHOP, nexthop);
@@ -2555,7 +2555,7 @@ static_delete_ipv4_safi (safi_t safi, struct prefix *p, struct in_addr *gate,
   
   /* Free static route configuration. */
   if (ifname)
-    XFREE (0, si->ifname);
+    XFREE (MTYPE_TMP, si->ifname);
   XFREE (MTYPE_STATIC_ROUTE, si);
 
   route_unlock_node (rn);
@@ -2943,7 +2943,7 @@ static_delete_ipv6 (struct prefix *p, u_char type, struct in6_addr *gate,
   
   /* Free static route configuration. */
   if (ifname)
-    XFREE (0, si->ifname);
+    XFREE (MTYPE_TMP, si->ifname);
   XFREE (MTYPE_STATIC_ROUTE, si);
 
   return 1;

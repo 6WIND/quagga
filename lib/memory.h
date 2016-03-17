@@ -143,7 +143,8 @@ extern void *qrealloc (struct memtype *mt, void *ptr, size_t size)
 	__attribute__ ((_ALLOC_SIZE(3), nonnull (1) _RET_NONNULL));
 extern void *qstrdup (struct memtype *mt, const char *str)
 	__attribute__ ((malloc, nonnull (1) _RET_NONNULL));
-extern void qfree (struct memtype *mt, void *ptr);
+extern void qfree (struct memtype *mt, void *ptr)
+	__attribute__ ((nonnull (1)));
 
 #if 1
 #define XMALLOC(mtype, size)		qmalloc(mtype, size)
