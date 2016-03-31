@@ -1855,14 +1855,28 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
   struct bgp_vrf *vrf;
   struct listnode *node;
   size_t i, j;
+  struct prefix_rd *prd;
 
   if (safi != SAFI_MPLS_VPN)
     return;
+
+  prd = &bgp_node_table (rn)->prd;
 
   if (old_select && old_select->attr && old_select->attr->extra)
     old_ecom = old_select->attr->extra->ecommunity;
   if (new_select && new_select->attr && new_select->attr->extra)
     new_ecom = new_select->attr->extra->ecommunity;
+
+  if (old_select
+      && old_select->type == ZEBRA_ROUTE_BGP
+      && old_select->sub_type == BGP_ROUTE_STATIC
+      && (!new_select
+          || !new_select->type == ZEBRA_ROUTE_BGP
+          || !new_select->sub_type == BGP_ROUTE_STATIC))
+    for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+      if (!prefix_cmp((struct prefix*)&vrf->outbound_rd,
+                      (struct prefix*)prd))
+        bgp_vrf_process_one(vrf, afi, rn, NULL);
 
   if (old_ecom)
     for (i = 0; i < (size_t)old_ecom->size; i++)
@@ -1920,6 +1934,14 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
           for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
             bgp_vrf_process_one (vrf, afi, safi, rn, new_select);
       }
+
+  if (new_select
+      && new_select->type == ZEBRA_ROUTE_BGP
+      && new_select->sub_type == BGP_ROUTE_STATIC)
+    for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+      if (!prefix_cmp((struct prefix*)&vrf->outbound_rd,
+                      (struct prefix*)prd))
+        bgp_vrf_process_one(vrf, afi, rn, new_select);
 }
 
 void
