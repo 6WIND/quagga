@@ -1580,6 +1580,8 @@ static bool rd_same (const struct prefix_rd *a, const struct prefix_rd *b)
   return !memcmp(&a->val, &b->val, sizeof(a->val));
 }
 
+static void bgp_vrf_withdraw(struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn);
+
 void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
 {
   afi_t afi;
@@ -1592,6 +1594,8 @@ void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
         for (ri = rn->info; ri; ri = ri_next)
           {
             ri_next = ri->next;
+            if (CHECK_FLAG (ri->flags, BGP_INFO_SELECTED))
+              bgp_vrf_withdraw(vrf, afi, rn);
             bgp_info_reap (rn, ri);
           }
       bgp_table_finish (&vrf->rib[afi]);
