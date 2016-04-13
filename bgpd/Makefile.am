@@ -35,7 +35,7 @@ bgp_btoa_SOURCES = bgp_btoa.c
 bgp_btoa_LDADD = libbgp.a ../lib/libzebra.la @LIBCAP@ @LIBM@ @ZEROMQ_LIBS@
 
 examplesdir = $(exampledir)
-dist_examples_DATA = bgpd.conf.sample bgpd.conf.sample2
+dist_examples_DATA = bgpd.conf.sample bgpd.conf.sample2 bgpd.conf.sample3
 
 EXTRA_DIST = BGP4-MIB.txt
 
