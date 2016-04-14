@@ -51,9 +51,6 @@ endif
 
 $(top_srcdir)/lib/c-capnproto/capnpc-c:
 	make -C "$(top_srcdir)/lib/c-capnproto" capnpc-c
-%.capnp.c: %.capnp $(top_srcdir)/lib/c-capnproto/capnpc-c
-	$(AM_V_GEN) PATH="$(top_srcdir)/lib/c-capnproto:$(PATH)" capnp compile -oc $<
-%.capnp.h: %.capnp.c
 libzebra_la_SOURCES += qzc.capnp.c
 BUILT_SOURCES += qzc.capnp.c
 
