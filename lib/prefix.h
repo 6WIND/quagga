@@ -161,6 +161,22 @@ union prefix46constptr
   const struct prefix_ipv6 *p6;
 } __attribute__ ((transparent_union));
 
+typedef u_int32_t as_t;
+
+struct rd_as
+{
+  u_int16_t type;
+  as_t as;
+  u_int32_t val;
+};
+
+struct rd_ip
+{
+  u_int16_t type;
+  struct in_addr ip;
+  u_int16_t val;
+};
+
 #ifndef INET_ADDRSTRLEN
 #define INET_ADDRSTRLEN 16
 #endif /* INET_ADDRSTRLEN */
@@ -175,6 +191,14 @@ union prefix46constptr
 
 /* Maximum prefix string length (IPv6) */
 #define PREFIX_STRLEN 51
+
+#define RD_TYPE_AS      0
+#define RD_TYPE_IP      1
+#define RD_TYPE_AS4     2
+#define RD_TYPE_EOI	0xff00
+
+/* Maximum route distinguisher string length */
+#define RD_ADDRSTRLEN  28
 
 /* Max bit/byte length of IPv4 address. */
 #define IPV4_MAX_BYTELEN    4
@@ -292,5 +316,11 @@ static inline int ipv4_martian (struct in_addr *addr)
   }
   return 0;
 }
+
+extern u_int16_t decode_rd_type (u_char *pnt);
+extern void decode_rd_as (u_char *pnt, struct rd_as *rd_as);
+extern void decode_rd_as4 (u_char *pnt, struct rd_as *rd_as);
+extern void decode_rd_ip (u_char *pnt, struct rd_ip *rd_ip);
+extern char *prefix_rd2str (struct prefix_rd *prd, char *buf, size_t size);
 
 #endif /* _ZEBRA_PREFIX_H */

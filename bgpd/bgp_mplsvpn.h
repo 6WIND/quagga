@@ -21,27 +21,6 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #ifndef _QUAGGA_BGP_MPLSVPN_H
 #define _QUAGGA_BGP_MPLSVPN_H
 
-#define RD_TYPE_AS      0
-#define RD_TYPE_IP      1
-#define RD_TYPE_AS4     2
-#define RD_TYPE_EOI	0xff00
-
-#define RD_ADDRSTRLEN  28
-
-struct rd_as
-{
-  u_int16_t type;
-  as_t as;
-  u_int32_t val;
-};
-
-struct rd_ip
-{
-  u_int16_t type;
-  struct in_addr ip;
-  u_int16_t val;
-};
-
 extern void bgp_mplsvpn_init (void);
 extern int bgp_nlri_parse_vpn (struct peer *, struct attr *, struct bgp_nlri *);
 extern int str2prefix_rd (const char *, struct prefix_rd *);

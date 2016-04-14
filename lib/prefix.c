@@ -965,3 +965,95 @@ inet6_ntoa (struct in6_addr addr)
   return buf;
 }
 #endif /* HAVE_IPV6 */
+
+u_int16_t
+decode_rd_type (u_char *pnt)
+{
+  u_int16_t v;
+
+  v = ((u_int16_t) *pnt++ << 8);
+  v |= (u_int16_t) *pnt;
+
+  return v;
+}
+
+/* type == RD_TYPE_AS */
+void
+decode_rd_as (u_char *pnt, struct rd_as *rd_as)
+{
+  rd_as->as = (u_int16_t) *pnt++ << 8;
+  rd_as->as |= (u_int16_t) *pnt++;
+
+  rd_as->val = ((u_int32_t) *pnt++ << 24);
+  rd_as->val |= ((u_int32_t) *pnt++ << 16);
+  rd_as->val |= ((u_int32_t) *pnt++ << 8);
+  rd_as->val |= (u_int32_t) *pnt;
+}
+
+/* type == RD_TYPE_AS4 */
+void
+decode_rd_as4 (u_char *pnt, struct rd_as *rd_as)
+{
+  rd_as->as  = (u_int32_t) *pnt++ << 24;
+  rd_as->as |= (u_int32_t) *pnt++ << 16;
+  rd_as->as |= (u_int32_t) *pnt++ << 8;
+  rd_as->as |= (u_int32_t) *pnt++;
+
+  rd_as->val  = ((u_int16_t) *pnt++ << 8);
+  rd_as->val |= (u_int16_t) *pnt;
+}
+
+/* type == RD_TYPE_IP */
+void
+decode_rd_ip (u_char *pnt, struct rd_ip *rd_ip)
+{
+  memcpy (&rd_ip->ip, pnt, 4);
+  pnt += 4;
+
+  rd_ip->val = ((u_int16_t) *pnt++ << 8);
+  rd_ip->val |= (u_int16_t) *pnt;
+}
+
+char *
+prefix_rd2str (struct prefix_rd *prd, char *buf, size_t size)
+{
+  u_char *pnt;
+  u_int16_t type;
+  struct rd_as rd_as;
+  struct rd_ip rd_ip;
+
+  if (size < RD_ADDRSTRLEN)
+    return NULL;
+
+  pnt = prd->val;
+
+  type = decode_rd_type (pnt);
+
+  if (type == RD_TYPE_AS)
+    {
+      decode_rd_as (pnt + 2, &rd_as);
+      snprintf (buf, size, "%u:%d", rd_as.as, rd_as.val);
+      return buf;
+    }
+  else if (type == RD_TYPE_AS4)
+    {
+      decode_rd_as4 (pnt + 2, &rd_as);
+      snprintf (buf, size, "%u:%d", rd_as.as, rd_as.val);
+      return buf;
+    }
+  else if (type == RD_TYPE_IP)
+    {
+      decode_rd_ip (pnt + 2, &rd_ip);
+      snprintf (buf, size, "%s:%d", inet_ntoa (rd_ip.ip), rd_ip.val);
+      return buf;
+    }
+  else if (type == RD_TYPE_EOI)
+    {
+      snprintf(buf, size, "LHI:%d, %02x:%02x:%02x:%02x:%02x:%02x",
+               pnt[1], /* LHI */
+               pnt[2], pnt[3], pnt[4], pnt[5], pnt[6], pnt[7]); /* MAC */
+      return buf;
+    }
+
+  return NULL;
+}

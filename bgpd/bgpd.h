@@ -30,7 +30,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "qzc.h"
 
 /* Typedef BGP specific types.  */
-typedef u_int32_t as_t;
+
 typedef u_int16_t as16_t; /* we may still encounter 16 Bit asnums */
 typedef u_int16_t bgp_size_t;
 
