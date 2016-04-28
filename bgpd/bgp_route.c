@@ -3195,6 +3195,40 @@ bgp_default_originate (struct peer *peer, afi_t afi, safi_t safi, int withdraw)
   aspath_unintern (&aspath);
 }
 
+void
+bgp_default_originate_rd (struct peer *peer, afi_t afi, struct prefix_rd *rd,
+                          struct bgp_nexthop *nh, size_t nlabels,
+                          uint32_t *labels, int withdraw)
+{
+    {
+      struct attr attr;
+      struct aspath *aspath;
+      struct attr_extra *ae;
+      struct bgp *bgp = peer->bgp;
+
+      bgp_attr_default_set (&attr, BGP_ORIGIN_IGP);
+      aspath = attr.aspath;
+      attr.local_pref = bgp->default_local_pref;
+      ae = attr.extra;
+
+      memcpy (&attr.nexthop, &nh->v4, IPV4_MAX_BYTELEN);
+
+      if (nh)
+        ae->mp_nexthop_global_in = nh->v4;
+      else
+        ae->mp_nexthop_global_in = bgp->router_id;
+
+      if (! CHECK_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE))
+        {
+          SET_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE);
+          bgp_default_update_vpnv4_send(peer, rd, &attr, afi, nlabels, labels);
+        }
+
+      bgp_attr_extra_free (&attr);
+      aspath_unintern (&aspath);
+    }
+}
+
 static void
 bgp_announce_table (struct peer *peer, afi_t afi, safi_t safi,
                    struct bgp_table *table, int rsclient)
@@ -3209,8 +3243,7 @@ bgp_announce_table (struct peer *peer, afi_t afi, safi_t safi,
   if (! table)
     table = (rsclient) ? peer->rib[afi][safi] : peer->bgp->rib[afi][safi];
 
-  if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP)
-      && CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE))
+  if (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE))
     bgp_default_originate (peer, afi, safi, 0);
 
   /* It's initialized in bgp_announce_[check|check_rsclient]() */
