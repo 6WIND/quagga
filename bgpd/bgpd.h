@@ -207,6 +207,15 @@ struct bgp_rt_sub
   struct list *vrfs;
 };
 
+/* Next hop self address. */
+struct bgp_nexthop
+{
+  struct interface *ifp;
+  struct in_addr v4;
+  struct in6_addr v6_global;
+  struct in6_addr v6_local;
+};
+
 struct bgp_vrf
 {
   struct bgp *bgp;
@@ -227,6 +236,9 @@ struct bgp_vrf
 
   /* maximum multipath entries for the VRF */
   uint32_t max_mpath;
+
+  /* default route */
+  struct bgp_nexthop nh;
 
   /* internal flag */
 #define BGP_VRF_RD_UNSET 1
@@ -256,15 +268,6 @@ struct bgp_notify
   u_char subcode;
   char *data;
   bgp_size_t length;
-};
-
-/* Next hop self address. */
-struct bgp_nexthop
-{
-  struct interface *ifp;
-  struct in_addr v4;
-  struct in6_addr v6_global;
-  struct in6_addr v6_local;
 };
 
 #define RMAP_IN           0
@@ -469,6 +472,9 @@ struct peer
 #define PEER_FLAG_MAX_PREFIX_WARNING        (1 << 15) /* maximum prefix warning-only */
 #define PEER_FLAG_NEXTHOP_LOCAL_UNCHANGED   (1 << 16) /* leave link-local nexthop unchanged */
 #define PEER_FLAG_NEXTHOP_SELF_ALL          (1 << 17) /* next-hop-self all */
+
+ /* list of VPNv4 default route configured (bgp_vrf*) */
+ struct list *def_route_rd;
 
   /* MD5 password */
   char *password;
@@ -989,6 +995,11 @@ extern int peer_update_source_unset (struct peer *);
 
 extern int peer_default_originate_set (struct peer *, afi_t, safi_t, const char *);
 extern int peer_default_originate_unset (struct peer *, afi_t, safi_t);
+extern int peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd,
+                                          afi_t afi, struct bgp_nexthop *nh,
+                                          size_t nlabels, uint32_t *labels);
+extern int peer_default_originate_unset_rd (struct peer *peer, afi_t afi,
+                                            struct prefix_rd *rd);
 
 extern int peer_port_set (struct peer *, u_int16_t);
 extern int peer_port_unset (struct peer *);

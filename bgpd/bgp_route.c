@@ -3319,6 +3319,51 @@ bgp_default_originate (struct peer *peer, afi_t afi, safi_t safi, int withdraw)
   aspath_unintern (&aspath);
 }
 
+void
+bgp_default_originate_rd (struct peer *peer, afi_t afi, struct prefix_rd *rd,
+                          struct bgp_nexthop *nh, size_t nlabels,
+                          uint32_t *labels, int withdraw)
+{
+  if (withdraw)
+    {
+      int empty;
+
+      if (CHECK_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE))
+        bgp_default_withdraw_vpnv4_send (peer, afi, rd);
+      empty = (NULL == listnode_head (peer->def_route_rd));
+      if (empty)
+        UNSET_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE);
+    }
+  else
+    {
+      struct attr attr;
+      struct aspath *aspath;
+      struct attr_extra *ae;
+      struct bgp *bgp = peer->bgp;
+
+      bgp_attr_default_set (&attr, BGP_ORIGIN_IGP);
+      aspath = attr.aspath;
+      attr.local_pref = bgp->default_local_pref;
+      ae = attr.extra;
+
+      memcpy (&attr.nexthop, &nh->v4, IPV4_MAX_BYTELEN);
+
+      if (nh)
+        ae->mp_nexthop_global_in = nh->v4;
+      else
+        ae->mp_nexthop_global_in = bgp->router_id;
+
+      if (! CHECK_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE))
+        {
+          SET_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE);
+        }
+      bgp_default_update_vpnv4_send(peer, rd, &attr, afi, nlabels, labels);
+
+      bgp_attr_extra_free (&attr);
+      aspath_unintern (&aspath);
+    }
+}
+
 static void
 bgp_announce_table (struct peer *peer, afi_t afi, safi_t safi,
                    struct bgp_table *table, int rsclient)
@@ -3333,10 +3378,60 @@ bgp_announce_table (struct peer *peer, afi_t afi, safi_t safi,
   if (! table)
     table = (rsclient) ? peer->rib[afi][safi] : peer->bgp->rib[afi][safi];
 
-  if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP)
-      && CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE))
-    bgp_default_originate (peer, afi, safi, 0);
+  if (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE))
+    {
+    if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP))
+      bgp_default_originate (peer, afi, safi, 0);
+    else
+      {
+        /* Create as many UPDATE message needed for each Route Distinguisher */
+        for (rn = bgp_table_top (peer->bgp->rib[afi][safi]); rn; rn = bgp_route_next (rn))
+          {
+            struct bgp_node *rm;
+            struct bgp_info *ri;
 
+            /* look for neighbor in tables */
+            if ((table = rn->info) != NULL)
+              {
+                 int rd_header = 1;
+
+                 for (rm = bgp_table_top (table); rm; rm = bgp_route_next (rm))
+                    for (ri = rm->info; ri; ri = ri->next)
+                     {
+                       if (rd_header)
+                         {
+                           size_t nlabels = 0;
+                           struct listnode *node;
+                           struct bgp_vrf *vrf;
+                           u_int32_t *labels = NULL;
+
+                           /* get labels */
+                           if (ri->extra)
+                             {
+                               labels = ri->extra->labels;
+                               nlabels = ri->extra->nlabels;
+                             }
+
+                           rd_header = 0;
+
+                           /* find nh in VRF list */
+                           for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf))
+                             {
+                               if (!prefix_rd_cmp((struct prefix_rd*)&rn->p,
+                                                   &vrf->outbound_rd))
+                                 {
+                                   bgp_default_originate_rd (peer, afi,
+                                                             (struct prefix_rd*)&rn->p,
+                                                             &vrf->nh, nlabels, labels, 0);
+                                   break;
+                                 }
+                             }
+                         }
+                      }
+              }
+          }
+      }
+    }
   /* It's initialized in bgp_announce_[check|check_rsclient]() */
   attr.extra = &extra;
 

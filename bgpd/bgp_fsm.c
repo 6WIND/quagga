@@ -584,6 +584,12 @@ bgp_stop (struct peer *peer)
   peer->pcount[AFI_IP6][SAFI_MULTICAST] = 0;
 #endif /* 0 */
 
+  /* Delete all nodes of VPNv4 default routes list */
+  if (peer->def_route_rd)
+    {
+      list_delete_all_node (peer->def_route_rd);
+    }
+
   return 0;
 }
 
