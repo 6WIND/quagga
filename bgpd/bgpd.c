@@ -5909,6 +5909,34 @@ bgp_config_write (struct vty *vty)
 	    bgp_config_write_peer (vty, bgp, peer, AFI_IP, SAFI_UNICAST);
 	}
 
+      {
+        struct bgp_vrf *vrf;
+        char rdstr[RD_ADDRSTRLEN];
+        char *str_p, *str2_p;
+        for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+          {
+            str_p = prefix_rd2str(&(vrf->outbound_rd), rdstr, RD_ADDRSTRLEN);
+            vty_out(vty, " vrf rd %s%s", str_p == NULL?"<err>":str_p, VTY_NEWLINE);
+            if(vrf->rt_import)
+              {
+                str2_p = ecommunity_ecom2str (vrf->rt_import, ECOMMUNITY_FORMAT_ROUTE_MAP);
+                if(str2_p)
+                  {
+                    vty_out(vty, " vrf rd %s import %s%s", str_p == NULL?"<err>":str_p, str2_p, VTY_NEWLINE);
+                    XFREE (MTYPE_ECOMMUNITY_STR, str2_p);
+                  }
+              }
+            if(vrf->rt_export)
+              {
+                str2_p = ecommunity_ecom2str (vrf->rt_export, ECOMMUNITY_FORMAT_ROUTE_MAP);
+                if(str2_p)
+                  {
+                    vty_out(vty, " vrf rd %s export %s%s", str_p == NULL?"<err>":str_p, str2_p, VTY_NEWLINE);
+                    XFREE (MTYPE_ECOMMUNITY_STR, str2_p);
+                  }
+              }
+          }
+      }
       /* maximum-paths */
       bgp_config_write_maxpaths (vty, bgp, AFI_IP, SAFI_UNICAST, &write);
 

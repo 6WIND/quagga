@@ -9917,19 +9917,32 @@ DEFUN (bgp_vrf_exports,
   struct bgp_vrf *vrf;
   struct prefix_rd prd;
   struct ecommunity *ecom = NULL;
-  int fail = 0;
+  int fail = 0, i;
+  char *rts = NULL, *rts_ptr;
 
   if (! str2prefix_rd (argv[0], &prd))
     {
       vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
       fail++;
     }
-  ecom = ecommunity_str2com (argv[1], ECOMMUNITY_ROUTE_TARGET, 0);
+  /* forge export list */
+  i = 1;
+  rts = XCALLOC(MTYPE_TMP,2048);
+  rts_ptr = rts;
+  while(argv[i] != NULL)
+    {
+      rts_ptr += sprintf(rts_ptr, "rt %s ",argv[i]);
+      i++;
+    }
+  /* convert list of ecoms string into ecom struct */
+  ecom = ecommunity_str2com (rts, ECOMMUNITY_ROUTE_TARGET, 1);
   if (! ecom)
     {
       vty_out (vty, "%% Invalid RT '%s'%s", argv[1], VTY_NEWLINE);
       fail++;
     }
+  if (rts)
+    XFREE (MTYPE_TMP, rts);
   if (fail)
     return CMD_WARNING;
 
@@ -9961,19 +9974,32 @@ DEFUN (bgp_vrf_imports,
   struct bgp_vrf *vrf;
   struct prefix_rd prd;
   struct ecommunity *ecom = NULL;
-  int fail = 0;
+  int fail = 0, i;
+  char *rts = NULL, *rts_ptr;
 
   if (! str2prefix_rd (argv[0], &prd))
     {
       vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
       fail++;
     }
-  ecom = ecommunity_str2com (argv[1], ECOMMUNITY_ROUTE_TARGET, 0);
+  /* forge export list */
+  i = 1;
+  rts = XCALLOC(MTYPE_TMP,2048);
+  rts_ptr = rts;
+  while(argv[i] != NULL)
+    {
+      rts_ptr += sprintf(rts_ptr, "rt %s ",argv[i]);
+      i++;
+    }
+  /* convert list of ecoms string into ecom struct */
+  ecom = ecommunity_str2com (rts, ECOMMUNITY_ROUTE_TARGET, 1);
   if (! ecom)
     {
       vty_out (vty, "%% Invalid RT '%s'%s", argv[1], VTY_NEWLINE);
       fail++;
     }
+  if (rts)
+    XFREE (MTYPE_TMP, rts);
   if (fail)
     return CMD_WARNING;
 
