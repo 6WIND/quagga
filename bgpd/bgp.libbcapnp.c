@@ -58,6 +58,7 @@ void qcapn_BGP_write(const struct bgp *s, capn_ptr p)
     capn_write1(p, 44, !!(s->flags & BGP_FLAG_GRACEFUL_RESTART));
     capn_write1(p, 45, !!(s->flags & BGP_FLAG_ASPATH_CONFED));
     capn_write1(p, 46, !!(s->flags & BGP_FLAG_ASPATH_MULTIPATH_RELAX));
+    capn_write1(p, 47, !!(s->flags & BGP_FLAG_GR_PRESERVE_FWD));
     capn_write8(p, 6, s->distance_ebgp);
     capn_write8(p, 7, s->distance_ibgp);
     capn_write8(p, 8, s->distance_local);
@@ -553,6 +554,11 @@ void qcapn_BGP_read(struct bgp *s, capn_ptr p)
       tmp = !!(capn_read8(p, 5) & (1 << 6));
       if (tmp) s->flags |=  BGP_FLAG_ASPATH_MULTIPATH_RELAX;
       else     s->flags &= ~BGP_FLAG_ASPATH_MULTIPATH_RELAX;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 5) & (1 << 7));
+      if (tmp) s->flags |=  BGP_FLAG_GR_PRESERVE_FWD;
+      else    s->flags &= ~BGP_FLAG_GR_PRESERVE_FWD;
     }
     s->distance_ebgp = capn_read8(p, 6);
     s->distance_ibgp = capn_read8(p, 7);

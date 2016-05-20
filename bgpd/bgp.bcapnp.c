@@ -165,6 +165,12 @@ void qcapn_BGP_set(struct bgp *s, capn_ptr p)
       
     }
     {
+      u_int16_t flags;
+      flags = !!(capn_read8(p, 5) & (1 << 7));
+      if (flags) bgp_flag_set(s, BGP_FLAG_GR_PRESERVE_FWD);
+	else bgp_flag_unset(s, BGP_FLAG_GR_PRESERVE_FWD);
+    }
+    {
       u_int32_t default_local_pref;
       default_local_pref = capn_read32(p, 12);
       if (default_local_pref) { bgp_default_local_preference_set(s, default_local_pref); } else { bgp_default_local_preference_unset(s); }

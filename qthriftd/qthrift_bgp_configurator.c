@@ -530,6 +530,10 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     inst.default_holdtime = holdTime;
     inst.default_keepalive= keepAliveTime;
     inst.stalepath_time = stalepathTime;
+    if (announceFbit == TRUE)
+      bgp_flag_set(&inst, BGP_FLAG_GR_PRESERVE_FWD);
+    else
+      bgp_flag_unset(&inst, BGP_FLAG_GR_PRESERVE_FWD);
     capn_init_malloc(&rc);
     cs = capn_root(&rc).seg;
     bgp = qcapn_new_BGP(cs);

@@ -78,19 +78,20 @@ struct BGP $ctype("struct bgp") $cgen
 	cfGracefulRestart	@15 :Bool $cflag(field = "flags", setter = "bgp_flag_set", value = "BGP_FLAG_GRACEFUL_RESTART");
 	cfAspathConfed		@16 :Bool $cflag(field = "flags", setter = "bgp_flag_set", value = "BGP_FLAG_ASPATH_CONFED");
 	cfAspathMpathRelax	@17 :Bool $cflag(field = "flags", setter = "bgp_flag_set", value = "BGP_FLAG_ASPATH_MULTIPATH_RELAX");
+	cfGrPreserveFwd 	@18 :Bool $cflag(field = "flags", setter = "bgp_flag_set", value = "BGP_FLAG_GR_PRESERVE_FWD");
 
-	distanceEBGP		@18 :UInt8 $csetwrite;
-	distanceIBGP		@19 :UInt8 $csetwrite;
-	distanceLocal		@20 :UInt8 $csetwrite;
+	distanceEBGP		@19 :UInt8 $csetwrite;
+	distanceIBGP		@20 :UInt8 $csetwrite;
+	distanceLocal		@21 :UInt8 $csetwrite;
 
-	defaultLocalPref	@21 :UInt32 $caltname("default_local_preference");
-	defaultHoldtime		@22 :UInt32 $caltname("holdtime");
-	defaultKeepalive	@23 :UInt32 $caltname("keepalive");
+	defaultLocalPref	@22 :UInt32 $caltname("default_local_preference");
+	defaultHoldtime		@23 :UInt32 $caltname("holdtime");
+	defaultKeepalive	@24 :UInt32 $caltname("keepalive");
 
-	restartTime		@24 :UInt32;  # XXX: can't be set in CLI?
-	stalepathTime		@25 :UInt32 $csetwrite;
+	restartTime		@25 :UInt32;  # XXX: can't be set in CLI?
+	stalepathTime		@26 :UInt32 $csetwrite;
 
-	notifyZMQUrl		@26 :Text;
+	notifyZMQUrl		@27 :Text;
 }
 
 struct BGPAfiSafi $ctype("struct bgp") $cgen $carraykey("AfiSafiKey") {
