@@ -4074,7 +4074,14 @@ bgp_clear_stale_route (struct peer *peer, afi_t afi, safi_t safi)
 
   table = peer->bgp->rib[afi][safi];
 
-  for (rn = bgp_table_top (table); rn; rn = bgp_route_next (rn))
+  if (table && safi == SAFI_MPLS_VPN)
+  {
+    rn = bgp_table_top (table);
+    table = rn ? rn->info : NULL;
+  }
+
+  if (table)
+    for (rn = bgp_table_top (table); rn; rn = bgp_route_next (rn))
     {
       for (ri = rn->info; ri; ri = ri->next)
 	if (ri->peer == peer)
