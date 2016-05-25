@@ -350,7 +350,7 @@ bgp_graceful_restart_timer_expire (struct thread *thread)
 
   /* NSF delete stale route */
   for (afi = AFI_IP ; afi < AFI_MAX ; afi++)
-    for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_3 ; safi++)
+    for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_5 ; safi++)
       if (peer->nsf[afi][safi])
 	bgp_clear_stale_route (peer, afi, safi);
 
@@ -383,7 +383,7 @@ bgp_graceful_stale_timer_expire (struct thread *thread)
 
   /* NSF delete stale route */
   for (afi = AFI_IP ; afi < AFI_MAX ; afi++)
-    for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_3 ; safi++)
+    for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_5 ; safi++)
       if (peer->nsf[afi][safi])
 	bgp_clear_stale_route (peer, afi, safi);
 
@@ -492,7 +492,7 @@ bgp_stop (struct peer *peer)
 	  UNSET_FLAG (peer->sflags, PEER_STATUS_NSF_MODE);
 
 	  for (afi = AFI_IP ; afi < AFI_MAX ; afi++)
-	    for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_3 ; safi++)
+	    for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_5 ; safi++)
 	      peer->nsf[afi][safi] = 0;
 	}
 
@@ -838,7 +838,7 @@ bgp_establish (struct peer *peer)
   /* graceful restart */
   UNSET_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT);
   for (afi = AFI_IP ; afi < AFI_MAX ; afi++)
-    for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_3 ; safi++)
+    for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_5 ; safi++)
       {
 	if (peer->afc_nego[afi][safi]
 	    && CHECK_FLAG (peer->cap, PEER_CAP_RESTART_ADV)
