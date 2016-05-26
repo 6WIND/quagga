@@ -2951,6 +2951,7 @@ DEFUN (config_exit,
     case INTERFACE_NODE:
     case ZEBRA_NODE:
     case BGP_NODE:
+    case QTHRIFT_NODE:
     case RIP_NODE:
     case RIPNG_NODE:
     case BABEL_NODE:
@@ -3011,6 +3012,7 @@ DEFUN (config_end,
     case BGP_NODE:
     case BGP_ENCAP_NODE:
     case BGP_ENCAPV6_NODE:
+    case QTHRIFT_NODE:
     case BGP_VPNV4_NODE:
     case BGP_VPNV6_NODE:
     case BGP_IPV4_NODE:

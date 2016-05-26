@@ -114,6 +114,7 @@ enum node_type
   FORWARDING_NODE,		/* IP forwarding node. */
   PROTOCOL_NODE,                /* protocol filtering node */
   VTY_NODE,			/* Vty node. */
+  QTHRIFT_NODE,			/* Qthrift node. */
 };
 
 /* Node which has some commands and prompt string and configuration
@@ -484,6 +485,7 @@ struct cmd_token
 #define REDIST_STR "Redistribute information from another routing protocol\n"
 #define CLEAR_STR "Reset functions\n"
 #define RIP_STR "RIP information\n"
+#define QTHRIFT_STR "QTHRIFT information\n"
 #define BGP_STR "BGP information\n"
 #define OSPF_STR "OSPF information\n"
 #define NEIGHBOR_STR "Specify neighbor router\n"

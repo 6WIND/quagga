@@ -243,6 +243,8 @@ AC_ARG_ENABLE(zebra,
   AS_HELP_STRING([--disable-zebra], [do not build zebra daemon]))
 AC_ARG_ENABLE(bgpd,
   AS_HELP_STRING([--disable-bgpd], [do not build bgpd]))
+AC_ARG_ENABLE(qthriftd,
+  AS_HELP_STRING([--enable-qthriftd], [build qthriftd for thrift BGP vpnservice configuration]), qthriftd="yes")
 AC_ARG_ENABLE(ripd,
   AS_HELP_STRING([--disable-ripd], [do not build ripd]))
 AC_ARG_ENABLE(ripngd,
@@ -1136,6 +1138,12 @@ else
 fi
 AM_CONDITIONAL(BGPD, test "x$BGPD" = "xbgpd")
 
+if test "${enable_qthriftd}" = "yes";then
+  QTHRIFTD="qthriftd"
+else
+  QTHRIFTD=""
+fi
+
 if test "${enable_ripd}" = "no";then
   RIPD=""
 else
@@ -1202,6 +1210,7 @@ AC_SUBST(DOC)
 AC_SUBST(ZEBRA)
 AC_SUBST(BGPD)
 AC_SUBST(RIPD)
+AC_SUBST(QTHRIFTD)
 AC_SUBST(RIPNGD)
 AC_SUBST(OSPFD)
 AC_SUBST(OSPF6D)
@@ -1475,13 +1484,31 @@ fi
 AM_CONDITIONAL([HAVE_ZEROMQ], test "x$ZEROMQ" = "xtrue")
 
 dnl -----------
-dnl Cap'n Proto
+dnl qthrift
 dnl -----------
-if test "$with_zeromq" != "no"; then
-  PKG_CHECK_MODULES(CAPNP, [capnp >= 0.5.99], [], [
-    AC_MSG_ERROR([configuration specifies --with-zeromq but cap'n proto not found or too old (0.5.99 or higher required)])
-  ])
+if test "${enable_qthriftd}" != "no";then
+  PKG_CHECK_MODULES(THRIFT, [thrift_c_glib >= 0.9.3], [
+    	AC_DEFINE(HAVE_THRIFT, 1, [Enable Thrift support])
+    	THRIFT=true
+        ], [
+    	AC_MSG_ERROR([qthriftd requires thrift, but thrift not found or too old (0.9.3 or higher required)])
+        ])
+  PKG_CHECK_MODULES(GLIB2, [glib-2.0 >= 2.22.5], [
+	AC_DEFINE(HAVE_GLIB2, 1, [Enable glib-2.0 support])
+	GLIB2=true
+        ], [
+        AC_MSG_ERROR([qthriftd requires glib-2.0, but glib-2.0 not found or too old (2.22.5 or higher required)])
+	])
+  PKG_CHECK_MODULES(GOBJECT2, [gobject-2.0 >= 2.22.5], [
+	AC_DEFINE(HAVE_GLIB2, 1, [Enable gobject-2.0 support])
+	GOBJECT2=true
+        ], [
+        AC_MSG_ERROR([qthriftd requires gobject-2.0, but gobject-2.0 not found or too old (2.22.5 or higher required)])
+	])
 fi
+AM_CONDITIONAL([HAVE_QTHRIFT], test "x$THRIFT" = "xtrue")
+AM_CONDITIONAL([HAVE_QTHRIFT], test "x$GLIB2" = "xtrue")
+AM_CONDITIONAL([HAVE_QTHRIFT], test "x$GOBJECT2" = "xtrue")
 
 dnl ----------
 dnl configure date
@@ -1533,6 +1560,7 @@ AC_SUBST(quagga_statedir)
 
 AC_DEFINE_UNQUOTED(PATH_ZEBRA_PID, "$quagga_statedir/zebra.pid",zebra PID)
 AC_DEFINE_UNQUOTED(PATH_RIPD_PID, "$quagga_statedir/ripd.pid",ripd PID)
+AC_DEFINE_UNQUOTED(PATH_QTHRIFTD_PID, "$quagga_statedir/qthriftd.pid",qthriftd PID)
 AC_DEFINE_UNQUOTED(PATH_RIPNGD_PID, "$quagga_statedir/ripngd.pid",ripngd PID)
 AC_DEFINE_UNQUOTED(PATH_BGPD_PID, "$quagga_statedir/bgpd.pid",bgpd PID)
 AC_DEFINE_UNQUOTED(PATH_OSPFD_PID, "$quagga_statedir/ospfd.pid",ospfd PID)
@@ -1543,6 +1571,7 @@ AC_DEFINE_UNQUOTED(PATH_WATCHQUAGGA_PID, "$quagga_statedir/watchquagga.pid",watc
 AC_DEFINE_UNQUOTED(ZEBRA_SERV_PATH, "$quagga_statedir/zserv.api",zebra api socket)
 AC_DEFINE_UNQUOTED(ZEBRA_VTYSH_PATH, "$quagga_statedir/zebra.vty",zebra vty socket)
 AC_DEFINE_UNQUOTED(RIP_VTYSH_PATH, "$quagga_statedir/ripd.vty",rip vty socket)
+AC_DEFINE_UNQUOTED(QTHRIFT_VTYSH_PATH, "$quagga_statedir/qthriftd.vty",qthrift vty socket)
 AC_DEFINE_UNQUOTED(RIPNG_VTYSH_PATH, "$quagga_statedir/ripngd.vty",ripng vty socket)
 AC_DEFINE_UNQUOTED(BGP_VTYSH_PATH, "$quagga_statedir/bgpd.vty",bgpd vty socket)
 AC_DEFINE_UNQUOTED(OSPF_VTYSH_PATH, "$quagga_statedir/ospfd.vty",ospfd vty socket)
@@ -1570,7 +1599,7 @@ AC_CACHE_VAL(ac_cv_htonl_works,
 )
 AC_MSG_RESULT($ac_cv_htonl_works)
 
-AC_CONFIG_FILES([Makefile lib/Makefile zebra/Makefile ripd/Makefile 
+AC_CONFIG_FILES([Makefile lib/Makefile zebra/Makefile ripd/Makefile qthriftd/Makefile
 	  ripngd/Makefile bgpd/Makefile ospfd/Makefile watchquagga/Makefile
 	  ospf6d/Makefile isisd/Makefile vtysh/Makefile
 	  doc/Makefile ospfclient/Makefile tests/Makefile m4/Makefile

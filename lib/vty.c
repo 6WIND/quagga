@@ -774,6 +774,7 @@ vty_end_config (struct vty *vty)
     case RIPNG_NODE:
     case BABEL_NODE:
     case BGP_NODE:
+    case QTHRIFT_NODE:
     case BGP_VPNV4_NODE:
     case BGP_VPNV6_NODE:
     case BGP_ENCAP_NODE:
@@ -1187,6 +1188,7 @@ vty_stop_input (struct vty *vty)
     case RIPNG_NODE:
     case BABEL_NODE:
     case BGP_NODE:
+    case QTHRIFT_NODE:
     case RMAP_NODE:
     case OSPF_NODE:
     case OSPF6_NODE:
