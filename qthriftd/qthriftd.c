@@ -99,6 +99,8 @@ qthrift_delete (struct qthrift *qthrift)
         }
       XFREE(MTYPE_QTHRIFT, peer);
     }
+  qthrift_vpnservice_terminate_bgp_context (qthrift->qthrift_vpnservice);
+  qthrift_vpnservice_terminate_qzc(qthrift->qthrift_vpnservice);
   qthrift_vpnservice_terminate_thrift_bgp_updater_client (qthrift->qthrift_vpnservice);
   qthrift_vpnservice_terminate_thrift_bgp_configurator_server (qthrift->qthrift_vpnservice);
   qthrift_vpnservice_terminate(qthrift->qthrift_vpnservice);
@@ -138,6 +140,9 @@ void  qthrift_create_context (struct qthrift **qthrift_val)
 
   /* creation of thrift contexts - configurator and updater */
   qthrift_server_socket(qthrift);
+
+  /* creation of capnproto context - updater */
+  qthrift_vpnservice_setup_qzc(qthrift->qthrift_vpnservice);
 
   /* run bgp_configurator_server */ 
   if(qthrift_server_listen (qthrift) < 0)

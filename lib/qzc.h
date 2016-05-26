@@ -74,6 +74,7 @@ struct qzc_sock;
 void qzc_init(void);
 void qzc_finish(void);
 struct qzc_sock *qzc_bind(struct thread_master *master, const char *url);
+
 void qzc_close(struct qzc_sock *sock);
 
 struct qzc_wkn {
@@ -83,5 +84,28 @@ struct qzc_wkn {
 	struct qzc_wkn *next;
 };
 void qzc_wkn_reg(struct qzc_wkn *wkn);
+
+struct qzc_sock *qzcclient_connect (const char *url);
+struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *url,
+                                void (*func)(void *arg, void *zmqsock, void *msg));
+struct QZCReply *qzcclient_do(struct qzc_sock *sock,
+                              struct QZCRequest *req_ptr);
+uint64_t
+qzcclient_wkn(struct qzc_sock *sock, uint64_t *wkn);
+
+uint64_t
+qzcclient_createchild (struct qzc_sock *sock,
+                       uint64_t *nid, int elem,
+                       capn_ptr *p, uint64_t *dtypeid);
+
+int
+qzcclient_setelem (struct qzc_sock *sock, uint64_t *nid,
+                   int elem,  capn_ptr *data, uint64_t *type_data);
+
+void
+qzcclient_qzcreply_free(struct QZCReply *rep);
+
+void
+qzcclient_qzcgetrep_free(struct QZCGetRep *rep);
 
 #endif /* _QZC_H */

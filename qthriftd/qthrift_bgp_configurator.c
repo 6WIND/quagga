@@ -29,6 +29,10 @@
 #include "qthriftd/qthrift_bgp_configurator.h"
 #include "qthriftd/qthrift_vpnservice.h"
 #include "qthrift_debug.h"
+#include "qzmq.h"
+#include "qzc.h"
+#include "qzc.capnp.h"
+#include "bgp.bcapnp.h"
 
 /* ---------------------------------------------------------------- */
 
@@ -109,6 +113,31 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
    set. (Methods should not return FALSE without first setting the
    error parameter.) */
 
+/*
+ * thrift error messages returned
+ * in case bgp_configurator has to trigger a thrift exception
+ */
+#define ERROR_BGP_AS_STARTED g_error_new(1, 2, "BGP AS %u started", qthrift_vpnservice_get_bgp_context(ctxt)->asNumber);
+
+
+/*
+ * capnproto node identifiers used for qthrift<->bgp exchange
+ * those node identifiers identify which structure and which action
+ * to perform on this structure
+ * example of structure handled:
+ * - bgp master, bgp main instance, bgp neighbor, bgp vrf, route entry
+ * example of action done:
+ * - creation of a structure, get structure, set structure, remove structure
+ */
+
+/* bgp well know number. identifier used to recognize peer qzc */
+uint64_t bgp_bm_wkn = 0x37b64fdb20888a50;
+/* bgp master context */
+uint64_t bgp_bm_nid;
+/* bgp AS instance context */
+uint64_t bgp_inst_nid;
+/* bgp datatype */
+uint64_t bgp_datatype_bgp = 0xfd0316f1800ae916; /* create_bgp_master_1 , get_bgp_1, set_bgp_1 */
 
 /*
  * Start a Create a BGP neighbor for a given routerId, and asNumber
@@ -120,7 +149,136 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
                                             const gint32 keepAliveTime, const gint32 stalepathTime,
                                             const gboolean announceFbit, GError **error)
 {
-  return TRUE;
+  struct qthrift_vpnservice *ctxt = NULL;
+  int ret = 0;
+  struct bgp inst;
+  pid_t pid;
+  char s_port[16];
+  char s_zmq_sock[64];
+  struct QZCReply *rep;
+  char *parmList[] =  {(char *)"",\
+                       (char *)BGPD_ARGS_STRING_1,\
+                       (char *)"",                \
+                       (char *)BGPD_ARGS_STRING_3,\
+                       (char *)"",
+                       NULL};
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  /* check bgp already started */
+  if(qthrift_vpnservice_get_bgp_context(ctxt))
+    {
+      if(qthrift_vpnservice_get_bgp_context(ctxt)->asNumber)
+        {
+          *_return = BGP_ERR_ACTIVE;
+          *error = ERROR_BGP_AS_STARTED;
+          return FALSE;
+        }
+    }
+  else
+    {
+      qthrift_vpnservice_setup_bgp_context(ctxt);
+    }
+  /* run BGP process */
+  parmList[0] = ctxt->bgpd_execution_path;
+  sprintf(s_port, "%d", port);
+  sprintf(s_zmq_sock, "%s-%u", ctxt->zmq_sock, asNumber);
+  parmList[2] = s_port;
+  parmList[4] = s_zmq_sock;
+  if ((pid = fork()) ==-1)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  else if (pid == 0)
+    {
+      ret = execve((const char *)ctxt->bgpd_execution_path, parmList, NULL);
+      /* return not expected */
+      if(IS_QTHRIFT_DEBUG)
+        zlog_err ("execve failed: bgpd return not expected (%d)", errno);
+      exit(1);
+    }
+  /* store process id */
+  qthrift_vpnservice_get_bgp_context(ctxt)->proc = pid;
+  /* creation of capnproto context - bgp configurator */
+  /* creation of qzc client context */
+  ctxt->qzc_sock = qzcclient_connect(s_zmq_sock);
+  if(ctxt->qzc_sock == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  /* send ping msg. wait for pong */
+  rep = qzcclient_do(ctxt->qzc_sock, NULL);
+  if( rep == NULL || rep->which != QZCReply_pong)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  /* check well known number agains node identifier */
+  bgp_bm_nid = qzcclient_wkn(ctxt->qzc_sock, &bgp_bm_wkn);
+  qthrift_vpnservice_get_bgp_context(ctxt)->asNumber = asNumber;
+  if(IS_QTHRIFT_DEBUG)
+    zlog_debug ("startBgp. bgpd called (AS %u, proc %d)", \
+               asNumber, pid);
+  /* from bgp_master, create bgp and retrieve bgp as node identifier */
+  {
+    struct capn_ptr bgp;
+    struct capn rc;
+    struct capn_segment *cs;
+
+    capn_init_malloc(&rc);
+    cs = capn_root(&rc).seg;
+    memset(&inst, 0, sizeof(struct bgp));
+    inst.as = asNumber;
+    if(routerId)
+      inet_aton(routerId, &inst.router_id_static);
+    bgp = qcapn_new_BGP(cs);
+    qcapn_BGP_write(&inst, bgp);
+    bgp_inst_nid = qzcclient_createchild (ctxt->qzc_sock, &bgp_bm_nid, \
+                                          1, &bgp, &bgp_datatype_bgp);
+    capn_free(&rc);
+    if (bgp_inst_nid == 0)
+      {
+        *_return = BGP_ERR_FAILED;
+        return FALSE;
+      }
+  }
+
+  /* from bgp_master, inject configuration, and send zmq message to BGP */
+  {
+    struct capn_ptr bgp;
+    struct capn rc;
+    struct capn_segment *cs;
+
+    inst.as = asNumber;
+    if(routerId)
+      inet_aton (routerId, &inst.router_id_static);
+    inst.notify_zmq_url = XSTRDUP(MTYPE_QTHRIFT, ctxt->zmq_subscribe_sock);
+    inst.default_holdtime = holdTime;
+    inst.default_keepalive= keepAliveTime;
+    inst.stalepath_time = stalepathTime;
+    capn_init_malloc(&rc);
+    cs = capn_root(&rc).seg;
+    bgp = qcapn_new_BGP(cs);
+    qcapn_BGP_write(&inst, bgp);
+    ret = qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 1, &bgp, &bgp_datatype_bgp);
+    XFREE(MTYPE_QTHRIFT, inst.notify_zmq_url);
+    inst.notify_zmq_url = NULL;
+    capn_free(&rc);
+  }
+  if(IS_QTHRIFT_DEBUG)
+    {
+      if(ret)
+        zlog_debug ("startBgp(%u, %s) OK",(as_t)asNumber, routerId);
+      else
+        zlog_err ("startBgp(%u, %s) NOK",(as_t)asNumber, routerId);
+    }
+  return ret;
 }
 
 /*

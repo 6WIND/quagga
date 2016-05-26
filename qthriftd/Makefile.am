@@ -1,6 +1,7 @@
 ## Process this file with automake to produce Makefile.in.
 
 AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib @THRIFT_CFLAGS@ @GLIB2_CFLAGS@ @GOBJECT2_CFLAGS@
+AM_CPPFLAGS+= -I$(top_srcdir)/lib/c-capnproto -I$(top_builddir)/bgpd @ZEROMQ_CFLAGS@
 
 DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\"
 INSTALL_SDATA=@INSTALL@ -m 600
@@ -21,7 +22,7 @@ noinst_HEADERS = \
 qthriftd_SOURCES = \
 	qthrift_main.c $(libqthrift_a_SOURCES)
 
-qthriftd_LDADD = ../lib/libzebra.la -lm @THRIFT_LIBS@ @GLIB2_LIBS@ @GOBJECT2_LIBS@ -lpthread @ZEROMQ_LIBS@
+qthriftd_LDADD = ../lib/libzebra.la -lm @THRIFT_LIBS@ @GLIB2_LIBS@ @GOBJECT2_LIBS@ -lpthread @ZEROMQ_LIBS@ ../bgpd/libbgpcapnp.a
 
 examplesdir = $(exampledir)
 dist_examples_DATA = 

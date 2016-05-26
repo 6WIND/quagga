@@ -46,6 +46,9 @@
 #include "qthriftd/qthrift_bgp_configurator.h"
 #include "qthriftd/qthrift_vpnservice.h"
 
+#include <sys/types.h>
+#include <sys/wait.h>
+
 /* qthriftd options, we use GNU getopt library. */
 static const struct option longopts[] =
 {
@@ -60,6 +63,7 @@ static const struct option longopts[] =
 void sighup (void);
 void sigint (void);
 void sigusr1 (void);
+void sigchild (void);
 
 static void qthrift_exit (int);
 
@@ -81,6 +85,10 @@ static struct quagga_signal_t qthrift_signals[] =
     .signal = SIGTERM,
     .handler = &sigint,
   },
+  {
+    .signal = SIGCHLD,
+    .handler = &sigchild,
+  }
 };
 
 /* Route retain mode flag. */
@@ -152,6 +160,40 @@ sighup (void)
 
   /* Try to return to normal operation. */
 }
+
+/* SIGCHLD handler. */
+void
+sigchild (void)
+{
+  pid_t p;
+  int status;
+  struct qthrift_vpnservice *ctxt = NULL;
+  as_t asNumber;
+
+  while ((p=waitpid(-1, &status, WNOHANG)) != -1)
+    {
+      /* Handle the death of pid p */
+      zlog_err("BGPD terminated (%u)",p);
+      qthrift_vpnservice_get_context (&ctxt);
+      /* kill BGP Daemon */
+      if(ctxt == NULL)
+        {
+          sigint();
+        }
+      if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL)
+        /* nothing to be done - BGP config already flushed */
+        return;
+      asNumber = qthrift_vpnservice_get_bgp_context(ctxt)->asNumber;
+      /* reset Thrift Context */
+      qthrift_vpnservice_terminate_bgp_context(ctxt);
+      qthrift_vpnservice_terminate_qzc(ctxt);
+      /* creation of capnproto context */
+      qthrift_vpnservice_setup_qzc(ctxt);
+      if(asNumber)
+        zlog_err ("stopBgp(AS %u) OK", (as_t)asNumber);
+    }
+}
+
 
 /* SIGINT handler. */
 void
@@ -298,7 +340,7 @@ main (int argc, char **argv)
   /* Initializations. */
   srandom (time (NULL));
   signal_init (tm->master, array_size(qthrift_signals), qthrift_signals);
-  zprivs_init (&qthriftd_privs);
+  /* do not change uid/gid to quagga, because qthriftd needs to relaunch quagga */
   cmd_init (1);
   vty_init (tm->master);
   memory_init ();

@@ -26,7 +26,11 @@
 #include "log.h"
 #include "linklist.h"
 #include "command.h"
-
+#include "qzmq.h"
+#include "qzc.h"
+#include "capn.h"
+#include "bgpd/bgp.bcapnp.h"
+#include "qzc.capnp.h"
 #include "qthriftd/qthrift_memory.h"
 #include "qthriftd/qthrift_thrift_wrapper.h"
 #include "qthriftd/bgp_configurator.h"
@@ -37,16 +41,42 @@
 #include "qthriftd/qthrift_bgp_configurator.h"
 #include "qthriftd/qthriftd.h"
 
+static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *msg);
+
+/* callback function for capnproto bgpupdater notifications */
+static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message)
+{
+  return;
+}
+
+#define SBIN_DIR "/sbin"
+
 void qthrift_vpnservice_setup(struct qthrift_vpnservice *setup)
 {
+  char bgpd_location_path[128];
+  char *ptr = bgpd_location_path;
+
   setup->qthrift_listen_port = QTHRIFT_LISTEN_PORT;
   setup->qthrift_notification_port = QTHRIFT_NOTIFICATION_PORT;
+  setup->zmq_sock = XSTRDUP(MTYPE_QTHRIFT, ZMQ_SOCK);
+  setup->zmq_subscribe_sock = XSTRDUP(MTYPE_QTHRIFT, ZMQ_NOTIFY);
+  ptr+=cmd_get_path_prefix_dir(bgpd_location_path, 128);
+  ptr+=sprintf(ptr, "%s/bgpd",SBIN_DIR);
+  setup->bgpd_execution_path = XSTRDUP(MTYPE_QTHRIFT, bgpd_location_path);
 }
 
 void qthrift_vpnservice_terminate(struct qthrift_vpnservice *setup)
 {
+  if(!setup)
+    return;
   setup->qthrift_listen_port = 0;
   setup->qthrift_notification_port = 0;
+  XFREE(MTYPE_QTHRIFT, setup->zmq_sock);
+  setup->zmq_sock = NULL;
+  XFREE(MTYPE_QTHRIFT, setup->zmq_subscribe_sock);
+  setup->zmq_subscribe_sock = NULL;
+  XFREE(MTYPE_QTHRIFT, setup->bgpd_execution_path);
+  setup->bgpd_execution_path = NULL;
 }
 
 void qthrift_vpnservice_terminate_thrift_bgp_updater_client (struct qthrift_vpnservice *setup)
@@ -201,4 +231,55 @@ void qthrift_vpnservice_setup_client(struct qthrift_vpnservice_client *peer,
   if(peer->simple_server && &(peer->simple_server->parent))
     peer->server = &(peer->simple_server->parent);
   return;
+}
+
+void qthrift_vpnservice_terminate_qzc(struct qthrift_vpnservice *setup)
+{
+  if(!setup)
+    return;
+  if(setup->qzc_subscribe_sock)
+    qzc_close (setup->qzc_subscribe_sock);
+  setup->qzc_subscribe_sock = NULL;
+  if(setup->qzc_sock)
+      qzc_close (setup->qzc_sock);
+  setup->qzc_sock = NULL;
+
+  qzmq_finish();
+}
+
+void qthrift_vpnservice_setup_qzc(struct qthrift_vpnservice *setup)
+{
+  qzc_init ();
+  if(setup->zmq_subscribe_sock && setup->qzc_subscribe_sock == NULL )
+    setup->qzc_subscribe_sock = qzcclient_subscribe(tm->master, \
+                                                    setup->zmq_subscribe_sock, \
+                                                    qthrift_vpnservice_callback);
+}
+
+void qthrift_vpnservice_terminate_bgp_context(struct qthrift_vpnservice *setup)
+{
+  if(!setup->bgp_context)
+    return;
+  if(setup->bgp_context->proc)
+    {
+      zlog_info ("sending SIGINT signal to Bgpd (%d)",setup->bgp_context->proc);
+      kill(setup->bgp_context->proc, SIGINT);
+      setup->bgp_context->proc = 0;
+    }
+  if(setup->bgp_context)
+    {
+      XFREE(MTYPE_QTHRIFT, setup->bgp_context);
+      setup->bgp_context = NULL;
+    }
+  return;
+}
+
+void qthrift_vpnservice_setup_bgp_context(struct qthrift_vpnservice *setup)
+{
+  setup->bgp_context=XCALLOC(MTYPE_QTHRIFT, sizeof(struct qthrift_vpnservice_bgp_context));
+}
+
+struct qthrift_vpnservice_bgp_context *qthrift_vpnservice_get_bgp_context(struct qthrift_vpnservice *setup)
+{
+  return setup->bgp_context;
 }

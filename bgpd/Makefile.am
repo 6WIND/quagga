@@ -1,12 +1,13 @@
 ## Process this file with automake to produce Makefile.in.
 
-AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib -I$(top_srcdir)/lib/c-capnproto
+AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib \
+		-I$(top_srcdir)/lib/c-capnproto @ZEROMQ_CFLAGS@
 DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\"
 INSTALL_SDATA=@INSTALL@ -m 600
 
 AM_CFLAGS = $(WERROR)
 
-noinst_LIBRARIES = libbgp.a
+noinst_LIBRARIES = libbgp.a libbgpcapnp.a
 sbin_PROGRAMS = bgpd
 bin_PROGRAMS = bgp_btoa
 
@@ -18,6 +19,9 @@ libbgp_a_SOURCES = \
 	bgp_dump.c bgp_snmp.c bgp_ecommunity.c bgp_mplsvpn.c bgp_nexthop.c \
 	bgp_damp.c bgp_table.c bgp_advertise.c bgp_vty.c bgp_mpath.c \
 	bgp_encap.c bgp_encap_tlv.c bgp_zmq.c
+
+libbgpcapnp_a_SOURCES = bgp.libbcapnp.c
+libbgpcapnp_a_CPPFLAGS = $(AM_CPPFLAGS)
 
 noinst_HEADERS = \
 	bgp_memory.h \
@@ -40,4 +44,4 @@ dist_examples_DATA = bgpd.conf.sample bgpd.conf.sample2 bgpd.conf.sample3
 EXTRA_DIST = BGP4-MIB.txt
 
 EXTRA_DIST += bgpd.ndef.i bgpd.ndef.hi bgp.bcapnp.c bgp.bcapnp.h
-libbgp_a_SOURCES += bgp.bcapnp.c
+libbgp_a_SOURCES += bgp.bcapnp.c bgp.libbcapnp.c

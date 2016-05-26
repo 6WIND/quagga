@@ -28,12 +28,68 @@
 #include "log.h"
 
 #include "qzc.h"
-
 #include "qzc.capnp.h"
 
 DEFINE_MTYPE_STATIC(LIB, QZC_SOCK, "QZC Socket")
+DEFINE_MTYPE_STATIC(LIB, QZC_REP, "QZC Socket")
+
+/* This file local debug flag. */
+
+static struct QZCReply *qzcclient_msg_to_reply(zmq_msg_t *msg);
+static struct capn *rc_table_get_entry(void *data, size_t size);
+static void rc_table_init();
 
 static struct qzc_wkn *wkn_first = NULL;
+
+#define RC_TABLE_NB_ELEM 50
+struct capn rc_table[RC_TABLE_NB_ELEM];
+int rc_table_index = 0;
+int rc_table_cnt = 0;
+int rc_table_index_free = 0;
+int rc_table_inited = 0;
+/*
+ * manages capnproto allocations for some routines
+ * that need delayed free.
+ * this is the case of qzcclient_do routine
+ */
+static void rc_table_init()
+{
+  int i=0;
+
+  if(rc_table_inited)
+    return;
+  for (i=0; i<RC_TABLE_NB_ELEM; i++)
+    memset(&rc_table[i], 0, sizeof(struct capn));
+  rc_table_inited = 1;
+}
+/*
+ * manages capnproto allocations for some routines
+ * that need delayed free.
+ * this is the case of qzcclient_do routine
+ */
+static struct capn *rc_table_get_entry(void *data, size_t size)
+{
+  struct capn *rc;
+  rc = &rc_table[rc_table_index];
+  if(data)
+    capn_init_mem(rc, data, size, 0);
+  else
+    capn_init_malloc(rc);
+  rc_table_cnt++;
+  rc_table_index++;
+  if(rc_table_index == RC_TABLE_NB_ELEM)
+    {
+      rc_table_index = 0;
+    }
+  if(rc_table_cnt >= RC_TABLE_NB_ELEM)
+    {
+      capn_free(&rc_table[rc_table_index_free]);
+      rc_table_index_free++;
+      if(rc_table_index_free == RC_TABLE_NB_ELEM)
+        rc_table_index_free = 0;
+    }
+  return rc;
+}
 
 void qzc_wkn_reg(struct qzc_wkn *wkn)
 {
@@ -322,8 +378,9 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
 void qzc_init (void)
 {
   qzmq_init ();
-
-  nodes = hash_create (qzc_key, qzc_cmp);
+  if(!nodes)
+    nodes = hash_create (qzc_key, qzc_cmp);
+  rc_table_init();
 }
 
 void qzc_finish (void)
@@ -370,4 +427,277 @@ void qzc_close (struct qzc_sock *sock)
   qzmq_thread_cancel (sock->cb);
   zmq_close (sock->zmq);
   XFREE(MTYPE_QZC_SOCK, sock);
+}
+
+static struct QZCReply *qzcclient_msg_to_reply(zmq_msg_t *msg)
+{
+  void *data;
+  size_t size;
+  QZCReply_ptr root;
+  struct QZCReply *rep;
+  struct capn *ctx;
+
+  data = zmq_msg_data (msg);
+  size = zmq_msg_size (msg);
+
+  rep = XCALLOC(MTYPE_QZC_REP, sizeof(struct QZCReply));
+  ctx = rc_table_get_entry(data, size);
+  root.p = capn_getp(capn_root(ctx), 0, 1);
+  read_QZCReply(rep, root);
+  zmq_msg_close(msg);
+  return rep;
+}
+
+struct qzc_sock *qzcclient_connect (const char *url)
+{
+  void *qzc_sock;
+  struct qzc_sock *ret;
+
+  qzc_sock = zmq_socket (qzmq_context, ZMQ_REQ);
+  if (!qzc_sock)
+    {
+      zlog_err ("zmq_socket failed: %s (%d)", strerror (errno), errno);
+      return NULL;
+    }
+  if (zmq_connect (qzc_sock, url))
+    {
+      zlog_err ("zmq_bind failed: %s (%d)", strerror (errno), errno);
+      zmq_close (qzc_sock);
+      return NULL;
+    }
+  ret = XCALLOC(MTYPE_QZC_SOCK, sizeof(*ret));
+  ret->zmq = qzc_sock;
+  ret->cb = NULL;
+  return ret;
+}
+
+struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *url,
+                                void (*func)(void *arg, void *zmqsock, void *msg))
+{
+  void *qzc_sock;
+  struct qzc_sock *ret;
+  void (*func2)(void *arg, void *zmqsock, struct zmq_msg_t *msg);
+
+  qzc_sock = zmq_socket (qzmq_context, ZMQ_SUB);
+
+  if (!qzc_sock)
+    {
+      zlog_err ("zmq_socket failed: %s (%d)", strerror (errno), errno);
+      return NULL;
+    }
+  if (zmq_connect (qzc_sock, url))
+    {
+      zlog_err ("zmq_connect failed: %s (%d)", strerror (errno), errno);
+      zmq_close (qzc_sock);
+      return NULL;
+    }
+  if (zmq_setsockopt (qzc_sock, ZMQ_SUBSCRIBE,"",0))
+    {
+      zlog_err ("zmq_setsockopt failed: %s (%d)", strerror (errno), errno);
+      zmq_close (qzc_sock);
+      return NULL;
+    }
+
+  func2 = func;
+  ret = XCALLOC(MTYPE_QZC_SOCK, sizeof(*ret));
+  ret->zmq = qzc_sock;
+  ret->cb = qzmq_thread_read_msg (master, func2, NULL, qzc_sock);
+  return ret;
+}
+
+/* send QZCrequest and return QZCreply or NULL if timeout */
+struct QZCReply *
+qzcclient_do(struct qzc_sock *sock,
+             struct QZCRequest *req_ptr)
+{
+  struct capn *rc;
+  struct capn_segment *cs;
+  struct QZCRequest *req, rq;
+  struct QZCReply *rep;
+  QZCRequest_ptr p;
+  zmq_msg_t msg;
+  uint8_t buf[4096];
+  ssize_t rs;
+  int ret;
+
+  rc = rc_table_get_entry(NULL, 0);
+  cs = capn_root(rc).seg;
+  if(req_ptr == NULL)
+    {
+      /* ping request */
+      memset(&rq, 0, sizeof(struct QZCRequest));
+      req = &rq;
+    }
+  else
+    {
+      req = req_ptr;
+    }
+  p = new_QZCRequest(cs);
+  write_QZCRequest( req, p);
+  capn_setp(capn_root(rc), 0, p.p);
+  rs = capn_write_mem(rc, buf, sizeof(buf), 0);
+
+  ret = zmq_send (sock->zmq, buf, rs, 0);
+  if (ret < 0)
+    {
+      zlog_err ("zmq_send failed: %s (%d)", strerror (errno), errno);
+      return NULL;
+    }
+
+  if (zmq_msg_init (&msg))
+    {
+      zlog_err ("zmq_msg_init failed: %s (%d)", strerror (errno), errno);
+      return NULL;
+    }
+  do
+    {
+      ret = zmq_msg_recv (&msg, sock->zmq, 0);
+      if (ret < 0)
+        {
+          zlog_err ("zmq_msg_recv failed: %s (%d)", strerror (errno), errno);
+          break;
+        }
+      if (ret >= 0)
+          break;
+    }
+  while (1);
+
+  if(ret < 0)
+    {
+      return NULL;
+    }
+  rep = qzcclient_msg_to_reply(&msg);
+  if(rep == NULL)
+    {
+      zlog_info ("qzcclient_send. no message reply");
+    }
+  if(rep->error)
+    {
+      zlog_err ("qzcclient_send. reply message error: (%d)", rep->error);
+    }
+  return rep;
+}
+
+/*
+ * qzc client API. send QZCCreateReq
+ * and return created node identifier if operation success
+ * return 0 if set operation fails
+ */
+uint64_t
+qzcclient_createchild (struct qzc_sock *sock,
+                       uint64_t *nid, int elem, capn_ptr *p, uint64_t *type_data)
+
+{
+  struct QZCRequest req;
+  struct QZCReply *rep;
+  struct QZCCreateReq creq;
+  struct QZCCreateRep crep;
+  struct capn rc;
+  struct capn_segment *cs;
+
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  req.which = QZCRequest_create;
+  req.create = new_QZCCreateReq(cs);
+  memset(&creq, 0, sizeof(struct QZCCreateReq));
+  creq.parentnid = *nid;
+  creq.parentelem = elem;
+  creq.datatype = *type_data;
+  creq.data = *p;
+  write_QZCCreateReq(&creq, req.create);
+  rep = qzcclient_do(sock, &req);
+  if (rep == NULL || rep->error)
+    {
+      return 0;
+    }
+  memset(&crep, 0, sizeof(struct QZCCreateRep));
+  read_QZCCreateRep(&crep, rep->create);
+  zlog_info ("CREATE nid:%llx/%d => %llx",(long long unsigned int)*nid, elem, (long long unsigned int)crep.newnid); 
+  XFREE(MTYPE_QZC_REP, rep);
+  capn_free(&rc);
+  return crep.newnid;
+}
+
+/*
+ * qzc client API. send a QZCSetReq message
+ * return 1 if set operation is successfull
+ */
+int
+qzcclient_setelem (struct qzc_sock *sock, uint64_t *nid,
+                   int elem, capn_ptr *data, uint64_t *type_data)
+{
+  struct capn rc;
+  struct capn_segment *cs;
+  struct QZCRequest req;
+  struct QZCReply *rep;
+  struct QZCSetReq sreq;
+  int ret = 1;
+
+  /* have to use  local capn_segment - otherwise segfault */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+
+  req.which = QZCRequest_set;
+  req.set = new_QZCSetReq(cs);
+  memset(&sreq, 0, sizeof(struct QZCSetReq));
+  sreq.nid = *nid;
+  sreq.elem = elem;
+  sreq.datatype = *type_data;
+  sreq.data = *data;
+  write_QZCSetReq(&sreq, req.set);
+  rep = qzcclient_do(sock, &req);
+  if (rep == NULL)
+    {
+      ret = 0;
+    }
+  XFREE(MTYPE_QZC_REP, rep);
+  capn_free(&rc);
+  return ret;
+}
+
+uint64_t
+qzcclient_wkn(struct qzc_sock *sock, uint64_t *wkn)
+{
+  struct QZCRequest req;
+  struct QZCWKNResolveReq wknreq;
+  struct capn rc;
+  struct capn_segment *cs;
+  struct QZCReply *rep;
+  struct QZCWKNResolveRep wknrep;
+
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  req.wknresolve = new_QZCWKNResolveReq(cs);
+  req.which = QZCRequest_wknresolve;
+
+  memset(&wknreq, 0, sizeof(wknreq));
+  wknreq.wid = *wkn;
+  write_QZCWKNResolveReq(&wknreq, req.wknresolve);
+
+  rep = qzcclient_do(sock, &req);
+  if (rep == NULL)
+    {
+      return 0;
+    }
+
+  memset(&wknrep, 0, sizeof(wknrep));
+  read_QZCWKNResolveRep(&wknrep, rep->wknresolve);
+  XFREE(MTYPE_QZC_REP, rep);
+  capn_free(&rc);
+  return wknrep.nid;
+}
+
+void
+qzcclient_qzcgetrep_free(struct QZCGetRep *rep)
+{
+  if(rep)
+    XFREE(MTYPE_QZC_REP, rep);
+}
+
+void
+qzcclient_qzcreply_free(struct QZCReply *rep)
+{
+  if(rep)
+    XFREE(MTYPE_QZC_REP, rep);
+
 }

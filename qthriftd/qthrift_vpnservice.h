@@ -21,9 +21,17 @@
 #ifndef _QTHRIFT_VPNSERVICE_H
 #define _QTHRIFT_VPNSERVICE_H
 
+#include "bgpd.h"
+
 #define QTHRIFT_LISTEN_PORT	 7644
 #define QTHRIFT_NOTIFICATION_PORT 6644
 #define QTHRIFT_CLIENT_ADDRESS "0.0.0.0"
+
+#define ZMQ_SOCK "ipc:///tmp/qzc-vpn2bgp"
+#define ZMQ_NOTIFY "ipc:///tmp/qzc-notify"
+
+#define BGPD_ARGS_STRING_1  "-p"
+#define BGPD_ARGS_STRING_3  "-Z"
 
 struct qthrift_vpnservice_client
 {
@@ -33,6 +41,12 @@ struct qthrift_vpnservice_client
   ThriftProtocol *protocol;
   ThriftServer *server;
   ThriftSimpleServer *simple_server;
+};
+
+struct qthrift_vpnservice_bgp_context
+{
+  as_t asNumber;
+  gint32 proc;
 };
 
 struct qthrift_vpnservice
@@ -57,6 +71,19 @@ struct qthrift_vpnservice
 
   /* bgp context */
   struct qthrift_vpnservice_bgp_context *bgp_context;
+
+  /* CapnProto Path */
+  char      *zmq_sock;
+
+  /* CapnProto Subscribe Path */
+  char      *zmq_subscribe_sock;
+
+  /* BGPD binay execution path */
+  char     *bgpd_execution_path;
+
+  /* QZC internal contexts */
+  struct qzc_sock *qzc_sock;
+  struct qzc_sock *qzc_subscribe_sock;
 };
 
 void qthrift_vpnservice_terminate(struct qthrift_vpnservice *setup);
@@ -78,5 +105,11 @@ void qthrift_vpnservice_setup_client(struct qthrift_vpnservice_client *peer,\
                                      ThriftTransport *transport);
 
 void qthrift_vpnservice_terminate_client(struct qthrift_vpnservice_client *peer);
+
+void qthrift_vpnservice_terminate_qzc(struct qthrift_vpnservice *setup);
+void qthrift_vpnservice_setup_qzc(struct qthrift_vpnservice *setup);
+struct qthrift_vpnservice_bgp_context *qthrift_vpnservice_get_bgp_context(struct qthrift_vpnservice *setup);
+void qthrift_vpnservice_setup_bgp_context(struct qthrift_vpnservice *setup);
+void qthrift_vpnservice_terminate_bgp_context(struct qthrift_vpnservice *setup);
 
 #endif /* _QTHRIFT_VPNSERVICE_H */
