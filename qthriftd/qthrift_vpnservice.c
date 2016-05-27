@@ -69,6 +69,7 @@ void qthrift_vpnservice_setup(struct qthrift_vpnservice *setup)
 void qthrift_vpnservice_setup_thrift_bgp_cache( struct qthrift_vpnservice *setup)
 {
   setup->bgp_vrf_list = list_new();
+  setup->bgp_peer_list = list_new();
 }
 
 
@@ -295,6 +296,7 @@ void qthrift_vpnservice_terminate_thrift_bgp_cache (struct qthrift_vpnservice *s
 {
   struct listnode *node, *nnode;
   struct qthrift_vpnservice_cache_bgpvrf *entry_bgpvrf;
+  struct qthrift_vpnservice_cache_peer *entry_peer;
 
   for (ALL_LIST_ELEMENTS(setup->bgp_vrf_list, node, nnode, entry_bgpvrf))
     {
@@ -302,4 +304,10 @@ void qthrift_vpnservice_terminate_thrift_bgp_cache (struct qthrift_vpnservice *s
       XFREE (MTYPE_QTHRIFT, entry_bgpvrf);
     }
   setup->bgp_vrf_list = NULL;
+  for (ALL_LIST_ELEMENTS(setup->bgp_peer_list, node, nnode, entry_peer))
+    {
+      listnode_delete(setup->bgp_peer_list, entry_peer);
+      XFREE (MTYPE_QTHRIFT, entry_peer);
+    }
+  setup->bgp_peer_list = NULL;
 }

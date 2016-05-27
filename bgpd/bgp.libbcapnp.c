@@ -25,6 +25,8 @@
 #include "zebra.h"
 #include "bgpd.h"
 
+static const capn_text capn_val0 = {0, ""};
+
 capn_ptr qcapn_new_BGP(struct capn_segment *s)
 {
     return capn_new_struct(s, 32, 3);
@@ -95,3 +97,211 @@ capn_ptr qcapn_new_BGPVRF(struct capn_segment *s)
 {
     return capn_new_struct(s, 8, 2);
 }
+
+void qcapn_BGPPeer_read(struct peer *s, capn_ptr p)
+{
+    capn_resolve(&p);
+    s->as = capn_read32(p, 0);
+    { capn_text tp = capn_get_text(p, 0, capn_val0); free(s->host); s->host = strdup(tp.str); }
+    { capn_text tp = capn_get_text(p, 1, capn_val0); free(s->desc); s->desc = strdup(tp.str); }
+    s->port = capn_read16(p, 4);
+    s->weight = capn_read32(p, 8);
+    s->holdtime = capn_read32(p, 12);
+    s->keepalive = capn_read32(p, 16);
+    { bool tmp;
+      tmp = !!(capn_read8(p, 6) & (1 << 0));
+      if (tmp) s->flags |=  PEER_FLAG_PASSIVE;
+      else     s->flags &= ~PEER_FLAG_PASSIVE;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 6) & (1 << 1));
+      if (tmp) s->flags |=  PEER_FLAG_SHUTDOWN;
+      else     s->flags &= ~PEER_FLAG_SHUTDOWN;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 6) & (1 << 2));
+      if (tmp) s->flags |=  PEER_FLAG_DONT_CAPABILITY;
+      else     s->flags &= ~PEER_FLAG_DONT_CAPABILITY;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 6) & (1 << 3));
+      if (tmp) s->flags |=  PEER_FLAG_OVERRIDE_CAPABILITY;
+      else     s->flags &= ~PEER_FLAG_OVERRIDE_CAPABILITY;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 6) & (1 << 4));
+      if (tmp) s->flags |=  PEER_FLAG_STRICT_CAP_MATCH;
+      else     s->flags &= ~PEER_FLAG_STRICT_CAP_MATCH;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 6) & (1 << 5));
+      if (tmp) s->flags |=  PEER_FLAG_DYNAMIC_CAPABILITY;
+      else     s->flags &= ~PEER_FLAG_DYNAMIC_CAPABILITY;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 6) & (1 << 6));
+      if (tmp) s->flags |=  PEER_FLAG_DISABLE_CONNECTED_CHECK;
+      else     s->flags &= ~PEER_FLAG_DISABLE_CONNECTED_CHECK;
+    }
+    s->ttl = capn_read32(p, 20);
+    /* MISSING: updateSource */
+}
+
+void qcapn_BGPPeer_write(const struct peer *s, capn_ptr p)
+{
+    capn_resolve(&p);
+    capn_write32(p, 0, s->as);
+    { capn_text tp = { .str = s->host, .len = s->host ? strlen(s->host) : 0 }; capn_set_text(p, 0, tp); }
+    { capn_text tp = { .str = s->desc, .len = s->desc ? strlen(s->desc) : 0 }; capn_set_text(p, 1, tp); }
+    capn_write16(p, 4, s->port);
+    capn_write32(p, 8, s->weight);
+    capn_write32(p, 12, s->holdtime);
+    capn_write32(p, 16, s->keepalive);
+    capn_write1(p, 48, !!(s->flags & PEER_FLAG_PASSIVE));
+    capn_write1(p, 49, !!(s->flags & PEER_FLAG_SHUTDOWN));
+    capn_write1(p, 50, !!(s->flags & PEER_FLAG_DONT_CAPABILITY));
+    capn_write1(p, 51, !!(s->flags & PEER_FLAG_OVERRIDE_CAPABILITY));
+    capn_write1(p, 52, !!(s->flags & PEER_FLAG_STRICT_CAP_MATCH));
+    capn_write1(p, 53, !!(s->flags & PEER_FLAG_DYNAMIC_CAPABILITY));
+    capn_write1(p, 54, !!(s->flags & PEER_FLAG_DISABLE_CONNECTED_CHECK));
+    capn_write32(p, 20, s->ttl);
+    /* MISSING: updateSource */
+}
+
+capn_ptr qcapn_new_BGPPeer(struct capn_segment *s)
+{
+    return capn_new_struct(s, 24, 3);
+}
+
+capn_ptr qcapn_new_AfiSafiKey(struct capn_segment *s)
+{
+    return capn_new_struct(s, 8, 0);
+}
+
+capn_ptr qcapn_new_BGPPeerAfiSafi(struct capn_segment *s)
+{
+    return capn_new_struct(s, 8, 0);
+}
+
+void qcapn_BGPPeerAfiSafi_write(const struct peer *s, capn_ptr p, afi_t afi, safi_t safi)
+{
+    capn_resolve(&p);
+    capn_write1(p, 0, s->afc[afi][safi]);
+    capn_write1(p, 1, !!(s->af_flags[afi][safi] & PEER_FLAG_SEND_COMMUNITY));
+    capn_write1(p, 2, !!(s->af_flags[afi][safi] & PEER_FLAG_SEND_EXT_COMMUNITY));
+    capn_write1(p, 3, !!(s->af_flags[afi][safi] & PEER_FLAG_NEXTHOP_SELF));
+    capn_write1(p, 4, !!(s->af_flags[afi][safi] & PEER_FLAG_REFLECTOR_CLIENT));
+    capn_write1(p, 5, !!(s->af_flags[afi][safi] & PEER_FLAG_RSERVER_CLIENT));
+    capn_write1(p, 6, !!(s->af_flags[afi][safi] & PEER_FLAG_SOFT_RECONFIG));
+    capn_write1(p, 7, !!(s->af_flags[afi][safi] & PEER_FLAG_AS_PATH_UNCHANGED));
+    capn_write1(p, 8, !!(s->af_flags[afi][safi] & PEER_FLAG_NEXTHOP_UNCHANGED));
+    capn_write1(p, 9, !!(s->af_flags[afi][safi] & PEER_FLAG_MED_UNCHANGED));
+    capn_write1(p, 10, !!(s->af_flags[afi][safi] & PEER_FLAG_DEFAULT_ORIGINATE));
+    capn_write1(p, 11, !!(s->af_flags[afi][safi] & PEER_FLAG_REMOVE_PRIVATE_AS));
+    capn_write1(p, 12, !!(s->af_flags[afi][safi] & PEER_FLAG_ALLOWAS_IN));
+    capn_write1(p, 13, !!(s->af_flags[afi][safi] & PEER_FLAG_ORF_PREFIX_SM));
+    capn_write1(p, 14, !!(s->af_flags[afi][safi] & PEER_FLAG_ORF_PREFIX_RM));
+    capn_write1(p, 15, !!(s->af_flags[afi][safi] & PEER_FLAG_MAX_PREFIX));
+    capn_write1(p, 16, !!(s->af_flags[afi][safi] & PEER_FLAG_MAX_PREFIX_WARNING));
+    capn_write1(p, 17, !!(s->af_flags[afi][safi] & PEER_FLAG_NEXTHOP_LOCAL_UNCHANGED));
+    capn_write1(p, 18, !!(s->af_flags[afi][safi] & PEER_FLAG_NEXTHOP_SELF_ALL));
+    capn_write8(p, 3, s->allowas_in[afi][safi]);
+}
+
+void qcapn_BGPPeerAfiSafi_read(struct peer *s, capn_ptr p, afi_t afi, safi_t safi)
+{
+    capn_resolve(&p);
+    s->afc[afi][safi] = !!(capn_read8(p, 0) & (1 << 0));
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 1));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_SEND_COMMUNITY;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_SEND_COMMUNITY;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 2));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_SEND_EXT_COMMUNITY;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_SEND_EXT_COMMUNITY;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 3));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_NEXTHOP_SELF;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_NEXTHOP_SELF;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 4));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_REFLECTOR_CLIENT;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_REFLECTOR_CLIENT;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 5));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_RSERVER_CLIENT;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_RSERVER_CLIENT;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 6));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_SOFT_RECONFIG;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_SOFT_RECONFIG;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 7));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_AS_PATH_UNCHANGED;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_AS_PATH_UNCHANGED;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 1) & (1 << 0));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_NEXTHOP_UNCHANGED;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_NEXTHOP_UNCHANGED;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 1) & (1 << 1));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_MED_UNCHANGED;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_MED_UNCHANGED;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 1) & (1 << 2));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_DEFAULT_ORIGINATE;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_DEFAULT_ORIGINATE;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 1) & (1 << 3));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_REMOVE_PRIVATE_AS;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_REMOVE_PRIVATE_AS;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 1) & (1 << 4));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_ALLOWAS_IN;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_ALLOWAS_IN;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 1) & (1 << 5));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_ORF_PREFIX_SM;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_ORF_PREFIX_SM;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 1) & (1 << 6));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_ORF_PREFIX_RM;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_ORF_PREFIX_RM;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 1) & (1 << 7));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_MAX_PREFIX;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_MAX_PREFIX;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 2) & (1 << 0));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_MAX_PREFIX_WARNING;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_MAX_PREFIX_WARNING;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 2) & (1 << 1));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_NEXTHOP_LOCAL_UNCHANGED;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_NEXTHOP_LOCAL_UNCHANGED;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 2) & (1 << 2));
+      if (tmp) s->af_flags[afi][safi] |=  PEER_FLAG_NEXTHOP_SELF_ALL;
+      else     s->af_flags[afi][safi] &= ~PEER_FLAG_NEXTHOP_SELF_ALL;
+    }
+    s->allowas_in[afi][safi] = capn_read8(p, 3);
+}
+

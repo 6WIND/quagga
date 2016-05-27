@@ -58,6 +58,13 @@ struct qthrift_vpnservice_cache_bgpvrf
   struct prefix_rd outbound_rd;
 };
 
+struct qthrift_cache_peer
+{
+  uint64_t peer_nid;
+  as_t asNumber;
+  char *peerIp;
+};
+
 struct qthrift_vpnservice
 {
   /* configuration part */
@@ -96,6 +103,7 @@ struct qthrift_vpnservice
 
   /* Thrift Cache Context */
   struct list *bgp_vrf_list;
+  struct list *bgp_peer_list;
 };
 
 void qthrift_vpnservice_terminate(struct qthrift_vpnservice *setup);

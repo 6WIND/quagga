@@ -624,7 +624,8 @@ qzcclient_createchild (struct qzc_sock *sock,
  */
 int
 qzcclient_setelem (struct qzc_sock *sock, uint64_t *nid,
-                   int elem, capn_ptr *data, uint64_t *type_data)
+                   int elem, capn_ptr *data, uint64_t *type_data,
+                   capn_ptr *ctxt, uint64_t *type_ctxt)
 {
   struct capn rc;
   struct capn_segment *cs;
@@ -644,6 +645,11 @@ qzcclient_setelem (struct qzc_sock *sock, uint64_t *nid,
   sreq.elem = elem;
   sreq.datatype = *type_data;
   sreq.data = *data;
+  if(ctxt)
+    {
+      sreq.ctxdata = *ctxt;
+      sreq.ctxtype = *type_ctxt;
+    }
   write_QZCSetReq(&sreq, req.set);
   rep = qzcclient_do(sock, &req);
   if (rep == NULL)
@@ -720,6 +726,49 @@ qzcclient_deletenode (struct qzc_sock *sock, uint64_t *nid)
     XFREE(MTYPE_QZC_REP, rep);
   capn_free(&rc);
   return ret;
+}
+
+/*
+ * qzc client API. send a QZCGetReq message
+ * return NULL if error; QZCGetRep pointer otherwise
+ */
+struct QZCGetRep *qzcclient_getelem (struct qzc_sock *sock, uint64_t *nid,\
+                                     int elem, \
+                                     capn_ptr *ctxt, uint64_t *ctxt_type)
+{
+  struct capn *rc;
+  struct capn_segment *cs;  
+  struct QZCRequest req;
+  struct QZCReply *rep;
+  struct QZCGetReq greq;
+  struct QZCGetRep *grep;
+
+  grep = XCALLOC(MTYPE_QZC_REP, sizeof(struct QZCGetRep));
+
+  /* have to use  local capn_segment - otherwise segfault */
+  rc = rc_table_get_entry(NULL, 0);
+  cs = capn_root(rc).seg;
+
+  req.which = QZCRequest_get;
+  req.get = new_QZCGetReq(cs);
+  memset(&greq, 0, sizeof(struct QZCGetReq));
+  greq.nid = *nid;
+  greq.elem = elem;
+  if(ctxt != NULL)
+    {
+      greq.ctxtype = *ctxt_type;
+      greq.ctxdata = *ctxt; 
+    }
+  write_QZCGetReq(&greq, req.get);
+  rep = qzcclient_do(sock, &req);
+  if (rep == NULL)
+    {
+      return NULL;
+    }
+  read_QZCGetRep(grep, rep->get);
+  XFREE(MTYPE_QZC_REP, rep);
+  zlog_info ("GET nid:%llx/%d => %llx",(long long unsigned int)*nid, elem, (long long unsigned int)grep->datatype); 
+  return grep;
 }
 
 void

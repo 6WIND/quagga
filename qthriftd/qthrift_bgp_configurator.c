@@ -101,10 +101,18 @@ static void instance_bgp_configurator_handler_finalize(GObject *object);
 /*
  * utilities functions for thrift <-> capnproto exchange
  * some of those functions implement a cache mecanism for some objects
- * like VRF
+ * like VRF, and Neighbors
  */
 static uint64_t
 qthrift_bgp_configurator_find_vrf(struct qthrift_vpnservice *ctxt, struct prefix_rd *rd, gint32* _return);
+
+static uint64_t
+qthrift_bgp_configurator_find_peer(struct qthrift_vpnservice *ctxt, const gchar *peerIp, gint32* _return);
+
+/* enable/disable address family bgp neighbor, using capnp */
+static gboolean
+qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const gchar * peerIp, \
+                       const af_afi afi, const af_safi safi, gboolean value, GError **error);
 
 
 /* The implementation of InstanceBgpConfiguratorHandler follows. */
@@ -129,6 +137,8 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
 #define ERROR_BGP_AS_STARTED g_error_new(1, 2, "BGP AS %u started", qthrift_vpnservice_get_bgp_context(ctxt)->asNumber);
 #define ERROR_BGP_RD_NOTFOUND g_error_new(1, 3, "BGP RD %s not configured", rd);
 #define ERROR_BGP_AS_NOT_STARTED g_error_new(1, 1, "BGP AS not started");
+#define ERROR_BGP_AFISAFI_NOTSUPPORTED g_error_new(1, 5, "BGP Afi/Safi %d/%d not supported", afi, safi);
+#define ERROR_BGP_PEER_NOTFOUND g_error_new(1, 4, "BGP Peer %s not configured", peerIp);
 
 
 /*
@@ -140,7 +150,6 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
  * example of action done:
  * - creation of a structure, get structure, set structure, remove structure
  */
-
 /* bgp well know number. identifier used to recognize peer qzc */
 uint64_t bgp_bm_wkn = 0x37b64fdb20888a50;
 /* bgp master context */
@@ -153,6 +162,15 @@ uint64_t bgp_datatype_bgp = 0xfd0316f1800ae916; /* create_bgp_master_1 , get_bgp
  * functions called in bgp : create_bgp_3. bgp_vrf_create. get_bgp_vrf_1, set_bgp_vrf_1
  */
 uint64_t bgp_datatype_bgpvrf = 0x912c4b0c412022b1;
+/* handling peer structure
+ * functions called in bgp : struct peer. get_peer_3, set_peer_3
+ */
+uint64_t bgp_datatype_peer_3 = 0x8a3b3cd8d134cad1;
+/* functions using this node identifier : struct peer. get_peer_2, set_peer_2 */
+uint64_t bgp_datatype_create_bgp_2 = 0xd1f1619cff93fcb9;
+/* node identifier defining afi safi context type */
+uint64_t bgp_ctxttype_afisafi= 0x9af9aec34821d76a;
+
 
 /*
  * lookup routine that searches for a matching vrf
@@ -177,6 +195,126 @@ qthrift_bgp_configurator_find_vrf(struct qthrift_vpnservice *ctxt, struct prefix
           return entry->bgpvrf_nid; /* match */
         }
   return 0;
+}
+
+/*
+ * lookup routine that searches for a matching peer
+ * it searches first in the qthrift cache, then if not found,
+ * it searches in BGP a peer context.
+ * It returns the capnp node identifier related to peer context,
+ * 0 otherwise.
+ */
+static uint64_t
+qthrift_bgp_configurator_find_peer(struct qthrift_vpnservice *ctxt, const gchar *peerIp, gint32* _return)
+{
+  struct listnode *node, *nnode;
+  struct qthrift_cache_peer *entry;
+
+  /* lookup in cache context, first */
+  if (!list_isempty(ctxt->bgp_peer_list))
+    for (ALL_LIST_ELEMENTS(ctxt->bgp_peer_list, node, nnode, entry))
+      if(0 == strcmp(entry->peerIp, peerIp))
+        {
+          if(IS_QTHRIFT_DEBUG_CACHE)
+            zlog_debug ("CACHE_PEER : match lookup entry %s", entry->peerIp);
+          return entry->peer_nid; /* match */
+        }
+  return 0;
+}
+
+/* enable/disable address family bgp neighbor, using capnp */
+static gboolean
+qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const gchar * peerIp, \
+                       const af_afi afi, const af_safi safi, gboolean value, GError **error)
+{
+  uint64_t peer_nid;
+  struct capn rc;
+  struct capn_segment *cs;
+  capn_ptr afisafi_ctxt, peer_ctxt;
+  struct peer peer;
+  int af, saf;
+  int ret;
+  struct QZCGetRep *grep_peer;
+
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  if(peerIp == NULL)
+    {
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  if(afi != AF_AFI_AFI_IP)
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  if(safi != AF_SAFI_SAFI_MPLS_VPN)
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  peer_nid = qthrift_bgp_configurator_find_peer(ctxt, peerIp, _return);
+  if(peer_nid == 0)
+    {
+      *_return = BGP_ERR_PARAM;
+      *error = ERROR_BGP_PEER_NOTFOUND;
+      return FALSE;
+    }
+  /* prepare afisafi context */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  afisafi_ctxt = qcapn_new_AfiSafiKey(cs);
+  af = AFI_IP;
+  saf = SAFI_MPLS_VPN;
+  capn_write8(afisafi_ctxt, 0, af);
+  capn_write8(afisafi_ctxt, 1, saf);
+  /* retrieve peer context */
+  grep_peer = qzcclient_getelem (ctxt->qzc_sock, &peer_nid, 3, \
+                                 &afisafi_ctxt, &bgp_ctxttype_afisafi);
+  if(grep_peer == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      capn_free(&rc);
+      return FALSE;
+    }
+  /* change address family local context of peer */
+  memset(&peer, 0, sizeof(struct peer));
+  qcapn_BGPPeerAfiSafi_read(&peer, grep_peer->data, af, saf);
+  if(TRUE == value)
+    peer.afc[af][saf] = 1;
+  else
+    peer.afc[af][saf] = 0;
+  /* reset qzc reply and rc context */
+  qzcclient_qzcgetrep_free( grep_peer);
+  /* prepare QZCSetRequest context */
+  peer_ctxt = qcapn_new_BGPPeerAfiSafi(cs);
+  /* set address family for peer */
+  qcapn_BGPPeerAfiSafi_write(&peer, peer_ctxt, af, saf);
+  ret = qzcclient_setelem (ctxt->qzc_sock, &peer_nid, 3, \
+                           &peer_ctxt, &bgp_datatype_peer_3, \
+                           &afisafi_ctxt, &bgp_ctxttype_afisafi);
+  if(ret == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      capn_free(&rc);
+      return FALSE;
+    }
+  if(IS_QTHRIFT_DEBUG)
+    {
+      if(TRUE == value)
+        zlog_debug ("enableAddressFamily( %s, afi %d, safi %d) OK", peerIp, afi, safi);
+      else
+        zlog_debug ("disableAddressFamily( %s, afi %d, safi %d) OK", peerIp, afi, safi);
+    }
+  *_return = 0;
+  capn_free(&rc);
+  return TRUE;
 }
 
 /*
@@ -306,7 +444,9 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     cs = capn_root(&rc).seg;
     bgp = qcapn_new_BGP(cs);
     qcapn_BGP_write(&inst, bgp);
-    ret = qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 1, &bgp, &bgp_datatype_bgp);
+    ret = qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 1, \
+                             &bgp, &bgp_datatype_bgp, \
+                             NULL, NULL);
     XFREE(MTYPE_QTHRIFT, inst.notify_zmq_url);
     inst.notify_zmq_url = NULL;
     capn_free(&rc);
@@ -394,7 +534,57 @@ gboolean
 instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* _return,
                                               const gchar *routerId, const gint32 asNumber, GError **error)
 {
-  return TRUE;
+  struct qthrift_vpnservice *ctxt = NULL;
+  struct peer inst;
+  struct capn_ptr bgppeer;
+  struct capn rc;
+  struct capn_segment *cs;
+  struct qthrift_cache_peer *entry;
+  uint64_t peer_nid;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  memset(&inst, 0, sizeof(struct peer));
+  inst.host = XSTRDUP(MTYPE_QTHRIFT, routerId);
+  inst.as = (as_t)asNumber;
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  bgppeer = qcapn_new_BGPPeer(cs);
+  qcapn_BGPPeer_write(&inst, bgppeer);
+
+  peer_nid = qzcclient_createchild (ctxt->qzc_sock, &bgp_inst_nid, 2, \
+                                  &bgppeer, &bgp_datatype_create_bgp_2);
+  capn_free(&rc);
+  XFREE(MTYPE_QTHRIFT, inst.host);
+  if (peer_nid == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      XFREE(MTYPE_QTHRIFT, inst.host);
+      return FALSE;
+    }
+  if(IS_QTHRIFT_DEBUG)
+    zlog_debug ("createPeer(%s,%u) OK", routerId, asNumber);
+  /* add peer entry in cache */
+  entry = XCALLOC(MTYPE_QTHRIFT, sizeof(struct qthrift_cache_peer));
+  entry->peerIp = XSTRDUP(MTYPE_QTHRIFT, routerId);
+  entry->peer_nid = peer_nid;
+  entry->asNumber = (as_t)asNumber;
+  if(IS_QTHRIFT_DEBUG_CACHE)
+    zlog_debug ("CACHE_PEER : add entry %llx", (long long unsigned int)peer_nid);
+  listnode_add(ctxt->bgp_peer_list, entry);
+  /* set aficfg */
+  return qthrift_bgp_afi_config(ctxt, _return, routerId, \
+                                AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN, TRUE, error);
 }
 
 /*
@@ -406,7 +596,50 @@ gboolean
 instance_bgp_configurator_handler_delete_peer(BgpConfiguratorIf *iface, gint32* _return,
                                               const gchar * peerIp, GError **error)
 {
-  return TRUE;
+  struct qthrift_vpnservice *ctxt = NULL;
+  uint64_t bgppeer_nid;
+  struct qthrift_cache_peer *entry;
+  struct listnode *node, *nnode;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  /* if vrf not found, return an error */
+  bgppeer_nid = qthrift_bgp_configurator_find_peer(ctxt, peerIp, _return);
+  if(bgppeer_nid == 0)
+    {
+      *_return = BGP_ERR_PARAM;
+      *error = ERROR_BGP_PEER_NOTFOUND;
+      return FALSE;
+    }
+  /* destroy node id */
+  if( qzcclient_deletenode(ctxt->qzc_sock, &bgppeer_nid))
+    {
+      for (ALL_LIST_ELEMENTS(ctxt->bgp_peer_list, node, nnode, entry))
+        if(0 == strcmp(entry->peerIp, peerIp))
+        {
+          if(IS_QTHRIFT_DEBUG_CACHE)
+            zlog_debug ("CACHE_PEER: del entry %llx", (long long unsigned int)entry->peer_nid);
+          listnode_delete (ctxt->bgp_peer_list, entry);
+          XFREE (MTYPE_QTHRIFT, entry->peerIp);
+          entry->peerIp = NULL;
+          XFREE (MTYPE_QTHRIFT, entry);
+          break;
+        }
+      if(IS_QTHRIFT_DEBUG)
+        zlog_debug ("deletePeer(%s) OK", peerIp);
+      return TRUE;
+    }
+  return FALSE;
 }
 
 /*
@@ -501,7 +734,8 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
   bgpvrf = qcapn_new_BGPVRF(cs);
   qcapn_BGPVRF_write(&instvrf, bgpvrf);
   ret = qzcclient_setelem (ctxt->qzc_sock, &bgpvrf_nid, 1, \
-                           &bgpvrf, &bgp_datatype_bgpvrf);
+                           &bgpvrf, &bgp_datatype_bgpvrf,\
+                           NULL, NULL);
   if(ret == 0)
       *_return = BGP_ERR_FAILED;
   if (bgpvrf_ptr->rt_import)

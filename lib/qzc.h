@@ -100,10 +100,15 @@ qzcclient_createchild (struct qzc_sock *sock,
 
 int
 qzcclient_setelem (struct qzc_sock *sock, uint64_t *nid,
-                   int elem,  capn_ptr *data, uint64_t *type_data);
+                   int elem, capn_ptr *data, uint64_t *type_data,
+                   capn_ptr *ctxt, uint64_t *type_ctxt);
 
 int
 qzcclient_deletenode (struct qzc_sock *sock, uint64_t *nid);
+
+struct QZCGetRep *qzcclient_getelem (struct qzc_sock *sock, uint64_t *nid,\
+                                     int elem, \
+                                     capn_ptr *ctxt, uint64_t *ctxt_type);
 
 void
 qzcclient_qzcreply_free(struct QZCReply *rep);
