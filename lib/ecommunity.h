@@ -1,7 +1,7 @@
-/* BGP Extended Communities Attribute.
+/* Extended Communities Attribute.
    Copyright (C) 2000 Kunihiro Ishiguro <kunihiro@zebra.org>
 
-This file is part of GNU Zebra.
+This file is part of GNU Quagga.
 
 GNU Zebra is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -20,6 +20,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 #ifndef _QUAGGA_BGP_ECOMMUNITY_H
 #define _QUAGGA_BGP_ECOMMUNITY_H
+
+#include "memory.h"
 
 /* High-order octet of the Extended Communities type field.  */
 #define ECOMMUNITY_ENCODE_AS                0x00

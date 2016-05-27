@@ -65,8 +65,6 @@ DEFINE_MTYPE(BGPD, COMMUNITY,		"community")
 DEFINE_MTYPE(BGPD, COMMUNITY_VAL,		"community val")
 DEFINE_MTYPE(BGPD, COMMUNITY_STR,		"community str")
 
-DEFINE_MTYPE(BGPD, ECOMMUNITY,		"extcommunity")
-DEFINE_MTYPE(BGPD, ECOMMUNITY_VAL,		"extcommunity val")
 DEFINE_MTYPE(BGPD, ECOMMUNITY_STR,		"extcommunity str")
 
 DEFINE_MTYPE(BGPD, COMMUNITY_LIST,		"community-list")

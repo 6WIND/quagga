@@ -38,7 +38,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_community.h"
 #include "bgpd/bgp_debug.h"
 #include "bgpd/bgp_packet.h"
-#include "bgpd/bgp_ecommunity.h"
+#include "ecommunity.h"
 #include "table.h"
 #include "bgp_encap_types.h"
 

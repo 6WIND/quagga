@@ -38,7 +38,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_attr.h"
 #include "bgpd/bgp_aspath.h"
 #include "bgpd/bgp_community.h"
-#include "bgpd/bgp_ecommunity.h"
+#include "ecommunity.h"
 #include "bgpd/bgp_damp.h"
 #include "bgpd/bgp_debug.h"
 #include "bgpd/bgp_fsm.h"
@@ -7194,11 +7194,6 @@ DEFUN (show_bgp_memory,
     vty_out (vty, "%ld BGP community entries, using %s of memory%s", count,
              mtype_memstr (memstrbuf, sizeof (memstrbuf),
                          count * sizeof (struct community)),
-             VTY_NEWLINE);
-  if ((count = mtype_stats_alloc (MTYPE_ECOMMUNITY)))
-    vty_out (vty, "%ld BGP community entries, using %s of memory%s", count,
-             mtype_memstr (memstrbuf, sizeof (memstrbuf),
-                         count * sizeof (struct ecommunity)),
              VTY_NEWLINE);
   
   if ((count = mtype_stats_alloc (MTYPE_CLUSTER)))

@@ -27,7 +27,7 @@
 #include "filter.h"
 
 #include "bgpd/bgpd.h"
-#include "bgpd/bgp_ecommunity.h"
+#include "ecommunity.h"
 
 /* need these to link in libbgp */
 struct zebra_privs_t *bgpd_privs = NULL;

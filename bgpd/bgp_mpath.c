@@ -37,7 +37,7 @@
 #include "bgpd/bgp_debug.h"
 #include "bgpd/bgp_aspath.h"
 #include "bgpd/bgp_community.h"
-#include "bgpd/bgp_ecommunity.h"
+#include "ecommunity.h"
 #include "bgpd/bgp_mpath.h"
 
 bool

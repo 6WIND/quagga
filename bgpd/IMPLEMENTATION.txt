@@ -41,9 +41,6 @@ bgp_debug.[hc]:
 bgp_dump.[hc]:
   MRT-compatible dump format routines
 
-bgp_ecommunity.[hc]:
-  Extended communities attributes (multiple ecommmunities per struct)
-
 bgp_filter.[hc]:
   AS path access list filtering
 

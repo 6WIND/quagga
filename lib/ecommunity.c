@@ -1,7 +1,7 @@
-/* BGP Extended Communities Attribute
+/* Extended Communities Attribute
    Copyright (C) 2000 Kunihiro Ishiguro <kunihiro@zebra.org>
 
-This file is part of GNU Zebra.
+This file is part of GNU Quagga
 
 GNU Zebra is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -20,24 +20,27 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 #include <zebra.h>
 
-#include "hash.h"
 #include "memory.h"
+#include "hash.h"
 #include "prefix.h"
 #include "command.h"
 #include "filter.h"
 
 #include "bgpd/bgpd.h"
-#include "bgpd/bgp_ecommunity.h"
 #include "bgpd/bgp_aspath.h"
 
 /* Hash of community attribute. */
 static struct hash *ecomhash;
 
+DEFINE_MTYPE_STATIC(LIB, LIBECOMMUNITY,         "Ecommunity Ecom")
+DEFINE_MTYPE_STATIC(LIB, LIBECOMMUNITY_VAL,     "Ecommunity Val")
+DEFINE_MTYPE_STATIC(LIB, LIBECOMMUNITY_STR,     "Ecommunity Str")
+
 /* Allocate a new ecommunities.  */
 static struct ecommunity *
 ecommunity_new (void)
 {
-  return (struct ecommunity *) XCALLOC (MTYPE_ECOMMUNITY,
+  return (struct ecommunity *) XCALLOC (MTYPE_LIBECOMMUNITY,
 					sizeof (struct ecommunity));
 }
 
@@ -46,10 +49,10 @@ void
 ecommunity_free (struct ecommunity **ecom)
 {
   if ((*ecom)->val)
-    XFREE (MTYPE_ECOMMUNITY_VAL, (*ecom)->val);
+    XFREE (MTYPE_LIBECOMMUNITY_VAL, (*ecom)->val);
   if ((*ecom)->str)
-    XFREE (MTYPE_ECOMMUNITY_STR, (*ecom)->str);
-  XFREE (MTYPE_ECOMMUNITY, *ecom);
+    XFREE (MTYPE_LIBECOMMUNITY_STR, (*ecom)->str);
+  XFREE (MTYPE_LIBECOMMUNITY, *ecom);
   ecom = NULL;
 }
 
@@ -69,7 +72,7 @@ ecommunity_add_val (struct ecommunity *ecom, struct ecommunity_val *eval)
   if (ecom->val == NULL)
     {
       ecom->size++;
-      ecom->val = XMALLOC (MTYPE_ECOMMUNITY_VAL, ecom_length (ecom));
+      ecom->val = XMALLOC (MTYPE_LIBECOMMUNITY_VAL, ecom_length (ecom));
       memcpy (ecom->val, eval->val, ECOMMUNITY_SIZE);
       return 1;
     }
@@ -87,7 +90,7 @@ ecommunity_add_val (struct ecommunity *ecom, struct ecommunity_val *eval)
 
   /* Add the value to the structure with numerical sorting.  */
   ecom->size++;
-  ecom->val = XREALLOC (MTYPE_ECOMMUNITY_VAL, ecom->val, ecom_length (ecom));
+  ecom->val = XREALLOC (MTYPE_LIBECOMMUNITY_VAL, ecom->val, ecom_length (ecom));
 
   memmove (ecom->val + (c + 1) * ECOMMUNITY_SIZE,
 	   ecom->val + c * ECOMMUNITY_SIZE,
@@ -149,11 +152,11 @@ ecommunity_dup (struct ecommunity *ecom)
 {
   struct ecommunity *new;
 
-  new = XCALLOC (MTYPE_ECOMMUNITY, sizeof (struct ecommunity));
+  new = XCALLOC (MTYPE_LIBECOMMUNITY, sizeof (struct ecommunity));
   new->size = ecom->size;
   if (new->size)
     {
-      new->val = XMALLOC (MTYPE_ECOMMUNITY_VAL, ecom->size * ECOMMUNITY_SIZE);
+      new->val = XMALLOC (MTYPE_LIBECOMMUNITY_VAL, ecom->size * ECOMMUNITY_SIZE);
       memcpy (new->val, ecom->val, ecom->size * ECOMMUNITY_SIZE);
     }
   else
@@ -175,10 +178,10 @@ struct ecommunity *
 ecommunity_merge (struct ecommunity *ecom1, struct ecommunity *ecom2)
 {
   if (ecom1->val)
-    ecom1->val = XREALLOC (MTYPE_ECOMMUNITY_VAL, ecom1->val, 
+    ecom1->val = XREALLOC (MTYPE_LIBECOMMUNITY_VAL, ecom1->val, 
 			   (ecom1->size + ecom2->size) * ECOMMUNITY_SIZE);
   else
-    ecom1->val = XMALLOC (MTYPE_ECOMMUNITY_VAL,
+    ecom1->val = XMALLOC (MTYPE_LIBECOMMUNITY_VAL,
 			  (ecom1->size + ecom2->size) * ECOMMUNITY_SIZE);
 
   memcpy (ecom1->val + (ecom1->size * ECOMMUNITY_SIZE),
@@ -616,13 +619,13 @@ ecommunity_ecom2str (struct ecommunity *ecom, int format)
 
   if (ecom->size == 0)
     {
-      str_buf = XMALLOC (MTYPE_ECOMMUNITY_STR, 1);
+      str_buf = XMALLOC (MTYPE_LIBECOMMUNITY_STR, 1);
       str_buf[0] = '\0';
       return str_buf;
     }
 
   /* Prepare buffer.  */
-  str_buf = XMALLOC (MTYPE_ECOMMUNITY_STR, ECOMMUNITY_STR_DEFAULT_LEN + 1);
+  str_buf = XMALLOC (MTYPE_LIBECOMMUNITY_STR, ECOMMUNITY_STR_DEFAULT_LEN + 1);
   str_size = ECOMMUNITY_STR_DEFAULT_LEN + 1;
   str_pnt = 0;
 
@@ -632,7 +635,7 @@ ecommunity_ecom2str (struct ecommunity *ecom, int format)
       while (str_pnt + ECOMMUNITY_STR_DEFAULT_LEN >= str_size)
 	{
 	  str_size *= 2;
-	  str_buf = XREALLOC (MTYPE_ECOMMUNITY_STR, str_buf, str_size);
+	  str_buf = XREALLOC (MTYPE_LIBECOMMUNITY_STR, str_buf, str_size);
 	}
 
       /* Space between each value.  */

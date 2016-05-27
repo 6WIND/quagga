@@ -15,7 +15,7 @@ libzebra_la_SOURCES = \
 	zclient.c sockopt.c smux.c agentx.c snmp.c md5.c if_rmap.c keychain.c privs.c \
 	sigevent.c pqueue.c jhash.c workqueue.c vrf.c \
 	memory.c \
-	memory_cli.c
+	memory_cli.c ecommunity.c
 
 libzebra_la_SOURCES += \
 	c-capnproto/capn-malloc.c \
@@ -36,7 +36,7 @@ pkginclude_HEADERS = \
 	plist.h zclient.h sockopt.h smux.h md5.h if_rmap.h keychain.h \
 	privs.h sigevent.h pqueue.h jhash.h zassert.h \
 	workqueue.h route_types.h libospf.h vrf.h fifo.h \
-	memory_cli.h
+	memory_cli.h ecommunity.h
 
 noinst_HEADERS = \
 	plist_int.h

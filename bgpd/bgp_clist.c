@@ -27,7 +27,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_community.h"
-#include "bgpd/bgp_ecommunity.h"
+#include "ecommunity.h"
 #include "bgpd/bgp_aspath.h"
 #include "bgpd/bgp_regex.h"
 #include "bgpd/bgp_clist.h"

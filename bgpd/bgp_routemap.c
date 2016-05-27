@@ -50,7 +50,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_clist.h"
 #include "bgpd/bgp_filter.h"
 #include "bgpd/bgp_mplsvpn.h"
-#include "bgpd/bgp_ecommunity.h"
+#include "ecommunity.h"
 #include "bgpd/bgp_vty.h"
 
 /* Memo of route-map commands.

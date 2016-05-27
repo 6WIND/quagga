@@ -24,7 +24,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 /* For union sockunion.  */
 #include "sockunion.h"
 #include "bgp_memory.h"
-#include "bgp_ecommunity.h"
+#include "ecommunity.h"
 #include "prefix.h"
 #include "vty.h"
 #include "qzc.h"
