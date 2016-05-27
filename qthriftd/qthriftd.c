@@ -34,6 +34,8 @@
 #include "plist.h"
 #include "linklist.h"
 #include "workqueue.h"
+#include "command.h"
+#include "lib/version.h"
 
 #include "qthrift_thrift_wrapper.h"
 #include "qthriftd/bgp_configurator.h"
@@ -148,7 +150,27 @@ void  qthrift_create_context (struct qthrift **qthrift_val)
   /* run bgp_configurator_server */ 
   if(qthrift_server_listen (qthrift) < 0)
     {
-      exit(1);
+      pid_t pid;
+      pid = get_pid_output(PATH_BGPD_PID);
+      if(pid)
+        {
+          char saddr[64];
+          char *ptr = saddr;
+          int pid2;
+
+          ptr+=sprintf(saddr, "attempt to kill BGP instance %d",pid);
+          puts(saddr);
+          pid2 = kill(pid, SIGKILL);
+          if(pid2 == 0)
+            {
+              unlink(PATH_BGPD_PID);
+              sleep(5);
+            }
+          zlog_err("attempt to kill BGP instance (%d) %s", pid, pid2 == 0?"OK":"NOK");
+        }
+      /* exit on failure */
+      if(qthrift_server_listen (qthrift) < 0)
+        exit(1);
     }
   return ;
 }
