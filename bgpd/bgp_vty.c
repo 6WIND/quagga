@@ -50,6 +50,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_table.h"
 #include "bgpd/bgp_vty.h"
 #include "bgpd/bgp_mpath.h"
+#include "bgpd/bgp_clist.h"
 
 /* Utility function to get address family from current node.  */
 afi_t
@@ -11752,11 +11753,6 @@ bgp_vty_init (void)
   /* Community-list. */
   community_list_vty ();
 }
-
-#include "memory.h"
-#include "bgp_regex.h"
-#include "bgp_clist.h"
-#include "bgp_ecommunity.h"
 
 /* VTY functions.  */
 
