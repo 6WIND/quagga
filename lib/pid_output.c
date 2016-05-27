@@ -54,6 +54,36 @@ pid_output (const char *path)
   return -1;
 }
 
+/*
+ * read pid number in file
+ * return pid id if valid, 0 otherwise
+ */
+pid_t
+get_pid_output (const char *path)
+{
+  FILE *fp;
+  mode_t oldumask;
+  pid_t pid;
+  {
+    puts(path);
+  }
+  oldumask = umask(0777 & ~PIDFILE_MASK);
+  fp = fopen (path, "w");
+  if (fp != NULL)
+    {
+      sscanf (fp, "%d\n", &pid);
+      fclose (fp);
+      umask(oldumask);
+      return pid;
+    }
+  /* XXX Why do we continue instead of exiting?  This seems incompatible
+     with the behavior of the fcntl version below. */
+  zlog_warn("Can't fopen pid lock file %s (%s), continuing",
+	    path, safe_strerror(errno));
+  umask(oldumask);
+  return 0;
+}
+
 #else /* HAVE_FCNTL */
 
 pid_t
@@ -102,6 +132,40 @@ pid_output (const char *path)
         zlog_err("Could not truncate pid_file %s to %u bytes: %s",
 	         path,(u_int)pidsize,safe_strerror(errno));
     }
+  return pid;
+}
+
+/*
+ * read pid number in file
+ * return pid id if valid, 0 otherwise
+ */
+pid_t
+get_pid_output (const char *path)
+{
+  int fd;
+  char buf[16];
+  char *ptr;
+  mode_t oldumask;
+  pid_t pid;
+
+  oldumask = umask(0777 & ~PIDFILE_MASK);
+  fd = open (path, O_RDWR | O_CREAT, PIDFILE_MASK);
+  if (fd < 0)
+    {
+      char saddr[128];
+      sprintf(saddr,"Can't create pid lock file %s (%s), exiting",
+              path, safe_strerror(errno));
+      puts(saddr);
+      umask(oldumask);
+      exit(1);
+    }
+  umask(oldumask);
+
+  memset(buf, '\0', sizeof(buf));
+  ptr = buf;
+  read (fd, ptr, 16);
+  puts(buf);
+  pid = atoi(buf);
   return pid;
 }
 

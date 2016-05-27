@@ -48,6 +48,7 @@
 #define QUAGGA_CONFIG_ARGS "@CONFIG_ARGS@"
 
 pid_t pid_output (const char *);
+pid_t get_pid_output (const char *);
 
 #ifndef HAVE_DAEMON
 int daemon(int, int);
