@@ -114,6 +114,10 @@ static gboolean
 qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const gchar * peerIp, \
                        const af_afi afi, const af_safi safi, gboolean value, GError **error);
 
+static gboolean
+qthrift_bgp_set_multihops(struct qthrift_vpnservice *ctxt,  gint32* _return, const gchar * peerIp, \
+                          const gint32 nHops, GError **error);
+
 
 /* The implementation of InstanceBgpConfiguratorHandler follows. */
 
@@ -321,6 +325,72 @@ qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const 
   return TRUE;
 }
 
+/* 
+ * Enable and change EBGP maximum number of hops for a given bgp neighbor 
+ * If Peer is not configured, it returns an error
+ * If nHops is set to 0, then the EBGP peers must be connected
+ */
+static gboolean
+qthrift_bgp_set_multihops(struct qthrift_vpnservice *ctxt,  gint32* _return, const gchar * peerIp, const gint32 nHops, GError **error)
+{
+  uint64_t peer_nid;
+  struct capn rc;
+  struct capn_segment *cs;
+  capn_ptr peer_ctxt;
+  struct peer peer;
+  struct QZCGetRep *grep_peer;
+
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  if(peerIp == NULL)
+    {
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  peer_nid = qthrift_bgp_configurator_find_peer(ctxt, peerIp, _return);
+  if(peer_nid == 0)
+    {
+      *_return = BGP_ERR_PARAM;
+      *error = ERROR_BGP_PEER_NOTFOUND;
+      return FALSE;
+    }
+  /* retrieve peer context */
+  grep_peer = qzcclient_getelem (ctxt->qzc_sock, &peer_nid, 2, \
+                                 NULL, NULL);
+  if(grep_peer == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  /* change nHops */
+  qcapn_BGPPeer_read(&peer, grep_peer->data);
+  peer.ttl = nHops;
+  qzcclient_qzcgetrep_free( grep_peer);
+  /* prepare QZCSetRequest context */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  peer_ctxt = qcapn_new_BGPPeer(cs);
+  qcapn_BGPPeer_write(&peer, peer_ctxt);
+  if(qzcclient_setelem (ctxt->qzc_sock, &peer_nid, \
+                        2, &peer_ctxt, &bgp_datatype_create_bgp_2, \
+                        NULL, NULL))
+    {
+      if(IS_QTHRIFT_DEBUG)
+        {
+          if(nHops == 0)
+            zlog_debug ("unsetEbgpMultiHop(%s) OK", peerIp);
+          else
+            zlog_debug ("setEbgpMultiHop(%s, %d) OK", peerIp, nHops);
+        }
+    }
+  capn_free(&rc);
+  return TRUE;
+}
+
 /*
  * Start a Create a BGP neighbor for a given routerId, and asNumber
  * If BGP is already started, then an error is returned : BGP_ERR_ACTIVE
@@ -474,7 +544,15 @@ gboolean
 instance_bgp_configurator_handler_set_ebgp_multihop(BgpConfiguratorIf *iface, gint32* _return, const gchar * peerIp,
                                                     const gint32 nHops, GError **error)
 {
-  return TRUE;
+  struct qthrift_vpnservice *ctxt = NULL;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  return qthrift_bgp_set_multihops(ctxt, _return, peerIp, nHops, error);
 }
 
 /*
@@ -486,7 +564,15 @@ gboolean
 instance_bgp_configurator_handler_unset_ebgp_multihop(BgpConfiguratorIf *iface, gint32* _return,
                                                       const gchar * peerIp, GError **error)
 {
-  return TRUE;
+  struct qthrift_vpnservice *ctxt = NULL;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  return qthrift_bgp_set_multihops(ctxt, _return, peerIp, 0, error);
 }
 
 /*
