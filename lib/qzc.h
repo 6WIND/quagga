@@ -110,6 +110,11 @@ struct QZCGetRep *qzcclient_getelem (struct qzc_sock *sock, uint64_t *nid,\
                                      int elem, \
                                      capn_ptr *ctxt, uint64_t *ctxt_type);
 
+int
+qzcclient_unsetelem (struct qzc_sock *sock, uint64_t *nid, int elem, \
+                     capn_ptr *data, uint64_t *type_data, \
+                     capn_ptr *ctxt, uint64_t *type_ctxt);
+
 void
 qzcclient_qzcreply_free(struct QZCReply *rep);
 

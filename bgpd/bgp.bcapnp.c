@@ -33,13 +33,6 @@ afi_t qcapn_AfiKey_get_afi(capn_ptr p)
 }
 
 
-capn_ptr qcapn_new_AfiKey(struct capn_segment *s)
-{
-    return capn_new_struct(s, 8, 0);
-}
-
-
-
 void qcapn_VRFTableIter_read(struct tbliter_v4 *s, capn_ptr p)
 {
     capn_resolve(&p);
@@ -730,28 +723,6 @@ void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p)
 }
 
 
-
-void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p)
-{
-    capn_resolve(&p);
-    
-    {
-        capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
-        capn_write8(tempptr, 4, s->prefix.prefixlen);
-        capn_write32(tempptr, 0, ntohl(s->prefix.prefix.s_addr));
-        capn_setp(p, 0, tempptr);
-    }
-    
-    {
-        capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
-        capn_write32(tempptr, 0, ntohl(s->nexthop.s_addr));
-        capn_setp(p, 1, tempptr);
-    }
-    capn_write32(p, 0, s->label);
-}
-
-
-
 void qcapn_BGPVRFRoute_set(struct bgp_api_route *s, capn_ptr p)
 {
     capn_resolve(&p);
@@ -764,12 +735,6 @@ void qcapn_BGPVRFRoute_set(struct bgp_api_route *s, capn_ptr p)
     {
       /* MISSING: label */
     }
-}
-
-
-capn_ptr qcapn_new_BGPVRFRoute(struct capn_segment *s)
-{
-    return capn_new_struct(s, 8, 2);
 }
 
 

@@ -305,3 +305,29 @@ void qcapn_BGPPeerAfiSafi_read(struct peer *s, capn_ptr p, afi_t afi, safi_t saf
     s->allowas_in[afi][safi] = capn_read8(p, 3);
 }
 
+void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p)
+{
+    capn_resolve(&p);
+    {
+        capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
+        capn_write8(tempptr, 4, s->prefix.prefixlen);
+        capn_write32(tempptr, 0, ntohl(s->prefix.prefix.s_addr));
+        capn_setp(p, 0, tempptr);
+    }
+    {
+        capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
+        capn_write32(tempptr, 0, ntohl(s->nexthop.s_addr));
+        capn_setp(p, 1, tempptr);
+    }
+    capn_write32(p, 0, s->label);
+}
+
+capn_ptr qcapn_new_AfiKey(struct capn_segment *s)
+{
+    return capn_new_struct(s, 8, 0);
+}
+
+capn_ptr qcapn_new_BGPVRFRoute(struct capn_segment *s)
+{
+    return capn_new_struct(s, 8, 2);
+}

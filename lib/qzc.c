@@ -771,6 +771,48 @@ struct QZCGetRep *qzcclient_getelem (struct qzc_sock *sock, uint64_t *nid,\
   return grep;
 }
 
+/*
+ * qzc client API. send a QZCUnSetReq message
+ * return 1 if set operation is successfull
+ */
+int
+qzcclient_unsetelem (struct qzc_sock *sock, uint64_t *nid, int elem, \
+                     capn_ptr *data, uint64_t *type_data, \
+                     capn_ptr *ctxt, uint64_t *type_ctxt)
+{
+  struct capn rc;
+  struct capn_segment *cs;
+  struct QZCRequest req;
+  struct QZCReply *rep;
+  struct QZCSetReq sreq;
+  int ret = 1;
+
+  /* have to use  local capn_segment - otherwise segfault */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  req.which = QZCRequest_unset;
+  req.unset = new_QZCSetReq(cs);
+  memset(&sreq, 0, sizeof(struct QZCSetReq));
+  sreq.nid = *nid;
+  sreq.elem = elem;
+  sreq.datatype = *type_data;
+  sreq.data = *data;
+  if(ctxt)
+    {
+      sreq.ctxdata = *ctxt;
+      sreq.ctxtype = *type_ctxt;
+    }
+  write_QZCSetReq(&sreq, req.unset);
+  rep = qzcclient_do(sock, &req);
+  if (rep == NULL || rep->error)
+    {
+      ret = 0;
+    }
+  XFREE(MTYPE_QZC_REP, rep);
+  capn_free(&rc);
+  return ret;
+}
+
 void
 qzcclient_qzcgetrep_free(struct QZCGetRep *rep)
 {
