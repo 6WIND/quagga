@@ -1014,6 +1014,90 @@ decode_rd_ip (u_char *pnt, struct rd_ip *rd_ip)
   rd_ip->val |= (u_int16_t) *pnt;
 }
 
+/* from string <AS>:<VRF>, build internal structure prefix_rd */
+int
+prefix_str2rd (char *buf, struct prefix_rd *prd)
+{
+  char *ptr, *ptr_init;
+  unsigned int cnt, dot_presence = 0, remaining_length;
+  unsigned long as_val = 0;
+  uint64_t vrf_val = 0;
+  char buf_local[RD_ADDRSTRLEN];
+
+  /* bad length */
+  if(strlen(buf) > RD_ADDRSTRLEN)
+    return 0;
+  ptr = buf;
+  cnt = 0;
+  /* search : separator */
+  while(*ptr != ':' && cnt < strlen(buf))
+    {
+      if(*ptr == '.')
+        dot_presence = 1;
+      ptr++;
+      cnt++;
+    }
+  if(dot_presence)
+    return 0;
+  /* extract as number */
+  if(*ptr == ':')
+    {
+      strncpy(buf_local, buf, cnt);
+      buf_local[cnt]='\0';
+      as_val = atol(buf_local);
+    }
+  /* search for vrf val */
+  remaining_length = strlen(buf) - cnt;
+  ptr++;
+  ptr_init = ptr;
+  cnt = 0;
+  while(*ptr != '\0' && cnt < remaining_length)
+    {
+      ptr++;
+      cnt++;
+    }
+  /* extract vrf_number */
+  if(*ptr == '\0')
+    {
+      strncpy(buf_local, ptr_init, cnt);
+      buf_local[cnt]='\0';
+      vrf_val = atoll(buf_local);
+    }
+  if(as_val > 0xffff)
+    {
+      /* RD_TYPE_AS4 */
+      prd->val[0]=0;
+      prd->val[1]=2;
+      /* AS number */
+      prd->val[2]= (as_val & 0xff000000) >> 24;
+      prd->val[3]= (as_val & 0x00ff0000) >> 16;
+      prd->val[4]= (as_val & 0x0000ff00) >> 8;
+      prd->val[5]= as_val & 0x000000ff;
+      /* vrf */
+      prd->val[6]= (vrf_val & 0xff00) >> 8;
+      prd->val[7]= vrf_val & 0xff;
+    }
+  else
+    {
+      /* RD_TYPE_AS */
+      prd->val[0]=0;
+      prd->val[1]=0;
+      /* AS number */
+      prd->val[2]= (as_val & 0x0000ff00) >> 8;
+      prd->val[3]= as_val & 0x000000ff;
+      /* vrf */
+      prd->val[4]= (vrf_val & 0xff000000) >> 24;
+      prd->val[5]= (vrf_val & 0xff0000) >> 16;
+      prd->val[6]= (vrf_val & 0xff00) >> 8;
+      prd->val[7]= vrf_val & 0xff;
+
+    }
+  /* family AF_INET */
+  prd->family = AF_INET;
+  prd->prefixlen = 0;
+  return 1;
+}
+
 char *
 prefix_rd2str (struct prefix_rd *prd, char *buf, size_t size)
 {
@@ -1056,4 +1140,15 @@ prefix_rd2str (struct prefix_rd *prd, char *buf, size_t size)
     }
 
   return NULL;
+}
+
+int prefix_rd_cmp(struct prefix_rd *p1, struct prefix_rd *p2)
+{
+  if(p1->family != p2->family)
+    return 1;
+  if(p1->prefixlen != p2->prefixlen)
+    return 1;
+  if(memcmp((char *)p1->val, (char *)p2->val, 8))
+    return 1;
+  return 0;
 }

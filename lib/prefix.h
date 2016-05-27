@@ -322,5 +322,6 @@ extern void decode_rd_as (u_char *pnt, struct rd_as *rd_as);
 extern void decode_rd_as4 (u_char *pnt, struct rd_as *rd_as);
 extern void decode_rd_ip (u_char *pnt, struct rd_ip *rd_ip);
 extern char *prefix_rd2str (struct prefix_rd *prd, char *buf, size_t size);
-
+extern int prefix_str2rd (char *buf, struct prefix_rd *prd);
+extern int prefix_rd_cmp(struct prefix_rd *p1, struct prefix_rd *p2);
 #endif /* _ZEBRA_PREFIX_H */
