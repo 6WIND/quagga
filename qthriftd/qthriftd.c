@@ -101,6 +101,7 @@ qthrift_delete (struct qthrift *qthrift)
     }
   qthrift_vpnservice_terminate_bgp_context (qthrift->qthrift_vpnservice);
   qthrift_vpnservice_terminate_qzc(qthrift->qthrift_vpnservice);
+  qthrift_vpnservice_terminate_thrift_bgp_cache(qthrift->qthrift_vpnservice);
   qthrift_vpnservice_terminate_thrift_bgp_updater_client (qthrift->qthrift_vpnservice);
   qthrift_vpnservice_terminate_thrift_bgp_configurator_server (qthrift->qthrift_vpnservice);
   qthrift_vpnservice_terminate(qthrift->qthrift_vpnservice);

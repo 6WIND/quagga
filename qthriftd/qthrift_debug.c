@@ -39,6 +39,8 @@ DEFUN (show_debugging_qthrift,
     vty_out (vty, "  QTHRIFT debugging is on%s", VTY_NEWLINE);
   if (IS_QTHRIFT_DEBUG_NOTIFICATION)
     vty_out (vty, "  QTHRIFT debugging notification is on%s", VTY_NEWLINE);
+  if (IS_QTHRIFT_DEBUG_CACHE)
+    vty_out (vty, "  THRIFT debugging cache is on%s", VTY_NEWLINE);
   return CMD_SUCCESS;
 }
 
@@ -88,6 +90,29 @@ DEFUN (no_debug_qthrift_notification,
   return CMD_SUCCESS;
 }
 
+DEFUN (debug_qthrift_cache,
+       debug_qthrift_cache_cmd,
+       "debug qthrift cache",
+       DEBUG_STR
+       QTHRIFT_STR
+       "THRIFT\n")
+{
+  qthrift_debug |= QTHRIFT_DEBUG_CACHE;
+  return CMD_WARNING;
+}
+
+DEFUN (no_debug_qthrift_cache,
+       no_debug_qthrift_cache_cmd,
+       "no debug qthrift cache",
+       NO_STR
+       DEBUG_STR
+       QTHRIFT_STR
+       "THRIFT\n")
+{
+  qthrift_debug &= ~QTHRIFT_DEBUG_CACHE;
+  return CMD_SUCCESS;
+}
+
 /* Debug node. */
 static struct cmd_node debug_node =
 {
@@ -111,6 +136,11 @@ config_write_debug (struct vty *vty)
       vty_out (vty, "debug qthrift notification%s", VTY_NEWLINE);
       write++;
     }
+  if (IS_QTHRIFT_DEBUG_CACHE)
+    {
+      vty_out (vty, "debug qthrift cache%s", VTY_NEWLINE);
+      write++;
+    }
   return write;
 }
 
@@ -131,4 +161,6 @@ qthrift_debug_init (void)
   install_element (ENABLE_NODE, &no_debug_qthrift_cmd);
   install_element (ENABLE_NODE, &debug_qthrift_notification_cmd);
   install_element (ENABLE_NODE, &no_debug_qthrift_notification_cmd);
+  install_element (ENABLE_NODE, &debug_qthrift_cache_cmd);
+  install_element (ENABLE_NODE, &no_debug_qthrift_cache_cmd);
 }

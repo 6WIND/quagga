@@ -63,7 +63,14 @@ void qthrift_vpnservice_setup(struct qthrift_vpnservice *setup)
   ptr+=cmd_get_path_prefix_dir(bgpd_location_path, 128);
   ptr+=sprintf(ptr, "%s/bgpd",SBIN_DIR);
   setup->bgpd_execution_path = XSTRDUP(MTYPE_QTHRIFT, bgpd_location_path);
+  qthrift_vpnservice_setup_thrift_bgp_cache(setup);
 }
+
+void qthrift_vpnservice_setup_thrift_bgp_cache( struct qthrift_vpnservice *setup)
+{
+  setup->bgp_vrf_list = list_new();
+}
+
 
 void qthrift_vpnservice_terminate(struct qthrift_vpnservice *setup)
 {
@@ -282,4 +289,17 @@ void qthrift_vpnservice_setup_bgp_context(struct qthrift_vpnservice *setup)
 struct qthrift_vpnservice_bgp_context *qthrift_vpnservice_get_bgp_context(struct qthrift_vpnservice *setup)
 {
   return setup->bgp_context;
+}
+
+void qthrift_vpnservice_terminate_thrift_bgp_cache (struct qthrift_vpnservice *setup)
+{
+  struct listnode *node, *nnode;
+  struct qthrift_vpnservice_cache_bgpvrf *entry_bgpvrf;
+
+  for (ALL_LIST_ELEMENTS(setup->bgp_vrf_list, node, nnode, entry_bgpvrf))
+    {
+      listnode_delete(setup->bgp_vrf_list, entry_bgpvrf);
+      XFREE (MTYPE_QTHRIFT, entry_bgpvrf);
+    }
+  setup->bgp_vrf_list = NULL;
 }

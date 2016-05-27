@@ -98,6 +98,15 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
 
 static void instance_bgp_configurator_handler_finalize(GObject *object);
 
+/*
+ * utilities functions for thrift <-> capnproto exchange
+ * some of those functions implement a cache mecanism for some objects
+ * like VRF
+ */
+static uint64_t
+qthrift_bgp_configurator_find_vrf(struct qthrift_vpnservice *ctxt, struct prefix_rd *rd, gint32* _return);
+
+
 /* The implementation of InstanceBgpConfiguratorHandler follows. */
 
 G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
@@ -118,6 +127,8 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
  * in case bgp_configurator has to trigger a thrift exception
  */
 #define ERROR_BGP_AS_STARTED g_error_new(1, 2, "BGP AS %u started", qthrift_vpnservice_get_bgp_context(ctxt)->asNumber);
+#define ERROR_BGP_RD_NOTFOUND g_error_new(1, 3, "BGP RD %s not configured", rd);
+#define ERROR_BGP_AS_NOT_STARTED g_error_new(1, 1, "BGP AS not started");
 
 
 /*
@@ -138,6 +149,35 @@ uint64_t bgp_bm_nid;
 uint64_t bgp_inst_nid;
 /* bgp datatype */
 uint64_t bgp_datatype_bgp = 0xfd0316f1800ae916; /* create_bgp_master_1 , get_bgp_1, set_bgp_1 */
+/* handling bgpvrf structure
+ * functions called in bgp : create_bgp_3. bgp_vrf_create. get_bgp_vrf_1, set_bgp_vrf_1
+ */
+uint64_t bgp_datatype_bgpvrf = 0x912c4b0c412022b1;
+
+/*
+ * lookup routine that searches for a matching vrf
+ * it searches first in the qthrift cache, then if not found,
+ * it searches in BGP a vrf context.
+ * It returns the capnp node identifier related to peer context,
+ * 0 otherwise.
+ */
+static uint64_t
+qthrift_bgp_configurator_find_vrf(struct qthrift_vpnservice *ctxt, struct prefix_rd *rd, gint32* _return)
+{
+  struct listnode *node, *nnode;
+  struct qthrift_vpnservice_cache_bgpvrf *entry;
+
+  /* lookup in cache context, first */
+  if (!list_isempty(ctxt->bgp_vrf_list))
+    for (ALL_LIST_ELEMENTS(ctxt->bgp_vrf_list, node, nnode, entry))
+      if(0 == prefix_rd_cmp(&(entry->outbound_rd), rd))
+        {
+          if(IS_QTHRIFT_DEBUG_CACHE)
+            zlog_debug ("CACHE_VRF: match lookup entry %llx", (long long unsigned int)entry->bgpvrf_nid);
+          return entry->bgpvrf_nid; /* match */
+        }
+  return 0;
+}
 
 /*
  * Start a Create a BGP neighbor for a given routerId, and asNumber
@@ -379,7 +419,97 @@ gboolean
 instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _return, const gchar * rd,
                                           const GPtrArray * irts, const GPtrArray * erts, GError **error)
 {
-  return TRUE;
+  struct qthrift_vpnservice *ctxt = NULL;
+  struct bgp_vrf instvrf, *bgpvrf_ptr;
+  int ret;
+  unsigned int i;
+  char *rts, *rts_ptr;
+  struct capn_ptr bgpvrf;
+  struct capn rc;
+  struct capn_segment *cs;
+  uint64_t bgpvrf_nid;
+  struct qthrift_vpnservice_cache_bgpvrf *entry;
+
+  /* setup context */
+  *_return = 0;
+  bgpvrf_ptr = &instvrf;
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_INACTIVE;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  memset(&instvrf, 0, sizeof(struct bgp_vrf));
+  /* get route distinguisher internal representation */
+  prefix_str2rd((char *)rd, &instvrf.outbound_rd);
+
+  /* retrive bgpvrf context or create new bgpvrf context */
+  bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &instvrf.outbound_rd, _return);
+  if(bgpvrf_nid == 0)
+    {
+      /* allocate bgpvrf structure */
+      capn_init_malloc(&rc);
+      cs = capn_root(&rc).seg;
+      bgpvrf = qcapn_new_BGPVRF(cs);
+      qcapn_BGPVRF_write(&instvrf, bgpvrf);
+      bgpvrf_nid = qzcclient_createchild (ctxt->qzc_sock, &bgp_inst_nid, 3, \
+                                          &bgpvrf, &bgp_datatype_bgpvrf);
+      capn_free(&rc);
+      if (bgpvrf_nid == 0)
+        {
+          *_return = BGP_ERR_FAILED;
+          return FALSE;
+        }
+      /* add vrf entry in qthrift list */
+      entry = XCALLOC(MTYPE_QTHRIFT, sizeof(struct qthrift_vpnservice_cache_bgpvrf));
+      entry->outbound_rd = instvrf.outbound_rd;
+      entry->bgpvrf_nid = bgpvrf_nid;
+      if(IS_QTHRIFT_DEBUG_CACHE)
+        zlog_debug ("CACHE_VRF: add entry %llx", (long long unsigned int)bgpvrf_nid);
+      listnode_add(ctxt->bgp_vrf_list, entry);
+      if(IS_QTHRIFT_DEBUG)
+        zlog_debug ("addVrf(%s) OK", rd);
+    }
+  /* configuring bgp vrf with import and export communities */
+  /* irts and erts have to be concatenated into temp string */
+  rts = XMALLOC(MTYPE_QTHRIFT,2048);
+  memset(rts, 0, 2048);
+  rts_ptr = rts;
+  for(i = 0; i < irts->len; i++){
+    rts_ptr+=sprintf(rts_ptr, "rt %s ",(char *)g_ptr_array_index(irts, i));
+  }
+  if(irts->len)
+    instvrf.rt_import = ecommunity_str2com(rts, ECOMMUNITY_ROUTE_TARGET, 1);
+  memset(rts, 0, 2048);
+  rts_ptr = rts;
+  i = 0;
+  for(i = 0; i < erts->len; i++){
+    rts_ptr+=sprintf(rts_ptr, "rt %s ",(char *)g_ptr_array_index(erts, i));
+  }
+  if(erts->len)
+    instvrf.rt_export = ecommunity_str2com(rts, ECOMMUNITY_ROUTE_TARGET, 1);
+  XFREE(MTYPE_QTHRIFT, rts);
+  /* allocate bgpvrf structure for set */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  bgpvrf = qcapn_new_BGPVRF(cs);
+  qcapn_BGPVRF_write(&instvrf, bgpvrf);
+  ret = qzcclient_setelem (ctxt->qzc_sock, &bgpvrf_nid, 1, \
+                           &bgpvrf, &bgp_datatype_bgpvrf);
+  if(ret == 0)
+      *_return = BGP_ERR_FAILED;
+  if (bgpvrf_ptr->rt_import)
+    ecommunity_free (&bgpvrf_ptr->rt_import);
+  if (bgpvrf_ptr->rt_export)
+    ecommunity_free (&bgpvrf_ptr->rt_export);
+  capn_free(&rc);
+  return ret;
 }
 
 /*
@@ -389,6 +519,51 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
 gboolean instance_bgp_configurator_handler_del_vrf(BgpConfiguratorIf *iface, gint32* _return,
                                                    const gchar * rd, GError **error)
 {
+  struct qthrift_vpnservice *ctxt = NULL;
+  uint64_t bgpvrf_nid;
+  struct prefix_rd rd_inst;
+  struct qthrift_vpnservice_cache_bgpvrf *entry;
+  struct listnode *node, *nnode;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  /* get route distinguisher internal representation */
+  memset(&rd_inst, 0, sizeof(struct prefix_rd));
+  prefix_str2rd((char *)rd, &rd_inst);
+  /* if vrf not found, return an error */
+  bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
+  if(bgpvrf_nid == 0)
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  if( qzcclient_deletenode(ctxt->qzc_sock, &bgpvrf_nid))
+    {
+      for (ALL_LIST_ELEMENTS(ctxt->bgp_vrf_list, node, nnode, entry))
+        if(0 == prefix_rd_cmp(&entry->outbound_rd, &rd_inst))
+        {
+          if(IS_QTHRIFT_DEBUG_CACHE)
+            zlog_debug ("CACHE_VRF: del entry %llx", (long long unsigned int)entry->bgpvrf_nid);
+          listnode_delete (ctxt->bgp_vrf_list, entry);
+          XFREE (MTYPE_QTHRIFT, entry);
+          if(IS_QTHRIFT_DEBUG)
+            {
+              zlog_debug ("delVrf(%s) OK", rd);
+            }
+          return TRUE;
+        }
+    }
   return FALSE;
 }
 

@@ -883,36 +883,6 @@ void qcapn_BGPVRF_read(struct bgp_vrf *s, capn_ptr p)
     }
 }
 
-
-
-void qcapn_BGPVRF_write(const struct bgp_vrf *s, capn_ptr p)
-{
-    capn_resolve(&p);
-    capn_write64(p, 0, *(uint64_t *)s->outbound_rd.val);
-    
-    {
-        capn_ptr tempptr = capn_new_struct(p.seg, 0, 1);
-        size_t size = s->rt_import ? s->rt_import->size : 0;
-        capn_list64 listptr = capn_new_list64(p.seg, size);
-        if (size)
-            capn_setv64(listptr, 0, (uint64_t *)s->rt_import->val, size);
-        capn_setp(tempptr, 0, listptr.p);
-        capn_setp(p, 0, tempptr);
-    }
-    
-    {
-        capn_ptr tempptr = capn_new_struct(p.seg, 0, 1);
-        size_t size = s->rt_export ? s->rt_export->size : 0;
-        capn_list64 listptr = capn_new_list64(p.seg, size);
-        if (size)
-            capn_setv64(listptr, 0, (uint64_t *)s->rt_export->val, size);
-        capn_setp(tempptr, 0, listptr.p);
-        capn_setp(p, 1, tempptr);
-    }
-}
-
-
-
 void qcapn_BGPVRF_set(struct bgp_vrf *s, capn_ptr p)
 {
     capn_resolve(&p);
@@ -960,13 +930,6 @@ struct prefix_rd qcapn_BGPVRF_get_outbound_rd(capn_ptr p)
     tp.prefixlen = 64;
     *(uint64_t *)tp.val = capn_read64(p, 0); return tp;
 }
-
-
-capn_ptr qcapn_new_BGPVRF(struct capn_segment *s)
-{
-    return capn_new_struct(s, 8, 2);
-}
-
 
 
 void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p)

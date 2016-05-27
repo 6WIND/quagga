@@ -186,8 +186,10 @@ sigchild (void)
       asNumber = qthrift_vpnservice_get_bgp_context(ctxt)->asNumber;
       /* reset Thrift Context */
       qthrift_vpnservice_terminate_bgp_context(ctxt);
+      qthrift_vpnservice_terminate_thrift_bgp_cache(ctxt);
       qthrift_vpnservice_terminate_qzc(ctxt);
       /* creation of capnproto context */
+      qthrift_vpnservice_setup_thrift_bgp_cache(ctxt);
       qthrift_vpnservice_setup_qzc(ctxt);
       if(asNumber)
         zlog_err ("stopBgp(AS %u) OK", (as_t)asNumber);

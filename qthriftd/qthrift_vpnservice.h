@@ -22,6 +22,8 @@
 #define _QTHRIFT_VPNSERVICE_H
 
 #include "bgpd.h"
+#include "prefix.h"
+#include "linklist.h"
 
 #define QTHRIFT_LISTEN_PORT	 7644
 #define QTHRIFT_NOTIFICATION_PORT 6644
@@ -47,6 +49,13 @@ struct qthrift_vpnservice_bgp_context
 {
   as_t asNumber;
   gint32 proc;
+};
+
+/* qthrift cache contexts */
+struct qthrift_vpnservice_cache_bgpvrf
+{
+  uint64_t bgpvrf_nid;
+  struct prefix_rd outbound_rd;
 };
 
 struct qthrift_vpnservice
@@ -84,6 +93,9 @@ struct qthrift_vpnservice
   /* QZC internal contexts */
   struct qzc_sock *qzc_sock;
   struct qzc_sock *qzc_subscribe_sock;
+
+  /* Thrift Cache Context */
+  struct list *bgp_vrf_list;
 };
 
 void qthrift_vpnservice_terminate(struct qthrift_vpnservice *setup);
@@ -111,5 +123,7 @@ void qthrift_vpnservice_setup_qzc(struct qthrift_vpnservice *setup);
 struct qthrift_vpnservice_bgp_context *qthrift_vpnservice_get_bgp_context(struct qthrift_vpnservice *setup);
 void qthrift_vpnservice_setup_bgp_context(struct qthrift_vpnservice *setup);
 void qthrift_vpnservice_terminate_bgp_context(struct qthrift_vpnservice *setup);
+void qthrift_vpnservice_terminate_thrift_bgp_cache (struct qthrift_vpnservice *setup);
+void qthrift_vpnservice_setup_thrift_bgp_cache( struct qthrift_vpnservice *setup);
 
 #endif /* _QTHRIFT_VPNSERVICE_H */

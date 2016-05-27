@@ -66,3 +66,32 @@ void qcapn_BGP_write(const struct bgp *s, capn_ptr p)
     capn_write32(p, 28, s->stalepath_time);
     { capn_text tp = { .str = s->notify_zmq_url, .len = s->notify_zmq_url ? strlen(s->notify_zmq_url) : 0 }; capn_set_text(p, 2, tp); }
 }
+
+void qcapn_BGPVRF_write(const struct bgp_vrf *s, capn_ptr p)
+{
+    capn_resolve(&p);
+    capn_write64(p, 0, *(uint64_t *)s->outbound_rd.val);
+    {
+        capn_ptr tempptr = capn_new_struct(p.seg, 0, 1);
+        size_t size = s->rt_import ? s->rt_import->size : 0;
+        capn_list64 listptr = capn_new_list64(p.seg, size);
+        if (size)
+            capn_setv64(listptr, 0, (uint64_t *)s->rt_import->val, size);
+        capn_setp(tempptr, 0, listptr.p);
+        capn_setp(p, 0, tempptr);
+    }
+    {
+        capn_ptr tempptr = capn_new_struct(p.seg, 0, 1);
+        size_t size = s->rt_export ? s->rt_export->size : 0;
+        capn_list64 listptr = capn_new_list64(p.seg, size);
+        if (size)
+            capn_setv64(listptr, 0, (uint64_t *)s->rt_export->val, size);
+        capn_setp(tempptr, 0, listptr.p);
+        capn_setp(p, 1, tempptr);
+    }
+}
+
+capn_ptr qcapn_new_BGPVRF(struct capn_segment *s)
+{
+    return capn_new_struct(s, 8, 2);
+}

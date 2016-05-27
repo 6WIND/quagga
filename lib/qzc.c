@@ -687,6 +687,41 @@ qzcclient_wkn(struct qzc_sock *sock, uint64_t *wkn)
   return wknrep.nid;
 }
 
+/*
+ * qzc client API. send QZCDelRequest
+ * return 0 if set operation fails, 1 otherwise.
+ */
+int
+qzcclient_deletenode (struct qzc_sock *sock, uint64_t *nid)
+{
+  struct QZCRequest req;
+  struct QZCReply *rep;
+  struct QZCDelReq dreq;
+  struct capn rc;
+  struct capn_segment *cs;
+  int ret = 1;
+
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  req.which = QZCRequest_del;
+  req.del = new_QZCDelReq(cs);
+  memset(&dreq, 0, sizeof(struct QZCDelReq));
+  dreq.nid = *nid;
+  write_QZCDelReq(&dreq, req.del);
+  rep = qzcclient_do(sock, &req);
+  if (rep == NULL || rep->error)
+    ret = 0;
+  else
+
+    {
+      zlog_info ("DELETE nid:%llx",(long long unsigned int)*nid);
+    }
+  if(rep)
+    XFREE(MTYPE_QZC_REP, rep);
+  capn_free(&rc);
+  return ret;
+}
+
 void
 qzcclient_qzcgetrep_free(struct QZCGetRep *rep)
 {

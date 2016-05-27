@@ -102,6 +102,9 @@ int
 qzcclient_setelem (struct qzc_sock *sock, uint64_t *nid,
                    int elem,  capn_ptr *data, uint64_t *type_data);
 
+int
+qzcclient_deletenode (struct qzc_sock *sock, uint64_t *nid);
+
 void
 qzcclient_qzcreply_free(struct QZCReply *rep);
 
