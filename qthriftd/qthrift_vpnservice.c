@@ -52,6 +52,9 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
   struct bgp_event_vrf *s;
   static gboolean client_ready;
   struct qthrift_vpnservice *ctxt = NULL;
+  struct bgp_event_shut tt;
+  struct bgp_event_shut *t;
+  bool announce;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -76,24 +79,38 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
   s = &ss;
   memset(s, 0, sizeof(struct bgp_event_vrf));
   qcapn_BGPEventVRFRoute_read(s, p);
-
-  if (s->announce == TRUE)
+  if (s->announce != BGP_EVENT_SHUT)
     {
-      char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+      announce = (s->announce & BGP_EVENT_MASK_ANNOUNCE)?TRUE:FALSE;
+      if (announce == TRUE)
+        {
+          char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
 
-      prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
-      prefix2str(&s->prefix, pfx_str, sizeof(pfx_str));
-      client_ready = qthrift_bgp_updater_on_update_push_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen,\
-                                               inet_ntoa(s->nexthop), s->label);
+          prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+          prefix2str(&s->prefix, pfx_str, sizeof(pfx_str));
+          client_ready = qthrift_bgp_updater_on_update_push_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen, \
+                                                                  inet_ntoa(s->nexthop), s->label);
+        }
+      else
+        {
+          char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+          struct prefix *p = (struct prefix *)&(s->prefix);
+
+          inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
+          prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+          client_ready = qthrift_bgp_updater_on_update_withdraw_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen);
+        }
     }
-  else if (s->announce == FALSE)
+  else
     {
-      char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
-      struct prefix *p = (struct prefix *)&(s->prefix);
-
-      inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
-      prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
-      client_ready = qthrift_bgp_updater_on_update_withdraw_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen);
+      char ip_str[INET6_BUFSIZ];
+      t = &tt;
+      memset(t, 0, sizeof(struct bgp_event_shut));
+      t->peer.s_addr = s->nexthop.s_addr;
+      t->type = (uint8_t)s->label;
+      t->subtype = (uint8_t)s->prefix.prefix.s_addr;
+      inet_ntop (AF_INET,&(t->peer), ip_str, INET6_BUFSIZ);
+      client_ready = qthrift_bgp_updater_on_notification_send_event(ip_str, t->type, t->subtype);
     }
   capn_free(&rc);
   if(client_ready == FALSE)

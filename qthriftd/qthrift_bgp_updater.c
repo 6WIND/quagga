@@ -106,5 +106,17 @@ qthrift_bgp_updater_on_start_config_resync_notification (void)
 gboolean
 qthrift_bgp_updater_on_notification_send_event (const gchar * prefix, const gint8 errCode, const gint8 errSubcode)
 {
-  return TRUE;
+  GError *error = NULL;
+  gboolean response;
+  struct qthrift_vpnservice *ctxt = NULL;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt || !ctxt->bgp_updater_client)
+      return FALSE;
+  response = bgp_updater_client_on_notification_send_event(ctxt->bgp_updater_client, \
+                                                           prefix, errCode, errSubcode, &error); 
+  if(IS_QTHRIFT_DEBUG_NOTIFICATION)
+    zlog_debug ("onNotificationSendEvent(%s, errCode %d, errSubCode %d) sent %s", \
+             prefix, errCode, errSubcode, (response == TRUE)?"OK":"NOK");
+  return response;
 }

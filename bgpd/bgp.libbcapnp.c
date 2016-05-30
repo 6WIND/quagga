@@ -423,7 +423,7 @@ capn_ptr qcapn_new_VRFTableIter(struct capn_segment *s)
 void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
 {
     capn_resolve(&p);
-    s->announce = !!(capn_read8(p, 0) & (1 << 0));
+    s->announce = capn_read8(p, 0);
     *(uint64_t *)s->outbound_rd.val = capn_read64(p, 8);
     s->outbound_rd.family = AF_UNSPEC;
     s->outbound_rd.prefixlen = 64;
@@ -440,4 +440,16 @@ void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
         s->nexthop.s_addr = htonl(capn_read32(tmp_p, 0));
     }
     s->label = capn_read32(p, 4);
+}
+
+void qcapn_BGPEventShut_read(struct bgp_event_shut *s, capn_ptr p)
+{
+    capn_resolve(&p);
+    
+    {
+        capn_ptr tmp_p = capn_getp(p, 0, 1);
+        s->peer.s_addr = htonl(capn_read32(tmp_p, 0));
+    }
+    s->type = capn_read8(p, 0);
+    s->subtype = capn_read8(p, 1);
 }

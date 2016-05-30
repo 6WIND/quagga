@@ -232,12 +232,13 @@ struct bgp_vrf
 
 struct bgp_event_vrf
 {
-  bool announce;
-
-  struct prefix_rd outbound_rd;
-  struct prefix_ipv4 prefix;
-  struct in_addr nexthop;
-  uint32_t label;
+#define BGP_EVENT_MASK_ANNOUNCE 0x1
+#define BGP_EVENT_SHUT 0x2
+  uint8_t announce;
+  struct prefix_rd outbound_rd; /* dummy for event_shut */
+  struct prefix_ipv4 prefix; /* alias subtype */
+  struct in_addr nexthop; /* alias peer */
+  uint32_t label; /* alias type */
 };
 
 struct bgp_event_shut

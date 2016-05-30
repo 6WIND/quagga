@@ -703,7 +703,7 @@ void qcapn_BGPVRFRoute_set(struct bgp_api_route *s, capn_ptr p)
 void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
 {
     capn_resolve(&p);
-    capn_write1(p, 0, s->announce);
+    capn_write8(p, 0, s->announce);
     capn_write64(p, 8, *(uint64_t *)s->outbound_rd.val);
     
     {
@@ -748,21 +748,6 @@ capn_ptr qcapn_new_BGPEventVRFRoute(struct capn_segment *s)
 {
     return capn_new_struct(s, 16, 2);
 }
-
-
-
-void qcapn_BGPEventShut_read(struct bgp_event_shut *s, capn_ptr p)
-{
-    capn_resolve(&p);
-    
-    {
-        capn_ptr tmp_p = capn_getp(p, 0, 1);
-        s->peer.s_addr = htonl(capn_read32(tmp_p, 0));
-    }
-    s->type = capn_read8(p, 0);
-    s->subtype = capn_read8(p, 1);
-}
-
 
 
 void qcapn_BGPEventShut_write(const struct bgp_event_shut *s, capn_ptr p)

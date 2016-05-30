@@ -244,6 +244,15 @@ bgp_notify_print(struct peer *peer, struct bgp_notify *bgp_notify,
   const char *subcode_str;
   const char *code_str;
 
+  if(0 == strcmp(direct,"received"))
+    {
+      struct bgp_event_shut shut = {
+        .peer  = peer->remote_id,
+        .type      = bgp_notify->code,
+        .subtype   = bgp_notify->subcode
+      };
+      bgp_notify_shut (peer->bgp, &shut);
+    }
   subcode_str = "";
   code_str = LOOKUP_DEF (bgp_notify_msg, bgp_notify->code,
                          "Unrecognized Error Code");
