@@ -734,6 +734,40 @@ gboolean
 instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _return,
                                            const gint32 asNumber, GError **error)
 {
+  struct qthrift_vpnservice *ctxt = NULL;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_INACTIVE;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_INACTIVE;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  if(asNumber < 0)
+    {
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  if((as_t)asNumber != qthrift_vpnservice_get_bgp_context(ctxt)->asNumber)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  /* kill BGP Daemon */
+  qthrift_vpnservice_terminate_qzc(ctxt);
+  qthrift_vpnservice_terminate_thrift_bgp_cache(ctxt);
+  qthrift_vpnservice_terminate_bgp_context(ctxt);
+  /* creation of capnproto context */
+  qthrift_vpnservice_setup_thrift_bgp_cache(ctxt);
+  qthrift_vpnservice_setup_qzc(ctxt);
+  if(IS_QTHRIFT_DEBUG)
+    zlog_debug ("stopBgp(AS %u) OK", (as_t)asNumber);
   return TRUE;
 }
 

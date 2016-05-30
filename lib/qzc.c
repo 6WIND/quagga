@@ -424,7 +424,8 @@ struct qzc_sock *qzc_bind (struct thread_master *master, const char *url)
 
 void qzc_close (struct qzc_sock *sock)
 {
-  qzmq_thread_cancel (sock->cb);
+  if(sock->cb)
+    qzmq_thread_cancel (sock->cb);
   zmq_close (sock->zmq);
   XFREE(MTYPE_QZC_SOCK, sock);
 }
