@@ -1007,9 +1007,9 @@ bgp_configurator_start_bgp_args_read (ThriftStruct *object, ThriftProtocol *prot
     switch (fid)
     {
       case 1:
-        if (ftype == T_I32)
+        if (ftype == T_I64)
         {
-          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->asNumber, error)) < 0)
+          if ((ret = thrift_protocol_read_i64 (protocol, &this_object->asNumber, error)) < 0)
             return -1;
           xfer += ret;
           this_object->__isset_asNumber = TRUE;
@@ -1132,10 +1132,10 @@ bgp_configurator_start_bgp_args_write (ThriftStruct *object, ThriftProtocol *pro
   if ((ret = thrift_protocol_write_struct_begin (protocol, "BgpConfiguratorStartBgpArgs", error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I32, 1, error)) < 0)
+  if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I64, 1, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_i32 (protocol, this_object->asNumber, error)) < 0)
+  if ((ret = thrift_protocol_write_i64 (protocol, this_object->asNumber, error)) < 0)
     return -1;
   xfer += ret;
 
@@ -1223,7 +1223,7 @@ bgp_configurator_start_bgp_args_set_property (GObject *object,
   switch (property_id)
   {
     case PROP_BGP_CONFIGURATOR_START_BGP_ARGS_AS_NUMBER:
-      self->asNumber = g_value_get_int (value);
+      self->asNumber = g_value_get_int64 (value);
       self->__isset_asNumber = TRUE;
       break;
 
@@ -1276,7 +1276,7 @@ bgp_configurator_start_bgp_args_get_property (GObject *object,
   switch (property_id)
   {
     case PROP_BGP_CONFIGURATOR_START_BGP_ARGS_AS_NUMBER:
-      g_value_set_int (value, self->asNumber);
+      g_value_set_int64 (value, self->asNumber);
       break;
 
     case PROP_BGP_CONFIGURATOR_START_BGP_ARGS_ROUTER_ID:
@@ -1360,13 +1360,13 @@ bgp_configurator_start_bgp_args_class_init (BgpConfiguratorStartBgpArgsClass * c
   g_object_class_install_property
     (gobject_class,
      PROP_BGP_CONFIGURATOR_START_BGP_ARGS_AS_NUMBER,
-     g_param_spec_int ("asNumber",
-                       NULL,
-                       NULL,
-                       G_MININT32,
-                       G_MAXINT32,
-                       0,
-                       G_PARAM_READWRITE));
+     g_param_spec_int64 ("asNumber",
+                         NULL,
+                         NULL,
+                         G_MININT64,
+                         G_MAXINT64,
+                         0,
+                         G_PARAM_READWRITE));
 
   g_object_class_install_property
     (gobject_class,
@@ -1748,9 +1748,9 @@ bgp_configurator_stop_bgp_args_read (ThriftStruct *object, ThriftProtocol *proto
     switch (fid)
     {
       case 1:
-        if (ftype == T_I32)
+        if (ftype == T_I64)
         {
-          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->asNumber, error)) < 0)
+          if ((ret = thrift_protocol_read_i64 (protocol, &this_object->asNumber, error)) < 0)
             return -1;
           xfer += ret;
           this_object->__isset_asNumber = TRUE;
@@ -1789,10 +1789,10 @@ bgp_configurator_stop_bgp_args_write (ThriftStruct *object, ThriftProtocol *prot
   if ((ret = thrift_protocol_write_struct_begin (protocol, "BgpConfiguratorStopBgpArgs", error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I32, 1, error)) < 0)
+  if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I64, 1, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_i32 (protocol, this_object->asNumber, error)) < 0)
+  if ((ret = thrift_protocol_write_i64 (protocol, this_object->asNumber, error)) < 0)
     return -1;
   xfer += ret;
 
@@ -1820,7 +1820,7 @@ bgp_configurator_stop_bgp_args_set_property (GObject *object,
   switch (property_id)
   {
     case PROP_BGP_CONFIGURATOR_STOP_BGP_ARGS_AS_NUMBER:
-      self->asNumber = g_value_get_int (value);
+      self->asNumber = g_value_get_int64 (value);
       self->__isset_asNumber = TRUE;
       break;
 
@@ -1841,7 +1841,7 @@ bgp_configurator_stop_bgp_args_get_property (GObject *object,
   switch (property_id)
   {
     case PROP_BGP_CONFIGURATOR_STOP_BGP_ARGS_AS_NUMBER:
-      g_value_set_int (value, self->asNumber);
+      g_value_set_int64 (value, self->asNumber);
       break;
 
     default:
@@ -1884,13 +1884,13 @@ bgp_configurator_stop_bgp_args_class_init (BgpConfiguratorStopBgpArgsClass * cls
   g_object_class_install_property
     (gobject_class,
      PROP_BGP_CONFIGURATOR_STOP_BGP_ARGS_AS_NUMBER,
-     g_param_spec_int ("asNumber",
-                       NULL,
-                       NULL,
-                       G_MININT32,
-                       G_MAXINT32,
-                       0,
-                       G_PARAM_READWRITE));
+     g_param_spec_int64 ("asNumber",
+                         NULL,
+                         NULL,
+                         G_MININT64,
+                         G_MAXINT64,
+                         0,
+                         G_PARAM_READWRITE));
 }
 
 GType
@@ -2230,9 +2230,9 @@ bgp_configurator_create_peer_args_read (ThriftStruct *object, ThriftProtocol *pr
         }
         break;
       case 2:
-        if (ftype == T_I32)
+        if (ftype == T_I64)
         {
-          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->asNumber, error)) < 0)
+          if ((ret = thrift_protocol_read_i64 (protocol, &this_object->asNumber, error)) < 0)
             return -1;
           xfer += ret;
           this_object->__isset_asNumber = TRUE;
@@ -2281,10 +2281,10 @@ bgp_configurator_create_peer_args_write (ThriftStruct *object, ThriftProtocol *p
   if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I32, 2, error)) < 0)
+  if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I64, 2, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_i32 (protocol, this_object->asNumber, error)) < 0)
+  if ((ret = thrift_protocol_write_i64 (protocol, this_object->asNumber, error)) < 0)
     return -1;
   xfer += ret;
 
@@ -2319,7 +2319,7 @@ bgp_configurator_create_peer_args_set_property (GObject *object,
       break;
 
     case PROP_BGP_CONFIGURATOR_CREATE_PEER_ARGS_AS_NUMBER:
-      self->asNumber = g_value_get_int (value);
+      self->asNumber = g_value_get_int64 (value);
       self->__isset_asNumber = TRUE;
       break;
 
@@ -2344,7 +2344,7 @@ bgp_configurator_create_peer_args_get_property (GObject *object,
       break;
 
     case PROP_BGP_CONFIGURATOR_CREATE_PEER_ARGS_AS_NUMBER:
-      g_value_set_int (value, self->asNumber);
+      g_value_set_int64 (value, self->asNumber);
       break;
 
     default:
@@ -2403,13 +2403,13 @@ bgp_configurator_create_peer_args_class_init (BgpConfiguratorCreatePeerArgsClass
   g_object_class_install_property
     (gobject_class,
      PROP_BGP_CONFIGURATOR_CREATE_PEER_ARGS_AS_NUMBER,
-     g_param_spec_int ("asNumber",
-                       NULL,
-                       NULL,
-                       G_MININT32,
-                       G_MAXINT32,
-                       0,
-                       G_PARAM_READWRITE));
+     g_param_spec_int64 ("asNumber",
+                         NULL,
+                         NULL,
+                         G_MININT64,
+                         G_MAXINT64,
+                         0,
+                         G_PARAM_READWRITE));
 }
 
 GType

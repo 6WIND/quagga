@@ -18,9 +18,9 @@ struct _BgpConfiguratorIfInterface
 {
   GTypeInterface parent;
 
-  gboolean (*start_bgp) (BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError **error);
-  gboolean (*stop_bgp) (BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber, GError **error);
-  gboolean (*create_peer) (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, const gint32 asNumber, GError **error);
+  gboolean (*start_bgp) (BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError **error);
+  gboolean (*stop_bgp) (BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, GError **error);
+  gboolean (*create_peer) (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, const gint64 asNumber, GError **error);
   gboolean (*delete_peer) (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, GError **error);
   gboolean (*add_vrf) (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, const GPtrArray * irts, const GPtrArray * erts, GError **error);
   gboolean (*del_vrf) (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, GError **error);
@@ -45,9 +45,9 @@ GType bgp_configurator_if_get_type (void);
 #define IS_BGP_CONFIGURATOR_IF(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_IF))
 #define BGP_CONFIGURATOR_IF_GET_INTERFACE(inst) (G_TYPE_INSTANCE_GET_INTERFACE ((inst), TYPE_BGP_CONFIGURATOR_IF, BgpConfiguratorIfInterface))
 
-gboolean bgp_configurator_if_start_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError **error);
-gboolean bgp_configurator_if_stop_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber, GError **error);
-gboolean bgp_configurator_if_create_peer (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, const gint32 asNumber, GError **error);
+gboolean bgp_configurator_if_start_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError **error);
+gboolean bgp_configurator_if_stop_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, GError **error);
+gboolean bgp_configurator_if_create_peer (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, const gint64 asNumber, GError **error);
 gboolean bgp_configurator_if_delete_peer (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, GError **error);
 gboolean bgp_configurator_if_add_vrf (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, const GPtrArray * irts, const GPtrArray * erts, GError **error);
 gboolean bgp_configurator_if_del_vrf (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, GError **error);
@@ -88,14 +88,14 @@ GType bgp_configurator_client_get_type (void);
 #define BGP_CONFIGURATOR_IS_CLIENT_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_CLIENT))
 #define BGP_CONFIGURATOR_CLIENT_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_CLIENT, BgpConfiguratorClientClass))
 
-gboolean bgp_configurator_client_start_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint32 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError ** error);
-gboolean bgp_configurator_client_send_start_bgp (BgpConfiguratorIf * iface, const gint32 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError ** error);
+gboolean bgp_configurator_client_start_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint64 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError ** error);
+gboolean bgp_configurator_client_send_start_bgp (BgpConfiguratorIf * iface, const gint64 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError ** error);
 gboolean bgp_configurator_client_recv_start_bgp (BgpConfiguratorIf * iface, gint32* _return, GError ** error);
-gboolean bgp_configurator_client_stop_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint32 asNumber, GError ** error);
-gboolean bgp_configurator_client_send_stop_bgp (BgpConfiguratorIf * iface, const gint32 asNumber, GError ** error);
+gboolean bgp_configurator_client_stop_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint64 asNumber, GError ** error);
+gboolean bgp_configurator_client_send_stop_bgp (BgpConfiguratorIf * iface, const gint64 asNumber, GError ** error);
 gboolean bgp_configurator_client_recv_stop_bgp (BgpConfiguratorIf * iface, gint32* _return, GError ** error);
-gboolean bgp_configurator_client_create_peer (BgpConfiguratorIf * iface, gint32* _return, const gchar * ipAddress, const gint32 asNumber, GError ** error);
-gboolean bgp_configurator_client_send_create_peer (BgpConfiguratorIf * iface, const gchar * ipAddress, const gint32 asNumber, GError ** error);
+gboolean bgp_configurator_client_create_peer (BgpConfiguratorIf * iface, gint32* _return, const gchar * ipAddress, const gint64 asNumber, GError ** error);
+gboolean bgp_configurator_client_send_create_peer (BgpConfiguratorIf * iface, const gchar * ipAddress, const gint64 asNumber, GError ** error);
 gboolean bgp_configurator_client_recv_create_peer (BgpConfiguratorIf * iface, gint32* _return, GError ** error);
 gboolean bgp_configurator_client_delete_peer (BgpConfiguratorIf * iface, gint32* _return, const gchar * ipAddress, GError ** error);
 gboolean bgp_configurator_client_send_delete_peer (BgpConfiguratorIf * iface, const gchar * ipAddress, GError ** error);
@@ -156,9 +156,9 @@ struct _BgpConfiguratorHandlerClass
 {
   GObjectClass parent;
 
-  gboolean (*start_bgp) (BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError **error);
-  gboolean (*stop_bgp) (BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber, GError **error);
-  gboolean (*create_peer) (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, const gint32 asNumber, GError **error);
+  gboolean (*start_bgp) (BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError **error);
+  gboolean (*stop_bgp) (BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, GError **error);
+  gboolean (*create_peer) (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, const gint64 asNumber, GError **error);
   gboolean (*delete_peer) (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, GError **error);
   gboolean (*add_vrf) (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, const GPtrArray * irts, const GPtrArray * erts, GError **error);
   gboolean (*del_vrf) (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, GError **error);
@@ -185,9 +185,9 @@ GType bgp_configurator_handler_get_type (void);
 #define IS_BGP_CONFIGURATOR_HANDLER_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_HANDLER))
 #define BGP_CONFIGURATOR_HANDLER_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_HANDLER, BgpConfiguratorHandlerClass))
 
-gboolean bgp_configurator_handler_start_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError **error);
-gboolean bgp_configurator_handler_stop_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber, GError **error);
-gboolean bgp_configurator_handler_create_peer (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, const gint32 asNumber, GError **error);
+gboolean bgp_configurator_handler_start_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError **error);
+gboolean bgp_configurator_handler_stop_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, GError **error);
+gboolean bgp_configurator_handler_create_peer (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, const gint64 asNumber, GError **error);
 gboolean bgp_configurator_handler_delete_peer (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, GError **error);
 gboolean bgp_configurator_handler_add_vrf (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, const GPtrArray * irts, const GPtrArray * erts, GError **error);
 gboolean bgp_configurator_handler_del_vrf (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, GError **error);

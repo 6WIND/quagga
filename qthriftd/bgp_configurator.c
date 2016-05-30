@@ -10,19 +10,19 @@
 #include "bgp_configurator.h"
 
 gboolean
-bgp_configurator_if_start_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError **error)
+bgp_configurator_if_start_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError **error)
 {
   return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->start_bgp (iface, _return, asNumber, routerId, port, holdTime, keepAliveTime, stalepathTime, announceFbit, error);
 }
 
 gboolean
-bgp_configurator_if_stop_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber, GError **error)
+bgp_configurator_if_stop_bgp (BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, GError **error)
 {
   return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->stop_bgp (iface, _return, asNumber, error);
 }
 
 gboolean
-bgp_configurator_if_create_peer (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, const gint32 asNumber, GError **error)
+bgp_configurator_if_create_peer (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, const gint64 asNumber, GError **error)
 {
   return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->create_peer (iface, _return, ipAddress, asNumber, error);
 }
@@ -194,7 +194,7 @@ bgp_configurator_client_get_property (GObject *object, guint property_id, GValue
   }
 }
 
-gboolean bgp_configurator_client_send_start_bgp (BgpConfiguratorIf * iface, const gint32 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError ** error)
+gboolean bgp_configurator_client_send_start_bgp (BgpConfiguratorIf * iface, const gint64 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError ** error)
 {
   gint32 cseqid = 0;
   ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
@@ -210,10 +210,10 @@ gboolean bgp_configurator_client_send_start_bgp (BgpConfiguratorIf * iface, cons
     if ((ret = thrift_protocol_write_struct_begin (protocol, "startBgp_args", error)) < 0)
       return 0;
     xfer += ret;
-    if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I32, 1, error)) < 0)
+    if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I64, 1, error)) < 0)
       return 0;
     xfer += ret;
-    if ((ret = thrift_protocol_write_i32 (protocol, asNumber, error)) < 0)
+    if ((ret = thrift_protocol_write_i64 (protocol, asNumber, error)) < 0)
       return 0;
     xfer += ret;
 
@@ -421,7 +421,7 @@ gboolean bgp_configurator_client_recv_start_bgp (BgpConfiguratorIf * iface, gint
   return TRUE;
 }
 
-gboolean bgp_configurator_client_start_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint32 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError ** error)
+gboolean bgp_configurator_client_start_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint64 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError ** error)
 {
   if (!bgp_configurator_client_send_start_bgp (iface, asNumber, routerId, port, holdTime, keepAliveTime, stalepathTime, announceFbit, error))
     return FALSE;
@@ -430,7 +430,7 @@ gboolean bgp_configurator_client_start_bgp (BgpConfiguratorIf * iface, gint32* _
   return TRUE;
 }
 
-gboolean bgp_configurator_client_send_stop_bgp (BgpConfiguratorIf * iface, const gint32 asNumber, GError ** error)
+gboolean bgp_configurator_client_send_stop_bgp (BgpConfiguratorIf * iface, const gint64 asNumber, GError ** error)
 {
   gint32 cseqid = 0;
   ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
@@ -446,10 +446,10 @@ gboolean bgp_configurator_client_send_stop_bgp (BgpConfiguratorIf * iface, const
     if ((ret = thrift_protocol_write_struct_begin (protocol, "stopBgp_args", error)) < 0)
       return 0;
     xfer += ret;
-    if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I32, 1, error)) < 0)
+    if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I64, 1, error)) < 0)
       return 0;
     xfer += ret;
-    if ((ret = thrift_protocol_write_i32 (protocol, asNumber, error)) < 0)
+    if ((ret = thrift_protocol_write_i64 (protocol, asNumber, error)) < 0)
       return 0;
     xfer += ret;
 
@@ -597,7 +597,7 @@ gboolean bgp_configurator_client_recv_stop_bgp (BgpConfiguratorIf * iface, gint3
   return TRUE;
 }
 
-gboolean bgp_configurator_client_stop_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint32 asNumber, GError ** error)
+gboolean bgp_configurator_client_stop_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint64 asNumber, GError ** error)
 {
   if (!bgp_configurator_client_send_stop_bgp (iface, asNumber, error))
     return FALSE;
@@ -606,7 +606,7 @@ gboolean bgp_configurator_client_stop_bgp (BgpConfiguratorIf * iface, gint32* _r
   return TRUE;
 }
 
-gboolean bgp_configurator_client_send_create_peer (BgpConfiguratorIf * iface, const gchar * ipAddress, const gint32 asNumber, GError ** error)
+gboolean bgp_configurator_client_send_create_peer (BgpConfiguratorIf * iface, const gchar * ipAddress, const gint64 asNumber, GError ** error)
 {
   gint32 cseqid = 0;
   ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
@@ -632,10 +632,10 @@ gboolean bgp_configurator_client_send_create_peer (BgpConfiguratorIf * iface, co
     if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
       return 0;
     xfer += ret;
-    if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I32, 2, error)) < 0)
+    if ((ret = thrift_protocol_write_field_begin (protocol, "asNumber", T_I64, 2, error)) < 0)
       return 0;
     xfer += ret;
-    if ((ret = thrift_protocol_write_i32 (protocol, asNumber, error)) < 0)
+    if ((ret = thrift_protocol_write_i64 (protocol, asNumber, error)) < 0)
       return 0;
     xfer += ret;
 
@@ -783,7 +783,7 @@ gboolean bgp_configurator_client_recv_create_peer (BgpConfiguratorIf * iface, gi
   return TRUE;
 }
 
-gboolean bgp_configurator_client_create_peer (BgpConfiguratorIf * iface, gint32* _return, const gchar * ipAddress, const gint32 asNumber, GError ** error)
+gboolean bgp_configurator_client_create_peer (BgpConfiguratorIf * iface, gint32* _return, const gchar * ipAddress, const gint64 asNumber, GError ** error)
 {
   if (!bgp_configurator_client_send_create_peer (iface, ipAddress, asNumber, error))
     return FALSE;
@@ -3655,21 +3655,21 @@ G_DEFINE_TYPE_WITH_CODE (BgpConfiguratorHandler,
                          G_IMPLEMENT_INTERFACE (TYPE_BGP_CONFIGURATOR_IF,
                                                 bgp_configurator_handler_bgp_configurator_if_interface_init))
 
-gboolean bgp_configurator_handler_start_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint32 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError ** error)
+gboolean bgp_configurator_handler_start_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint64 asNumber, const gchar * routerId, const gint32 port, const gint32 holdTime, const gint32 keepAliveTime, const gint32 stalepathTime, const gboolean announceFbit, GError ** error)
 {
   g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
 
   return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->start_bgp (iface, _return, asNumber, routerId, port, holdTime, keepAliveTime, stalepathTime, announceFbit, error);
 }
 
-gboolean bgp_configurator_handler_stop_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint32 asNumber, GError ** error)
+gboolean bgp_configurator_handler_stop_bgp (BgpConfiguratorIf * iface, gint32* _return, const gint64 asNumber, GError ** error)
 {
   g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
 
   return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->stop_bgp (iface, _return, asNumber, error);
 }
 
-gboolean bgp_configurator_handler_create_peer (BgpConfiguratorIf * iface, gint32* _return, const gchar * ipAddress, const gint32 asNumber, GError ** error)
+gboolean bgp_configurator_handler_create_peer (BgpConfiguratorIf * iface, gint32* _return, const gchar * ipAddress, const gint64 asNumber, GError ** error)
 {
   g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
 
@@ -4059,7 +4059,7 @@ bgp_configurator_processor_process_start_bgp (BgpConfiguratorProcessor *self,
       (thrift_protocol_read_message_end (input_protocol, error) != -1) &&
       (thrift_transport_read_end (transport, error) != FALSE))
   {
-    gint asNumber;
+    gint64 asNumber;
     gchar * routerId;
     gint port;
     gint holdTime;
@@ -4173,7 +4173,7 @@ bgp_configurator_processor_process_stop_bgp (BgpConfiguratorProcessor *self,
       (thrift_protocol_read_message_end (input_protocol, error) != -1) &&
       (thrift_transport_read_end (transport, error) != FALSE))
   {
-    gint asNumber;
+    gint64 asNumber;
     gint return_value;
     BgpConfiguratorStopBgpResult * result_struct;
 
@@ -4268,7 +4268,7 @@ bgp_configurator_processor_process_create_peer (BgpConfiguratorProcessor *self,
       (thrift_transport_read_end (transport, error) != FALSE))
   {
     gchar * ipAddress;
-    gint asNumber;
+    gint64 asNumber;
     gint return_value;
     BgpConfiguratorCreatePeerResult * result_struct;
 

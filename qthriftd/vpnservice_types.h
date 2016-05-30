@@ -120,7 +120,7 @@ struct _BgpConfiguratorStartBgpArgs
   ThriftStruct parent; 
 
   /* public */
-  gint32 asNumber;
+  gint64 asNumber;
   gboolean __isset_asNumber;
   gchar * routerId;
   gboolean __isset_routerId;
@@ -182,7 +182,7 @@ struct _BgpConfiguratorStopBgpArgs
   ThriftStruct parent; 
 
   /* public */
-  gint32 asNumber;
+  gint64 asNumber;
   gboolean __isset_asNumber;
 };
 typedef struct _BgpConfiguratorStopBgpArgs BgpConfiguratorStopBgpArgs;
@@ -234,7 +234,7 @@ struct _BgpConfiguratorCreatePeerArgs
   /* public */
   gchar * ipAddress;
   gboolean __isset_ipAddress;
-  gint32 asNumber;
+  gint64 asNumber;
   gboolean __isset_asNumber;
 };
 typedef struct _BgpConfiguratorCreatePeerArgs BgpConfiguratorCreatePeerArgs;

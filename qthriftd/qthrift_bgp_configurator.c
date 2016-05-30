@@ -43,9 +43,9 @@
 static gboolean
 instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface,
                                               gint32* ret, const gchar *routerId,
-                                              const gint32 asNumber, GError **error);
+                                              const gint64 asNumber, GError **error);
 static gboolean
-instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber,
+instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber,
                                             const gchar * routerId, const gint32 port, const gint32 holdTime,
                                             const gint32 keepAliveTime, const gint32 stalepathTime,
                                             const gboolean announceFbit, GError **error);
@@ -62,7 +62,7 @@ gboolean
 instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint32* _return, const gchar * prefix,
                                                  const gchar * rd, GError **error);
 gboolean
-instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber, GError **error);
+instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, GError **error);
 gboolean
 instance_bgp_configurator_handler_delete_peer(BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, GError **error);
 gboolean
@@ -407,7 +407,7 @@ qthrift_bgp_set_multihops(struct qthrift_vpnservice *ctxt,  gint32* _return, con
  * If BGP is already started, then an error is returned : BGP_ERR_ACTIVE
  */
 static gboolean
-instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _return, const gint32 asNumber,
+instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber,
                                             const gchar * routerId, const gint32 port, const gint32 holdTime,
                                             const gint32 keepAliveTime, const gint32 stalepathTime,
                                             const gboolean announceFbit, GError **error)
@@ -446,10 +446,15 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     {
       qthrift_vpnservice_setup_bgp_context(ctxt);
     }
+  if (asNumber < 0)
+    {
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
   /* run BGP process */
   parmList[0] = ctxt->bgpd_execution_path;
   sprintf(s_port, "%d", port);
-  sprintf(s_zmq_sock, "%s-%u", ctxt->zmq_sock, asNumber);
+  sprintf(s_zmq_sock, "%s-%u", ctxt->zmq_sock, (as_t)asNumber);
   parmList[2] = s_port;
   parmList[4] = s_zmq_sock;
   if ((pid = fork()) ==-1)
@@ -484,10 +489,10 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     }
   /* check well known number agains node identifier */
   bgp_bm_nid = qzcclient_wkn(ctxt->qzc_sock, &bgp_bm_wkn);
-  qthrift_vpnservice_get_bgp_context(ctxt)->asNumber = asNumber;
+  qthrift_vpnservice_get_bgp_context(ctxt)->asNumber = (as_t) asNumber;
   if(IS_QTHRIFT_DEBUG)
     zlog_debug ("startBgp. bgpd called (AS %u, proc %d)", \
-               asNumber, pid);
+                (as_t)asNumber, pid);
   /* from bgp_master, create bgp and retrieve bgp as node identifier */
   {
     struct capn_ptr bgp;
@@ -497,7 +502,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     capn_init_malloc(&rc);
     cs = capn_root(&rc).seg;
     memset(&inst, 0, sizeof(struct bgp));
-    inst.as = asNumber;
+    inst.as = (as_t)asNumber;
     if(routerId)
       inet_aton(routerId, &inst.router_id_static);
     bgp = qcapn_new_BGP(cs);
@@ -518,7 +523,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     struct capn rc;
     struct capn_segment *cs;
 
-    inst.as = asNumber;
+    inst.as = (as_t)asNumber;
     if(routerId)
       inet_aton (routerId, &inst.router_id_static);
     inst.notify_zmq_url = XSTRDUP(MTYPE_QTHRIFT, ctxt->zmq_subscribe_sock);
@@ -543,7 +548,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
       else
         zlog_err ("startBgp(%u, %s) NOK",(as_t)asNumber, routerId);
     }
-  return ret;
+ return ret;
 }
 
 /*
@@ -732,7 +737,7 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
  */
 gboolean
 instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _return,
-                                           const gint32 asNumber, GError **error)
+                                           const gint64 asNumber, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
 
@@ -780,7 +785,7 @@ instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _re
  */
 gboolean
 instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* _return,
-                                              const gchar *routerId, const gint32 asNumber, GError **error)
+                                              const gchar *routerId, const gint64 asNumber, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
   struct peer inst;
@@ -802,6 +807,11 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
       *error = ERROR_BGP_AS_NOT_STARTED;
       return FALSE;
     }
+  if(asNumber < 0)
+    {
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
   memset(&inst, 0, sizeof(struct peer));
   inst.host = XSTRDUP(MTYPE_QTHRIFT, routerId);
   inst.as = (as_t)asNumber;
@@ -821,7 +831,7 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
       return FALSE;
     }
   if(IS_QTHRIFT_DEBUG)
-    zlog_debug ("createPeer(%s,%u) OK", routerId, asNumber);
+    zlog_debug ("createPeer(%s,%u) OK", routerId, (as_t)asNumber);
   /* add peer entry in cache */
   entry = XCALLOC(MTYPE_QTHRIFT, sizeof(struct qthrift_cache_peer));
   entry->peerIp = XSTRDUP(MTYPE_QTHRIFT, routerId);
