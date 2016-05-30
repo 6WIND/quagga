@@ -430,6 +430,20 @@ void qzc_close (struct qzc_sock *sock)
   XFREE(MTYPE_QZC_SOCK, sock);
 }
 
+capn_ptr 
+qzc_msg_to_notification(zmq_msg_t *msg, struct capn *rc)
+{
+  void *data;
+  size_t size;
+
+  data = zmq_msg_data (msg);
+  size = zmq_msg_size (msg);
+
+  capn_init_mem(rc, data, size, 0);
+
+  return capn_getp(capn_root(rc), 0, 1);
+}
+
 static struct QZCReply *qzcclient_msg_to_reply(zmq_msg_t *msg)
 {
   void *data;
@@ -840,3 +854,4 @@ qzcclient_qzcreply_free(struct QZCReply *rep)
     XFREE(MTYPE_QZC_REP, rep);
 
 }
+

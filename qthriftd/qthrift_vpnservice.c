@@ -46,6 +46,58 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *msg);
 /* callback function for capnproto bgpupdater notifications */
 static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message)
 {
+  struct capn rc;
+  capn_ptr p;
+  struct bgp_event_vrf ss;
+  struct bgp_event_vrf *s;
+  static gboolean client_ready;
+  struct qthrift_vpnservice *ctxt = NULL;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      return;
+    }
+  ctxt->bgp_update_total++;
+  /* if first time or previous failure, try to reconnect to client */
+  if( (ctxt->bgp_updater_client == NULL) || client_ready == FALSE)
+    {
+      /* already initiated contexts. reset client connection */
+      if(ctxt->bgp_updater_client)
+        qthrift_vpnservice_terminate_thrift_bgp_updater_client(ctxt);
+      client_ready = qthrift_vpnservice_setup_thrift_bgp_updater_client(ctxt);
+      if(client_ready == FALSE)
+        {
+          ctxt->bgp_update_lost_msgs++;
+          return;
+        }
+    }
+  p = qzc_msg_to_notification((zmq_msg_t * )message, &rc);
+  s = &ss;
+  memset(s, 0, sizeof(struct bgp_event_vrf));
+  qcapn_BGPEventVRFRoute_read(s, p);
+
+  if (s->announce == TRUE)
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+
+      prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+      prefix2str(&s->prefix, pfx_str, sizeof(pfx_str));
+      client_ready = qthrift_bgp_updater_on_update_push_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen,\
+                                               inet_ntoa(s->nexthop), s->label);
+    }
+  else if (s->announce == FALSE)
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+      struct prefix *p = (struct prefix *)&(s->prefix);
+
+      inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
+      prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+      client_ready = qthrift_bgp_updater_on_update_withdraw_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen);
+    }
+  capn_free(&rc);
+  if(client_ready == FALSE)
+    ctxt->bgp_update_lost_msgs++;
   return;
 }
 

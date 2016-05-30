@@ -700,31 +700,6 @@ void qcapn_BGPVRFRoute_set(struct bgp_api_route *s, capn_ptr p)
 }
 
 
-
-void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
-{
-    capn_resolve(&p);
-    s->announce = !!(capn_read8(p, 0) & (1 << 0));
-    *(uint64_t *)s->outbound_rd.val = capn_read64(p, 8);
-    s->outbound_rd.family = AF_UNSPEC;
-    s->outbound_rd.prefixlen = 64;
-    
-    {
-        capn_ptr tmp_p = capn_getp(p, 0, 1);
-        s->prefix.family = AF_INET;
-        s->prefix.prefixlen = capn_read8(tmp_p, 4);
-        s->prefix.prefix.s_addr = htonl(capn_read32(tmp_p, 0));
-    }
-    
-    {
-        capn_ptr tmp_p = capn_getp(p, 1, 1);
-        s->nexthop.s_addr = htonl(capn_read32(tmp_p, 0));
-    }
-    s->label = capn_read32(p, 4);
-}
-
-
-
 void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
 {
     capn_resolve(&p);

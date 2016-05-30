@@ -39,7 +39,20 @@ gboolean
 qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix, \
                                           const gint32 prefixlen, const gchar * nexthop, const gint32 label)
 {
-  return TRUE;
+  GError *error = NULL;
+  gboolean response;
+  struct qthrift_vpnservice *ctxt = NULL;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt || !ctxt->bgp_updater_client)
+      return FALSE;
+  response = bgp_updater_client_send_on_update_push_route(ctxt->bgp_updater_client, \
+                                                            rd, prefix, prefixlen, nexthop, label, &error);
+  if(IS_QTHRIFT_DEBUG_NOTIFICATION)
+    zlog_info ("onUpdatePushRoute(rd %s, pfx %s, nh %s, label %d) sent %s", \
+             rd, prefix, nexthop, label,\
+             (response == TRUE)?"OK":"NOK");
+  return response;
 }
 
 /*
@@ -49,7 +62,20 @@ qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix
 gboolean
 qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * prefix, const gint32 prefixlen)
 {
-  return TRUE;
+  GError *error = NULL;
+  gboolean response;
+  struct qthrift_vpnservice *ctxt = NULL;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt || !ctxt->bgp_updater_client)
+      return FALSE;
+  response = bgp_updater_client_on_update_withdraw_route(ctxt->bgp_updater_client, \
+                                                         rd, prefix, prefixlen, &error);
+  if(IS_QTHRIFT_DEBUG_NOTIFICATION)
+    zlog_debug ("onUpdateWithdrawRoute(rd %s, pfx %s/%d) sent %s", \
+             rd, prefix, prefixlen, \
+             (response == TRUE)?"OK":"NOK");
+  return response;
 }
 
 /*

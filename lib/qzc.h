@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 
+#include <zmq.h>
 #include "qzc.capnp.h"
 
 struct qzc_nodetype {
@@ -84,6 +85,9 @@ struct qzc_wkn {
 	struct qzc_wkn *next;
 };
 void qzc_wkn_reg(struct qzc_wkn *wkn);
+
+capn_ptr 
+qzc_msg_to_notification(zmq_msg_t *msg, struct capn *rc);
 
 struct qzc_sock *qzcclient_connect (const char *url);
 struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *url,
