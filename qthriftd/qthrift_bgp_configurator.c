@@ -1025,6 +1025,80 @@ gboolean
 instance_bgp_configurator_handler_set_update_source (BgpConfiguratorIf *iface, gint32* _return, const gchar * peerIp,
                                                      const gchar * srcIp, GError **error)
 {
+  struct qthrift_vpnservice *ctxt = NULL;
+  uint64_t peer_nid;
+  int ret;
+  union sockunion su;
+  capn_ptr peer_ctxt;
+  struct QZCGetRep *grep_peer;
+  struct peer peer;
+  struct capn rc;
+  struct capn_segment *cs;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *error = g_error_new(0, 0, "BGP AS not started");
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  if(peerIp == NULL)
+    {
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  /* if peer not found, return an error */
+  peer_nid = qthrift_bgp_configurator_find_peer(ctxt, peerIp, _return);
+  if(peer_nid == 0)
+    {
+      *_return = BGP_ERR_PARAM;
+      *error = ERROR_BGP_PEER_NOTFOUND;
+      return FALSE;
+    }
+  /* retrieve peer context */
+  grep_peer = qzcclient_getelem (ctxt->qzc_sock, &peer_nid, 2, \
+                                 NULL, NULL, NULL, NULL);
+  if(grep_peer == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  memset(&peer, 0, sizeof(struct peer));
+  qcapn_BGPPeer_read(&peer, grep_peer->data);
+  /* change updateSource */
+  if(srcIp)
+    {
+      ret = str2sockunion (srcIp, &su);
+      if (ret == 0)
+        peer.update_source = &su;
+      else
+        peer.update_if = (char *)srcIp;
+    }
+  qzcclient_qzcgetrep_free( grep_peer);
+  /* prepare QZCSetRequest context */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  peer_ctxt = qcapn_new_BGPPeer(cs);
+  qcapn_BGPPeer_write(&peer, peer_ctxt);
+  if(qzcclient_setelem (ctxt->qzc_sock, &peer_nid, 2, \
+                        &peer_ctxt, &bgp_datatype_create_bgp_2, \
+                        NULL, NULL))
+    {
+      if(IS_QTHRIFT_DEBUG)
+        {
+          if(srcIp == 0)
+            zlog_debug ("unsetUpdateSource(%s) OK", peerIp);
+          else
+            zlog_debug ("setUpdateSource(%s, %s) OK", peerIp, srcIp);
+        }
+    }
+  capn_free(&rc);
   return TRUE;
 }
  
@@ -1036,7 +1110,7 @@ gboolean
 instance_bgp_configurator_handler_unset_update_source (BgpConfiguratorIf *iface, gint32* _return,
                                                        const gchar * peerIp, GError **error)
 {
-  return TRUE;
+  return instance_bgp_configurator_handler_set_update_source( iface, _return, peerIp, NULL, error);
 }
 
 /*

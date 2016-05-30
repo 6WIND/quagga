@@ -144,7 +144,28 @@ void qcapn_BGPPeer_read(struct peer *s, capn_ptr p)
       else     s->flags &= ~PEER_FLAG_DISABLE_CONNECTED_CHECK;
     }
     s->ttl = capn_read32(p, 20);
-    /* MISSING: updateSource */
+    {
+      const char * update_source = NULL;
+      int len;
+      capn_text tp = capn_get_text(p, 2, capn_val0);
+      update_source = tp.str;
+      len = tp.len;
+      if (update_source && len != 0)
+        {
+          union sockunion *su;
+
+          su = sockunion_str2su (update_source);
+          if (su)
+            s->update_source = su;
+          else
+            s->update_if = strdup(update_source);
+        }
+      else
+        {
+          s->update_source = NULL;
+          s->update_if = NULL;
+        }
+    }
 }
 
 void qcapn_BGPPeer_write(const struct peer *s, capn_ptr p)
@@ -165,7 +186,25 @@ void qcapn_BGPPeer_write(const struct peer *s, capn_ptr p)
     capn_write1(p, 53, !!(s->flags & PEER_FLAG_DYNAMIC_CAPABILITY));
     capn_write1(p, 54, !!(s->flags & PEER_FLAG_DISABLE_CONNECTED_CHECK));
     capn_write32(p, 20, s->ttl);
-    /* MISSING: updateSource */
+    {
+      capn_text tp;
+      char *ptr = malloc(65);
+      if(s->update_source)
+        {
+          ptr = (char *)sockunion2str((const union sockunion *)s->update_source, ptr, 64);
+          tp.str = ptr;
+          tp.len = strlen(ptr);
+        } else if (s->update_if)
+        {
+          tp.str = s->update_if;
+          tp.len = strlen(s->update_if);
+        } else
+        {
+          tp.str = NULL;
+          tp.len = 0;
+        }
+      capn_set_text(p, 2, tp);
+    }
 }
 
 capn_ptr qcapn_new_BGPPeer(struct capn_segment *s)

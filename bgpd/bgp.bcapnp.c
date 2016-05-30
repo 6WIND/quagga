@@ -425,7 +425,26 @@ void qcapn_BGPPeer_set(struct peer *s, capn_ptr p)
       
     }
     {
-      /* MISSING: update_source */
+      const char * update_source = NULL;
+      int len;
+      capn_text tp = capn_get_text(p, 2, capn_val0);
+      update_source = tp.str;
+      len = tp.len;
+      if (update_source && len != 0)
+        {
+          union sockunion *su;
+
+          su = sockunion_str2su (update_source);
+          if (su)
+            s->update_source = su;
+          else
+            s->update_if = strdup(update_source);
+        }
+      else
+        {
+          s->update_source = NULL;
+          s->update_if = NULL;
+        }
     }
 }
 
