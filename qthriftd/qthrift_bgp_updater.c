@@ -60,8 +60,18 @@ qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * pr
 gboolean
 qthrift_bgp_updater_on_start_config_resync_notification (void)
 {
+  GError *error = NULL;
+  gboolean response;
+  struct qthrift_vpnservice *ctxt = NULL;
 
-  return TRUE;
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt || !ctxt->bgp_updater_client)
+      return FALSE;
+  response = bgp_updater_client_on_start_config_resync_notification(ctxt->bgp_updater_client, &error);
+  if(IS_QTHRIFT_DEBUG_NOTIFICATION)
+    zlog_debug ("onStartConfigResyncNotification() sent %s", \
+             (response == TRUE)?"OK":"NOK");
+  return response;
 }
 
 /*

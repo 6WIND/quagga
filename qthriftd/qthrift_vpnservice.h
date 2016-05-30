@@ -107,6 +107,10 @@ struct qthrift_vpnservice
 
   /* Cache Context for getRoutes */
   struct list *bgp_get_routes_list;
+
+  /* Thrift Update Statistics */
+  u_int32_t bgp_update_lost_msgs;
+  u_int32_t bgp_update_total;
 };
 
 void qthrift_vpnservice_terminate(struct qthrift_vpnservice *setup);
