@@ -34,6 +34,10 @@
 #include "qzc.capnp.h"
 #include "bgp.bcapnp.h"
 
+#ifndef MAX
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#endif
+
 /* ---------------------------------------------------------------- */
 
 static gboolean
@@ -143,6 +147,7 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
 #define ERROR_BGP_AS_NOT_STARTED g_error_new(1, 1, "BGP AS not started");
 #define ERROR_BGP_AFISAFI_NOTSUPPORTED g_error_new(1, 5, "BGP Afi/Safi %d/%d not supported", afi, safi);
 #define ERROR_BGP_PEER_NOTFOUND g_error_new(1, 4, "BGP Peer %s not configured", peerIp);
+#define ERROR_BGP_NO_ROUTES_FOUND g_error_new(1, 6, "BGP GetRoutes: no routes");
 
 
 /*
@@ -179,6 +184,11 @@ uint64_t bgp_ctxttype_afisafi= 0x9af9aec34821d76a;
 uint64_t bgp_datatype_bgpvrfroute = 0x8f217eb4bad6c06f;
 /* node identifier defining afi safi context type */
 uint64_t bgp_ctxttype_afisafi_set_bgp_vrf_3= 0xac25a73c3ff455c0;
+/* handling getRoutes - node information for getRoutes() */
+/* functions using this node identifier: get_bgp_vrf_2, get_bgp_vrf_3 */
+uint64_t bgp_ctxtype_bgpvrfroute = 0xac25a73c3ff455c0;
+/* functions using this node identifier : get_bgp_vrf_2, get_bgp_vrf_3 */
+uint64_t bgp_itertype_bgpvrfroute = 0xeb8ab4f58b7753ee;
 
 /*
  * lookup routine that searches for a matching vrf
@@ -284,7 +294,8 @@ qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const 
   capn_write8(afisafi_ctxt, 1, saf);
   /* retrieve peer context */
   grep_peer = qzcclient_getelem (ctxt->qzc_sock, &peer_nid, 3, \
-                                 &afisafi_ctxt, &bgp_ctxttype_afisafi);
+                                 &afisafi_ctxt, &bgp_ctxttype_afisafi,\
+                                 NULL, NULL);
   if(grep_peer == NULL)
     {
       *_return = BGP_ERR_FAILED;
@@ -360,7 +371,7 @@ qthrift_bgp_set_multihops(struct qthrift_vpnservice *ctxt,  gint32* _return, con
     }
   /* retrieve peer context */
   grep_peer = qzcclient_getelem (ctxt->qzc_sock, &peer_nid, 2, \
-                                 NULL, NULL);
+                                 NULL, NULL, NULL, NULL);
   if(grep_peer == NULL)
     {
       *_return = BGP_ERR_FAILED;
@@ -1076,10 +1087,170 @@ instance_bgp_configurator_handler_disable_graceful_restart (BgpConfiguratorIf *i
   return TRUE;
 }
 
+struct tbliter_v4 *prev_iter_table_ptr = NULL;
+struct tbliter_v4 prev_iter_table_entry;
 gboolean
 instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes ** _return,
                                               const gint32 optype, const gint32 winSize, GError **error)
 {
+  struct capn_ptr afikey, iter_table, *iter_table_ptr = NULL;
+  struct capn rc;
+  struct capn_segment *cs;
+  afi_t afi = AFI_IP;
+  struct qthrift_vpnservice *ctxt = NULL;
+  uint64_t bgpvrf_nid;
+  struct QZCGetRep *grep_route = NULL;
+  struct bgp_api_route inst_route;
+  struct qthrift_vpnservice_cache_bgpvrf *entry, *entry2;
+  struct listnode *node, *nnode;
+  char rdstr[RD_ADDRSTRLEN];
+  int route_updates_max, route_updates;
+  Update *upd;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      (*_return)->errcode = BGP_ERR_FAILED;
+      (*_return)->__isset_errcode = TRUE;
+      return FALSE;
+    }
+  /* for first getRoutes, setup the list of bgpvrfs entries */
+  if(optype == GET_RTS_INIT)
+    {
+      for (ALL_LIST_ELEMENTS(ctxt->bgp_get_routes_list, node, nnode, entry))
+        {
+          listnode_delete(ctxt->bgp_get_routes_list, entry);
+          XFREE (MTYPE_QTHRIFT, entry);
+        }
+      for (ALL_LIST_ELEMENTS(ctxt->bgp_vrf_list, node, nnode, entry))
+        {
+          entry2 = XCALLOC(MTYPE_QTHRIFT, sizeof(struct qthrift_vpnservice_cache_bgpvrf));
+          entry2->outbound_rd = entry->outbound_rd;
+          entry2->bgpvrf_nid = entry->bgpvrf_nid;
+          listnode_add(ctxt->bgp_get_routes_list, entry2);
+        }
+      prev_iter_table_ptr = NULL;
+      memset(&prev_iter_table_entry, 0, sizeof(struct tbliter_v4));
+    }
+  /* initialise context */
+  route_updates_max = MAX(winSize/96, 1);
+  route_updates = 0;
+  (*_return)->more = 1;
+  (*_return)->__isset_more = TRUE;
+  (*_return)->errcode = 0;
+  (*_return)->__isset_updates = TRUE;
+  entry2 = NULL;
+  /* parse current vrfs and vrfs not already parsed */
+  for (ALL_LIST_ELEMENTS(ctxt->bgp_get_routes_list, node, nnode, entry))
+    {
+      /* remove current bgpvrf entry, all routes have been parsed */
+      if(entry2)
+        {
+          listnode_delete(ctxt->bgp_get_routes_list, entry2);
+          if(entry2)
+            XFREE (MTYPE_QTHRIFT, entry2);
+          entry2 = NULL;
+        }
+      if(IS_QTHRIFT_DEBUG_CACHE)
+        zlog_debug ("RTS: parsing vrf nid %llx", (long long unsigned int)entry->bgpvrf_nid);
+      bgpvrf_nid = entry->bgpvrf_nid;
+      do
+        {
+           /* prepare afi context */
+          capn_init_malloc(&rc);
+          cs = capn_root(&rc).seg;
+          afikey = qcapn_new_AfiKey(cs);
+          capn_resolve(&afikey);
+          capn_write8(afikey, 0, afi);
+	  if(prev_iter_table_ptr)
+	  {
+		  iter_table = qcapn_new_VRFTableIter(cs);
+		  qcapn_VRFTableIter_write(&prev_iter_table_entry, iter_table);
+		  iter_table_ptr = &iter_table;
+	  }
+	  else
+	  {
+		  iter_table_ptr = NULL;
+	  }
+          /* get route entry from the vrf rib table */
+          /* currently entries from the vrf route table XXX */
+          grep_route = qzcclient_getelem (ctxt->qzc_sock, &bgpvrf_nid, 2, \
+                                          &afikey, &bgp_ctxtype_bgpvrfroute, \
+                                          iter_table_ptr, &bgp_itertype_bgpvrfroute);
+          if(grep_route == NULL || grep_route->datatype == 0)
+            {
+              /* goto next vrf */
+              prev_iter_table_ptr = NULL;
+              qzcclient_qzcgetrep_free(grep_route);
+              capn_free(&rc);
+              break;
+            }
+          memset(&inst_route, 0, sizeof(struct bgp_api_route));
+          qcapn_BGPVRFRoute_read(&inst_route, grep_route->data);
+          if(grep_route->datatype != 0)
+            {
+              /* if datatype is valid, iter type may be valid. continue */
+              qcapn_BGPVRFRoute_read(&inst_route, grep_route->data);
+            }
+          if(grep_route->itertype != 0)
+            {
+              memset(&prev_iter_table_entry, 0, sizeof(prev_iter_table_entry));
+              qcapn_VRFTableIter_read(&prev_iter_table_entry, grep_route->nextiter);
+              prev_iter_table_ptr = &prev_iter_table_entry;
+            }
+          else
+            {
+              prev_iter_table_ptr = NULL;
+            }
+          qzcclient_qzcgetrep_free(grep_route);
+          capn_free(&rc);
+          /* bypass route entries with zeroes */
+          if ( (inst_route.nexthop.s_addr == 0) &&              \
+               (inst_route.prefix.prefix.s_addr == 0) &&        \
+               (inst_route.prefix.prefixlen == 0) &&            \
+               (inst_route.label == 0))
+            {
+              if(prev_iter_table_ptr != NULL)
+                {
+                  continue;
+                }
+              else
+                {
+                  /* goto next vrf */
+                  break;
+                }
+            }
+          /* add entry in update */
+          upd = g_object_new (TYPE_UPDATE, NULL);
+          upd->type = BGP_RT_ADD;
+          upd->prefixlen = inst_route.prefix.prefixlen;
+          upd->prefix = g_strdup(inet_ntop(AF_INET, &(inst_route.prefix.prefix), rdstr, RD_ADDRSTRLEN));
+          upd->nexthop = g_strdup(inet_ntop(AF_INET, &(inst_route.nexthop), rdstr, RD_ADDRSTRLEN));
+          upd->label = inst_route.label;
+          upd->rd = g_strdup(prefix_rd2str(&(entry->outbound_rd), rdstr, RD_ADDRSTRLEN));
+          g_ptr_array_add((*_return)->updates, upd);
+          route_updates++;
+          /* prepare next extraction */
+          if(prev_iter_table_ptr == NULL)
+            {
+              /* goto next vrf */
+              break;
+            }
+          if(route_updates >= route_updates_max)
+            {
+              /* save last iteration table */
+              return TRUE;
+            }
+        } while(1);
+      entry2 = entry;
+    }
+  if(route_updates == 0)
+    {
+      (*_return)->errcode = BGP_ERR_NOT_ITER;
+      (*_return)->__isset_errcode = TRUE;
+    }
+  (*_return)->more = 0;
+  (*_return)->__isset_more = TRUE;
   return TRUE;
 }
 

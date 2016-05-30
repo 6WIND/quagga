@@ -554,15 +554,19 @@ _qzc_get_bgp_vrf_2(struct bgp_vrf *p,
         rep->itertype = 0;
 
     rep->datatype = 0;
+    /* do not write route if bgp info has nothing, but keep next iteration */
     if (val) {
         struct bgp_api_route *outptr;
         struct bgp_api_route tmpval;
-        if (!bgp_api_route_get(&tmpval, val))
-            return;
+
+        memset(&tmpval,0, sizeof(struct bgp_api_route));
         outptr = &tmpval;
         rep->data = qcapn_new_BGPVRFRoute(seg);
-        qcapn_BGPVRFRoute_write(outptr, rep->data);
         rep->datatype = 0x8f217eb4bad6c06f;
+        qcapn_BGPVRFRoute_write(outptr, rep->data);
+        if (!bgp_api_route_get(&tmpval, val))
+            return;
+        qcapn_BGPVRFRoute_write(outptr, rep->data);
     }
 }
 

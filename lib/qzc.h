@@ -108,7 +108,8 @@ qzcclient_deletenode (struct qzc_sock *sock, uint64_t *nid);
 
 struct QZCGetRep *qzcclient_getelem (struct qzc_sock *sock, uint64_t *nid,\
                                      int elem, \
-                                     capn_ptr *ctxt, uint64_t *ctxt_type);
+                                     capn_ptr *ctxt, uint64_t *ctxt_type,\
+                                     capn_ptr *iter, uint64_t *iter_type);
 
 int
 qzcclient_unsetelem (struct qzc_sock *sock, uint64_t *nid, int elem, \

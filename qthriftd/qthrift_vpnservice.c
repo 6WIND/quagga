@@ -70,6 +70,7 @@ void qthrift_vpnservice_setup_thrift_bgp_cache( struct qthrift_vpnservice *setup
 {
   setup->bgp_vrf_list = list_new();
   setup->bgp_peer_list = list_new();
+  setup->bgp_get_routes_list = list_new();
 }
 
 

@@ -522,6 +522,7 @@ qzcclient_do(struct qzc_sock *sock,
 
   rc = rc_table_get_entry(NULL, 0);
   cs = capn_root(rc).seg;
+  memset(buf, 0, 4096);
   if(req_ptr == NULL)
     {
       /* ping request */
@@ -734,7 +735,8 @@ qzcclient_deletenode (struct qzc_sock *sock, uint64_t *nid)
  */
 struct QZCGetRep *qzcclient_getelem (struct qzc_sock *sock, uint64_t *nid,\
                                      int elem, \
-                                     capn_ptr *ctxt, uint64_t *ctxt_type)
+                                     capn_ptr *ctxt, uint64_t *ctxt_type, \
+                                     capn_ptr *iter, uint64_t *iter_type)
 {
   struct capn *rc;
   struct capn_segment *cs;  
@@ -758,6 +760,16 @@ struct QZCGetRep *qzcclient_getelem (struct qzc_sock *sock, uint64_t *nid,\
     {
       greq.ctxtype = *ctxt_type;
       greq.ctxdata = *ctxt; 
+    }
+  if(iter_type)
+    {
+      if(iter == NULL)
+        greq.itertype = 0;
+      else
+        {
+          greq.itertype = *iter_type;
+          greq.iterdata = *iter;
+        }
     }
   write_QZCGetReq(&greq, req.get);
   rep = qzcclient_do(sock, &req);

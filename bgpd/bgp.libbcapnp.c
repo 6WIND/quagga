@@ -331,3 +331,52 @@ capn_ptr qcapn_new_BGPVRFRoute(struct capn_segment *s)
 {
     return capn_new_struct(s, 8, 2);
 }
+
+void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p)
+{
+    capn_resolve(&p);
+    
+    {
+        capn_ptr tmp_p = capn_getp(p, 0, 1);
+        s->prefix.family = AF_INET;
+        s->prefix.prefixlen = capn_read8(tmp_p, 4);
+        s->prefix.prefix.s_addr = htonl(capn_read32(tmp_p, 0));
+    }
+    
+    {
+        capn_ptr tmp_p = capn_getp(p, 1, 1);
+        s->nexthop.s_addr = htonl(capn_read32(tmp_p, 0));
+    }
+    s->label = capn_read32(p, 0);
+}
+
+void qcapn_VRFTableIter_read(struct tbliter_v4 *s, capn_ptr p)
+{
+    capn_resolve(&p);
+    
+    {
+        capn_ptr tmp_p = capn_getp(p, 0, 1);
+        s->prefix.family = AF_INET;
+        s->prefix.prefixlen = capn_read8(tmp_p, 4);
+        s->prefix.prefix.s_addr = htonl(capn_read32(tmp_p, 0));
+    }
+}
+
+
+
+void qcapn_VRFTableIter_write(const struct tbliter_v4 *s, capn_ptr p)
+{
+    capn_resolve(&p);
+    
+    {
+        capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
+        capn_write8(tempptr, 4, s->prefix.prefixlen);
+        capn_write32(tempptr, 0, ntohl(s->prefix.prefix.s_addr));
+        capn_setp(p, 0, tempptr);
+    }
+}
+
+capn_ptr qcapn_new_VRFTableIter(struct capn_segment *s)
+{
+    return capn_new_struct(s, 0, 1);
+}
