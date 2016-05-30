@@ -1211,6 +1211,52 @@ gboolean
 instance_bgp_configurator_handler_enable_graceful_restart (BgpConfiguratorIf *iface, gint32* _return,
                                                            const gint32 stalepathTime, GError **error)
 {
+  struct qthrift_vpnservice *ctxt = NULL;
+  struct capn_ptr bgp;
+  struct capn rc;
+  struct capn_segment *cs;
+  struct bgp inst;
+  struct QZCGetRep *grep;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  /* get bgp_master configuration */
+  grep = qzcclient_getelem (ctxt->qzc_sock, &bgp_inst_nid, 1, NULL, NULL, NULL, NULL);
+  if(grep == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  memset(&inst, 0, sizeof(struct bgp));
+  qcapn_BGP_read(&inst, grep->data);
+  qzcclient_qzcgetrep_free( grep);
+  /* update bgp configuration with graceful status */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  bgp = qcapn_new_BGP(cs);
+  /* set default stalepath time */
+  if(stalepathTime == 0)
+    inst.stalepath_time = BGP_DEFAULT_STALEPATH_TIME;
+  else
+    inst.stalepath_time = stalepathTime;
+  if(stalepathTime)
+    bgp_flag_set(&inst, BGP_FLAG_GRACEFUL_RESTART);
+  else
+    bgp_flag_unset(&inst, BGP_FLAG_GRACEFUL_RESTART);
+  qcapn_BGP_write(&inst, bgp);
+  qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 1, \
+                     &bgp, &bgp_datatype_bgp, NULL, NULL);
+  capn_free(&rc);
   return TRUE;
 }
 
@@ -1218,7 +1264,7 @@ instance_bgp_configurator_handler_enable_graceful_restart (BgpConfiguratorIf *if
 gboolean
 instance_bgp_configurator_handler_disable_graceful_restart (BgpConfiguratorIf *iface, gint32* _return, GError **error)
 {
-  return TRUE;
+  return instance_bgp_configurator_handler_enable_graceful_restart(iface, _return, 0, error);
 }
 
 struct tbliter_v4 *prev_iter_table_ptr = NULL;

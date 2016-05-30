@@ -130,20 +130,6 @@ bgp_option_check (int flag)
 
 /* BGP flag manipulation.  */
 int
-bgp_flag_set (struct bgp *bgp, int flag)
-{
-  SET_FLAG (bgp->flags, flag);
-  return 0;
-}
-
-int
-bgp_flag_unset (struct bgp *bgp, int flag)
-{
-  UNSET_FLAG (bgp->flags, flag);
-  return 0;
-}
-
-int
 bgp_flag_check (struct bgp *bgp, int flag)
 {
   return CHECK_FLAG (bgp->flags, flag);
