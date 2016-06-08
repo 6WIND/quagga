@@ -35,6 +35,7 @@ struct bgp_node;
 
 /* BGP router distinguisher value.  */
 #define BGP_RD_SIZE                8
+#define BGP_MAX_LABELS 6
 
 struct bgp_rd
 {
@@ -239,6 +240,10 @@ struct bgp_vrf
 
   /* default route */
   struct bgp_nexthop nh;
+
+  /* labels of Route Distinguishers */
+  uint32_t labels[BGP_MAX_LABELS];
+  size_t nlabels;
 
   /* internal flag */
 #define BGP_VRF_RD_UNSET 1
