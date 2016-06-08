@@ -3600,6 +3600,9 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
   if (!d)
     {
       memcpy (&found->nh, nh, sizeof(*nh));
+      if (labels)
+        memcpy (&found->labels, labels, sizeof(*labels));
+      found->nlabels = nlabels;
       listnode_add(peer->def_route_rd, found);
     }
 
@@ -3638,6 +3641,11 @@ peer_default_originate_unset_rd (struct peer *peer, afi_t afi, struct prefix_rd 
 
   if (!found)
     return 1;
+
+  /* reset data related to default route in struct bgp_vrf found */
+  found->nlabels = 0;
+  memset(&found->nh, 0, sizeof(found->nh));
+  memset(&found->labels, 0, sizeof(found->labels));
 
   /* remove this RD in peer list of VPNv4 default route */
   listnode_delete(peer->def_route_rd, found);
@@ -5631,10 +5639,40 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
   if (peer_af_flag_check (peer, afi, safi, PEER_FLAG_DEFAULT_ORIGINATE)
       && ! peer->af_group[afi][safi])
     {
-      vty_out (vty, " neighbor %s default-originate", addr);
+      if (safi != SAFI_MPLS_VPN)
+        vty_out (vty, " neighbor %s default-originate%s", addr, VTY_NEWLINE);
+      else
+        {
+          struct listnode *node;
+          struct bgp_vrf *vrf;
+          char rdstr[RD_ADDRSTRLEN];
+          char labelstr[RD_ADDRSTRLEN];
+
+          for (ALL_LIST_ELEMENTS_RO(peer->def_route_rd, node, vrf))
+            {
+              prefix_rd2str(&vrf->outbound_rd, rdstr, RD_ADDRSTRLEN);
+              if (!vrf->nh.v4.s_addr)
+                vty_out (vty, " neighbor %s default-originate rd %s%s", addr,
+                         rdstr, VTY_NEWLINE);
+              else
+                {
+                  if (vrf->nlabels)
+                    {
+                      labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
+                      vty_out (vty, " neighbor %s default-originate rd %s %s %s%s", addr,
+                               rdstr, inet_ntoa(vrf->nh.v4), labelstr, VTY_NEWLINE);
+                    }
+                  else
+                    vty_out (vty, " neighbor %s default-originate rd %s %s%s", addr,
+                             rdstr, inet_ntoa(vrf->nh.v4), VTY_NEWLINE);
+                }
+            }
+        }
       if (peer->default_rmap[afi][safi].name)
-	vty_out (vty, " route-map %s", peer->default_rmap[afi][safi].name);
-      vty_out (vty, "%s", VTY_NEWLINE);
+        {
+          vty_out (vty, " route-map %s", peer->default_rmap[afi][safi].name);
+          vty_out (vty, "%s", VTY_NEWLINE);
+        }
     }
 
   /* Soft reconfiguration inbound. */

@@ -3319,6 +3319,115 @@ ALIAS (no_neighbor_default_originate,
        "Route-map to specify criteria to originate default\n"
        "route-map name\n")
 
+static int
+peer_default_originate_set_rd_vty (struct vty *vty, const char *peer_str,
+                                   afi_t afi, safi_t safi,
+                                   const char *rd, const char *nh,
+                                   const char *labels, int set)
+{
+  int ret = CMD_WARNING;
+  struct peer *peer;
+
+  peer = peer_and_group_lookup_vty (vty, peer_str);
+  if (! peer)
+    return CMD_WARNING;
+
+  if (safi == SAFI_MPLS_VPN)
+    {
+      struct prefix_rd prd;
+
+      if (!str2prefix_rd(rd, &prd))
+        {
+          vty_out (vty, "%% Malformed Route Distinguisher%s%s", rd, VTY_NEWLINE);
+          return CMD_WARNING;
+        }
+
+      if (set)
+        {
+          struct bgp_nexthop bnh;
+          uint32_t l[1];
+          size_t nlabels = 1;
+
+          if (nh)
+            {
+              if (!inet_aton(nh, &bnh.v4))
+                {
+                  vty_out (vty, "%% Malformed Next Hop address %s%s", nh, VTY_NEWLINE);
+                  return CMD_WARNING;
+                }
+            }
+          else
+            bnh.v4 = peer->bgp->router_id;
+
+          if (labels)
+            if (!str2labels(labels, l, &nlabels))
+              {
+                vty_out (vty, "%% Malformed Label%s%s", labels, VTY_NEWLINE);
+                return CMD_WARNING;
+              }
+
+          ret = peer_default_originate_set_rd(peer, &prd, afi, &bnh,
+                                              labels? nlabels: 0,
+                                              labels? l: NULL);
+        }
+      else
+        ret = peer_default_originate_unset_rd(peer, afi, &prd);
+    }
+
+  return bgp_vty_return (vty, ret);
+}
+
+DEFUN (neighbor_default_originate_rd,
+       neighbor_default_originate_rd_cmd,
+       NEIGHBOR_CMD2 "default-originate rd ASN:nn [A.B.C.D] [0-1048575]",
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "Originate default route to this route distinguisher\n"
+       "route distinguisher\n"
+       "route distinguisher value\n"
+       "Optional next hop\n"
+       "Optional label\n")
+{
+  const char *argv1 = NULL, *argv2 = NULL, *argv3 = NULL;
+
+  switch (argc)
+  {
+  case 2:
+    argv1 = argv[1];
+    break;
+  case 3:
+    argv1 = argv[1];
+    argv2 = argv[2];
+    break;
+  case 4:
+    argv1 = argv[1];
+    argv2 = argv[2];
+    argv3 = argv[3];
+    break;
+  }
+
+  return peer_default_originate_set_rd_vty (vty, argv[0],
+                                            bgp_node_afi (vty),
+                                            bgp_node_safi (vty),
+                                            argv1, argv2, argv3, 1);
+}
+
+DEFUN (no_neighbor_default_originate_rd,
+       no_neighbor_default_originate_rd_cmd,
+       NO_NEIGHBOR_CMD2 "default-originate rd ASN:nn",
+       NO_STR
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "Originate default route to this route distinguisher\n"
+       "route distinguisher\n"
+       "route distinguisher value\n")
+{
+  return peer_default_originate_set_rd_vty (vty, argv[0],
+                                            bgp_node_afi (vty),
+                                            bgp_node_safi (vty),
+                                            argv[1], NULL, NULL, 0);
+}
+
 /* Set neighbor's BGP port.  */
 static int
 peer_port_vty (struct vty *vty, const char *ip_str, int afi, 
@@ -10926,6 +11035,8 @@ bgp_vty_init (void)
   install_element (BGP_IPV6M_NODE, &neighbor_default_originate_rmap_cmd);
   install_element (BGP_IPV6M_NODE, &no_neighbor_default_originate_cmd);
   install_element (BGP_IPV6M_NODE, &no_neighbor_default_originate_rmap_cmd);
+  install_element (BGP_VPNV4_NODE, &neighbor_default_originate_rd_cmd);
+  install_element (BGP_VPNV4_NODE, &no_neighbor_default_originate_rd_cmd);
 
   /* "neighbor port" commands. */
   install_element (BGP_NODE, &neighbor_port_cmd);
