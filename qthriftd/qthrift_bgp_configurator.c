@@ -530,6 +530,10 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     inst.default_holdtime = holdTime;
     inst.default_keepalive= keepAliveTime;
     inst.stalepath_time = stalepathTime;
+    if(stalepathTime)
+      bgp_flag_set(&inst, BGP_FLAG_GRACEFUL_RESTART);
+    else
+      bgp_flag_unset(&inst, BGP_FLAG_GRACEFUL_RESTART);
     if (announceFbit == TRUE)
       bgp_flag_set(&inst, BGP_FLAG_GR_PRESERVE_FWD);
     else
