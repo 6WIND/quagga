@@ -59,6 +59,9 @@ static struct timeval relative_time_base;
 /* init flag */
 static unsigned short timers_inited;
 
+/* debug flag */
+static unsigned int debug_thread = 0;
+
 static struct hash *cpu_record = NULL;
 
 /* Struct timeval's tv_usec one second value.  */
@@ -1287,10 +1290,11 @@ thread_call (struct thread *thread)
        * Whinge about it now, so we're aware this is yet another task
        * to fix.
        */
-      zlog_warn ("SLOW THREAD: task %s (%lx) ran for %lums (cpu time %lums)",
-		 thread->funcname,
-		 (unsigned long) thread->func,
-		 realtime/1000, cputime/1000);
+      if (debug_thread)
+        zlog_warn ("SLOW THREAD: task %s (%lx) ran for %lums (cpu time %lums)",
+                   thread->funcname,
+                   (unsigned long) thread->func,
+                   realtime/1000, cputime/1000);
     }
 #endif /* CONSUMED_TIME_CHECK */
 }
