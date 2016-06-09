@@ -3564,6 +3564,54 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
 }
 
 int
+peer_default_originate_unset_rd (struct peer *peer, afi_t afi, struct prefix_rd *rd)
+{
+  char rdstr[RD_ADDRSTRLEN];
+  struct listnode *node;
+  struct bgp_vrf *vrf, *found = NULL;
+  int empty;
+
+  /* Adress family must be activated.  */
+  if (! peer->afc[afi][SAFI_MPLS_VPN])
+    return BGP_ERR_PEER_INACTIVE;
+
+  /* Default originate can't be used for peer group member.  */
+  if (peer_is_group_member (peer, afi, SAFI_MPLS_VPN))
+    return BGP_ERR_INVALID_FOR_PEER_GROUP_MEMBER;
+
+  /* Check RD has been recorded for the peer */
+  for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf))
+    {
+      if (!prefix_rd_cmp(rd, &vrf->outbound_rd))
+        found = vrf;
+    }
+
+  if (!found)
+    return 1;
+
+  /* remove this RD in peer list of VPNv4 default route */
+  listnode_delete(peer->def_route_rd, &found->outbound_rd);
+  empty = (NULL == listnode_head(peer->def_route_rd));
+
+  /* if there is no more entry in list, unset flag PEER_FLAG_DEFAULT_ORIGINATE */
+  if (empty && CHECK_FLAG (peer->af_flags[afi][SAFI_MPLS_VPN], PEER_FLAG_DEFAULT_ORIGINATE))
+    {
+      UNSET_FLAG (peer->af_flags[afi][SAFI_MPLS_VPN], PEER_FLAG_DEFAULT_ORIGINATE);
+      zlog_debug("%s: Unset peer's flag PEER_FLAG_DEFAULT_ORIGINATE for afi=%d safi=%d",
+                 __func__, afi, SAFI_MPLS_VPN);
+    }
+
+  prefix_rd2str(rd, rdstr, RD_ADDRSTRLEN);
+  zlog_info("%s: rd=%s, afi=%d", __func__, rdstr, afi);
+
+  if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
+    if (peer->status == Established && peer->afc_nego[afi][SAFI_MPLS_VPN])
+      bgp_default_originate_rd (peer, afi, rd, NULL, 0, NULL, 1);
+
+  return 0;
+}
+
+int
 peer_port_set (struct peer *peer, u_int16_t port)
 {
   peer->port = port;

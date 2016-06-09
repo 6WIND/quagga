@@ -659,6 +659,78 @@ bgp_default_withdraw_send (struct peer *peer, afi_t afi, safi_t safi)
   BGP_WRITE_ON (peer->t_write, bgp_write, peer->fd);
 }
 
+void
+bgp_default_withdraw_vpnv4_send (struct peer *peer, afi_t afi, struct prefix_rd *rd)
+{
+  struct stream *s;
+  struct prefix p;
+  unsigned long attrlen_pos = 0;
+  bgp_size_t total_attr_len;
+  size_t mpattrlen_pos = 0;
+  size_t pos_end = 0;
+  uint32_t *labels = NULL;
+  size_t nlabels = 0;
+
+  if (DISABLE_BGP_ANNOUNCE)
+    return;
+
+  if (afi == AFI_IP)
+    str2prefix ("0.0.0.0/0", &p);
+#ifdef HAVE_IPV6
+  else
+    str2prefix ("::/0", &p);
+#endif /* HAVE_IPV6 */
+
+  total_attr_len = 0;
+
+  if (BGP_DEBUG (update, UPDATE_OUT))
+    {
+      char buf[INET6_BUFSIZ];
+
+      zlog (peer->log, LOG_DEBUG, "%s send UPDATE %s/%d -- unreachable",
+            peer->host, inet_ntop(p.family, &(p.u.prefix), buf, INET6_BUFSIZ),
+            p.prefixlen);
+    }
+
+  /* Withdrawn Routes. */
+  /* Create UPDATE message needed based on the Route Distinguisher */
+  s = stream_new (BGP_MAX_PACKET_SIZE);
+
+  /* Make BGP update packet. */
+  bgp_packet_set_marker (s, BGP_MSG_UPDATE);
+
+  /* Unfeasible Routes Length. */
+  stream_putw (s, 0);
+
+  /* Make place for total attribute length.  */
+  attrlen_pos = stream_get_endp (s);
+  stream_putw (s, 0);
+  pos_end = stream_get_endp (s);
+
+  /* start to build MP_REACH_NLRI attribute */
+  mpattrlen_pos = bgp_packet_mpunreach_start(s, afi, SAFI_MPLS_VPN);
+
+  /* Encode the prefix in MP_UNREACH_NLRI attribute */
+  bgp_packet_mpunreach_prefix(s, &p, afi, SAFI_MPLS_VPN, rd, labels, nlabels);
+
+  /* set size of mp attributes at good position in UPDATE message */
+  bgp_packet_mpunreach_end(s, mpattrlen_pos);
+
+  /* update total attribute length */
+  total_attr_len = (stream_get_endp (s) - pos_end);
+
+  /* Set Total Path Attribute Length. */
+  stream_putw_at (s, attrlen_pos, total_attr_len);
+
+  /* Set size. */
+  bgp_packet_set_size (s);
+
+  /* Add packet to the peer. */
+  bgp_packet_add (peer, s);
+
+  BGP_WRITE_ON (peer->t_write, bgp_write, peer->fd);
+}
+
 /* Get next packet to be written.  */
 static struct stream *
 bgp_write_packet (struct peer *peer)
