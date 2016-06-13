@@ -3517,8 +3517,7 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
   char rdstr[RD_ADDRSTRLEN];
   char labelstr[RD_ADDRSTRLEN];
   struct listnode *node;
-  struct bgp_vrf *vrf;
-  int found = 0;
+  struct bgp_vrf *vrf, *found = NULL;
   struct prefix_rd* d;
 
   prefix_rd2str(rd, rdstr, RD_ADDRSTRLEN);
@@ -3536,7 +3535,7 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
     {
       if (0 == prefix_rd_cmp(rd, &vrf->outbound_rd))
         {
-          found++;
+          found = vrf;
           break;
         }
     }
@@ -3548,10 +3547,13 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
   zlog_info("%s: rd=%s, afi=%d, nh=%s, nlabels=%zu, labels=%s", __func__,
             rdstr, afi, inet_ntoa(nh->v4), nlabels, nlabels? labelstr:"");
 
-  /* add this RD in peer list of VPNv4 default route if not already present */
-  d = (struct prefix_rd*) listnode_lookup(peer->def_route_rd, rd);
+  /* add this VRF in peer list of VPNv4 default route if not already present */
+  d = (struct prefix_rd*) listnode_lookup(peer->def_route_rd, found);
   if (!d)
-      listnode_add(peer->def_route_rd, &vrf->outbound_rd);
+    {
+      memcpy (&found->nh, nh, sizeof(*nh));
+      listnode_add(peer->def_route_rd, found);
+    }
 
   if (!CHECK_FLAG (peer->af_flags[afi][SAFI_MPLS_VPN], PEER_FLAG_DEFAULT_ORIGINATE))
     SET_FLAG (peer->af_flags[afi][SAFI_MPLS_VPN], PEER_FLAG_DEFAULT_ORIGINATE);
@@ -3590,7 +3592,7 @@ peer_default_originate_unset_rd (struct peer *peer, afi_t afi, struct prefix_rd 
     return 1;
 
   /* remove this RD in peer list of VPNv4 default route */
-  listnode_delete(peer->def_route_rd, &found->outbound_rd);
+  listnode_delete(peer->def_route_rd, found);
   empty = (NULL == listnode_head(peer->def_route_rd));
 
   /* if there is no more entry in list, unset flag PEER_FLAG_DEFAULT_ORIGINATE */

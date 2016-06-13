@@ -211,6 +211,15 @@ struct bgp_rt_sub
   struct list *vrfs;
 };
 
+/* Next hop self address. */
+struct bgp_nexthop
+{
+  struct interface *ifp;
+  struct in_addr v4;
+  struct in6_addr v6_global;
+  struct in6_addr v6_local;
+};
+
 struct bgp_vrf
 {
   struct bgp *bgp;
@@ -227,6 +236,9 @@ struct bgp_vrf
 
   /* Static route configuration.  */
   struct bgp_table *route[AFI_MAX];
+
+  /* default route */
+  struct bgp_nexthop nh;
 
   QZC_NODE
 };
@@ -283,15 +295,6 @@ struct bgp_notify
   u_char subcode;
   char *data;
   bgp_size_t length;
-};
-
-/* Next hop self address. */
-struct bgp_nexthop
-{
-  struct interface *ifp;
-  struct in_addr v4;
-  struct in6_addr v6_global;
-  struct in6_addr v6_local;
 };
 
 #define RMAP_IN           0

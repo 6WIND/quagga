@@ -3309,8 +3309,8 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, struct prefix_rd *rd,
       if (! CHECK_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE))
         {
           SET_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE);
-          bgp_default_update_vpnv4_send(peer, rd, &attr, afi, nlabels, labels);
         }
+      bgp_default_update_vpnv4_send(peer, rd, &attr, afi, nlabels, labels);
 
       bgp_attr_extra_free (&attr);
       aspath_unintern (&aspath);
@@ -3332,8 +3332,59 @@ bgp_announce_table (struct peer *peer, afi_t afi, safi_t safi,
     table = (rsclient) ? peer->rib[afi][safi] : peer->bgp->rib[afi][safi];
 
   if (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE))
-    bgp_default_originate (peer, afi, safi, 0);
+    {
+    if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP))
+      bgp_default_originate (peer, afi, safi, 0);
+    else
+      {
+        /* Create as many UPDATE message needed for each Route Distinguisher */
+        for (rn = bgp_table_top (peer->bgp->rib[afi][safi]); rn; rn = bgp_route_next (rn))
+          {
+            struct bgp_node *rm;
+            struct bgp_info *ri;
 
+            /* look for neighbor in tables */
+            if ((table = rn->info) != NULL)
+              {
+                 int rd_header = 1;
+
+                 for (rm = bgp_table_top (table); rm; rm = bgp_route_next (rm))
+                    for (ri = rm->info; ri; ri = ri->next)
+                     {
+                       if (rd_header)
+                         {
+                           size_t nlabels = 0;
+                           struct listnode *node;
+                           struct bgp_vrf *vrf;
+                           u_int32_t *labels = NULL;
+
+                           /* get labels */
+                           if (ri->extra)
+                             {
+                               labels = ri->extra->labels;
+                               nlabels = ri->extra->nlabels;
+                             }
+
+                           rd_header = 0;
+
+                           /* find nh in VRF list */
+                           for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf))
+                             {
+                               if (!prefix_rd_cmp((struct prefix_rd*)&rn->p,
+                                                   &vrf->outbound_rd))
+                                 {
+                                   bgp_default_originate_rd (peer, afi,
+                                                             (struct prefix_rd*)&rn->p,
+                                                             &vrf->nh, nlabels, labels, 0);
+                                   break;
+                                 }
+                             }
+                         }
+                      }
+              }
+          }
+      }
+    }
   /* It's initialized in bgp_announce_[check|check_rsclient]() */
   attr.extra = &extra;
 
