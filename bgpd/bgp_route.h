@@ -23,8 +23,6 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 #include "bgp_table.h"
 
-#define BGP_MAX_LABELS 6
-
 /* Ancillary information to struct bgp_info, 
  * used for uncommonly used data (aggregation, MPLS, etc.)
  * and lazily allocated to save memory.
