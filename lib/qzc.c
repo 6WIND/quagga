@@ -31,6 +31,8 @@
 
 #include "qzc.capnp.h"
 
+static int qzc_debug = 0;
+
 static struct qzc_wkn *wkn_first = NULL;
 
 void qzc_wkn_reg(struct qzc_wkn *wkn)
@@ -296,7 +298,8 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
   capn_free(&ctx);
   capn_free(&rc);
 
-  zlog_info ("QZC request type %d, response type %d, %zd bytes, error=%d", req.which, rep.which, rs, rep.error);
+  if(qzc_debug)
+    zlog_debug ("QZC request type %d, response type %d, %zd bytes, error=%d", req.which, rep.which, rs, rep.error);
   zmq_send (zmqsock, buf, rs, 0);
 
   do
