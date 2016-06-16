@@ -47,6 +47,7 @@ int rc_table_index = 0;
 int rc_table_cnt = 0;
 int rc_table_index_free = 0;
 int rc_table_inited = 0;
+int qzc_debug = 0;
 /*
  * manages capnproto allocations for some routines
  * that need delayed free.
@@ -354,7 +355,8 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
   capn_free(&ctx);
   capn_free(&rc);
 
-  zlog_info ("QZC request type %d, response type %d, %zd bytes, error=%d", req.which, rep.which, rs, rep.error);
+  if(qzc_debug)
+    zlog_debug ("QZC request type %d, response type %d, %zd bytes, error=%d", req.which, rep.which, rs, rep.error);
   zmq_send (zmqsock, buf, rs, 0);
 
   do
@@ -585,7 +587,8 @@ qzcclient_do(struct qzc_sock *sock,
   rep = qzcclient_msg_to_reply(&msg);
   if(rep == NULL)
     {
-      zlog_info ("qzcclient_send. no message reply");
+      if(qzc_debug)
+        zlog_debug ("qzcclient_send. no message reply");
     }
   if(rep->error)
     {
@@ -628,7 +631,8 @@ qzcclient_createchild (struct qzc_sock *sock,
     }
   memset(&crep, 0, sizeof(struct QZCCreateRep));
   read_QZCCreateRep(&crep, rep->create);
-  zlog_info ("CREATE nid:%llx/%d => %llx",(long long unsigned int)*nid, elem, (long long unsigned int)crep.newnid); 
+  if(qzc_debug)
+    zlog_debug ("CREATE nid:%llx/%d => %llx",(long long unsigned int)*nid, elem, (long long unsigned int)crep.newnid); 
   XFREE(MTYPE_QZC_REP, rep);
   capn_free(&rc);
   return crep.newnid;
@@ -734,9 +738,9 @@ qzcclient_deletenode (struct qzc_sock *sock, uint64_t *nid)
   if (rep == NULL || rep->error)
     ret = 0;
   else
-
     {
-      zlog_info ("DELETE nid:%llx",(long long unsigned int)*nid);
+      if(qzc_debug)
+        zlog_debug ("DELETE nid:%llx",(long long unsigned int)*nid);
     }
   if(rep)
     XFREE(MTYPE_QZC_REP, rep);
@@ -794,7 +798,8 @@ struct QZCGetRep *qzcclient_getelem (struct qzc_sock *sock, uint64_t *nid,\
     }
   read_QZCGetRep(grep, rep->get);
   XFREE(MTYPE_QZC_REP, rep);
-  zlog_info ("GET nid:%llx/%d => %llx",(long long unsigned int)*nid, elem, (long long unsigned int)grep->datatype); 
+  if(qzc_debug)
+    zlog_debug ("GET nid:%llx/%d => %llx",(long long unsigned int)*nid, elem, (long long unsigned int)grep->datatype); 
   return grep;
 }
 
