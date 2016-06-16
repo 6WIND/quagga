@@ -122,6 +122,11 @@ static gboolean
 qthrift_bgp_set_multihops(struct qthrift_vpnservice *ctxt,  gint32* _return, const gchar * peerIp, \
                           const gint32 nHops, GError **error);
 
+static gboolean
+qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _return,
+                                const gchar * peerIp, const af_afi afi,
+                                const af_safi safi, gint16 value, gboolean update,
+                                GError **error);
 
 /* The implementation of InstanceBgpConfiguratorHandler follows. */
 
@@ -189,6 +194,41 @@ uint64_t bgp_ctxttype_afisafi_set_bgp_vrf_3= 0xac25a73c3ff455c0;
 uint64_t bgp_ctxtype_bgpvrfroute = 0xac25a73c3ff455c0;
 /* functions using this node identifier : get_bgp_vrf_2, get_bgp_vrf_3 */
 uint64_t bgp_itertype_bgpvrfroute = 0xeb8ab4f58b7753ee;
+
+static const char* af_flag_str[] = {
+  "SendCommunity",
+  "SendExtCommunity",
+  "NextHopSelf",
+  "ReflectorClient",
+  "RServerClient",
+  "SoftReconfig",
+  "AsPathUnchanged",
+  "NextHopUnchanged",
+  "MedUnchanged",
+  "DefaultOriginate",
+  "RemovePrivateAS",
+  "AllowAsIn",
+  "OrfPrefixSm",
+  "OrfPrefixRm",
+  "MaxPrefix",
+  "MaxPrefixWarning",
+  "NextHopLocalUnchanged",
+  "NextHopSelfAll"
+};
+
+static const char*
+qthrift_af_flag2str(guint32 af_flag)
+{
+  int i = 0;
+
+  while(af_flag)
+    {
+      af_flag = af_flag >> 1;
+      if(af_flag)
+        i++;
+    }
+  return af_flag_str[i];
+}
 
 /*
  * lookup routine that searches for a matching vrf
@@ -332,6 +372,108 @@ qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const 
         zlog_debug ("disableAddressFamily( %s, afi %d, safi %d) OK", peerIp, afi, safi);
     }
   *_return = 0;
+  capn_free(&rc);
+  return TRUE;
+}
+
+/* enable/disable any af flag of bgp neighbor, using capnp */
+static gboolean
+qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _return,
+                                const gchar * peerIp, const af_afi afi,
+                                const af_safi safi, gint16 value, gboolean update,
+                                GError **error)
+{
+  uint64_t peer_nid;
+  struct capn rc;
+  struct capn_segment *cs;
+  capn_ptr afisafi_ctxt, peer_ctxt;
+  struct peer peer;
+  int af, saf;
+  int ret;
+  struct QZCGetRep *grep_peer;
+
+  if(   qthrift_vpnservice_get_bgp_context(ctxt) == NULL
+     || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  if(peerIp == NULL)
+    {
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  if(afi != AF_AFI_AFI_IP)
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  if(safi != AF_SAFI_SAFI_MPLS_VPN)
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  peer_nid = qthrift_bgp_configurator_find_peer(ctxt, peerIp, _return);
+  if(peer_nid == 0)
+    {
+      *_return = BGP_ERR_PARAM;
+      *error = ERROR_BGP_PEER_NOTFOUND;
+      return FALSE;
+    }
+  /* prepare afisafi context */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  afisafi_ctxt = qcapn_new_AfiSafiKey(cs);
+  af = AFI_IP;
+  saf = SAFI_MPLS_VPN;
+  capn_write8(afisafi_ctxt, 0, af);
+  capn_write8(afisafi_ctxt, 1, saf);
+  /* retrieve peer context */
+  grep_peer = qzcclient_getelem (ctxt->qzc_sock, &peer_nid, 3,
+                                 &afisafi_ctxt, &bgp_ctxttype_afisafi,
+                                 NULL, NULL);
+  if(grep_peer == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      capn_free(&rc);
+      return FALSE;
+    }
+  /* change address family local context of peer */
+  memset(&peer, 0, sizeof(struct peer));
+  qcapn_BGPPeerAfiSafi_read(&peer, grep_peer->data, af, saf);
+  if(TRUE == update)
+    peer.af_flags[af][saf] |= value;
+  else
+    peer.af_flags[af][saf] &= ~value;
+  /* reset qzc reply and rc context */
+  qzcclient_qzcgetrep_free( grep_peer);
+  /* prepare QZCSetRequest context */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  peer_ctxt = qcapn_new_BGPPeerAfiSafi(cs);
+  /* set address family for peer */
+  qcapn_BGPPeerAfiSafi_write(&peer, peer_ctxt, af, saf);
+  ret = qzcclient_setelem (ctxt->qzc_sock, &peer_nid, 3, &peer_ctxt,
+                           &bgp_datatype_peer_3, &afisafi_ctxt, &bgp_ctxttype_afisafi);
+  if(ret == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      capn_free(&rc);
+      return FALSE;
+    }
+  if(IS_QTHRIFT_DEBUG)
+    {
+      if(TRUE == update)
+        zlog_debug ("enable%s for peer %s in af_flag[%d][%d] OK", qthrift_af_flag2str(value),
+                    peerIp, afi, safi);
+      else
+        zlog_debug ("disable%s for peer %s in af_flag[%d][%d] OK", qthrift_af_flag2str(value),
+                    peerIp, afi, safi);
+    }
+  _return = 0;
   capn_free(&rc);
   return TRUE;
 }
@@ -802,6 +944,7 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
   struct capn_segment *cs;
   struct qthrift_cache_peer *entry;
   uint64_t peer_nid;
+  gboolean ret = FALSE;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -849,8 +992,13 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
     zlog_debug ("CACHE_PEER : add entry %llx", (long long unsigned int)peer_nid);
   listnode_add(ctxt->bgp_peer_list, entry);
   /* set aficfg */
-  return qthrift_bgp_afi_config(ctxt, _return, routerId, \
-                                AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN, TRUE, error);
+  ret = qthrift_bgp_afi_config(ctxt, _return, routerId, \
+                               AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN, TRUE, error);
+
+  return ret && qthrift_bgp_peer_af_flag_config(ctxt, _return, routerId, \
+                                                AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN,
+                                                PEER_FLAG_NEXTHOP_UNCHANGED, TRUE,
+                                                error);
 }
 
 /*
