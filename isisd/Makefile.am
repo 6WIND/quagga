@@ -33,7 +33,7 @@ isisd_SOURCES = \
 	isis_main.c $(libisis_a_SOURCES) \
 	isis_bpf.c isis_dlpi.c isis_pfpacket.c
 
-isisd_LDADD = @ISIS_TOPOLOGY_LIB@ ../lib/libzebra.la @LIBCAP@
+isisd_LDADD = @ISIS_TOPOLOGY_LIB@ ../lib/libzebra.la @LIBCAP@ @ZEROMQ_LIBS@
 
 examplesdir = $(exampledir)
 dist_examples_DATA = isisd.conf.sample

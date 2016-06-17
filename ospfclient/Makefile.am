@@ -21,7 +21,7 @@ ospfclient_SOURCES = \
 	ospfclient.c
 
 ospfclient_LDADD = libospfapiclient.la \
-	../ospfd/libospf.la ../lib/libzebra.la @LIBCAP@
+	../ospfd/libospf.la ../lib/libzebra.la @LIBCAP@ @ZEROMQ_LIBS@
 
 ospfclient_CFLAGS = $(AM_CFLAGS)
 ospfclient_LDFLAGS = $(AM_LDFLAGS)

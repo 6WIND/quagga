@@ -33,7 +33,7 @@ noinst_HEADERS = \
 
 ospfd_SOURCES = ospf_main.c
 
-ospfd_LDADD = libospf.la ../lib/libzebra.la @LIBCAP@
+ospfd_LDADD = libospf.la ../lib/libzebra.la @LIBCAP@ @ZEROMQ_LIBS@
 
 EXTRA_DIST = OSPF-MIB.txt OSPF-TRAP-MIB.txt ChangeLog.opaque.txt
 

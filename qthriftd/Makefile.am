@@ -21,7 +21,7 @@ noinst_HEADERS = \
 qthriftd_SOURCES = \
 	qthrift_main.c $(libqthrift_a_SOURCES)
 
-qthriftd_LDADD = ../lib/libzebra.la -lm @THRIFT_LIBS@ @GLIB2_LIBS@ @GOBJECT2_LIBS@ -lpthread
+qthriftd_LDADD = ../lib/libzebra.la -lm @THRIFT_LIBS@ @GLIB2_LIBS@ @GOBJECT2_LIBS@ -lpthread @ZEROMQ_LIBS@
 
 examplesdir = $(exampledir)
 dist_examples_DATA = 

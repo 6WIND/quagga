@@ -71,7 +71,7 @@ pimd_SOURCES = \
 test_igmpv3_join_SOURCES = \
 	test_igmpv3_join.c pim_igmp_join.c
 
-pimd_LDADD = ../lib/libzebra.la @LIBCAP@
+pimd_LDADD = ../lib/libzebra.la @LIBCAP@ @ZEROMQ_LIBS@
 
 examplesdir = $(exampledir)
 dist_examples_DATA = pimd.conf.sample

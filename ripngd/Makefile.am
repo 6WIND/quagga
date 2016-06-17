@@ -21,7 +21,7 @@ noinst_HEADERS = \
 ripngd_SOURCES = \
 	ripng_main.c $(libripng_a_SOURCES)
 
-ripngd_LDADD = ../lib/libzebra.la @LIBCAP@
+ripngd_LDADD = ../lib/libzebra.la @LIBCAP@ @ZEROMQ_LIBS@
 
 examplesdir = $(exampledir)
 dist_examples_DATA = ripngd.conf.sample

@@ -8,4 +8,4 @@ AM_CFLAGS = $(WERROR)
 sbin_PROGRAMS = watchquagga
 
 watchquagga_SOURCES = watchquagga.c
-watchquagga_LDADD = ../lib/libzebra.la @LIBCAP@
+watchquagga_LDADD = ../lib/libzebra.la @LIBCAP@ @ZEROMQ_LIBS@
