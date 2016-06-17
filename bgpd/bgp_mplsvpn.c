@@ -46,17 +46,6 @@ decode_rd_type (u_char *pnt)
   return v;
 }
 
-u_int32_t
-decode_label (u_char *pnt)
-{
-  u_int32_t l;
-
-  l = ((u_int32_t) *pnt++ << 12);
-  l |= (u_int32_t) *pnt++ << 4;
-  l |= (u_int32_t) ((*pnt & 0xf0) >> 4);
-  return l;
-}
-
 /* type == RD_TYPE_AS */
 static void
 decode_rd_as (u_char *pnt, struct rd_as *rd_as)
@@ -92,6 +81,24 @@ decode_rd_ip (u_char *pnt, struct rd_ip *rd_ip)
   
   rd_ip->val = ((u_int16_t) *pnt++ << 8);
   rd_ip->val |= (u_int16_t) *pnt;
+}
+
+char *
+labels2str (char *str, size_t size, uint32_t *labels, size_t nlabels)
+{
+  if (nlabels == 0)
+    {
+      snprintf (str, size, ":");
+      return str;
+    }
+  char *pos = str;
+  for (size_t i = 0; i < nlabels; i++)
+    {
+      snprintf (pos, str + size - pos, "%s%d", (i > 0) ? ":" : "",
+          labels[i] >> 4);
+      pos += strlen(pos);
+    }
+  return str;
 }
 
 int

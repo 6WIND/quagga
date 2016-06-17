@@ -1833,7 +1833,7 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
 
   for (iter = vrf_rn->info; iter; iter = iter->next)
     {
-      if (newsel == NULL || bgp_info_cmp (vrf->bgp, iter, newsel, af, safi))
+      if (newsel == NULL || bgp_info_cmp (vrf->bgp, iter, newsel, afi, safi))
         newsel = iter;
     }
   if (sel == newsel)
@@ -1876,7 +1876,7 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
     for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
       if (!prefix_cmp((struct prefix*)&vrf->outbound_rd,
                       (struct prefix*)prd))
-        bgp_vrf_process_one(vrf, afi, rn, NULL);
+        bgp_vrf_process_one(vrf, afi, safi, rn, NULL);
 
   if (old_ecom)
     for (i = 0; i < (size_t)old_ecom->size; i++)
@@ -1941,7 +1941,7 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
     for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
       if (!prefix_cmp((struct prefix*)&vrf->outbound_rd,
                       (struct prefix*)prd))
-        bgp_vrf_process_one(vrf, afi, rn, new_select);
+        bgp_vrf_process_one(vrf, afi, safi, rn, new_select);
 }
 
 void
@@ -1982,7 +1982,7 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
             if (!found)
               continue;
 
-            bgp_vrf_process_one (vrf, afi, safi, rn, sel);
+            bgp_vrf_process_one (vrf, afi, SAFI_MPLS_VPN, rn, sel);
           }
       }
 }
