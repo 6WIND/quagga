@@ -341,7 +341,7 @@ bgp_update_packet_eor (struct peer *peer, afi_t afi, safi_t safi)
       stream_putc (s, BGP_ATTR_MP_UNREACH_NLRI);
       stream_putc (s, 3);
       stream_putw (s, afi);
-      stream_putc (s, safi);
+      stream_putc (s, (safi == SAFI_MPLS_VPN) ? SAFI_MPLS_LABELED_VPN : safi);
     }
 
   bgp_packet_set_size (s);
@@ -796,8 +796,7 @@ bgp_write_packet (struct peer *peer)
                                       PEER_CAP_RESTART_BIT_RCV) &&
 		          CHECK_FLAG (adv->binfo->peer->cap,
                                       PEER_CAP_RESTART_BIT_ADV))
-		    && ! CHECK_FLAG (adv->binfo->flags, BGP_INFO_STALE)
-		    && safi != SAFI_MPLS_VPN)
+		    && ! CHECK_FLAG (adv->binfo->flags, BGP_INFO_STALE))
 		  {
 		    if (CHECK_FLAG (adv->binfo->peer->af_sflags[afi][safi],
 			PEER_STATUS_EOR_RECEIVED))
@@ -814,8 +813,7 @@ bgp_write_packet (struct peer *peer)
 	if (CHECK_FLAG (peer->cap, PEER_CAP_RESTART_RCV))
 	  {
 	    if (peer->afc_nego[afi][safi] && peer->synctime
-		&& ! CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND)
-		&& safi != SAFI_MPLS_VPN)
+		&& ! CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND))
 	      {
 		SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND);
 		return bgp_update_packet_eor (peer, afi, safi);
