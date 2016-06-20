@@ -12694,7 +12694,7 @@ bgp_table_stats_vty (struct vty *vty, const char *name,
 	    safi = SAFI_UNICAST;
 	    break;
 	case 'v':
-	    safi =  SAFI_MPLS_LABELED_VPN;
+	    safi =  SAFI_MPLS_VPN;
 	    break;
 	case 'e':
 	    safi = SAFI_ENCAP;
