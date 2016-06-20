@@ -2630,6 +2630,7 @@ bgp_packet_attribute (struct bgp *bgp, struct peer *peer,
   /* Remember current pointer. */
   cp = stream_get_endp (s);
 
+#if 0
   if (p && !(afi == AFI_IP && safi == SAFI_UNICAST))
     {
       size_t mpattrlen_pos = 0;
@@ -2637,6 +2638,7 @@ bgp_packet_attribute (struct bgp *bgp, struct peer *peer,
       bgp_packet_mpattr_prefix(s, afi, safi, p, prd, labels, nlabels);
       bgp_packet_mpattr_end(s, mpattrlen_pos);
     }
+#endif
 
   /* Origin attribute. */
   stream_putc (s, BGP_ATTR_FLAG_TRANS);
