@@ -1633,7 +1633,8 @@ bgp_vrf_withdraw (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn)
   prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
   prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
 
-  zlog_info ("vrf[%s] %s: prefix withdrawn", vrf_rd_str, pfx_str);
+  if (BGP_DEBUG (events, EVENTS))
+    zlog_debug ("vrf[%s] %s: prefix withdrawn", vrf_rd_str, pfx_str);
 }
 
 static void
@@ -1674,8 +1675,9 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
         inet_ntop (AF_INET6, &selected->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
     }
 
-  zlog_info ("vrf[%s] %s: prefix updated, best RD %s labels %s nexthop %s",
-                  vrf_rd_str, pfx_str, rd_str, label_str, nh_str);
+  if (BGP_DEBUG (events, EVENTS))
+    zlog_debug ("vrf[%s] %s: prefix updated, best RD %s labels %s nexthop %s",
+               vrf_rd_str, pfx_str, rd_str, label_str, nh_str);
 }
 
 int
@@ -1841,8 +1843,9 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
   prefix_rd2str(prd, rd_str, sizeof(rd_str));
   prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
 
-  zlog_debug ("vrf[%s] %s: [%s] %s", vrf_rd_str, pfx_str, rd_str,
-                  new_select ? "updating" : "withdrawing");
+  if (BGP_DEBUG (events, EVENTS))
+    zlog_debug ("vrf[%s] %s: [%s] %s", vrf_rd_str, pfx_str, rd_str,
+                new_select ? "updating" : "withdrawing");
 
   if (new_select)
     {
