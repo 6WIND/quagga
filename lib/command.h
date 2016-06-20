@@ -569,6 +569,8 @@ extern void host_config_set (char *);
 
 extern void print_version (const char *);
 
+extern int cmd_get_path_prefix_dir(char *path, unsigned int size);
+
 /* struct host global, ick */
 extern struct host host; 
 

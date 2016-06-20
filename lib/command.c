@@ -4355,3 +4355,49 @@ cmd_terminate ()
   if (host.config)
     XFREE (MTYPE_HOST, host.config);
 }
+
+/*
+ * retrieve installation path where daemon
+ * will be put. Default is /. 0 is returned.
+ * if prefix_dir is mentioned, path is /<prefixdir>
+ * function returns value > 0 on success, 0 otherwise
+ */
+#define OPTION_PREFIX_DIR  "--prefix="
+int cmd_get_path_prefix_dir(char *path, unsigned int size)
+{
+  char *cfg_args = (char *)QUAGGA_CONFIG_ARGS;
+  char *ret, *ret2;
+  int len;
+
+  if (cfg_args == NULL || cfg_args[0] == '\0')
+    {
+      return 0;
+    }
+  cfg_args = XSTRDUP (MTYPE_HOST, QUAGGA_CONFIG_ARGS);
+  ret = strstr(cfg_args, OPTION_PREFIX_DIR);
+  if(ret == NULL)
+    {
+      XFREE (MTYPE_HOST, cfg_args);
+      return 0;
+    }
+  ret+=strlen(OPTION_PREFIX_DIR);
+  ret2 = strchr(ret, ' ');
+  if(ret2 == NULL)
+    {
+	ret2 = strchr(ret, '\0');
+	if(ret2 == NULL)
+          {
+            XFREE (MTYPE_HOST, cfg_args);
+	    return 0;
+          }
+    }
+  *ret2 = '\0';
+  if(size < strlen(ret) + 1)
+    {
+      XFREE (MTYPE_HOST, cfg_args);
+      return 0;
+    }
+  len = snprintf(path, size, "%s", ret);
+  XFREE (MTYPE_HOST, cfg_args);
+  return len;
+}
