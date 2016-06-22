@@ -3286,7 +3286,7 @@ peer_default_originate_set_rd_vty (struct vty *vty, const char *peer_str,
               }
 
           ret = peer_default_originate_set_rd(peer, &prd, afi, &bnh,
-                                              labels? 1: 0,
+                                              labels? nlabels: 0,
                                               labels? l: NULL);
         }
       else

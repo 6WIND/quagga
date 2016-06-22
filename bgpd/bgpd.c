@@ -3553,7 +3553,8 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
   if (!d)
     {
       memcpy (&found->nh, nh, sizeof(*nh));
-      memcpy (&found->labels, labels, sizeof(*labels));
+      if (labels)
+        memcpy (&found->labels, labels, sizeof(*labels));
       found->nlabels = nlabels;
       listnode_add(peer->def_route_rd, found);
     }
@@ -3585,7 +3586,7 @@ peer_default_originate_unset_rd (struct peer *peer, afi_t afi, struct prefix_rd 
     return BGP_ERR_INVALID_FOR_PEER_GROUP_MEMBER;
 
   /* Check RD has been recorded for the peer */
-  for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf))
+  for (ALL_LIST_ELEMENTS_RO(peer->def_route_rd, node, vrf))
     {
       if (!prefix_rd_cmp(rd, &vrf->outbound_rd))
         found = vrf;

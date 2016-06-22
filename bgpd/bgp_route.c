@@ -3282,9 +3282,14 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, struct prefix_rd *rd,
 {
   if (withdraw)
     {
+      int empty;
+
       if (CHECK_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE))
         bgp_default_withdraw_vpnv4_send (peer, afi, rd);
-      UNSET_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE);
+
+      empty = (NULL == listnode_head(peer->def_route_rd));
+      if (empty)
+        UNSET_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE);
     }
   else
     {
