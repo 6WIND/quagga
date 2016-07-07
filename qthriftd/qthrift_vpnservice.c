@@ -188,7 +188,7 @@ gboolean qthrift_vpnservice_setup_thrift_bgp_updater_client (struct qthrift_vpns
                     NULL);
   if(!setup->bgp_updater_transport)
     setup->bgp_updater_transport =
-      g_object_new (THRIFT_TYPE_BUFFERED_TRANSPORT,
+      g_object_new (THRIFT_TYPE_FRAMED_TRANSPORT,
                     "transport", setup->bgp_updater_socket,
                     NULL);
   if(!setup->bgp_updater_protocol)

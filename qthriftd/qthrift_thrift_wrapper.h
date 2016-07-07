@@ -27,6 +27,7 @@
 #include <thrift/c_glib/server/thrift_simple_server.h>
 #include <thrift/c_glib/transport/thrift_buffered_transport.h>
 #include <thrift/c_glib/transport/thrift_buffered_transport_factory.h>
+#include <thrift/c_glib/transport/thrift_framed_transport.h>
 #include <thrift/c_glib/protocol/thrift_binary_protocol.h>
 #include <thrift/c_glib/transport/thrift_server_socket.h>
 #include <thrift/c_glib/transport/thrift_socket.h>
