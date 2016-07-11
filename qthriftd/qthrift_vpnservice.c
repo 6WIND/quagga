@@ -40,8 +40,88 @@
 #include "qthriftd/qthrift_vpnservice.h"
 #include "qthriftd/qthrift_bgp_configurator.h"
 #include "qthriftd/qthriftd.h"
+#include "qthriftd/qthrift_debug.h"
 
 static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *msg);
+
+static void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response);
+static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thread);
+static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *thread);
+int qthrift_monitor_retry_job_in_progress;
+
+static void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response)
+{
+  if(qthrift_monitor_retry_job_in_progress)
+    return;
+  if(response == FALSE)
+    {
+      setup->bgp_update_retries++;
+      setup->bgp_updater_client_thread = NULL;
+      THREAD_TIMER_MSEC_ON(tm->master, setup->bgp_updater_client_thread, \
+                           qthrift_vpnservice_setup_bgp_updater_client_retry, \
+                           setup, 1000);
+    }
+  else
+    {
+      setup->bgp_update_monitor++;
+      setup->bgp_updater_client_thread = NULL;
+      THREAD_TIMER_MSEC_ON(tm->master, setup->bgp_updater_client_thread,\
+                           qthrift_vpnservice_setup_bgp_updater_client_monitor,\
+                           setup, 5000);
+
+    }
+  qthrift_monitor_retry_job_in_progress = 1;
+}
+
+static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thread)
+{
+  struct qthrift_vpnservice *setup;
+
+  setup = THREAD_ARG (thread);
+  assert (setup);
+  if (IS_QTHRIFT_DEBUG_NOTIFICATION)
+    zlog_debug("bgpUpdater try to connect to %s:%u",
+               tm->qthrift_notification_address,
+               setup->qthrift_notification_port);
+  if(setup)
+    qthrift_vpnservice_terminate_thrift_bgp_updater_client(setup);
+  qthrift_monitor_retry_job_in_progress = 0;
+  qthrift_vpnservice_setup_thrift_bgp_updater_client (setup);
+  return 0;
+}
+
+/* detects if remote peer is present or not
+ * either relaunch monitor or retry to reconnect
+ */
+static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *thread)
+{
+  struct qthrift_vpnservice *setup;
+  gboolean response = TRUE;
+  int retval;
+
+  setup = THREAD_ARG (thread);
+  assert (setup);
+  if(setup->bgp_updater_socket == NULL)
+    response = FALSE;
+  else
+    {
+      socklen_t len;
+      struct sockaddr_storage addr;
+
+      len = sizeof addr;
+      retval = getpeername(setup->bgp_updater_socket->sd, (struct sockaddr*)&addr, &len);
+      if(retval != 0)
+        response = FALSE;
+    }
+  if (IS_QTHRIFT_DEBUG_NOTIFICATION)
+    zlog_debug("bgpUpdater check connection with %s:%u %s",
+               tm->qthrift_notification_address,
+               setup->qthrift_notification_port,
+               response==FALSE?"NOK":"OK");
+  qthrift_monitor_retry_job_in_progress = 0;
+  qthrift_transport_check_response(setup, response);
+  return 0;
+}
 
 /* callback function for capnproto bgpupdater notifications */
 static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message)
@@ -65,10 +145,11 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
   /* if first time or previous failure, try to reconnect to client */
   if( (ctxt->bgp_updater_client == NULL) || client_ready == FALSE)
     {
-      /* already initiated contexts. reset client connection */
       if(ctxt->bgp_updater_client)
         qthrift_vpnservice_terminate_thrift_bgp_updater_client(ctxt);
+      /* start the retry mecanism */
       client_ready = qthrift_vpnservice_setup_thrift_bgp_updater_client(ctxt);
+      qthrift_transport_check_response(ctxt, client_ready);
       if(client_ready == FALSE)
         {
           ctxt->bgp_update_lost_msgs++;
@@ -208,6 +289,7 @@ gboolean qthrift_vpnservice_setup_thrift_bgp_updater_client (struct qthrift_vpns
                     "output_protocol", setup->bgp_updater_protocol,
                     NULL);
   response = thrift_transport_open (setup->bgp_updater_transport, &error);
+  qthrift_transport_check_response(setup, response);
   return response;
 }
 
