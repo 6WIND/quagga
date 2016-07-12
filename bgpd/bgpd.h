@@ -225,10 +225,12 @@ struct bgp_vrf
   /* Static route configuration.  */
   struct bgp_table *route[AFI_MAX];
 
+  /* maximum multipath entries for the VRF */
+  uint32_t max_mpath;
+
   /* internal flag */
 #define BGP_VRF_RD_UNSET 1
   uint16_t flag;
-
 };
 
 /* BGP peer-group support. */
