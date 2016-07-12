@@ -9907,6 +9907,31 @@ DEFUN (bgp_vrf,
 
   return CMD_SUCCESS;
 }
+
+DEFUN (bgp_vrf_maximum_path,
+       bgp_vrf_maximum_path_cmd,
+       "maximum-path [1-64]",
+       "Maximum number of multipath routes\n"
+       "Maximum number of multipath routes\n"
+)
+{
+  struct bgp_vrf *vrf = vty->index_sub;
+  int max_mpath;
+
+  max_mpath = atoi(argv[0]);
+
+  /* some values for maximum path aren't acceptable */
+  if (1 > max_mpath || max_mpath > 64)
+    {
+      vty_out (vty, "%% Invalid maximum multipath '%d'%s", max_mpath, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  /* update max_mpath field in struct bgp_vrf */
+  vrf->max_mpath = max_mpath;
+  return CMD_SUCCESS;
+}
+
 DEFUN (no_bgp_vrf,
        no_bgp_vrf_cmd,
        "no vrf WORD",
@@ -10140,6 +10165,21 @@ DEFUN (no_bgp_vrf_rd,
   return CMD_SUCCESS;
 }
 
+DEFUN (no_bgp_vrf_maximum_path,
+       no_bgp_vrf_maximum_path_cmd,
+       "no maximum-path",
+       NO_STR
+       "maximum path\n"
+)
+{
+  struct bgp_vrf *vrf = vty->index_sub;
+
+  /* reset maximum mpath to default value */
+  vrf->max_mpath = BGP_DEFAULT_MAXPATHS;
+
+  return CMD_SUCCESS;
+}
+
 /* BGP node structure. */
 static struct cmd_node bgp_node =
 {
@@ -10251,6 +10291,8 @@ bgp_vty_init (void)
   install_element (BGP_VRF_NODE, &no_bgp_vrf_rt_import_cmd);
   install_element (BGP_VRF_NODE, &no_bgp_vrf_rt_export_cmd);
   install_element (BGP_VRF_NODE, &no_bgp_vrf_rt_both_cmd);
+  install_element (BGP_VRF_NODE, &bgp_vrf_maximum_path_cmd);
+  install_element (BGP_VRF_NODE, &no_bgp_vrf_maximum_path_cmd);
   install_element (BGP_VRF_NODE, &exit_bgp_vrf_cmd);
 
   /* "bgp multiple-instance" commands. */

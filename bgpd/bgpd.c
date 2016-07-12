@@ -2114,6 +2114,7 @@ bgp_vrf_lookup_per_name (struct bgp *bgp, const char *name, int create)
     return NULL;
   vrf->bgp = bgp;
   vrf->name = strdup (name);
+  vrf->max_mpath = bgp->maxpaths[AFI_IP][SAFI_MPLS_VPN].maxpaths_ibgp;
   vrf->flag |= BGP_VRF_RD_UNSET;
 
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
@@ -5887,6 +5888,9 @@ bgp_config_write (struct vty *vty)
                     XFREE (MTYPE_ECOMMUNITY_STR, str2_p);
                   }
               }
+            if (vrf->max_mpath != BGP_DEFAULT_MAXPATHS)
+              vty_out(vty,
+                      "  maximum-path %d%s", vrf->max_mpath, VTY_NEWLINE);
             vty_out (vty, " exit%s", VTY_NEWLINE);
           }
       }
