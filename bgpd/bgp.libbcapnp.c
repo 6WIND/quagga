@@ -70,10 +70,51 @@ void qcapn_BGP_write(const struct bgp *s, capn_ptr p)
     { capn_text tp = { .str = s->notify_zmq_url, .len = s->notify_zmq_url ? strlen(s->notify_zmq_url) : 0 }; capn_set_text(p, 2, tp); }
 }
 
+void qcapn_BGPAfiSafi_write(const struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
+{
+    capn_resolve(&p);
+
+    capn_write1(p, 0, !!(s->af_flags[afi][safi] & BGP_CONFIG_DAMPENING));
+    capn_write1(p, 1, !!(s->af_flags[afi][safi] & BGP_CONFIG_ASPATH_MULTIPATH_RELAX));
+    capn_write1(p, 2, !!(s->af_flags[afi][safi] & BGP_CONFIG_MULTIPATH));
+}
+
+
+void qcapn_BGPVRF_read(struct bgp_vrf *s, capn_ptr p)
+{
+    capn_resolve(&p);
+    *(uint64_t *)s->outbound_rd.val = capn_read64(p, 0);
+    s->outbound_rd.family = AF_UNSPEC;
+    s->outbound_rd.prefixlen = 64;
+    s->max_mpath = capn_read32(p, 8);
+    {
+        capn_ptr tmp_p = capn_getp(p, 0, 1);
+        capn_list64 listptr = { .p = capn_getp(tmp_p, 0, 1) };
+        size_t listsize = capn_len(listptr);
+        uint64_t buf[listsize];
+        capn_getv64(listptr, 0, buf, listsize);
+        if (s->rt_import)
+            ecommunity_unintern(&s->rt_import);
+        s->rt_import = ecommunity_parse ((uint8_t *)buf, listsize * 8);
+    }
+
+    {
+        capn_ptr tmp_p = capn_getp(p, 1, 1);
+        capn_list64 listptr = { .p = capn_getp(tmp_p, 0, 1) };
+        size_t listsize = capn_len(listptr);
+        uint64_t buf[listsize];
+        capn_getv64(listptr, 0, buf, listsize);
+        if (s->rt_export)
+            ecommunity_unintern(&s->rt_export);
+        s->rt_export = ecommunity_parse ((uint8_t *)buf, listsize * 8);
+    }
+}
+
 void qcapn_BGPVRF_write(const struct bgp_vrf *s, capn_ptr p)
 {
     capn_resolve(&p);
     capn_write64(p, 0, *(uint64_t *)s->outbound_rd.val);
+    capn_write32(p, 8, s->max_mpath);
     {
         capn_ptr tempptr = capn_new_struct(p.seg, 0, 1);
         size_t size = s->rt_import ? s->rt_import->size : 0;
@@ -96,7 +137,7 @@ void qcapn_BGPVRF_write(const struct bgp_vrf *s, capn_ptr p)
 
 capn_ptr qcapn_new_BGPVRF(struct capn_segment *s)
 {
-    return capn_new_struct(s, 8, 2);
+    return capn_new_struct(s, 12, 2);
 }
 
 void qcapn_BGPPeer_read(struct peer *s, capn_ptr p)
@@ -216,6 +257,11 @@ capn_ptr qcapn_new_BGPPeer(struct capn_segment *s)
 capn_ptr qcapn_new_AfiSafiKey(struct capn_segment *s)
 {
     return capn_new_struct(s, 8, 0);
+}
+
+capn_ptr qcapn_new_BGPAfiSafi(struct capn_segment *s)
+{
+    return capn_new_struct(s, 16, 0);
 }
 
 capn_ptr qcapn_new_BGPPeerAfiSafi(struct capn_segment *s)
@@ -470,6 +516,20 @@ bgp_flag_unset (struct bgp *bgp, int flag)
   return 0;
 }
 
+int
+bgp_af_flag_set (struct bgp *bgp, afi_t afi, safi_t safi, int flag)
+{
+  SET_FLAG (bgp->af_flags[afi][safi], flag);
+  return 0;
+}
+
+int
+bgp_af_flag_unset (struct bgp *bgp, afi_t afi, safi_t safi, int flag)
+{
+  UNSET_FLAG (bgp->af_flags[afi][safi], flag);
+  return 0;
+}
+
 void qcapn_BGP_read(struct bgp *s, capn_ptr p)
 {
     capn_resolve(&p);
@@ -571,3 +631,22 @@ void qcapn_BGP_read(struct bgp *s, capn_ptr p)
     { capn_text tp = capn_get_text(p, 2, capn_val0); free(s->notify_zmq_url); s->notify_zmq_url = strdup(tp.str); }
 }
 
+void qcapn_BGPAfiSafi_read(struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
+{
+    capn_resolve(&p);
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 0));
+      if (tmp) s->af_flags[afi][safi] |=  BGP_CONFIG_DAMPENING;
+      else     s->af_flags[afi][safi] &= ~BGP_CONFIG_DAMPENING;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 1));
+      if (tmp) s->af_flags[afi][safi] |=  BGP_CONFIG_ASPATH_MULTIPATH_RELAX;
+      else     s->af_flags[afi][safi] &= ~BGP_CONFIG_ASPATH_MULTIPATH_RELAX;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 2));
+      if (tmp) s->af_flags[afi][safi] |=  BGP_CONFIG_MULTIPATH;
+      else     s->af_flags[afi][safi] &= ~BGP_CONFIG_MULTIPATH;
+    }
+}

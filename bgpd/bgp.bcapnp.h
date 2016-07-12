@@ -19,6 +19,8 @@ void qcapn_VRFTableIter_set(struct tbliter_v4 *s, capn_ptr p);
 capn_ptr qcapn_new_VRFTableIter(struct capn_segment *s);
 void qcapn_BGP_read(struct bgp *s, capn_ptr p);
 void qcapn_BGP_write(const struct bgp *s, capn_ptr p);
+void qcapn_BGPAfiSafi_write(const struct bgp *s, capn_ptr p, afi_t afi, safi_t safi);
+void qcapn_BGPAfiSafi_read(struct bgp *s, capn_ptr p, afi_t afi, safi_t safi);
 void qcapn_BGP_set(struct bgp *s, capn_ptr p);
 as_t qcapn_BGP_get_as(capn_ptr p);
 capn_ptr qcapn_new_BGP(struct capn_segment *s);

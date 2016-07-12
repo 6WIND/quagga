@@ -10446,6 +10446,1545 @@ bgp_configurator_get_routes_result_get_type (void)
   return type;
 }
 
+enum _BgpConfiguratorEnableMultipathArgsProperties
+{
+  PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_0,
+  PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_AFI,
+  PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_SAFI
+};
+
+/* reads a bgp_configurator_enable_multipath_args object */
+static gint32
+bgp_configurator_enable_multipath_args_read (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+  gchar *name = NULL;
+  ThriftType ftype;
+  gint16 fid;
+  guint32 len = 0;
+  gpointer data = NULL;
+  BgpConfiguratorEnableMultipathArgs * this_object = BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS(object);
+
+  /* satisfy -Wall in case these aren't used */
+  THRIFT_UNUSED_VAR (len);
+  THRIFT_UNUSED_VAR (data);
+  THRIFT_UNUSED_VAR (this_object);
+
+  /* read the struct begin marker */
+  if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+  {
+    if (name) g_free (name);
+    return -1;
+  }
+  xfer += ret;
+  if (name) g_free (name);
+  name = NULL;
+
+  /* read the struct fields */
+  while (1)
+  {
+    /* read the beginning of a field */
+    if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+    {
+      if (name) g_free (name);
+      return -1;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* break if we get a STOP field */
+    if (ftype == T_STOP)
+    {
+      break;
+    }
+
+    switch (fid)
+    {
+      case 1:
+        if (ftype == T_I32)
+        {
+          gint32 ecast10;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast10, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->afi = (af_afi)ecast10;
+          this_object->__isset_afi = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      case 2:
+        if (ftype == T_I32)
+        {
+          gint32 ecast11;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast11, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->safi = (af_safi)ecast11;
+          this_object->__isset_safi = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      default:
+        if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+          return -1;
+        xfer += ret;
+        break;
+    }
+    if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+
+  if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static gint32
+bgp_configurator_enable_multipath_args_write (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+
+  BgpConfiguratorEnableMultipathArgs * this_object = BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS(object);
+  THRIFT_UNUSED_VAR (this_object);
+  if ((ret = thrift_protocol_write_struct_begin (protocol, "BgpConfiguratorEnableMultipathArgs", error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 1, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_i32 (protocol, (gint32) this_object->afi, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "safi", T_I32, 2, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_i32 (protocol, (gint32) this_object->safi, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static void
+bgp_configurator_enable_multipath_args_set_property (GObject *object,
+                                                     guint property_id,
+                                                     const GValue *value,
+                                                     GParamSpec *pspec)
+{
+  BgpConfiguratorEnableMultipathArgs *self = BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_AFI:
+      self->afi = g_value_get_int (value);
+      self->__isset_afi = TRUE;
+      break;
+
+    case PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_SAFI:
+      self->safi = g_value_get_int (value);
+      self->__isset_safi = TRUE;
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
+bgp_configurator_enable_multipath_args_get_property (GObject *object,
+                                                     guint property_id,
+                                                     GValue *value,
+                                                     GParamSpec *pspec)
+{
+  BgpConfiguratorEnableMultipathArgs *self = BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_AFI:
+      g_value_set_int (value, self->afi);
+      break;
+
+    case PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_SAFI:
+      g_value_set_int (value, self->safi);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void 
+bgp_configurator_enable_multipath_args_instance_init (BgpConfiguratorEnableMultipathArgs * object)
+{
+  /* satisfy -Wall */
+  THRIFT_UNUSED_VAR (object);
+  object->__isset_afi = FALSE;
+  object->__isset_safi = FALSE;
+}
+
+static void 
+bgp_configurator_enable_multipath_args_finalize (GObject *object)
+{
+  BgpConfiguratorEnableMultipathArgs *tobject = BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS (object);
+
+  /* satisfy -Wall in case we don't use tobject */
+  THRIFT_UNUSED_VAR (tobject);
+}
+
+static void
+bgp_configurator_enable_multipath_args_class_init (BgpConfiguratorEnableMultipathArgsClass * cls)
+{
+  GObjectClass *gobject_class = G_OBJECT_CLASS (cls);
+  ThriftStructClass *struct_class = THRIFT_STRUCT_CLASS (cls);
+
+  struct_class->read = bgp_configurator_enable_multipath_args_read;
+  struct_class->write = bgp_configurator_enable_multipath_args_write;
+
+  gobject_class->finalize = bgp_configurator_enable_multipath_args_finalize;
+  gobject_class->get_property = bgp_configurator_enable_multipath_args_get_property;
+  gobject_class->set_property = bgp_configurator_enable_multipath_args_set_property;
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_AFI,
+     g_param_spec_int ("afi",
+                       NULL,
+                       NULL,
+                       1,
+                       1,
+                       1,
+                       G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_SAFI,
+     g_param_spec_int ("safi",
+                       NULL,
+                       NULL,
+                       4,
+                       5,
+                       4,
+                       G_PARAM_READWRITE));
+}
+
+GType
+bgp_configurator_enable_multipath_args_get_type (void)
+{
+  static GType type = 0;
+
+  if (type == 0) 
+  {
+    static const GTypeInfo type_info = 
+    {
+      sizeof (BgpConfiguratorEnableMultipathArgsClass),
+      NULL, /* base_init */
+      NULL, /* base_finalize */
+      (GClassInitFunc) bgp_configurator_enable_multipath_args_class_init,
+      NULL, /* class_finalize */
+      NULL, /* class_data */
+      sizeof (BgpConfiguratorEnableMultipathArgs),
+      0, /* n_preallocs */
+      (GInstanceInitFunc) bgp_configurator_enable_multipath_args_instance_init,
+      NULL, /* value_table */
+    };
+
+    type = g_type_register_static (THRIFT_TYPE_STRUCT, 
+                                   "BgpConfiguratorEnableMultipathArgsType",
+                                   &type_info, 0);
+  }
+
+  return type;
+}
+
+enum _BgpConfiguratorEnableMultipathResultProperties
+{
+  PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT_0,
+  PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT_SUCCESS
+};
+
+/* reads a bgp_configurator_enable_multipath_result object */
+static gint32
+bgp_configurator_enable_multipath_result_read (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+  gchar *name = NULL;
+  ThriftType ftype;
+  gint16 fid;
+  guint32 len = 0;
+  gpointer data = NULL;
+  BgpConfiguratorEnableMultipathResult * this_object = BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT(object);
+
+  /* satisfy -Wall in case these aren't used */
+  THRIFT_UNUSED_VAR (len);
+  THRIFT_UNUSED_VAR (data);
+  THRIFT_UNUSED_VAR (this_object);
+
+  /* read the struct begin marker */
+  if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+  {
+    if (name) g_free (name);
+    return -1;
+  }
+  xfer += ret;
+  if (name) g_free (name);
+  name = NULL;
+
+  /* read the struct fields */
+  while (1)
+  {
+    /* read the beginning of a field */
+    if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+    {
+      if (name) g_free (name);
+      return -1;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* break if we get a STOP field */
+    if (ftype == T_STOP)
+    {
+      break;
+    }
+
+    switch (fid)
+    {
+      case 0:
+        if (ftype == T_I32)
+        {
+          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->success, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->__isset_success = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      default:
+        if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+          return -1;
+        xfer += ret;
+        break;
+    }
+    if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+
+  if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static gint32
+bgp_configurator_enable_multipath_result_write (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+
+  BgpConfiguratorEnableMultipathResult * this_object = BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT(object);
+  THRIFT_UNUSED_VAR (this_object);
+  if ((ret = thrift_protocol_write_struct_begin (protocol, "BgpConfiguratorEnableMultipathResult", error)) < 0)
+    return -1;
+  xfer += ret;
+  if (this_object->__isset_success == TRUE) {
+    if ((ret = thrift_protocol_write_field_begin (protocol, "success", T_I32, 0, error)) < 0)
+      return -1;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, this_object->success, error)) < 0)
+      return -1;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+  if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static void
+bgp_configurator_enable_multipath_result_set_property (GObject *object,
+                                                       guint property_id,
+                                                       const GValue *value,
+                                                       GParamSpec *pspec)
+{
+  BgpConfiguratorEnableMultipathResult *self = BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT_SUCCESS:
+      self->success = g_value_get_int (value);
+      self->__isset_success = TRUE;
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
+bgp_configurator_enable_multipath_result_get_property (GObject *object,
+                                                       guint property_id,
+                                                       GValue *value,
+                                                       GParamSpec *pspec)
+{
+  BgpConfiguratorEnableMultipathResult *self = BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT_SUCCESS:
+      g_value_set_int (value, self->success);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void 
+bgp_configurator_enable_multipath_result_instance_init (BgpConfiguratorEnableMultipathResult * object)
+{
+  /* satisfy -Wall */
+  THRIFT_UNUSED_VAR (object);
+  object->success = 0;
+  object->__isset_success = FALSE;
+}
+
+static void 
+bgp_configurator_enable_multipath_result_finalize (GObject *object)
+{
+  BgpConfiguratorEnableMultipathResult *tobject = BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT (object);
+
+  /* satisfy -Wall in case we don't use tobject */
+  THRIFT_UNUSED_VAR (tobject);
+}
+
+static void
+bgp_configurator_enable_multipath_result_class_init (BgpConfiguratorEnableMultipathResultClass * cls)
+{
+  GObjectClass *gobject_class = G_OBJECT_CLASS (cls);
+  ThriftStructClass *struct_class = THRIFT_STRUCT_CLASS (cls);
+
+  struct_class->read = bgp_configurator_enable_multipath_result_read;
+  struct_class->write = bgp_configurator_enable_multipath_result_write;
+
+  gobject_class->finalize = bgp_configurator_enable_multipath_result_finalize;
+  gobject_class->get_property = bgp_configurator_enable_multipath_result_get_property;
+  gobject_class->set_property = bgp_configurator_enable_multipath_result_set_property;
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT_SUCCESS,
+     g_param_spec_int ("success",
+                       NULL,
+                       NULL,
+                       G_MININT32,
+                       G_MAXINT32,
+                       0,
+                       G_PARAM_READWRITE));
+}
+
+GType
+bgp_configurator_enable_multipath_result_get_type (void)
+{
+  static GType type = 0;
+
+  if (type == 0) 
+  {
+    static const GTypeInfo type_info = 
+    {
+      sizeof (BgpConfiguratorEnableMultipathResultClass),
+      NULL, /* base_init */
+      NULL, /* base_finalize */
+      (GClassInitFunc) bgp_configurator_enable_multipath_result_class_init,
+      NULL, /* class_finalize */
+      NULL, /* class_data */
+      sizeof (BgpConfiguratorEnableMultipathResult),
+      0, /* n_preallocs */
+      (GInstanceInitFunc) bgp_configurator_enable_multipath_result_instance_init,
+      NULL, /* value_table */
+    };
+
+    type = g_type_register_static (THRIFT_TYPE_STRUCT, 
+                                   "BgpConfiguratorEnableMultipathResultType",
+                                   &type_info, 0);
+  }
+
+  return type;
+}
+
+enum _BgpConfiguratorDisableMultipathArgsProperties
+{
+  PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_0,
+  PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_AFI,
+  PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_SAFI
+};
+
+/* reads a bgp_configurator_disable_multipath_args object */
+static gint32
+bgp_configurator_disable_multipath_args_read (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+  gchar *name = NULL;
+  ThriftType ftype;
+  gint16 fid;
+  guint32 len = 0;
+  gpointer data = NULL;
+  BgpConfiguratorDisableMultipathArgs * this_object = BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS(object);
+
+  /* satisfy -Wall in case these aren't used */
+  THRIFT_UNUSED_VAR (len);
+  THRIFT_UNUSED_VAR (data);
+  THRIFT_UNUSED_VAR (this_object);
+
+  /* read the struct begin marker */
+  if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+  {
+    if (name) g_free (name);
+    return -1;
+  }
+  xfer += ret;
+  if (name) g_free (name);
+  name = NULL;
+
+  /* read the struct fields */
+  while (1)
+  {
+    /* read the beginning of a field */
+    if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+    {
+      if (name) g_free (name);
+      return -1;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* break if we get a STOP field */
+    if (ftype == T_STOP)
+    {
+      break;
+    }
+
+    switch (fid)
+    {
+      case 1:
+        if (ftype == T_I32)
+        {
+          gint32 ecast12;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast12, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->afi = (af_afi)ecast12;
+          this_object->__isset_afi = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      case 2:
+        if (ftype == T_I32)
+        {
+          gint32 ecast13;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast13, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->safi = (af_safi)ecast13;
+          this_object->__isset_safi = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      default:
+        if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+          return -1;
+        xfer += ret;
+        break;
+    }
+    if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+
+  if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static gint32
+bgp_configurator_disable_multipath_args_write (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+
+  BgpConfiguratorDisableMultipathArgs * this_object = BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS(object);
+  THRIFT_UNUSED_VAR (this_object);
+  if ((ret = thrift_protocol_write_struct_begin (protocol, "BgpConfiguratorDisableMultipathArgs", error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 1, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_i32 (protocol, (gint32) this_object->afi, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "safi", T_I32, 2, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_i32 (protocol, (gint32) this_object->safi, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static void
+bgp_configurator_disable_multipath_args_set_property (GObject *object,
+                                                      guint property_id,
+                                                      const GValue *value,
+                                                      GParamSpec *pspec)
+{
+  BgpConfiguratorDisableMultipathArgs *self = BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_AFI:
+      self->afi = g_value_get_int (value);
+      self->__isset_afi = TRUE;
+      break;
+
+    case PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_SAFI:
+      self->safi = g_value_get_int (value);
+      self->__isset_safi = TRUE;
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
+bgp_configurator_disable_multipath_args_get_property (GObject *object,
+                                                      guint property_id,
+                                                      GValue *value,
+                                                      GParamSpec *pspec)
+{
+  BgpConfiguratorDisableMultipathArgs *self = BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_AFI:
+      g_value_set_int (value, self->afi);
+      break;
+
+    case PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_SAFI:
+      g_value_set_int (value, self->safi);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void 
+bgp_configurator_disable_multipath_args_instance_init (BgpConfiguratorDisableMultipathArgs * object)
+{
+  /* satisfy -Wall */
+  THRIFT_UNUSED_VAR (object);
+  object->__isset_afi = FALSE;
+  object->__isset_safi = FALSE;
+}
+
+static void 
+bgp_configurator_disable_multipath_args_finalize (GObject *object)
+{
+  BgpConfiguratorDisableMultipathArgs *tobject = BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS (object);
+
+  /* satisfy -Wall in case we don't use tobject */
+  THRIFT_UNUSED_VAR (tobject);
+}
+
+static void
+bgp_configurator_disable_multipath_args_class_init (BgpConfiguratorDisableMultipathArgsClass * cls)
+{
+  GObjectClass *gobject_class = G_OBJECT_CLASS (cls);
+  ThriftStructClass *struct_class = THRIFT_STRUCT_CLASS (cls);
+
+  struct_class->read = bgp_configurator_disable_multipath_args_read;
+  struct_class->write = bgp_configurator_disable_multipath_args_write;
+
+  gobject_class->finalize = bgp_configurator_disable_multipath_args_finalize;
+  gobject_class->get_property = bgp_configurator_disable_multipath_args_get_property;
+  gobject_class->set_property = bgp_configurator_disable_multipath_args_set_property;
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_AFI,
+     g_param_spec_int ("afi",
+                       NULL,
+                       NULL,
+                       1,
+                       1,
+                       1,
+                       G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_SAFI,
+     g_param_spec_int ("safi",
+                       NULL,
+                       NULL,
+                       4,
+                       5,
+                       4,
+                       G_PARAM_READWRITE));
+}
+
+GType
+bgp_configurator_disable_multipath_args_get_type (void)
+{
+  static GType type = 0;
+
+  if (type == 0) 
+  {
+    static const GTypeInfo type_info = 
+    {
+      sizeof (BgpConfiguratorDisableMultipathArgsClass),
+      NULL, /* base_init */
+      NULL, /* base_finalize */
+      (GClassInitFunc) bgp_configurator_disable_multipath_args_class_init,
+      NULL, /* class_finalize */
+      NULL, /* class_data */
+      sizeof (BgpConfiguratorDisableMultipathArgs),
+      0, /* n_preallocs */
+      (GInstanceInitFunc) bgp_configurator_disable_multipath_args_instance_init,
+      NULL, /* value_table */
+    };
+
+    type = g_type_register_static (THRIFT_TYPE_STRUCT, 
+                                   "BgpConfiguratorDisableMultipathArgsType",
+                                   &type_info, 0);
+  }
+
+  return type;
+}
+
+enum _BgpConfiguratorDisableMultipathResultProperties
+{
+  PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT_0,
+  PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT_SUCCESS
+};
+
+/* reads a bgp_configurator_disable_multipath_result object */
+static gint32
+bgp_configurator_disable_multipath_result_read (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+  gchar *name = NULL;
+  ThriftType ftype;
+  gint16 fid;
+  guint32 len = 0;
+  gpointer data = NULL;
+  BgpConfiguratorDisableMultipathResult * this_object = BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT(object);
+
+  /* satisfy -Wall in case these aren't used */
+  THRIFT_UNUSED_VAR (len);
+  THRIFT_UNUSED_VAR (data);
+  THRIFT_UNUSED_VAR (this_object);
+
+  /* read the struct begin marker */
+  if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+  {
+    if (name) g_free (name);
+    return -1;
+  }
+  xfer += ret;
+  if (name) g_free (name);
+  name = NULL;
+
+  /* read the struct fields */
+  while (1)
+  {
+    /* read the beginning of a field */
+    if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+    {
+      if (name) g_free (name);
+      return -1;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* break if we get a STOP field */
+    if (ftype == T_STOP)
+    {
+      break;
+    }
+
+    switch (fid)
+    {
+      case 0:
+        if (ftype == T_I32)
+        {
+          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->success, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->__isset_success = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      default:
+        if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+          return -1;
+        xfer += ret;
+        break;
+    }
+    if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+
+  if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static gint32
+bgp_configurator_disable_multipath_result_write (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+
+  BgpConfiguratorDisableMultipathResult * this_object = BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT(object);
+  THRIFT_UNUSED_VAR (this_object);
+  if ((ret = thrift_protocol_write_struct_begin (protocol, "BgpConfiguratorDisableMultipathResult", error)) < 0)
+    return -1;
+  xfer += ret;
+  if (this_object->__isset_success == TRUE) {
+    if ((ret = thrift_protocol_write_field_begin (protocol, "success", T_I32, 0, error)) < 0)
+      return -1;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, this_object->success, error)) < 0)
+      return -1;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+  if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static void
+bgp_configurator_disable_multipath_result_set_property (GObject *object,
+                                                        guint property_id,
+                                                        const GValue *value,
+                                                        GParamSpec *pspec)
+{
+  BgpConfiguratorDisableMultipathResult *self = BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT_SUCCESS:
+      self->success = g_value_get_int (value);
+      self->__isset_success = TRUE;
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
+bgp_configurator_disable_multipath_result_get_property (GObject *object,
+                                                        guint property_id,
+                                                        GValue *value,
+                                                        GParamSpec *pspec)
+{
+  BgpConfiguratorDisableMultipathResult *self = BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT_SUCCESS:
+      g_value_set_int (value, self->success);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void 
+bgp_configurator_disable_multipath_result_instance_init (BgpConfiguratorDisableMultipathResult * object)
+{
+  /* satisfy -Wall */
+  THRIFT_UNUSED_VAR (object);
+  object->success = 0;
+  object->__isset_success = FALSE;
+}
+
+static void 
+bgp_configurator_disable_multipath_result_finalize (GObject *object)
+{
+  BgpConfiguratorDisableMultipathResult *tobject = BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT (object);
+
+  /* satisfy -Wall in case we don't use tobject */
+  THRIFT_UNUSED_VAR (tobject);
+}
+
+static void
+bgp_configurator_disable_multipath_result_class_init (BgpConfiguratorDisableMultipathResultClass * cls)
+{
+  GObjectClass *gobject_class = G_OBJECT_CLASS (cls);
+  ThriftStructClass *struct_class = THRIFT_STRUCT_CLASS (cls);
+
+  struct_class->read = bgp_configurator_disable_multipath_result_read;
+  struct_class->write = bgp_configurator_disable_multipath_result_write;
+
+  gobject_class->finalize = bgp_configurator_disable_multipath_result_finalize;
+  gobject_class->get_property = bgp_configurator_disable_multipath_result_get_property;
+  gobject_class->set_property = bgp_configurator_disable_multipath_result_set_property;
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT_SUCCESS,
+     g_param_spec_int ("success",
+                       NULL,
+                       NULL,
+                       G_MININT32,
+                       G_MAXINT32,
+                       0,
+                       G_PARAM_READWRITE));
+}
+
+GType
+bgp_configurator_disable_multipath_result_get_type (void)
+{
+  static GType type = 0;
+
+  if (type == 0) 
+  {
+    static const GTypeInfo type_info = 
+    {
+      sizeof (BgpConfiguratorDisableMultipathResultClass),
+      NULL, /* base_init */
+      NULL, /* base_finalize */
+      (GClassInitFunc) bgp_configurator_disable_multipath_result_class_init,
+      NULL, /* class_finalize */
+      NULL, /* class_data */
+      sizeof (BgpConfiguratorDisableMultipathResult),
+      0, /* n_preallocs */
+      (GInstanceInitFunc) bgp_configurator_disable_multipath_result_instance_init,
+      NULL, /* value_table */
+    };
+
+    type = g_type_register_static (THRIFT_TYPE_STRUCT, 
+                                   "BgpConfiguratorDisableMultipathResultType",
+                                   &type_info, 0);
+  }
+
+  return type;
+}
+
+enum _BgpConfiguratorMultipathsArgsProperties
+{
+  PROP_BGP_CONFIGURATOR_MULTIPATHS_ARGS_0,
+  PROP_BGP_CONFIGURATOR_MULTIPATHS_ARGS_RD,
+  PROP_BGP_CONFIGURATOR_MULTIPATHS_ARGS_MAX_PATH
+};
+
+/* reads a bgp_configurator_multipaths_args object */
+static gint32
+bgp_configurator_multipaths_args_read (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+  gchar *name = NULL;
+  ThriftType ftype;
+  gint16 fid;
+  guint32 len = 0;
+  gpointer data = NULL;
+  BgpConfiguratorMultipathsArgs * this_object = BGP_CONFIGURATOR_MULTIPATHS_ARGS(object);
+
+  /* satisfy -Wall in case these aren't used */
+  THRIFT_UNUSED_VAR (len);
+  THRIFT_UNUSED_VAR (data);
+  THRIFT_UNUSED_VAR (this_object);
+
+  /* read the struct begin marker */
+  if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+  {
+    if (name) g_free (name);
+    return -1;
+  }
+  xfer += ret;
+  if (name) g_free (name);
+  name = NULL;
+
+  /* read the struct fields */
+  while (1)
+  {
+    /* read the beginning of a field */
+    if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+    {
+      if (name) g_free (name);
+      return -1;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* break if we get a STOP field */
+    if (ftype == T_STOP)
+    {
+      break;
+    }
+
+    switch (fid)
+    {
+      case 1:
+        if (ftype == T_STRING)
+        {
+          if (this_object->rd != NULL)
+          {
+            g_free(this_object->rd);
+            this_object->rd = NULL;
+          }
+
+          if ((ret = thrift_protocol_read_string (protocol, &this_object->rd, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->__isset_rd = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      case 2:
+        if (ftype == T_I32)
+        {
+          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->maxPath, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->__isset_maxPath = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      default:
+        if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+          return -1;
+        xfer += ret;
+        break;
+    }
+    if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+
+  if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static gint32
+bgp_configurator_multipaths_args_write (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+
+  BgpConfiguratorMultipathsArgs * this_object = BGP_CONFIGURATOR_MULTIPATHS_ARGS(object);
+  THRIFT_UNUSED_VAR (this_object);
+  if ((ret = thrift_protocol_write_struct_begin (protocol, "BgpConfiguratorMultipathsArgs", error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "rd", T_STRING, 1, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_string (protocol, this_object->rd, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "maxPath", T_I32, 2, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_i32 (protocol, this_object->maxPath, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static void
+bgp_configurator_multipaths_args_set_property (GObject *object,
+                                               guint property_id,
+                                               const GValue *value,
+                                               GParamSpec *pspec)
+{
+  BgpConfiguratorMultipathsArgs *self = BGP_CONFIGURATOR_MULTIPATHS_ARGS (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_MULTIPATHS_ARGS_RD:
+      if (self->rd != NULL)
+        g_free (self->rd);
+      self->rd = g_value_dup_string (value);
+      self->__isset_rd = TRUE;
+      break;
+
+    case PROP_BGP_CONFIGURATOR_MULTIPATHS_ARGS_MAX_PATH:
+      self->maxPath = g_value_get_int (value);
+      self->__isset_maxPath = TRUE;
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
+bgp_configurator_multipaths_args_get_property (GObject *object,
+                                               guint property_id,
+                                               GValue *value,
+                                               GParamSpec *pspec)
+{
+  BgpConfiguratorMultipathsArgs *self = BGP_CONFIGURATOR_MULTIPATHS_ARGS (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_MULTIPATHS_ARGS_RD:
+      g_value_set_string (value, self->rd);
+      break;
+
+    case PROP_BGP_CONFIGURATOR_MULTIPATHS_ARGS_MAX_PATH:
+      g_value_set_int (value, self->maxPath);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void 
+bgp_configurator_multipaths_args_instance_init (BgpConfiguratorMultipathsArgs * object)
+{
+  /* satisfy -Wall */
+  THRIFT_UNUSED_VAR (object);
+  object->rd = NULL;
+  object->__isset_rd = FALSE;
+  object->maxPath = 0;
+  object->__isset_maxPath = FALSE;
+}
+
+static void 
+bgp_configurator_multipaths_args_finalize (GObject *object)
+{
+  BgpConfiguratorMultipathsArgs *tobject = BGP_CONFIGURATOR_MULTIPATHS_ARGS (object);
+
+  /* satisfy -Wall in case we don't use tobject */
+  THRIFT_UNUSED_VAR (tobject);
+  if (tobject->rd != NULL)
+  {
+    g_free(tobject->rd);
+    tobject->rd = NULL;
+  }
+}
+
+static void
+bgp_configurator_multipaths_args_class_init (BgpConfiguratorMultipathsArgsClass * cls)
+{
+  GObjectClass *gobject_class = G_OBJECT_CLASS (cls);
+  ThriftStructClass *struct_class = THRIFT_STRUCT_CLASS (cls);
+
+  struct_class->read = bgp_configurator_multipaths_args_read;
+  struct_class->write = bgp_configurator_multipaths_args_write;
+
+  gobject_class->finalize = bgp_configurator_multipaths_args_finalize;
+  gobject_class->get_property = bgp_configurator_multipaths_args_get_property;
+  gobject_class->set_property = bgp_configurator_multipaths_args_set_property;
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_MULTIPATHS_ARGS_RD,
+     g_param_spec_string ("rd",
+                          NULL,
+                          NULL,
+                          NULL,
+                          G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_MULTIPATHS_ARGS_MAX_PATH,
+     g_param_spec_int ("maxPath",
+                       NULL,
+                       NULL,
+                       G_MININT32,
+                       G_MAXINT32,
+                       0,
+                       G_PARAM_READWRITE));
+}
+
+GType
+bgp_configurator_multipaths_args_get_type (void)
+{
+  static GType type = 0;
+
+  if (type == 0) 
+  {
+    static const GTypeInfo type_info = 
+    {
+      sizeof (BgpConfiguratorMultipathsArgsClass),
+      NULL, /* base_init */
+      NULL, /* base_finalize */
+      (GClassInitFunc) bgp_configurator_multipaths_args_class_init,
+      NULL, /* class_finalize */
+      NULL, /* class_data */
+      sizeof (BgpConfiguratorMultipathsArgs),
+      0, /* n_preallocs */
+      (GInstanceInitFunc) bgp_configurator_multipaths_args_instance_init,
+      NULL, /* value_table */
+    };
+
+    type = g_type_register_static (THRIFT_TYPE_STRUCT, 
+                                   "BgpConfiguratorMultipathsArgsType",
+                                   &type_info, 0);
+  }
+
+  return type;
+}
+
+enum _BgpConfiguratorMultipathsResultProperties
+{
+  PROP_BGP_CONFIGURATOR_MULTIPATHS_RESULT_0,
+  PROP_BGP_CONFIGURATOR_MULTIPATHS_RESULT_SUCCESS
+};
+
+/* reads a bgp_configurator_multipaths_result object */
+static gint32
+bgp_configurator_multipaths_result_read (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+  gchar *name = NULL;
+  ThriftType ftype;
+  gint16 fid;
+  guint32 len = 0;
+  gpointer data = NULL;
+  BgpConfiguratorMultipathsResult * this_object = BGP_CONFIGURATOR_MULTIPATHS_RESULT(object);
+
+  /* satisfy -Wall in case these aren't used */
+  THRIFT_UNUSED_VAR (len);
+  THRIFT_UNUSED_VAR (data);
+  THRIFT_UNUSED_VAR (this_object);
+
+  /* read the struct begin marker */
+  if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+  {
+    if (name) g_free (name);
+    return -1;
+  }
+  xfer += ret;
+  if (name) g_free (name);
+  name = NULL;
+
+  /* read the struct fields */
+  while (1)
+  {
+    /* read the beginning of a field */
+    if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+    {
+      if (name) g_free (name);
+      return -1;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* break if we get a STOP field */
+    if (ftype == T_STOP)
+    {
+      break;
+    }
+
+    switch (fid)
+    {
+      case 0:
+        if (ftype == T_I32)
+        {
+          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->success, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->__isset_success = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      default:
+        if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+          return -1;
+        xfer += ret;
+        break;
+    }
+    if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+
+  if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static gint32
+bgp_configurator_multipaths_result_write (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+
+  BgpConfiguratorMultipathsResult * this_object = BGP_CONFIGURATOR_MULTIPATHS_RESULT(object);
+  THRIFT_UNUSED_VAR (this_object);
+  if ((ret = thrift_protocol_write_struct_begin (protocol, "BgpConfiguratorMultipathsResult", error)) < 0)
+    return -1;
+  xfer += ret;
+  if (this_object->__isset_success == TRUE) {
+    if ((ret = thrift_protocol_write_field_begin (protocol, "success", T_I32, 0, error)) < 0)
+      return -1;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, this_object->success, error)) < 0)
+      return -1;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+  if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static void
+bgp_configurator_multipaths_result_set_property (GObject *object,
+                                                 guint property_id,
+                                                 const GValue *value,
+                                                 GParamSpec *pspec)
+{
+  BgpConfiguratorMultipathsResult *self = BGP_CONFIGURATOR_MULTIPATHS_RESULT (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_MULTIPATHS_RESULT_SUCCESS:
+      self->success = g_value_get_int (value);
+      self->__isset_success = TRUE;
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
+bgp_configurator_multipaths_result_get_property (GObject *object,
+                                                 guint property_id,
+                                                 GValue *value,
+                                                 GParamSpec *pspec)
+{
+  BgpConfiguratorMultipathsResult *self = BGP_CONFIGURATOR_MULTIPATHS_RESULT (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_MULTIPATHS_RESULT_SUCCESS:
+      g_value_set_int (value, self->success);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void 
+bgp_configurator_multipaths_result_instance_init (BgpConfiguratorMultipathsResult * object)
+{
+  /* satisfy -Wall */
+  THRIFT_UNUSED_VAR (object);
+  object->success = 0;
+  object->__isset_success = FALSE;
+}
+
+static void 
+bgp_configurator_multipaths_result_finalize (GObject *object)
+{
+  BgpConfiguratorMultipathsResult *tobject = BGP_CONFIGURATOR_MULTIPATHS_RESULT (object);
+
+  /* satisfy -Wall in case we don't use tobject */
+  THRIFT_UNUSED_VAR (tobject);
+}
+
+static void
+bgp_configurator_multipaths_result_class_init (BgpConfiguratorMultipathsResultClass * cls)
+{
+  GObjectClass *gobject_class = G_OBJECT_CLASS (cls);
+  ThriftStructClass *struct_class = THRIFT_STRUCT_CLASS (cls);
+
+  struct_class->read = bgp_configurator_multipaths_result_read;
+  struct_class->write = bgp_configurator_multipaths_result_write;
+
+  gobject_class->finalize = bgp_configurator_multipaths_result_finalize;
+  gobject_class->get_property = bgp_configurator_multipaths_result_get_property;
+  gobject_class->set_property = bgp_configurator_multipaths_result_set_property;
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_MULTIPATHS_RESULT_SUCCESS,
+     g_param_spec_int ("success",
+                       NULL,
+                       NULL,
+                       G_MININT32,
+                       G_MAXINT32,
+                       0,
+                       G_PARAM_READWRITE));
+}
+
+GType
+bgp_configurator_multipaths_result_get_type (void)
+{
+  static GType type = 0;
+
+  if (type == 0) 
+  {
+    static const GTypeInfo type_info = 
+    {
+      sizeof (BgpConfiguratorMultipathsResultClass),
+      NULL, /* base_init */
+      NULL, /* base_finalize */
+      (GClassInitFunc) bgp_configurator_multipaths_result_class_init,
+      NULL, /* class_finalize */
+      NULL, /* class_data */
+      sizeof (BgpConfiguratorMultipathsResult),
+      0, /* n_preallocs */
+      (GInstanceInitFunc) bgp_configurator_multipaths_result_instance_init,
+      NULL, /* value_table */
+    };
+
+    type = g_type_register_static (THRIFT_TYPE_STRUCT, 
+                                   "BgpConfiguratorMultipathsResultType",
+                                   &type_info, 0);
+  }
+
+  return type;
+}
+
 enum _BgpUpdaterOnUpdatePushRouteArgsProperties
 {
   PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_0,

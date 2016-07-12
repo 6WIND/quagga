@@ -36,6 +36,9 @@ struct _BgpConfiguratorIfInterface
   gboolean (*enable_graceful_restart) (BgpConfiguratorIf *iface, gint32* _return, const gint32 stalepathTime, GError **error);
   gboolean (*disable_graceful_restart) (BgpConfiguratorIf *iface, gint32* _return, GError **error);
   gboolean (*get_routes) (BgpConfiguratorIf *iface, Routes ** _return, const gint32 optype, const gint32 winSize, GError **error);
+  gboolean (*enable_multipath) (BgpConfiguratorIf *iface, gint32* _return, const af_afi afi, const af_safi safi, GError **error);
+  gboolean (*disable_multipath) (BgpConfiguratorIf *iface, gint32* _return, const af_afi afi, const af_safi safi, GError **error);
+  gboolean (*multipaths) (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, const gint32 maxPath, GError **error);
 };
 typedef struct _BgpConfiguratorIfInterface BgpConfiguratorIfInterface;
 
@@ -63,6 +66,9 @@ gboolean bgp_configurator_if_set_log_config (BgpConfiguratorIf *iface, gint32* _
 gboolean bgp_configurator_if_enable_graceful_restart (BgpConfiguratorIf *iface, gint32* _return, const gint32 stalepathTime, GError **error);
 gboolean bgp_configurator_if_disable_graceful_restart (BgpConfiguratorIf *iface, gint32* _return, GError **error);
 gboolean bgp_configurator_if_get_routes (BgpConfiguratorIf *iface, Routes ** _return, const gint32 optype, const gint32 winSize, GError **error);
+gboolean bgp_configurator_if_enable_multipath (BgpConfiguratorIf *iface, gint32* _return, const af_afi afi, const af_safi safi, GError **error);
+gboolean bgp_configurator_if_disable_multipath (BgpConfiguratorIf *iface, gint32* _return, const af_afi afi, const af_safi safi, GError **error);
+gboolean bgp_configurator_if_multipaths (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, const gint32 maxPath, GError **error);
 
 /* BgpConfigurator service client */
 struct _BgpConfiguratorClient
@@ -142,6 +148,15 @@ gboolean bgp_configurator_client_recv_disable_graceful_restart (BgpConfiguratorI
 gboolean bgp_configurator_client_get_routes (BgpConfiguratorIf * iface, Routes ** _return, const gint32 optype, const gint32 winSize, GError ** error);
 gboolean bgp_configurator_client_send_get_routes (BgpConfiguratorIf * iface, const gint32 optype, const gint32 winSize, GError ** error);
 gboolean bgp_configurator_client_recv_get_routes (BgpConfiguratorIf * iface, Routes ** _return, GError ** error);
+gboolean bgp_configurator_client_enable_multipath (BgpConfiguratorIf * iface, gint32* _return, const af_afi afi, const af_safi safi, GError ** error);
+gboolean bgp_configurator_client_send_enable_multipath (BgpConfiguratorIf * iface, const af_afi afi, const af_safi safi, GError ** error);
+gboolean bgp_configurator_client_recv_enable_multipath (BgpConfiguratorIf * iface, gint32* _return, GError ** error);
+gboolean bgp_configurator_client_disable_multipath (BgpConfiguratorIf * iface, gint32* _return, const af_afi afi, const af_safi safi, GError ** error);
+gboolean bgp_configurator_client_send_disable_multipath (BgpConfiguratorIf * iface, const af_afi afi, const af_safi safi, GError ** error);
+gboolean bgp_configurator_client_recv_disable_multipath (BgpConfiguratorIf * iface, gint32* _return, GError ** error);
+gboolean bgp_configurator_client_multipaths (BgpConfiguratorIf * iface, gint32* _return, const gchar * rd, const gint32 maxPath, GError ** error);
+gboolean bgp_configurator_client_send_multipaths (BgpConfiguratorIf * iface, const gchar * rd, const gint32 maxPath, GError ** error);
+gboolean bgp_configurator_client_recv_multipaths (BgpConfiguratorIf * iface, gint32* _return, GError ** error);
 void bgp_configurator_client_set_property (GObject *object, guint property_id, const GValue *value, GParamSpec *pspec);
 void bgp_configurator_client_get_property (GObject *object, guint property_id, GValue *value, GParamSpec *pspec);
 
@@ -174,6 +189,9 @@ struct _BgpConfiguratorHandlerClass
   gboolean (*enable_graceful_restart) (BgpConfiguratorIf *iface, gint32* _return, const gint32 stalepathTime, GError **error);
   gboolean (*disable_graceful_restart) (BgpConfiguratorIf *iface, gint32* _return, GError **error);
   gboolean (*get_routes) (BgpConfiguratorIf *iface, Routes ** _return, const gint32 optype, const gint32 winSize, GError **error);
+  gboolean (*enable_multipath) (BgpConfiguratorIf *iface, gint32* _return, const af_afi afi, const af_safi safi, GError **error);
+  gboolean (*disable_multipath) (BgpConfiguratorIf *iface, gint32* _return, const af_afi afi, const af_safi safi, GError **error);
+  gboolean (*multipaths) (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, const gint32 maxPath, GError **error);
 };
 typedef struct _BgpConfiguratorHandlerClass BgpConfiguratorHandlerClass;
 
@@ -203,6 +221,9 @@ gboolean bgp_configurator_handler_set_log_config (BgpConfiguratorIf *iface, gint
 gboolean bgp_configurator_handler_enable_graceful_restart (BgpConfiguratorIf *iface, gint32* _return, const gint32 stalepathTime, GError **error);
 gboolean bgp_configurator_handler_disable_graceful_restart (BgpConfiguratorIf *iface, gint32* _return, GError **error);
 gboolean bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes ** _return, const gint32 optype, const gint32 winSize, GError **error);
+gboolean bgp_configurator_handler_enable_multipath (BgpConfiguratorIf *iface, gint32* _return, const af_afi afi, const af_safi safi, GError **error);
+gboolean bgp_configurator_handler_disable_multipath (BgpConfiguratorIf *iface, gint32* _return, const af_afi afi, const af_safi safi, GError **error);
+gboolean bgp_configurator_handler_multipaths (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, const gint32 maxPath, GError **error);
 
 /* BgpConfigurator processor */
 struct _BgpConfiguratorProcessor

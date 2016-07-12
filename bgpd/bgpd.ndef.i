@@ -247,6 +247,24 @@ _qzc_set_bgp_1(struct bgp *p,
     qcapn_BGP_set(p, req->data);
 }
 
+static void
+_qzc_set_bgp_2(struct bgp *p,
+        struct QZCSetReq *req,
+        struct capn_segment *seg)
+{
+    afi_t afi;
+    safi_t safi;
+
+    afi = qcapn_AfiSafiKey_get_afi (req->ctxdata);
+    safi = qcapn_AfiSafiKey_get_safi (req->ctxdata);
+
+    if (req->datatype != 0xfd0316f1800ae916)
+        /* error */
+        return;
+
+    qcapn_BGPAfiSafi_set(p, req->data, afi, safi);
+}
+
 /* [3fafaa5ff15d4317] bgp <> bgp */
 static void
 _qzc_get_bgp(void *entity, struct QZCGetReq *req, struct QZCGetRep *rep,
@@ -296,6 +314,9 @@ _qzc_set_bgp(void *entity,
     switch (req->elem) {
     case 1:
         _qzc_set_bgp_1(p, req, seg);
+        return;
+    case 2:
+        _qzc_set_bgp_2(p, req, seg);
         return;
     default:
         return;
@@ -655,11 +676,9 @@ _qzc_set_bgp_vrf_1(struct bgp_vrf *p,
         struct QZCSetReq *req,
         struct capn_segment *seg)
 {
-
     if (req->ctxtype != 0)
         /* error */
         return;
-
 
     if (req->datatype != 0x912c4b0c412022b1)
         /* error */

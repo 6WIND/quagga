@@ -1054,6 +1054,162 @@ GType bgp_configurator_get_routes_result_get_type (void);
 #define IS_BGP_CONFIGURATOR_GET_ROUTES_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_GET_ROUTES_RESULT))
 #define BGP_CONFIGURATOR_GET_ROUTES_RESULT_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_GET_ROUTES_RESULT, BgpConfiguratorGetRoutesResultClass))
 
+/* struct BgpConfiguratorEnableMultipathArgs */
+struct _BgpConfiguratorEnableMultipathArgs
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+  af_afi afi;
+  gboolean __isset_afi;
+  af_safi safi;
+  gboolean __isset_safi;
+};
+typedef struct _BgpConfiguratorEnableMultipathArgs BgpConfiguratorEnableMultipathArgs;
+
+struct _BgpConfiguratorEnableMultipathArgsClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorEnableMultipathArgsClass BgpConfiguratorEnableMultipathArgsClass;
+
+GType bgp_configurator_enable_multipath_args_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS (bgp_configurator_enable_multipath_args_get_type())
+#define BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS, BgpConfiguratorEnableMultipathArgs))
+#define BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS, BgpConfiguratorEnableMultipathArgsClass))
+#define IS_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS))
+#define IS_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS))
+#define BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS, BgpConfiguratorEnableMultipathArgsClass))
+
+/* struct BgpConfiguratorEnableMultipathResult */
+struct _BgpConfiguratorEnableMultipathResult
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+  gint32 success;
+  gboolean __isset_success;
+};
+typedef struct _BgpConfiguratorEnableMultipathResult BgpConfiguratorEnableMultipathResult;
+
+struct _BgpConfiguratorEnableMultipathResultClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorEnableMultipathResultClass BgpConfiguratorEnableMultipathResultClass;
+
+GType bgp_configurator_enable_multipath_result_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT (bgp_configurator_enable_multipath_result_get_type())
+#define BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT, BgpConfiguratorEnableMultipathResult))
+#define BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT, BgpConfiguratorEnableMultipathResultClass))
+#define IS_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT))
+#define IS_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT))
+#define BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT, BgpConfiguratorEnableMultipathResultClass))
+
+/* struct BgpConfiguratorDisableMultipathArgs */
+struct _BgpConfiguratorDisableMultipathArgs
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+  af_afi afi;
+  gboolean __isset_afi;
+  af_safi safi;
+  gboolean __isset_safi;
+};
+typedef struct _BgpConfiguratorDisableMultipathArgs BgpConfiguratorDisableMultipathArgs;
+
+struct _BgpConfiguratorDisableMultipathArgsClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorDisableMultipathArgsClass BgpConfiguratorDisableMultipathArgsClass;
+
+GType bgp_configurator_disable_multipath_args_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS (bgp_configurator_disable_multipath_args_get_type())
+#define BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS, BgpConfiguratorDisableMultipathArgs))
+#define BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS, BgpConfiguratorDisableMultipathArgsClass))
+#define IS_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS))
+#define IS_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS))
+#define BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS, BgpConfiguratorDisableMultipathArgsClass))
+
+/* struct BgpConfiguratorDisableMultipathResult */
+struct _BgpConfiguratorDisableMultipathResult
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+  gint32 success;
+  gboolean __isset_success;
+};
+typedef struct _BgpConfiguratorDisableMultipathResult BgpConfiguratorDisableMultipathResult;
+
+struct _BgpConfiguratorDisableMultipathResultClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorDisableMultipathResultClass BgpConfiguratorDisableMultipathResultClass;
+
+GType bgp_configurator_disable_multipath_result_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT (bgp_configurator_disable_multipath_result_get_type())
+#define BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT, BgpConfiguratorDisableMultipathResult))
+#define BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT, BgpConfiguratorDisableMultipathResultClass))
+#define IS_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT))
+#define IS_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT))
+#define BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT, BgpConfiguratorDisableMultipathResultClass))
+
+/* struct BgpConfiguratorMultipathsArgs */
+struct _BgpConfiguratorMultipathsArgs
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+  gchar * rd;
+  gboolean __isset_rd;
+  gint32 maxPath;
+  gboolean __isset_maxPath;
+};
+typedef struct _BgpConfiguratorMultipathsArgs BgpConfiguratorMultipathsArgs;
+
+struct _BgpConfiguratorMultipathsArgsClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorMultipathsArgsClass BgpConfiguratorMultipathsArgsClass;
+
+GType bgp_configurator_multipaths_args_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_MULTIPATHS_ARGS (bgp_configurator_multipaths_args_get_type())
+#define BGP_CONFIGURATOR_MULTIPATHS_ARGS(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_MULTIPATHS_ARGS, BgpConfiguratorMultipathsArgs))
+#define BGP_CONFIGURATOR_MULTIPATHS_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_MULTIPATHS_ARGS, BgpConfiguratorMultipathsArgsClass))
+#define IS_BGP_CONFIGURATOR_MULTIPATHS_ARGS(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_MULTIPATHS_ARGS))
+#define IS_BGP_CONFIGURATOR_MULTIPATHS_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_MULTIPATHS_ARGS))
+#define BGP_CONFIGURATOR_MULTIPATHS_ARGS_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_MULTIPATHS_ARGS, BgpConfiguratorMultipathsArgsClass))
+
+/* struct BgpConfiguratorMultipathsResult */
+struct _BgpConfiguratorMultipathsResult
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+  gint32 success;
+  gboolean __isset_success;
+};
+typedef struct _BgpConfiguratorMultipathsResult BgpConfiguratorMultipathsResult;
+
+struct _BgpConfiguratorMultipathsResultClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorMultipathsResultClass BgpConfiguratorMultipathsResultClass;
+
+GType bgp_configurator_multipaths_result_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_MULTIPATHS_RESULT (bgp_configurator_multipaths_result_get_type())
+#define BGP_CONFIGURATOR_MULTIPATHS_RESULT(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_MULTIPATHS_RESULT, BgpConfiguratorMultipathsResult))
+#define BGP_CONFIGURATOR_MULTIPATHS_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_MULTIPATHS_RESULT, BgpConfiguratorMultipathsResultClass))
+#define IS_BGP_CONFIGURATOR_MULTIPATHS_RESULT(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_MULTIPATHS_RESULT))
+#define IS_BGP_CONFIGURATOR_MULTIPATHS_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_MULTIPATHS_RESULT))
+#define BGP_CONFIGURATOR_MULTIPATHS_RESULT_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_MULTIPATHS_RESULT, BgpConfiguratorMultipathsResultClass))
+
 /* struct BgpUpdaterOnUpdatePushRouteArgs */
 struct _BgpUpdaterOnUpdatePushRouteArgs
 { 

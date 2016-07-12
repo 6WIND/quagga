@@ -124,7 +124,10 @@
       * calling INIT when NEXT is expected causes reinit.
       * only vpnv4 RIBs are supported.
       */
-     Routes getRoutes(1:i32 optype, 2:i32 winSize)
+     Routes getRoutes(1:i32 optype, 2:i32 winSize),
+     i32 enableMultipath(1:af_afi afi, 2:af_safi safi),
+     i32 disableMultipath(1:af_afi afi, 2:af_safi safi),
+     i32 multipaths(1:string rd, 2:i32 maxPath),
  }
  
  service BgpUpdater {

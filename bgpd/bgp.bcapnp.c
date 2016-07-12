@@ -207,41 +207,49 @@ as_t qcapn_BGP_get_as(capn_ptr p)
     return capn_read32(p, 0);
 }
 
-
-void qcapn_BGPAfiSafi_read(struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
-{
-    capn_resolve(&p);
-    { bool tmp;
-      tmp = !!(capn_read8(p, 0) & (1 << 0));
-      if (tmp) s->af_flags[afi][safi] |=  BGP_CONFIG_DAMPENING;
-      else     s->af_flags[afi][safi] &= ~BGP_CONFIG_DAMPENING;
-    }
-}
-
-
-
-void qcapn_BGPAfiSafi_write(const struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
-{
-    capn_resolve(&p);
-    capn_write1(p, 0, !!(s->af_flags[afi][safi] & BGP_CONFIG_DAMPENING));
-}
-
-
-
 void qcapn_BGPAfiSafi_set(struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
 {
     capn_resolve(&p);
     {
-      /* MISSING: af_flags */
+      u_int16_t flags;
+      flags = !!(capn_read8(p, 0) & (1 << 0));
+      if (flags) bgp_af_flag_set(s, BGP_CONFIG_DAMPENING, afi, safi);
+        else bgp_af_flag_unset(s, BGP_CONFIG_DAMPENING, afi, safi);
+    }
+    {
+      u_int16_t flags;
+      flags = !!(capn_read8(p, 0) & (1 << 1));
+      if (flags)
+      {
+        bgp_af_flag_set(s, BGP_CONFIG_ASPATH_MULTIPATH_RELAX, afi, safi);
+      }
+      else
+      {
+        bgp_af_flag_unset(s, BGP_CONFIG_ASPATH_MULTIPATH_RELAX, afi, safi);
+      }
+    }
+    {
+      u_int16_t flags;
+      flags = !!(capn_read8(p, 0) & (1 << 2));
+      if (flags)
+      {
+        uint8_t max = capn_read8(p, 3);
+        bgp_af_flag_set(s, BGP_CONFIG_MULTIPATH, afi, safi);
+        bgp_maximum_paths_set (s, AFI_IP, SAFI_MPLS_VPN,
+                               BGP_PEER_EBGP, max);
+        bgp_maximum_paths_set (s, AFI_IP, SAFI_MPLS_VPN,
+                               BGP_PEER_IBGP, max);
+      }
+      else
+      {
+        bgp_af_flag_unset(s, BGP_CONFIG_MULTIPATH, afi, safi);
+        bgp_maximum_paths_unset (s, AFI_IP, SAFI_MPLS_VPN,
+                                 BGP_PEER_EBGP);
+        bgp_maximum_paths_unset (s, AFI_IP, SAFI_MPLS_VPN,
+                                 BGP_PEER_IBGP);
+      }
     }
 }
-
-
-capn_ptr qcapn_new_BGPAfiSafi(struct capn_segment *s)
-{
-    return capn_new_struct(s, 8, 0);
-}
-
 
 void qcapn_BGPPeer_set(struct peer *s, capn_ptr p)
 {
@@ -515,43 +523,11 @@ void qcapn_BGPPeerAfiSafi_set(struct peer *s, capn_ptr p, afi_t afi, safi_t safi
     }
 }
 
-
-
-void qcapn_BGPVRF_read(struct bgp_vrf *s, capn_ptr p)
-{
-    capn_resolve(&p);
-    *(uint64_t *)s->outbound_rd.val = capn_read64(p, 0);
-    s->outbound_rd.family = AF_UNSPEC;
-    s->outbound_rd.prefixlen = 64;
-    
-    {
-        capn_ptr tmp_p = capn_getp(p, 0, 1);
-        capn_list64 listptr = { .p = capn_getp(tmp_p, 0, 1) };
-        size_t listsize = capn_len(listptr);
-        uint64_t buf[listsize];
-        capn_getv64(listptr, 0, buf, listsize);
-        if (s->rt_import)
-            ecommunity_unintern(&s->rt_import);
-        s->rt_import = ecommunity_parse ((uint8_t *)buf, listsize * 8);
-    }
-    
-    {
-        capn_ptr tmp_p = capn_getp(p, 1, 1);
-        capn_list64 listptr = { .p = capn_getp(tmp_p, 0, 1) };
-        size_t listsize = capn_len(listptr);
-        uint64_t buf[listsize];
-        capn_getv64(listptr, 0, buf, listsize);
-        if (s->rt_export)
-            ecommunity_unintern(&s->rt_export);
-        s->rt_export = ecommunity_parse ((uint8_t *)buf, listsize * 8);
-    }
-}
-
 void qcapn_BGPVRF_set(struct bgp_vrf *s, capn_ptr p)
 {
     capn_resolve(&p);
     {
-      /* MISSING: outbound_rd */
+      s->max_mpath = capn_read32(p, 8);
     }
     {
       struct ecommunity * rt_import;

@@ -117,6 +117,24 @@ bgp_configurator_if_get_routes (BgpConfiguratorIf *iface, Routes ** _return, con
   return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->get_routes (iface, _return, optype, winSize, error);
 }
 
+gboolean
+bgp_configurator_if_enable_multipath (BgpConfiguratorIf *iface, gint32* _return, const af_afi afi, const af_safi safi, GError **error)
+{
+  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->enable_multipath (iface, _return, afi, safi, error);
+}
+
+gboolean
+bgp_configurator_if_disable_multipath (BgpConfiguratorIf *iface, gint32* _return, const af_afi afi, const af_safi safi, GError **error)
+{
+  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->disable_multipath (iface, _return, afi, safi, error);
+}
+
+gboolean
+bgp_configurator_if_multipaths (BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, const gint32 maxPath, GError **error)
+{
+  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->multipaths (iface, _return, rd, maxPath, error);
+}
+
 GType
 bgp_configurator_if_get_type (void)
 {
@@ -998,14 +1016,14 @@ gboolean bgp_configurator_client_send_add_vrf (BgpConfiguratorIf * iface, const 
       return 0;
     xfer += ret;
     {
-      guint i10;
+      guint i14;
 
       if ((ret = thrift_protocol_write_list_begin (protocol, T_STRING, (gint32) (irts ? irts->len : 0), error)) < 0)
         return 0;
       xfer += ret;
-      for (i10 = 0; i10 < (irts ? irts->len : 0); i10++)
+      for (i14 = 0; i14 < (irts ? irts->len : 0); i14++)
       {
-        if ((ret = thrift_protocol_write_string (protocol, ((gchar*)g_ptr_array_index ((GPtrArray *) irts, i10)), error)) < 0)
+        if ((ret = thrift_protocol_write_string (protocol, ((gchar*)g_ptr_array_index ((GPtrArray *) irts, i14)), error)) < 0)
           return 0;
         xfer += ret;
 
@@ -1021,14 +1039,14 @@ gboolean bgp_configurator_client_send_add_vrf (BgpConfiguratorIf * iface, const 
       return 0;
     xfer += ret;
     {
-      guint i11;
+      guint i15;
 
       if ((ret = thrift_protocol_write_list_begin (protocol, T_STRING, (gint32) (erts ? erts->len : 0), error)) < 0)
         return 0;
       xfer += ret;
-      for (i11 = 0; i11 < (erts ? erts->len : 0); i11++)
+      for (i15 = 0; i15 < (erts ? erts->len : 0); i15++)
       {
-        if ((ret = thrift_protocol_write_string (protocol, ((gchar*)g_ptr_array_index ((GPtrArray *) erts, i11)), error)) < 0)
+        if ((ret = thrift_protocol_write_string (protocol, ((gchar*)g_ptr_array_index ((GPtrArray *) erts, i15)), error)) < 0)
           return 0;
         xfer += ret;
 
@@ -3590,6 +3608,564 @@ gboolean bgp_configurator_client_get_routes (BgpConfiguratorIf * iface, Routes *
   return TRUE;
 }
 
+gboolean bgp_configurator_client_send_enable_multipath (BgpConfiguratorIf * iface, const af_afi afi, const af_safi safi, GError ** error)
+{
+  gint32 cseqid = 0;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
+
+  if (thrift_protocol_write_message_begin (protocol, "enableMultipath", T_CALL, cseqid, error) < 0)
+    return FALSE;
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+
+    
+    if ((ret = thrift_protocol_write_struct_begin (protocol, "enableMultipath_args", error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 1, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, (gint32) afi, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "safi", T_I32, 2, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, (gint32) safi, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_write_message_end (protocol, error) < 0)
+    return FALSE;
+  if (!thrift_transport_flush (protocol->transport, error))
+    return FALSE;
+  if (!thrift_transport_write_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_recv_enable_multipath (BgpConfiguratorIf * iface, gint32* _return, GError ** error)
+{
+  gint32 rseqid;
+  gchar * fname = NULL;
+  ThriftMessageType mtype;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->input_protocol;
+  ThriftApplicationException *xception;
+
+  if (thrift_protocol_read_message_begin (protocol, &fname, &mtype, &rseqid, error) < 0) {
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+
+  if (mtype == T_EXCEPTION) {
+    if (fname) g_free (fname);
+    xception = g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION, NULL);
+    thrift_struct_read (THRIFT_STRUCT (xception), protocol, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR,xception->type, "application error: %s", xception->message);
+    g_object_unref (xception);
+    return FALSE;
+  } else if (mtype != T_REPLY) {
+    if (fname) g_free (fname);
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_INVALID_MESSAGE_TYPE, "invalid message type %d, expected T_REPLY", mtype);
+    return FALSE;
+  } else if (strncmp (fname, "enableMultipath", 15) != 0) {
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol,error);
+    thrift_transport_read_end (protocol->transport, error);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_WRONG_METHOD_NAME, "wrong method name %s, expected enableMultipath", fname);
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+  if (fname) g_free (fname);
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+    gchar *name = NULL;
+    ThriftType ftype;
+    gint16 fid;
+    guint32 len = 0;
+    gpointer data = NULL;
+    
+
+    /* satisfy -Wall in case these aren't used */
+    THRIFT_UNUSED_VAR (len);
+    THRIFT_UNUSED_VAR (data);
+
+    /* read the struct begin marker */
+    if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+    {
+      if (name) g_free (name);
+      return 0;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* read the struct fields */
+    while (1)
+    {
+      /* read the beginning of a field */
+      if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+      {
+        if (name) g_free (name);
+        return 0;
+      }
+      xfer += ret;
+      if (name) g_free (name);
+      name = NULL;
+
+      /* break if we get a STOP field */
+      if (ftype == T_STOP)
+      {
+        break;
+      }
+
+      switch (fid)
+      {
+        case 0:
+          if (ftype == T_I32)
+          {
+            if ((ret = thrift_protocol_read_i32 (protocol, &*_return, error)) < 0)
+              return 0;
+            xfer += ret;
+          } else {
+            if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+              return 0;
+            xfer += ret;
+          }
+          break;
+        default:
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return 0;
+          xfer += ret;
+          break;
+      }
+      if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+        return 0;
+      xfer += ret;
+    }
+
+    if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_read_message_end (protocol, error) < 0)
+    return FALSE;
+
+  if (!thrift_transport_read_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_enable_multipath (BgpConfiguratorIf * iface, gint32* _return, const af_afi afi, const af_safi safi, GError ** error)
+{
+  if (!bgp_configurator_client_send_enable_multipath (iface, afi, safi, error))
+    return FALSE;
+  if (!bgp_configurator_client_recv_enable_multipath (iface, _return, error))
+    return FALSE;
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_send_disable_multipath (BgpConfiguratorIf * iface, const af_afi afi, const af_safi safi, GError ** error)
+{
+  gint32 cseqid = 0;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
+
+  if (thrift_protocol_write_message_begin (protocol, "disableMultipath", T_CALL, cseqid, error) < 0)
+    return FALSE;
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+
+    
+    if ((ret = thrift_protocol_write_struct_begin (protocol, "disableMultipath_args", error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 1, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, (gint32) afi, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "safi", T_I32, 2, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, (gint32) safi, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_write_message_end (protocol, error) < 0)
+    return FALSE;
+  if (!thrift_transport_flush (protocol->transport, error))
+    return FALSE;
+  if (!thrift_transport_write_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_recv_disable_multipath (BgpConfiguratorIf * iface, gint32* _return, GError ** error)
+{
+  gint32 rseqid;
+  gchar * fname = NULL;
+  ThriftMessageType mtype;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->input_protocol;
+  ThriftApplicationException *xception;
+
+  if (thrift_protocol_read_message_begin (protocol, &fname, &mtype, &rseqid, error) < 0) {
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+
+  if (mtype == T_EXCEPTION) {
+    if (fname) g_free (fname);
+    xception = g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION, NULL);
+    thrift_struct_read (THRIFT_STRUCT (xception), protocol, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR,xception->type, "application error: %s", xception->message);
+    g_object_unref (xception);
+    return FALSE;
+  } else if (mtype != T_REPLY) {
+    if (fname) g_free (fname);
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_INVALID_MESSAGE_TYPE, "invalid message type %d, expected T_REPLY", mtype);
+    return FALSE;
+  } else if (strncmp (fname, "disableMultipath", 16) != 0) {
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol,error);
+    thrift_transport_read_end (protocol->transport, error);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_WRONG_METHOD_NAME, "wrong method name %s, expected disableMultipath", fname);
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+  if (fname) g_free (fname);
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+    gchar *name = NULL;
+    ThriftType ftype;
+    gint16 fid;
+    guint32 len = 0;
+    gpointer data = NULL;
+    
+
+    /* satisfy -Wall in case these aren't used */
+    THRIFT_UNUSED_VAR (len);
+    THRIFT_UNUSED_VAR (data);
+
+    /* read the struct begin marker */
+    if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+    {
+      if (name) g_free (name);
+      return 0;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* read the struct fields */
+    while (1)
+    {
+      /* read the beginning of a field */
+      if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+      {
+        if (name) g_free (name);
+        return 0;
+      }
+      xfer += ret;
+      if (name) g_free (name);
+      name = NULL;
+
+      /* break if we get a STOP field */
+      if (ftype == T_STOP)
+      {
+        break;
+      }
+
+      switch (fid)
+      {
+        case 0:
+          if (ftype == T_I32)
+          {
+            if ((ret = thrift_protocol_read_i32 (protocol, &*_return, error)) < 0)
+              return 0;
+            xfer += ret;
+          } else {
+            if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+              return 0;
+            xfer += ret;
+          }
+          break;
+        default:
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return 0;
+          xfer += ret;
+          break;
+      }
+      if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+        return 0;
+      xfer += ret;
+    }
+
+    if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_read_message_end (protocol, error) < 0)
+    return FALSE;
+
+  if (!thrift_transport_read_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_disable_multipath (BgpConfiguratorIf * iface, gint32* _return, const af_afi afi, const af_safi safi, GError ** error)
+{
+  if (!bgp_configurator_client_send_disable_multipath (iface, afi, safi, error))
+    return FALSE;
+  if (!bgp_configurator_client_recv_disable_multipath (iface, _return, error))
+    return FALSE;
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_send_multipaths (BgpConfiguratorIf * iface, const gchar * rd, const gint32 maxPath, GError ** error)
+{
+  gint32 cseqid = 0;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
+
+  if (thrift_protocol_write_message_begin (protocol, "multipaths", T_CALL, cseqid, error) < 0)
+    return FALSE;
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+
+    
+    if ((ret = thrift_protocol_write_struct_begin (protocol, "multipaths_args", error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "rd", T_STRING, 1, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_string (protocol, rd, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "maxPath", T_I32, 2, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, maxPath, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_write_message_end (protocol, error) < 0)
+    return FALSE;
+  if (!thrift_transport_flush (protocol->transport, error))
+    return FALSE;
+  if (!thrift_transport_write_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_recv_multipaths (BgpConfiguratorIf * iface, gint32* _return, GError ** error)
+{
+  gint32 rseqid;
+  gchar * fname = NULL;
+  ThriftMessageType mtype;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->input_protocol;
+  ThriftApplicationException *xception;
+
+  if (thrift_protocol_read_message_begin (protocol, &fname, &mtype, &rseqid, error) < 0) {
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+
+  if (mtype == T_EXCEPTION) {
+    if (fname) g_free (fname);
+    xception = g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION, NULL);
+    thrift_struct_read (THRIFT_STRUCT (xception), protocol, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR,xception->type, "application error: %s", xception->message);
+    g_object_unref (xception);
+    return FALSE;
+  } else if (mtype != T_REPLY) {
+    if (fname) g_free (fname);
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_INVALID_MESSAGE_TYPE, "invalid message type %d, expected T_REPLY", mtype);
+    return FALSE;
+  } else if (strncmp (fname, "multipaths", 10) != 0) {
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol,error);
+    thrift_transport_read_end (protocol->transport, error);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_WRONG_METHOD_NAME, "wrong method name %s, expected multipaths", fname);
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+  if (fname) g_free (fname);
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+    gchar *name = NULL;
+    ThriftType ftype;
+    gint16 fid;
+    guint32 len = 0;
+    gpointer data = NULL;
+    
+
+    /* satisfy -Wall in case these aren't used */
+    THRIFT_UNUSED_VAR (len);
+    THRIFT_UNUSED_VAR (data);
+
+    /* read the struct begin marker */
+    if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+    {
+      if (name) g_free (name);
+      return 0;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* read the struct fields */
+    while (1)
+    {
+      /* read the beginning of a field */
+      if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+      {
+        if (name) g_free (name);
+        return 0;
+      }
+      xfer += ret;
+      if (name) g_free (name);
+      name = NULL;
+
+      /* break if we get a STOP field */
+      if (ftype == T_STOP)
+      {
+        break;
+      }
+
+      switch (fid)
+      {
+        case 0:
+          if (ftype == T_I32)
+          {
+            if ((ret = thrift_protocol_read_i32 (protocol, &*_return, error)) < 0)
+              return 0;
+            xfer += ret;
+          } else {
+            if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+              return 0;
+            xfer += ret;
+          }
+          break;
+        default:
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return 0;
+          xfer += ret;
+          break;
+      }
+      if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+        return 0;
+      xfer += ret;
+    }
+
+    if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_read_message_end (protocol, error) < 0)
+    return FALSE;
+
+  if (!thrift_transport_read_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_multipaths (BgpConfiguratorIf * iface, gint32* _return, const gchar * rd, const gint32 maxPath, GError ** error)
+{
+  if (!bgp_configurator_client_send_multipaths (iface, rd, maxPath, error))
+    return FALSE;
+  if (!bgp_configurator_client_recv_multipaths (iface, _return, error))
+    return FALSE;
+  return TRUE;
+}
+
 static void
 bgp_configurator_if_interface_init (BgpConfiguratorIfInterface *iface)
 {
@@ -3611,6 +4187,9 @@ bgp_configurator_if_interface_init (BgpConfiguratorIfInterface *iface)
   iface->enable_graceful_restart = bgp_configurator_client_enable_graceful_restart;
   iface->disable_graceful_restart = bgp_configurator_client_disable_graceful_restart;
   iface->get_routes = bgp_configurator_client_get_routes;
+  iface->enable_multipath = bgp_configurator_client_enable_multipath;
+  iface->disable_multipath = bgp_configurator_client_disable_multipath;
+  iface->multipaths = bgp_configurator_client_multipaths;
 }
 
 static void
@@ -3781,6 +4360,27 @@ gboolean bgp_configurator_handler_get_routes (BgpConfiguratorIf * iface, Routes 
   return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->get_routes (iface, _return, optype, winSize, error);
 }
 
+gboolean bgp_configurator_handler_enable_multipath (BgpConfiguratorIf * iface, gint32* _return, const af_afi afi, const af_safi safi, GError ** error)
+{
+  g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
+
+  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->enable_multipath (iface, _return, afi, safi, error);
+}
+
+gboolean bgp_configurator_handler_disable_multipath (BgpConfiguratorIf * iface, gint32* _return, const af_afi afi, const af_safi safi, GError ** error)
+{
+  g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
+
+  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->disable_multipath (iface, _return, afi, safi, error);
+}
+
+gboolean bgp_configurator_handler_multipaths (BgpConfiguratorIf * iface, gint32* _return, const gchar * rd, const gint32 maxPath, GError ** error)
+{
+  g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
+
+  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->multipaths (iface, _return, rd, maxPath, error);
+}
+
 static void
 bgp_configurator_handler_bgp_configurator_if_interface_init (BgpConfiguratorIfInterface *iface)
 {
@@ -3802,6 +4402,9 @@ bgp_configurator_handler_bgp_configurator_if_interface_init (BgpConfiguratorIfIn
   iface->enable_graceful_restart = bgp_configurator_handler_enable_graceful_restart;
   iface->disable_graceful_restart = bgp_configurator_handler_disable_graceful_restart;
   iface->get_routes = bgp_configurator_handler_get_routes;
+  iface->enable_multipath = bgp_configurator_handler_enable_multipath;
+  iface->disable_multipath = bgp_configurator_handler_disable_multipath;
+  iface->multipaths = bgp_configurator_handler_multipaths;
 }
 
 static void
@@ -3831,6 +4434,9 @@ bgp_configurator_handler_class_init (BgpConfiguratorHandlerClass *cls)
   cls->enable_graceful_restart = NULL;
   cls->disable_graceful_restart = NULL;
   cls->get_routes = NULL;
+  cls->enable_multipath = NULL;
+  cls->disable_multipath = NULL;
+  cls->multipaths = NULL;
 }
 
 enum _BgpConfiguratorProcessorProperties
@@ -3963,9 +4569,27 @@ bgp_configurator_processor_process_get_routes (BgpConfiguratorProcessor *,
                                                ThriftProtocol *,
                                                ThriftProtocol *,
                                                GError **);
+static gboolean
+bgp_configurator_processor_process_enable_multipath (BgpConfiguratorProcessor *,
+                                                     gint32,
+                                                     ThriftProtocol *,
+                                                     ThriftProtocol *,
+                                                     GError **);
+static gboolean
+bgp_configurator_processor_process_disable_multipath (BgpConfiguratorProcessor *,
+                                                      gint32,
+                                                      ThriftProtocol *,
+                                                      ThriftProtocol *,
+                                                      GError **);
+static gboolean
+bgp_configurator_processor_process_multipaths (BgpConfiguratorProcessor *,
+                                               gint32,
+                                               ThriftProtocol *,
+                                               ThriftProtocol *,
+                                               GError **);
 
 static bgp_configurator_processor_process_function_def
-bgp_configurator_processor_process_function_defs[18] = {
+bgp_configurator_processor_process_function_defs[21] = {
   {
     "startBgp",
     bgp_configurator_processor_process_start_bgp
@@ -4037,6 +4661,18 @@ bgp_configurator_processor_process_function_defs[18] = {
   {
     "getRoutes",
     bgp_configurator_processor_process_get_routes
+  },
+  {
+    "enableMultipath",
+    bgp_configurator_processor_process_enable_multipath
+  },
+  {
+    "disableMultipath",
+    bgp_configurator_processor_process_disable_multipath
+  },
+  {
+    "multipaths",
+    bgp_configurator_processor_process_multipaths
   }
 };
 
@@ -5834,6 +6470,299 @@ bgp_configurator_processor_process_get_routes (BgpConfiguratorProcessor *self,
 }
 
 static gboolean
+bgp_configurator_processor_process_enable_multipath (BgpConfiguratorProcessor *self,
+                                                     gint32 sequence_id,
+                                                     ThriftProtocol *input_protocol,
+                                                     ThriftProtocol *output_protocol,
+                                                     GError **error)
+{
+  gboolean result = TRUE;
+  ThriftTransport * transport;
+  ThriftApplicationException *xception;
+  BgpConfiguratorEnableMultipathArgs * args =
+    g_object_new (TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_ARGS, NULL);
+
+  g_object_get (input_protocol, "transport", &transport, NULL);
+
+  if ((thrift_struct_read (THRIFT_STRUCT (args), input_protocol, error) != -1) &&
+      (thrift_protocol_read_message_end (input_protocol, error) != -1) &&
+      (thrift_transport_read_end (transport, error) != FALSE))
+  {
+    af_afi afi;
+    af_safi safi;
+    gint return_value;
+    BgpConfiguratorEnableMultipathResult * result_struct;
+
+    g_object_get (args,
+                  "afi", &afi,
+                  "safi", &safi,
+                  NULL);
+
+    g_object_unref (transport);
+    g_object_get (output_protocol, "transport", &transport, NULL);
+
+    result_struct = g_object_new (TYPE_BGP_CONFIGURATOR_ENABLE_MULTIPATH_RESULT, NULL);
+    g_object_get (result_struct, "success", &return_value, NULL);
+
+    if (bgp_configurator_handler_enable_multipath (BGP_CONFIGURATOR_IF (self->handler),
+                                                   (gint32 *)&return_value,
+                                                   afi,
+                                                   safi,
+                                                   error) == TRUE)
+    {
+      g_object_set (result_struct, "success", (gint)(gint32)return_value, NULL);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "enableMultipath",
+                                               T_REPLY,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (result_struct),
+                               output_protocol,
+                               error) != -1));
+    }
+    else
+    {
+      if (*error == NULL)
+        g_warning ("BgpConfigurator.enableMultipath implementation returned FALSE "
+                   "but did not set an error");
+
+      xception =
+        g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION,
+                      "type",    *error != NULL ? (*error)->code :
+                                 THRIFT_APPLICATION_EXCEPTION_ERROR_UNKNOWN,
+                      "message", *error != NULL ? (*error)->message : NULL,
+                      NULL);
+      g_clear_error (error);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "enableMultipath",
+                                               T_EXCEPTION,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (xception),
+                               output_protocol,
+                               error) != -1));
+
+      g_object_unref (xception);
+    }
+
+    g_object_unref (result_struct);
+
+    if (result == TRUE)
+      result =
+        ((thrift_protocol_write_message_end (output_protocol, error) != -1) &&
+         (thrift_transport_write_end (transport, error) != FALSE) &&
+         (thrift_transport_flush (transport, error) != FALSE));
+  }
+  else
+    result = FALSE;
+
+  g_object_unref (transport);
+  g_object_unref (args);
+
+  return result;
+}
+
+static gboolean
+bgp_configurator_processor_process_disable_multipath (BgpConfiguratorProcessor *self,
+                                                      gint32 sequence_id,
+                                                      ThriftProtocol *input_protocol,
+                                                      ThriftProtocol *output_protocol,
+                                                      GError **error)
+{
+  gboolean result = TRUE;
+  ThriftTransport * transport;
+  ThriftApplicationException *xception;
+  BgpConfiguratorDisableMultipathArgs * args =
+    g_object_new (TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_ARGS, NULL);
+
+  g_object_get (input_protocol, "transport", &transport, NULL);
+
+  if ((thrift_struct_read (THRIFT_STRUCT (args), input_protocol, error) != -1) &&
+      (thrift_protocol_read_message_end (input_protocol, error) != -1) &&
+      (thrift_transport_read_end (transport, error) != FALSE))
+  {
+    af_afi afi;
+    af_safi safi;
+    gint return_value;
+    BgpConfiguratorDisableMultipathResult * result_struct;
+
+    g_object_get (args,
+                  "afi", &afi,
+                  "safi", &safi,
+                  NULL);
+
+    g_object_unref (transport);
+    g_object_get (output_protocol, "transport", &transport, NULL);
+
+    result_struct = g_object_new (TYPE_BGP_CONFIGURATOR_DISABLE_MULTIPATH_RESULT, NULL);
+    g_object_get (result_struct, "success", &return_value, NULL);
+
+    if (bgp_configurator_handler_disable_multipath (BGP_CONFIGURATOR_IF (self->handler),
+                                                    (gint32 *)&return_value,
+                                                    afi,
+                                                    safi,
+                                                    error) == TRUE)
+    {
+      g_object_set (result_struct, "success", (gint)(gint32)return_value, NULL);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "disableMultipath",
+                                               T_REPLY,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (result_struct),
+                               output_protocol,
+                               error) != -1));
+    }
+    else
+    {
+      if (*error == NULL)
+        g_warning ("BgpConfigurator.disableMultipath implementation returned FALSE "
+                   "but did not set an error");
+
+      xception =
+        g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION,
+                      "type",    *error != NULL ? (*error)->code :
+                                 THRIFT_APPLICATION_EXCEPTION_ERROR_UNKNOWN,
+                      "message", *error != NULL ? (*error)->message : NULL,
+                      NULL);
+      g_clear_error (error);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "disableMultipath",
+                                               T_EXCEPTION,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (xception),
+                               output_protocol,
+                               error) != -1));
+
+      g_object_unref (xception);
+    }
+
+    g_object_unref (result_struct);
+
+    if (result == TRUE)
+      result =
+        ((thrift_protocol_write_message_end (output_protocol, error) != -1) &&
+         (thrift_transport_write_end (transport, error) != FALSE) &&
+         (thrift_transport_flush (transport, error) != FALSE));
+  }
+  else
+    result = FALSE;
+
+  g_object_unref (transport);
+  g_object_unref (args);
+
+  return result;
+}
+
+static gboolean
+bgp_configurator_processor_process_multipaths (BgpConfiguratorProcessor *self,
+                                               gint32 sequence_id,
+                                               ThriftProtocol *input_protocol,
+                                               ThriftProtocol *output_protocol,
+                                               GError **error)
+{
+  gboolean result = TRUE;
+  ThriftTransport * transport;
+  ThriftApplicationException *xception;
+  BgpConfiguratorMultipathsArgs * args =
+    g_object_new (TYPE_BGP_CONFIGURATOR_MULTIPATHS_ARGS, NULL);
+
+  g_object_get (input_protocol, "transport", &transport, NULL);
+
+  if ((thrift_struct_read (THRIFT_STRUCT (args), input_protocol, error) != -1) &&
+      (thrift_protocol_read_message_end (input_protocol, error) != -1) &&
+      (thrift_transport_read_end (transport, error) != FALSE))
+  {
+    gchar * rd;
+    gint maxPath;
+    gint return_value;
+    BgpConfiguratorMultipathsResult * result_struct;
+
+    g_object_get (args,
+                  "rd", &rd,
+                  "maxPath", &maxPath,
+                  NULL);
+
+    g_object_unref (transport);
+    g_object_get (output_protocol, "transport", &transport, NULL);
+
+    result_struct = g_object_new (TYPE_BGP_CONFIGURATOR_MULTIPATHS_RESULT, NULL);
+    g_object_get (result_struct, "success", &return_value, NULL);
+
+    if (bgp_configurator_handler_multipaths (BGP_CONFIGURATOR_IF (self->handler),
+                                             (gint32 *)&return_value,
+                                             rd,
+                                             maxPath,
+                                             error) == TRUE)
+    {
+      g_object_set (result_struct, "success", (gint)(gint32)return_value, NULL);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "multipaths",
+                                               T_REPLY,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (result_struct),
+                               output_protocol,
+                               error) != -1));
+    }
+    else
+    {
+      if (*error == NULL)
+        g_warning ("BgpConfigurator.multipaths implementation returned FALSE "
+                   "but did not set an error");
+
+      xception =
+        g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION,
+                      "type",    *error != NULL ? (*error)->code :
+                                 THRIFT_APPLICATION_EXCEPTION_ERROR_UNKNOWN,
+                      "message", *error != NULL ? (*error)->message : NULL,
+                      NULL);
+      g_clear_error (error);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "multipaths",
+                                               T_EXCEPTION,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (xception),
+                               output_protocol,
+                               error) != -1));
+
+      g_object_unref (xception);
+    }
+
+    if (rd != NULL)
+      g_free (rd);
+    g_object_unref (result_struct);
+
+    if (result == TRUE)
+      result =
+        ((thrift_protocol_write_message_end (output_protocol, error) != -1) &&
+         (thrift_transport_write_end (transport, error) != FALSE) &&
+         (thrift_transport_flush (transport, error) != FALSE));
+  }
+  else
+    result = FALSE;
+
+  g_object_unref (transport);
+  g_object_unref (args);
+
+  return result;
+}
+
+static gboolean
 bgp_configurator_processor_dispatch_call (ThriftDispatchProcessor *dispatch_processor,
                                           ThriftProtocol *input_protocol,
                                           ThriftProtocol *output_protocol,
@@ -5944,7 +6873,7 @@ bgp_configurator_processor_init (BgpConfiguratorProcessor *self)
   self->handler = NULL;
   self->process_map = g_hash_table_new (g_str_hash, g_str_equal);
 
-  for (index = 0; index < 18; index += 1)
+  for (index = 0; index < 21; index += 1)
     g_hash_table_insert (self->process_map,
                          bgp_configurator_processor_process_function_defs[index].name,
                          &bgp_configurator_processor_process_function_defs[index]);

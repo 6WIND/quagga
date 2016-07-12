@@ -2125,6 +2125,7 @@ bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
 
   vrf->bgp = bgp;
   vrf->outbound_rd = *outbound_rd;
+  vrf->max_mpath = bgp->maxpaths[AFI_IP][SAFI_MPLS_VPN].maxpaths_ibgp;
 
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     {
@@ -5972,6 +5973,10 @@ bgp_config_write (struct vty *vty)
                     XFREE (MTYPE_ECOMMUNITY_STR, str2_p);
                   }
               }
+            if (vrf->max_mpath != BGP_DEFAULT_MAXPATHS)
+              vty_out(vty,
+                      " vrf rd %s maximum-path %d%s", str_p == NULL?"<err>":str_p,
+                      vrf->max_mpath, VTY_NEWLINE);
           }
       }
       /* maximum-paths */

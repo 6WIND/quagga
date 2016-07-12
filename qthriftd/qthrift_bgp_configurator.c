@@ -33,10 +33,12 @@
 #include "qzc.h"
 #include "qzc.capnp.h"
 #include "bgp.bcapnp.h"
+#include "bgp_mpath.h"
 
 #ifndef MAX
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
+#define QTHRIFT_MAXPATH_DEFAULT_VAL   8
 
 /* ---------------------------------------------------------------- */
 
@@ -100,6 +102,15 @@ gboolean
 instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes ** _return, const gint32 optype,
                                               const gint32 winSize, GError **error);
 
+gboolean
+instance_bgp_configurator_handler_enable_multipath(BgpConfiguratorIf *iface, gint32* _return,
+                                                   const af_afi afi, const af_safi safi, GError **error);
+gboolean
+instance_bgp_configurator_handler_disable_multipath(BgpConfiguratorIf *iface, gint32* _return,
+                                                    const af_afi afi, const af_safi safi, GError **error);
+gboolean
+instance_bgp_configurator_handler_multipaths(BgpConfiguratorIf *iface, gint32* _return,
+                                             const gchar * rd, const gint32 maxPath, GError **error);
 static void instance_bgp_configurator_handler_finalize(GObject *object);
 
 /*
@@ -153,6 +164,7 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
 #define ERROR_BGP_AFISAFI_NOTSUPPORTED g_error_new(1, 5, "BGP Afi/Safi %d/%d not supported", afi, safi);
 #define ERROR_BGP_PEER_NOTFOUND g_error_new(1, 4, "BGP Peer %s not configured", peerIp);
 #define ERROR_BGP_NO_ROUTES_FOUND g_error_new(1, 6, "BGP GetRoutes: no routes");
+#define ERROR_BGP_INVALID_MAXPATH g_error_new(1, 5, "BGP maxpaths: out of range value 0 < %d < 8", maxPath);
 
 
 /*
@@ -680,6 +692,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
       bgp_flag_set(&inst, BGP_FLAG_GR_PRESERVE_FWD);
     else
       bgp_flag_unset(&inst, BGP_FLAG_GR_PRESERVE_FWD);
+    bgp_flag_set(&inst, BGP_FLAG_ASPATH_MULTIPATH_RELAX);
     capn_init_malloc(&rc);
     cs = capn_root(&rc).seg;
     bgp = qcapn_new_BGP(cs);
@@ -1122,6 +1135,26 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
       listnode_add(ctxt->bgp_vrf_list, entry);
       if(IS_QTHRIFT_DEBUG)
         zlog_debug ("addVrf(%s) OK", rd);
+      /* max_mpath has been set in bgpd with a default value owned by bgpd itself
+       * must get back this value before going further else max_mpath will be overwritten
+       * by first bgpvrf read */
+      {
+        struct QZCGetRep *grep_vrf;
+
+        grep_vrf = qzcclient_getelem (ctxt->qzc_sock, &bgpvrf_nid, 1, \
+                                      NULL, NULL, NULL, NULL);
+        if(grep_vrf == NULL)
+          {
+            *_return = BGP_ERR_FAILED;
+            return FALSE;
+          }
+        memset(&instvrf, 0, sizeof(struct bgp_vrf));
+        qcapn_BGPVRF_read(&instvrf, grep_vrf->data);
+
+        /* reset qzc reply and rc context */
+        qzcclient_qzcgetrep_free( grep_vrf);
+
+      }
     }
   /* configuring bgp vrf with import and export communities */
   /* irts and erts have to be concatenated into temp string */
@@ -1590,6 +1623,214 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
   return TRUE;
 }
 
+/*
+ * Enable/disable multipath feature for VPNv4 address family
+ */
+static gboolean
+qthrift_bgp_set_multipath(struct qthrift_vpnservice *ctxt,  gint32* _return, const af_afi afi,
+                          const af_safi safi, const gint32 enable, GError **error)
+{
+  struct capn rc;
+  struct capn_segment *cs;
+  struct bgp inst;
+  struct QZCGetRep *grep;
+  int af, saf;
+  capn_ptr afisafi_ctxt, nctxt;
+
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  if(afi != AF_AFI_AFI_IP)
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  if(safi != AF_SAFI_SAFI_MPLS_VPN)
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+
+  /* prepare afisafi context */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  afisafi_ctxt = qcapn_new_AfiSafiKey(cs);
+  af = AFI_IP;
+  saf = SAFI_MPLS_VPN;
+  capn_write8(afisafi_ctxt, 0, af);
+  capn_write8(afisafi_ctxt, 1, saf);
+  /* retrieve bgp context */
+  grep = qzcclient_getelem (ctxt->qzc_sock, &bgp_inst_nid, 3, \
+                            &afisafi_ctxt, &bgp_ctxttype_afisafi,\
+                            NULL, NULL);
+  if(grep == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      capn_free(&rc);
+      return FALSE;
+    }
+  memset(&inst, 0, sizeof(struct bgp));
+  qcapn_BGPAfiSafi_read(&inst, grep->data, af, saf);
+  /* set flag per afi/safi */
+  if(enable)
+    {
+      bgp_af_flag_set(&inst, af, saf, BGP_CONFIG_ASPATH_MULTIPATH_RELAX);
+      bgp_af_flag_set(&inst, af, saf, BGP_CONFIG_MULTIPATH);
+    }
+  else
+    {
+      bgp_af_flag_unset(&inst, af, saf, BGP_CONFIG_ASPATH_MULTIPATH_RELAX);
+      bgp_af_flag_unset(&inst, af, saf, BGP_CONFIG_MULTIPATH);
+    }
+
+  /* reset qzc reply and rc context */
+  qzcclient_qzcgetrep_free(grep);
+  /* prepare QZCSetRequest context */
+  nctxt = qcapn_new_BGPAfiSafi(cs);
+  qcapn_BGPAfiSafi_write(&inst, nctxt, af, saf);
+  /* put max value as a supplementary data in pipe */
+  capn_write8(nctxt, 3, QTHRIFT_MAXPATH_DEFAULT_VAL);
+  if(qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 2, \
+                        &nctxt, &bgp_datatype_bgp,\
+                        &afisafi_ctxt, &bgp_ctxttype_afisafi))
+  {
+    if(IS_QTHRIFT_DEBUG)
+      {
+        if(enable)
+          zlog_debug ("enableMultipath for afi:%d safi:%d OK", af, saf);
+        else
+          zlog_debug ("disableMultipath for afi:%d safi:%d OK", af, saf);
+      }
+  }
+
+  capn_free(&rc);
+  return TRUE;
+}
+
+gboolean
+instance_bgp_configurator_handler_enable_multipath(BgpConfiguratorIf *iface, gint32* _return,
+                                                   const af_afi afi, const af_safi safi, GError **error)
+{
+  struct qthrift_vpnservice *ctxt = NULL;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  return qthrift_bgp_set_multipath(ctxt, _return, afi, safi, 1, error);
+}
+
+gboolean
+instance_bgp_configurator_handler_disable_multipath(BgpConfiguratorIf *iface, gint32* _return,
+                                                    const af_afi afi, const af_safi safi, GError **error)
+{
+  struct qthrift_vpnservice *ctxt = NULL;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  return qthrift_bgp_set_multipath(ctxt, _return, afi, safi, 0, error);
+}
+
+
+/*
+ * Enable/disable multipath feature for VPNv4 address family
+ */
+gboolean
+instance_bgp_configurator_handler_multipaths(BgpConfiguratorIf *iface, gint32* _return,
+                                             const gchar * rd, const gint32 maxPath, GError **error)
+{
+  struct qthrift_vpnservice *ctxt = NULL;
+  struct capn_ptr bgpvrf;
+  struct capn rc;
+  struct capn_segment *cs;
+  struct bgp_vrf instvrf;
+  uint64_t bgpvrf_nid;
+  struct prefix_rd rd_inst;
+  struct QZCGetRep *grep_vrf;
+  int ret;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+  {
+    *_return = BGP_ERR_FAILED;
+    return FALSE;
+  }
+
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+
+  if(maxPath < 1 || maxPath > 64)
+    {
+      *error = ERROR_BGP_INVALID_MAXPATH;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+
+  /* get route distinguisher internal representation */
+  memset(&rd_inst, 0, sizeof(struct prefix_rd));
+  prefix_str2rd((char *)rd, &rd_inst);
+  /* if vrf not found, return an error */
+  bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
+  if(bgpvrf_nid == 0)
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+
+  grep_vrf = qzcclient_getelem (ctxt->qzc_sock, &bgpvrf_nid, 1, \
+                                NULL, NULL, NULL, NULL);
+  if(grep_vrf == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  memset(&instvrf, 0, sizeof(struct bgp_vrf));
+  qcapn_BGPVRF_read(&instvrf, grep_vrf->data);
+
+  /* update max_mpath */
+  instvrf.max_mpath = maxPath;
+  /* reset qzc reply and rc context */
+  qzcclient_qzcgetrep_free( grep_vrf);
+  /* prepare QZCSetRequest context */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  bgpvrf = qcapn_new_BGPVRF(cs);
+  qcapn_BGPVRF_write(&instvrf, bgpvrf);
+  ret = qzcclient_setelem (ctxt->qzc_sock, &bgpvrf_nid, 1, \
+                           &bgpvrf, &bgp_datatype_bgpvrf,\
+                           NULL, NULL);
+  capn_free(&rc);
+  if(ret == 0)
+  {
+    *_return = BGP_ERR_FAILED;
+    return FALSE;
+  }
+  else
+  {
+    if(IS_QTHRIFT_DEBUG)
+      {
+        zlog_debug ("maximum path for VRF %s set to %d", rd, maxPath);
+      }
+  }
+
+  return TRUE;
+}
 
 static void
   instance_bgp_configurator_handler_finalize(GObject *object)
@@ -1661,12 +1902,22 @@ instance_bgp_configurator_handler_class_init (InstanceBgpConfiguratorHandlerClas
 
  bgp_configurator_handler_class->get_routes = 
    instance_bgp_configurator_handler_get_routes;
+
+ bgp_configurator_handler_class->enable_multipath =
+   instance_bgp_configurator_handler_enable_multipath;
+
+ bgp_configurator_handler_class->disable_multipath =
+   instance_bgp_configurator_handler_disable_multipath;
+
+ bgp_configurator_handler_class->multipaths =
+   instance_bgp_configurator_handler_multipaths;
 }
 
 /* InstanceBgpConfiguratorHandler's instance initializer (constructor) */
 static void
 instance_bgp_configurator_handler_init(InstanceBgpConfiguratorHandler *self)
 {
+  ecommunity_init();
   return;
 }
 

@@ -10017,6 +10017,50 @@ DEFUN (bgp_vrf_imports,
   return CMD_SUCCESS;
 }
 
+DEFUN (bgp_vrf_maximum_path,
+       bgp_vrf_maximum_path_cmd,
+       "vrf rd WORD maximum-path [1-64]",
+       "BGP VPN VRF\n"
+       "Route Distinguisher\n"
+       "Route Distinguisher\n"
+       "Maximum number of multipath routes\n"
+       "Maximum number of multipath routes\n"
+)
+{
+  struct bgp *bgp = vty->index;
+  struct bgp_vrf *vrf;
+  struct prefix_rd prd;
+  int max_mpath;
+
+  if (! str2prefix_rd (argv[0], &prd))
+    {
+      vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  max_mpath = atoi(argv[1]);
+
+  /* some values for maximum path aren't acceptable */
+  if (1 > max_mpath || max_mpath > 64)
+    {
+      vty_out (vty, "%% Invalid maximum multipath '%d'%s", max_mpath, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  /* look for VRF */
+  vrf = bgp_vrf_lookup (bgp, &prd);
+  if (! vrf)
+    {
+      vty_out (vty, "%% No VRF with RD '%s'%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  /* update max_mpath field in struct bgp_vrf */
+  vrf->max_mpath = max_mpath;
+
+  return CMD_SUCCESS;
+}
+
 DEFUN (no_bgp_vrf,
        no_bgp_vrf_cmd,
        "no vrf rd WORD",
@@ -10046,6 +10090,36 @@ DEFUN (no_bgp_vrf,
   return CMD_SUCCESS;
 }
 
+DEFUN (no_bgp_vrf_maximum_path,
+       no_bgp_vrf_maximum_path_cmd,
+       "no vrf rd WORD maximum-path",
+       NO_STR
+       "BGP VPN VRF\n"
+       "Route Distinguisher\n"
+       "Route Distinguisher\n"
+)
+{
+  struct bgp *bgp = vty->index;
+  struct bgp_vrf *vrf;
+  struct prefix_rd prd;
+
+  if (! str2prefix_rd (argv[0], &prd))
+    {
+      vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  vrf = bgp_vrf_lookup (bgp, &prd);
+  if (! vrf)
+    {
+      vty_out (vty, "%% No VRF with RD '%s'%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  /* reset maximum mpath to default value */
+  vrf->max_mpath = BGP_DEFAULT_MAXPATHS;
+
+  return CMD_SUCCESS;
+}
 /* BGP node structure. */
 static struct cmd_node bgp_node =
 {
@@ -10140,7 +10214,9 @@ bgp_vty_init (void)
   install_element (BGP_NODE, &bgp_vrf_cmd);
   install_element (BGP_NODE, &bgp_vrf_exports_cmd);
   install_element (BGP_NODE, &bgp_vrf_imports_cmd);
+  install_element (BGP_NODE, &bgp_vrf_maximum_path_cmd);
   install_element (BGP_NODE, &no_bgp_vrf_cmd);
+  install_element (BGP_NODE, &no_bgp_vrf_maximum_path_cmd);
 
   /* "bgp multiple-instance" commands. */
   install_element (CONFIG_NODE, &bgp_multiple_instance_cmd);

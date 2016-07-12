@@ -96,6 +96,8 @@ struct BGP $ctype("struct bgp") $cgen
 
 struct BGPAfiSafi $ctype("struct bgp") $cgen $carraykey("AfiSafiKey") {
 	cfDampening		 @0 :Bool $cflag(field = "af_flags", value = "BGP_CONFIG_DAMPENING");
+	cfAspathMpathRelax       @1 :Bool $cflag(field = "af_flags", setter = "bgp_af_flag_set", value = "BGP_CONFIG_ASPATH_MULTIPATH_RELAX");
+	cfMpath                  @2 :Bool $cflag(field = "af_flags", setter = "bgp_af_flag_set", value = "BGP_CONFIG_MULTIPATH");
 }
 
 struct BGPPeer $ctype("struct peer") $cgen
