@@ -131,10 +131,6 @@ qthrift_read_packet (struct thread *thread)
                                      peer->peer->protocol,\
                                      peer->peer->protocol,\
                                      &error);
-  if (response == TRUE && error == NULL)
-    {
-      thrift_transport_peek (peer->peer->transport, &error);
-    }
   if (error != NULL)
     {
       if(IS_QTHRIFT_DEBUG)
