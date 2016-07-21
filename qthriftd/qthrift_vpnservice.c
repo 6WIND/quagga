@@ -166,9 +166,10 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
       if (announce == TRUE)
         {
           char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+          struct prefix *p = (struct prefix *)&(s->prefix);
 
           prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
-          prefix2str(&s->prefix, pfx_str, sizeof(pfx_str));
+          inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
           client_ready = qthrift_bgp_updater_on_update_push_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen, \
                                                                   inet_ntoa(s->nexthop), s->label);
         }
