@@ -1580,7 +1580,9 @@ static bool rd_same (const struct prefix_rd *a, const struct prefix_rd *b)
   return !memcmp(&a->val, &b->val, sizeof(a->val));
 }
 
-static void bgp_vrf_withdraw(struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn);
+static void
+bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
+                struct bgp_info *selected, uint8_t announce);
 
 void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
 {
@@ -1595,7 +1597,7 @@ void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
           {
             ri_next = ri->next;
             if (CHECK_FLAG (ri->flags, BGP_INFO_SELECTED))
-              bgp_vrf_withdraw(vrf, afi, rn);
+              bgp_vrf_update(vrf, afi, rn, ri, false);
             bgp_info_reap (rn, ri);
           }
       bgp_table_finish (&vrf->rib[afi]);
@@ -1615,34 +1617,11 @@ void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
 }
 
 static void
-bgp_vrf_withdraw (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn)
-{
-  struct bgp_event_vrf event = {
-    .announce         = false,
-    .outbound_rd      = vrf->outbound_rd,
-    .prefix.family    = rn->p.family,
-    .prefix.prefixlen = rn->p.prefixlen,
-    .prefix.prefix    = rn->p.u.prefix4,
-  };
-
-  if (afi == AFI_IP)
-    bgp_notify_route (vrf->bgp, &event);
-
-  char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
-
-  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
-  prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
-
-  if (BGP_DEBUG (events, EVENTS))
-    zlog_debug ("vrf[%s] %s: prefix withdrawn", vrf_rd_str, pfx_str);
-}
-
-static void
 bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
-                struct bgp_info *selected)
+                struct bgp_info *selected, uint8_t announce)
 {
   struct bgp_event_vrf event = {
-    .announce         = true,
+    .announce         = announce,
     .outbound_rd      = vrf->outbound_rd,
     .prefix.family    = rn->p.family,
     .prefix.prefixlen = rn->p.prefixlen,
@@ -1653,31 +1632,47 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
     {
       if (selected->attr && selected->attr->extra)
         event.nexthop = selected->attr->extra->mp_nexthop_global_in;
-      if (selected->extra->nlabels)
-        event.label = selected->extra->labels[0] >> 4;
+      if (announce)
+        {
+          if (selected->extra->nlabels)
+            event.label = selected->extra->labels[0] >> 4;
+        }
+      else
+        {
+          if (selected->extra)
+            event.label = selected->extra->labels[0] >> 4;
+          else
+            event.label = 0;
+        }
       bgp_notify_route (vrf->bgp, &event);
     }
 
-  char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
-  char label_str[BUFSIZ] = "<?>", nh_str[BUFSIZ] = "<?>";
-
-  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
-  prefix_rd2str(&selected->extra->vrf_rd, rd_str, sizeof(rd_str));
-  prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
-  labels2str(label_str, sizeof(label_str),
-                  selected->extra->labels, selected->extra->nlabels);
-
-  if (selected->attr && selected->attr->extra)
-    {
-      if (afi == AFI_IP)
-        strcpy (nh_str, inet_ntoa (selected->attr->extra->mp_nexthop_global_in));
-      else if (afi == AFI_IP6)
-        inet_ntop (AF_INET6, &selected->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
-    }
-
   if (BGP_DEBUG (events, EVENTS))
-    zlog_debug ("vrf[%s] %s: prefix updated, best RD %s labels %s nexthop %s",
-               vrf_rd_str, pfx_str, rd_str, label_str, nh_str);
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+      char label_str[BUFSIZ] = "<?>", nh_str[BUFSIZ] = "<?>";
+
+      prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+      prefix_rd2str(&selected->extra->vrf_rd, rd_str, sizeof(rd_str));
+      prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+      labels2str(label_str, sizeof(label_str),
+                      selected->extra->labels, selected->extra->nlabels);
+
+      if (selected->attr && selected->attr->extra)
+        {
+          if (afi == AFI_IP)
+            strcpy (nh_str, inet_ntoa (selected->attr->extra->mp_nexthop_global_in));
+          else if (afi == AFI_IP6)
+            inet_ntop (AF_INET6, &selected->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+        }
+
+      if (announce)
+        zlog_debug ("vrf[%s] %s: prefix updated, best RD %s labels %s nexthop %s",
+                   vrf_rd_str, pfx_str, rd_str, label_str, nh_str);
+      else
+        zlog_debug ("vrf[%s] %s: prefix withdrawn nh %s label %d",
+                    vrf_rd_str, pfx_str, nh_str, event.label);
+    }
 }
 
 int
@@ -1890,12 +1885,13 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
       bool del_not_sel = sel && sel != old && !new;
       bool del_last = (vrf_rn->info == old) && (old->next == NULL);
 
-      bgp_info_reap (vrf_rn, old);
       if (del_last)
         {
-          bgp_vrf_withdraw (vrf, afi, vrf_rn);
+          bgp_vrf_update (vrf, afi, vrf_rn, old, false);
+          bgp_info_reap (vrf_rn, old);
           return;
         }
+      bgp_info_reap (vrf_rn, old);
       if (del_not_sel)
         return;
 
@@ -1911,7 +1907,7 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
 
       UNSET_FLAG (sel->flags, BGP_INFO_SELECTED);
       SET_FLAG (new->flags, BGP_INFO_SELECTED);
-      bgp_vrf_update (vrf, afi, vrf_rn, new);
+      bgp_vrf_update (vrf, afi, vrf_rn, new, true);
       return;
     }
 
@@ -1926,7 +1922,7 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
   if (sel)
     UNSET_FLAG (sel->flags, BGP_INFO_SELECTED);
   SET_FLAG (newsel->flags, BGP_INFO_SELECTED);
-  bgp_vrf_update (vrf, afi, vrf_rn, newsel);
+  bgp_vrf_update (vrf, afi, vrf_rn, newsel, true);
 }
 
 static void

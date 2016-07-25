@@ -175,12 +175,13 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
         }
       else
         {
-          char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+          char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ], nh_str[INET6_BUFSIZ];
           struct prefix *p = (struct prefix *)&(s->prefix);
 
           inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
           prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
-          client_ready = qthrift_bgp_updater_on_update_withdraw_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen);
+          inet_ntop (p->family, &s->nexthop, nh_str, INET6_BUFSIZ);
+          client_ready = qthrift_bgp_updater_on_update_withdraw_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen, nh_str, s->label);
         }
     }
   else

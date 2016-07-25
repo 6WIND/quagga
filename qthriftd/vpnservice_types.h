@@ -1255,6 +1255,10 @@ struct _BgpUpdaterOnUpdateWithdrawRouteArgs
   gboolean __isset_prefix;
   gint32 prefixlen;
   gboolean __isset_prefixlen;
+  gchar * nexthop;
+  gboolean __isset_nexthop;
+  gint32 label;
+  gboolean __isset_label;
 };
 typedef struct _BgpUpdaterOnUpdateWithdrawRouteArgs BgpUpdaterOnUpdateWithdrawRouteArgs;
 

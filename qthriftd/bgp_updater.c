@@ -16,9 +16,9 @@ bgp_updater_if_on_update_push_route (BgpUpdaterIf *iface, const gchar * rd, cons
 }
 
 gboolean
-bgp_updater_if_on_update_withdraw_route (BgpUpdaterIf *iface, const gchar * rd, const gchar * prefix, const gint32 prefixlen, GError **error)
+bgp_updater_if_on_update_withdraw_route (BgpUpdaterIf *iface, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 label, GError **error)
 {
-  return BGP_UPDATER_IF_GET_INTERFACE (iface)->on_update_withdraw_route (iface, rd, prefix, prefixlen, error);
+  return BGP_UPDATER_IF_GET_INTERFACE (iface)->on_update_withdraw_route (iface, rd, prefix, prefixlen, nexthop, label, error);
 }
 
 gboolean
@@ -202,7 +202,7 @@ gboolean bgp_updater_client_on_update_push_route (BgpUpdaterIf * iface, const gc
   return TRUE;
 }
 
-gboolean bgp_updater_client_send_on_update_withdraw_route (BgpUpdaterIf * iface, const gchar * rd, const gchar * prefix, const gint32 prefixlen, GError ** error)
+gboolean bgp_updater_client_send_on_update_withdraw_route (BgpUpdaterIf * iface, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 label, GError ** error)
 {
   gint32 cseqid = 0;
   ThriftProtocol * protocol = BGP_UPDATER_CLIENT (iface)->output_protocol;
@@ -248,6 +248,26 @@ gboolean bgp_updater_client_send_on_update_withdraw_route (BgpUpdaterIf * iface,
     if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
       return 0;
     xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "nexthop", T_STRING, 4, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_string (protocol, nexthop, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "label", T_I32, 5, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, label, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
     if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
       return 0;
     xfer += ret;
@@ -267,9 +287,9 @@ gboolean bgp_updater_client_send_on_update_withdraw_route (BgpUpdaterIf * iface,
   return TRUE;
 }
 
-gboolean bgp_updater_client_on_update_withdraw_route (BgpUpdaterIf * iface, const gchar * rd, const gchar * prefix, const gint32 prefixlen, GError ** error)
+gboolean bgp_updater_client_on_update_withdraw_route (BgpUpdaterIf * iface, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 label, GError ** error)
 {
-  if (!bgp_updater_client_send_on_update_withdraw_route (iface, rd, prefix, prefixlen, error))
+  if (!bgp_updater_client_send_on_update_withdraw_route (iface, rd, prefix, prefixlen, nexthop, label, error))
     return FALSE;
   return TRUE;
 }
@@ -446,11 +466,11 @@ gboolean bgp_updater_handler_on_update_push_route (BgpUpdaterIf * iface, const g
   return BGP_UPDATER_HANDLER_GET_CLASS (iface)->on_update_push_route (iface, rd, prefix, prefixlen, nexthop, label, error);
 }
 
-gboolean bgp_updater_handler_on_update_withdraw_route (BgpUpdaterIf * iface, const gchar * rd, const gchar * prefix, const gint32 prefixlen, GError ** error)
+gboolean bgp_updater_handler_on_update_withdraw_route (BgpUpdaterIf * iface, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 label, GError ** error)
 {
   g_return_val_if_fail (IS_BGP_UPDATER_HANDLER (iface), FALSE);
 
-  return BGP_UPDATER_HANDLER_GET_CLASS (iface)->on_update_withdraw_route (iface, rd, prefix, prefixlen, error);
+  return BGP_UPDATER_HANDLER_GET_CLASS (iface)->on_update_withdraw_route (iface, rd, prefix, prefixlen, nexthop, label, error);
 }
 
 gboolean bgp_updater_handler_on_start_config_resync_notification (BgpUpdaterIf * iface, GError ** error)
@@ -671,17 +691,23 @@ bgp_updater_processor_process_on_update_withdraw_route (BgpUpdaterProcessor *sel
     gchar * rd;
     gchar * prefix;
     gint prefixlen;
+    gchar * nexthop;
+    gint label;
 
     g_object_get (args,
                   "rd", &rd,
                   "prefix", &prefix,
                   "prefixlen", &prefixlen,
+                  "nexthop", &nexthop,
+                  "label", &label,
                   NULL);
 
     if (bgp_updater_handler_on_update_withdraw_route (BGP_UPDATER_IF (self->handler),
                                                       rd,
                                                       prefix,
                                                       prefixlen,
+                                                      nexthop,
+                                                      label,
                                                       error) == TRUE)
     {
     }
@@ -716,6 +742,8 @@ bgp_updater_processor_process_on_update_withdraw_route (BgpUpdaterProcessor *sel
       g_free (rd);
     if (prefix != NULL)
       g_free (prefix);
+    if (nexthop != NULL)
+      g_free (nexthop);
   }
   else
     result = FALSE;

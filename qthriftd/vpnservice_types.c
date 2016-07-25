@@ -12437,7 +12437,9 @@ enum _BgpUpdaterOnUpdateWithdrawRouteArgsProperties
   PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_0,
   PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_RD,
   PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_PREFIX,
-  PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_PREFIXLEN
+  PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_PREFIXLEN,
+  PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_NEXTHOP,
+  PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_LABEL
 };
 
 /* reads a bgp_updater_on_update_withdraw_route_args object */
@@ -12540,6 +12542,38 @@ bgp_updater_on_update_withdraw_route_args_read (ThriftStruct *object, ThriftProt
           xfer += ret;
         }
         break;
+      case 4:
+        if (ftype == T_STRING)
+        {
+          if (this_object->nexthop != NULL)
+          {
+            g_free(this_object->nexthop);
+            this_object->nexthop = NULL;
+          }
+
+          if ((ret = thrift_protocol_read_string (protocol, &this_object->nexthop, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->__isset_nexthop = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      case 5:
+        if (ftype == T_I32)
+        {
+          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->label, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->__isset_label = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
       default:
         if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
           return -1;
@@ -12599,6 +12633,26 @@ bgp_updater_on_update_withdraw_route_args_write (ThriftStruct *object, ThriftPro
   if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
     return -1;
   xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "nexthop", T_STRING, 4, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_string (protocol, this_object->nexthop, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "label", T_I32, 5, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_i32 (protocol, this_object->label, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
   if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
     return -1;
   xfer += ret;
@@ -12638,6 +12692,18 @@ bgp_updater_on_update_withdraw_route_args_set_property (GObject *object,
       self->__isset_prefixlen = TRUE;
       break;
 
+    case PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_NEXTHOP:
+      if (self->nexthop != NULL)
+        g_free (self->nexthop);
+      self->nexthop = g_value_dup_string (value);
+      self->__isset_nexthop = TRUE;
+      break;
+
+    case PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_LABEL:
+      self->label = g_value_get_int (value);
+      self->__isset_label = TRUE;
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -12666,6 +12732,14 @@ bgp_updater_on_update_withdraw_route_args_get_property (GObject *object,
       g_value_set_int (value, self->prefixlen);
       break;
 
+    case PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_NEXTHOP:
+      g_value_set_string (value, self->nexthop);
+      break;
+
+    case PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_LABEL:
+      g_value_set_int (value, self->label);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -12683,6 +12757,10 @@ bgp_updater_on_update_withdraw_route_args_instance_init (BgpUpdaterOnUpdateWithd
   object->__isset_prefix = FALSE;
   object->prefixlen = 0;
   object->__isset_prefixlen = FALSE;
+  object->nexthop = NULL;
+  object->__isset_nexthop = FALSE;
+  object->label = 0;
+  object->__isset_label = FALSE;
 }
 
 static void 
@@ -12701,6 +12779,11 @@ bgp_updater_on_update_withdraw_route_args_finalize (GObject *object)
   {
     g_free(tobject->prefix);
     tobject->prefix = NULL;
+  }
+  if (tobject->nexthop != NULL)
+  {
+    g_free(tobject->nexthop);
+    tobject->nexthop = NULL;
   }
 }
 
@@ -12739,6 +12822,26 @@ bgp_updater_on_update_withdraw_route_args_class_init (BgpUpdaterOnUpdateWithdraw
     (gobject_class,
      PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_PREFIXLEN,
      g_param_spec_int ("prefixlen",
+                       NULL,
+                       NULL,
+                       G_MININT32,
+                       G_MAXINT32,
+                       0,
+                       G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_NEXTHOP,
+     g_param_spec_string ("nexthop",
+                          NULL,
+                          NULL,
+                          NULL,
+                          G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_LABEL,
+     g_param_spec_int ("label",
                        NULL,
                        NULL,
                        G_MININT32,

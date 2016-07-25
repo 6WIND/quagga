@@ -135,7 +135,8 @@
                                  3:i32 prefixlen, 4:string nexthop, 
                                  5:i32 label),
    oneway void onUpdateWithdrawRoute(1:string rd, 2:string prefix, 
-                                     3:i32 prefixlen), 
+                                     3:i32 prefixlen, 4:string nexthop,
+                                     5:i32 label),
    // tell them we're open for business
    oneway void onStartConfigResyncNotification(),
    // relay to odl a bgp Notification we got from peer 

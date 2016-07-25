@@ -60,7 +60,7 @@ qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix
  * sent when a vpnv4 route is withdrawn
  */
 gboolean
-qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * prefix, const gint32 prefixlen)
+qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop,  const gint32 label)
 {
   GError *error = NULL;
   gboolean response;
@@ -70,10 +70,11 @@ qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * pr
   if(!ctxt || !ctxt->bgp_updater_client)
       return FALSE;
   response = bgp_updater_client_on_update_withdraw_route(ctxt->bgp_updater_client, \
-                                                         rd, prefix, prefixlen, &error);
+                                                         rd, prefix, prefixlen, nexthop,
+                                                         label, &error);
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_debug ("onUpdateWithdrawRoute(rd %s, pfx %s/%d) sent %s", \
-             rd, prefix, prefixlen, \
+    zlog_debug ("onUpdateWithdrawRoute(rd %s, pfx %s/%d, nh %s, label %d) sent %s", \
+             rd, prefix, prefixlen, nexthop, label,\
              (response == TRUE)?"OK":"NOK");
   return response;
 }
