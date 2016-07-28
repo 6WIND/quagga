@@ -807,7 +807,7 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
   str2prefix_ipv4(prefix,&inst.prefix);
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
-  bgpvrfroute = qcapn_new_BGPVRFRoute(cs);
+  bgpvrfroute = qcapn_new_BGPVRFRoute(cs, 0);
   qcapn_BGPVRFRoute_write(&inst, bgpvrfroute);
   /* prepare afi context */
   afikey = qcapn_new_AfiKey(cs);
@@ -874,7 +874,7 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
   str2prefix_ipv4(prefix,&inst.prefix);
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
-  bgpvrfroute = qcapn_new_BGPVRFRoute(cs);
+  bgpvrfroute = qcapn_new_BGPVRFRoute(cs, 0);
   qcapn_BGPVRFRoute_write(&inst, bgpvrfroute);
   /* prepare afi context */
   afikey = qcapn_new_AfiKey(cs);
@@ -1512,6 +1512,8 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
   /* parse current vrfs and vrfs not already parsed */
   for (ALL_LIST_ELEMENTS(ctxt->bgp_get_routes_list, node, nnode, entry))
     {
+      unsigned long mpath_iter_ptr = 0;
+
       /* remove current bgpvrf entry, all routes have been parsed */
       if(entry2)
         {
@@ -1533,13 +1535,13 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
           capn_write8(afikey, 0, afi);
 	  if(prev_iter_table_ptr)
 	  {
-		  iter_table = qcapn_new_VRFTableIter(cs);
-		  qcapn_VRFTableIter_write(&prev_iter_table_entry, iter_table);
-		  iter_table_ptr = &iter_table;
+                 iter_table = qcapn_new_VRFTableIter(cs);
+                 qcapn_VRFTableIter_write(&prev_iter_table_entry, iter_table);
+                 iter_table_ptr = &iter_table;
 	  }
 	  else
 	  {
-		  iter_table_ptr = NULL;
+                 iter_table_ptr = NULL;
 	  }
           /* get route entry from the vrf rib table */
           /* currently entries from the vrf route table XXX */
@@ -1560,7 +1562,15 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
             {
               /* if datatype is valid, iter type may be valid. continue */
               qcapn_BGPVRFRoute_read(&inst_route, grep_route->data);
+
+              /* this is possibly a multipath route, get additionnal data in the
+               same grep_route->data exchange channel to get a pointer to the
+               next bgp_info struct linked to that route.
+               The offset of CAPN_BGPVRF_ROUTE_DEF_SIZE is because such data has a
+               8 bytes offset with usual VRFRoute exchanged via capn'proto */
+              qcapn_BGPVRFInfoIter_read(&mpath_iter_ptr, grep_route->data, CAPN_BGPVRF_ROUTE_DEF_SIZE);
             }
+
           if(grep_route->itertype != 0)
             {
               memset(&prev_iter_table_entry, 0, sizeof(prev_iter_table_entry));
@@ -1599,6 +1609,74 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
           upd->rd = g_strdup(prefix_rd2str(&(entry->outbound_rd), rdstr, RD_ADDRSTRLEN));
           g_ptr_array_add((*_return)->updates, upd);
           route_updates++;
+
+          /* multipath specific loop */
+          while (mpath_iter_ptr)
+            {
+              struct QZCGetRep *grep_multipath_route = NULL;
+              struct capn_ptr iter_table_bim;
+              struct capn_segment *csi;
+              struct bgp_api_route inst_multipath_route;
+
+               /* prepare context, it will be dedicated to loop on multipath routes attached to a vpnv4 route */
+              capn_init_malloc(&rc);
+              csi = capn_root(&rc).seg;
+              iter_table_bim = qcapn_new_BGPVRFInfoIter(csi);
+              /* provide internal pointer value to the next struct bgp_info of a route is has one */
+              qcapn_BGPVRFInfoIter_write(mpath_iter_ptr, iter_table_bim, 0);
+
+              /* get route entry from the vrf rib table */
+              grep_multipath_route = qzcclient_getelem (ctxt->qzc_sock, &bgpvrf_nid, 4, \
+                                              NULL, NULL, \
+                                              &iter_table_bim, &bgp_itertype_bgpvrfroute);
+              if(grep_multipath_route == NULL || grep_multipath_route->datatype == 0)
+                {
+                  /* goto next prefix */
+                  qzcclient_qzcgetrep_free(grep_multipath_route);
+                  capn_free(&rc);
+                  break;
+                }
+              memset(&inst_multipath_route, 0, sizeof(struct bgp_api_route));
+              qcapn_BGPVRFRoute_read(&inst_multipath_route, grep_multipath_route->data);
+              if(grep_route->datatype != 0)
+                {
+                  /* if datatype is valid, iter type may be valid. continue */
+                  qcapn_BGPVRFRoute_read(&inst_multipath_route, grep_multipath_route->data);
+                }
+
+              mpath_iter_ptr = 0;
+              /* look for another multipath entry with that check */
+              if(grep_multipath_route->itertype != 0)
+                {
+                  /* there is another multipath entry after this one, store it into mpath_iter_ptr */
+                  qcapn_BGPVRFInfoIter_read(&mpath_iter_ptr, grep_multipath_route->nextiter, 0);
+                }
+              qzcclient_qzcgetrep_free(grep_multipath_route);
+              capn_free(&rc);
+
+              /* bypass route entries with zeroes */
+              if ( (inst_multipath_route.nexthop.s_addr == 0) &&              \
+                   (inst_multipath_route.prefix.prefix.s_addr == 0) &&        \
+                   (inst_multipath_route.prefix.prefixlen == 0) &&            \
+                   (inst_multipath_route.label == 0))
+                {
+                  break;
+                }
+              /* add entry in update */
+              upd = g_object_new (TYPE_UPDATE, NULL);
+              upd->type = BGP_RT_ADD;
+              upd->prefixlen = inst_route.prefix.prefixlen; /* keep prefix from main loop */
+              upd->prefix = g_strdup(inet_ntop(AF_INET, &(inst_route.prefix.prefix), rdstr, RD_ADDRSTRLEN));
+              upd->nexthop = g_strdup(inet_ntop(AF_INET, &(inst_multipath_route.nexthop), rdstr, RD_ADDRSTRLEN));
+              upd->label = inst_multipath_route.label;
+              upd->rd = g_strdup(prefix_rd2str(&(entry->outbound_rd), rdstr, RD_ADDRSTRLEN));
+              g_ptr_array_add((*_return)->updates, upd);
+              route_updates++;
+
+              if (!mpath_iter_ptr)
+                break; /* no more nexthop with MULTIPATH flag, go to next prefix */
+            }
+
           /* prepare next extraction */
           if(prev_iter_table_ptr == NULL)
             {
