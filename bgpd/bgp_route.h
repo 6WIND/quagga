@@ -85,6 +85,8 @@ struct bgp_info
 #define BGP_INFO_COUNTED	(1 << 10)
 #define BGP_INFO_MULTIPATH      (1 << 11)
 #define BGP_INFO_MULTIPATH_CHG  (1 << 12)
+#define BGP_INFO_UPDATE_SENT    (1 << 13)
+#define BGP_INFO_WITHDRAW_SENT  (1 << 14)
 
   /* BGP route type.  This can be static, RIP, OSPF, BGP etc.  */
   u_char type;
@@ -258,5 +260,8 @@ extern void bgp_peer_clear_node_queue_drain_immediate (struct peer *peer);
 extern void bgp_process_queues_drain_immediate (void);
 
 extern void bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi);
+extern void
+bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
+                struct bgp_info *selected, uint8_t announce);
 
 #endif /* _QUAGGA_BGP_ROUTE_H */

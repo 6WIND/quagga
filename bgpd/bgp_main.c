@@ -261,6 +261,11 @@ bgp_exit (int status)
       work_queue_free (bm->process_rsclient_queue);
       bm->process_rsclient_queue = NULL;
     }
+  if (bm->process_vrf_queue)
+    {
+     work_queue_free (bm->process_vrf_queue);
+     bm->process_vrf_queue = NULL;
+    }
   
   /* reverse bgp_master_init */
   for (ALL_LIST_ELEMENTS_RO(bm->listen_sockets, node, socket))

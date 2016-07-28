@@ -57,6 +57,7 @@ struct bgp_master
   /* work queues */
   struct work_queue *process_main_queue;
   struct work_queue *process_rsclient_queue;
+  struct work_queue *process_vrf_queue;
   
   /* Listening sockets */
   struct list *listen_sockets;
@@ -1103,6 +1104,7 @@ extern int peer_ttl_security_hops_unset (struct peer *);
 
 extern struct bgp_vrf *bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd);
 extern struct bgp_vrf *bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd);
+extern struct bgp_vrf *bgp_vrf_lookup_per_rn (struct bgp *bgp, int afi, struct bgp_node *vrf_rn);
 extern void bgp_vrf_delete (struct bgp_vrf *vrf);
 extern void bgp_vrf_rt_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export);
 extern void bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import);

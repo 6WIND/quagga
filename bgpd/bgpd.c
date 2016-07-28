@@ -2103,6 +2103,22 @@ bgp_rt_hash_dealloc (struct bgp_rt_sub *rt_sub)
 }
 
 struct bgp_vrf *
+bgp_vrf_lookup_per_rn (struct bgp *bgp, int afi, struct bgp_node *vrf_rn)
+{
+  struct listnode *node;
+  struct bgp_vrf *vrf;
+
+  if(bgp_node_table (vrf_rn)->type != BGP_TABLE_VRF)
+    return NULL;
+  for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+    if(vrf->rib[afi] == bgp_node_table (vrf_rn))
+      {
+        return vrf;
+      }
+  return NULL;
+}
+
+struct bgp_vrf *
 bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd)
 {
   struct listnode *node;
@@ -6103,6 +6119,11 @@ bgp_terminate (void)
     {
       work_queue_free (bm->process_rsclient_queue);
       bm->process_rsclient_queue = NULL;
+    }
+  if (bm->process_vrf_queue)
+    {
+      work_queue_free (bm->process_vrf_queue);
+      bm->process_vrf_queue = NULL;
     }
 }
 
