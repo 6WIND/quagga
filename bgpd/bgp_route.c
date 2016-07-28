@@ -1575,6 +1575,60 @@ void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
     }
 }
 
+/* messages sent to ODL to signify that an entry
+ * has been selected, or unselected
+ */
+void
+bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
+                struct bgp_info *selected, uint8_t announce)
+{
+  if(!vrf || (rn && bgp_node_table (rn)->type != BGP_TABLE_VRF))
+    return;
+  if (announce == true)
+    {
+      if(CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
+        return;
+      SET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
+      UNSET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
+    }
+  else
+    {
+      /* if not already sent, do nothing */
+      if(!CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
+        return;
+      if(CHECK_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT))
+        return;
+      SET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
+      UNSET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
+    }
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+      char label_str[BUFSIZ] = "<?>", nh_str[BUFSIZ] = "<?>";
+
+      prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+      prefix_rd2str(&selected->extra->vrf_rd, rd_str, sizeof(rd_str));
+      prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+      labels2str(label_str, sizeof(label_str),
+                      selected->extra->labels, selected->extra->nlabels);
+
+      if (selected->attr && selected->attr->extra)
+        {
+          if (afi == AFI_IP)
+            strcpy (nh_str, inet_ntoa (selected->attr->extra->mp_nexthop_global_in));
+          else if (afi == AFI_IP6)
+            inet_ntop (AF_INET6, &selected->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+        }
+
+      if (announce)
+        zlog_debug ("vrf[%s] %s: prefix updated, best RD %s labels %s nexthop %s",
+                   vrf_rd_str, pfx_str, rd_str, label_str, nh_str);
+      else
+        zlog_debug ("vrf[%s] %s: prefix withdrawn nh %s label %s",
+                    vrf_rd_str, pfx_str, nh_str, label_str);
+    }
+}
+
 /* updates selected bgp_info structure to bgp vrf rib table
  * most of the cases, processing consists in adding or removing entries in RIB tables
  * on some cases, there is an update request. then it is necessary to have both old and new ri
@@ -1676,6 +1730,8 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
               /* update */
               if(action == ROUTE_INFO_TO_UPDATE)
                 {
+                  /* because there is an update, signify a withdraw */
+                  bgp_vrf_update (vrf, afi, vrf_rn, iter, false);
                   /* update labels labels */
                   /* update attr part / containing next hop */
                   if(select->extra)
@@ -1699,6 +1755,7 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
                   /* if changes, update, and permit resending
                      information */
                   bgp_info_set_flag (rn, iter, BGP_INFO_ATTR_CHANGED);
+                  UNSET_FLAG (iter->flags, BGP_INFO_UPDATE_SENT);
                 }
               break;
             }
@@ -2102,9 +2159,13 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
   struct bgp_node *rn = pq->rn;
   afi_t afi = pq->afi;
   safi_t safi = pq->safi;
-  struct bgp_info *new_select;
+  struct bgp_info *new_select, *ri;
   struct bgp_info *old_select;
   struct bgp_info_pair old_and_new;
+  struct bgp_vrf *vrf = NULL;
+
+  if(rn)
+    vrf = bgp_vrf_lookup_per_rn(bgp, afi, rn);
 
   /* Best path selection. */
   bgp_best_selection (bgp, rn, &old_and_new, afi, safi);
@@ -2121,6 +2182,13 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
             {
               UNSET_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG);
               SET_FLAG (old_select->flags, BGP_INFO_MULTIPATH);
+              for(ri = rn->info; ri; ri = ri->next)
+                {
+                  if(ri == old_select)
+                    continue;
+                  if(!bgp_is_mpath_entry(ri, new_select))
+                    bgp_vrf_update(vrf, afi, rn, ri, false);
+                }
             }
           /* no zebra announce */
 	  UNSET_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG);
@@ -2142,18 +2210,53 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
     {
       if( CHECK_FLAG (old_select->flags, BGP_INFO_SELECTED))
         {
-          if(bgp_is_mpath_entry(old_select, new_select))
+          if(!bgp_is_mpath_entry(old_select, new_select))
+            {
+              bgp_vrf_update(vrf, afi, rn, old_select, false);
+            }
+          else
             {
               UNSET_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG);
               SET_FLAG (old_select->flags, BGP_INFO_MULTIPATH);
             }
         }
+      /* withdraw mp entries which could have been removed
+       * and that a update has previously been sent
+       */
+      for(ri = rn->info; ri; ri = ri->next)
+        {
+          if(ri == old_select || (ri == new_select) )
+            continue;
+          if(!bgp_is_mpath_entry(ri, new_select))
+            {
+              bgp_vrf_update(vrf, afi, rn, ri, false);
+            }
+        }
+      bgp_info_unset_flag (rn, old_select, BGP_INFO_SELECTED);
     }
   if (new_select)
     {
+      if(!CHECK_FLAG (new_select->flags, BGP_INFO_SELECTED) ||
+         CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH) ||
+         CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH_CHG))
+        {
+          bgp_vrf_update(vrf, afi, rn, new_select, true);
+        }
       bgp_info_set_flag (rn, new_select, BGP_INFO_SELECTED);
       bgp_info_unset_flag (rn, new_select, BGP_INFO_ATTR_CHANGED);
       UNSET_FLAG (new_select->flags, BGP_INFO_MULTIPATH_CHG);
+      /* append mp entries which could have been added 
+       * and that a update has not been sent
+       */
+      for(ri = rn->info; ri; ri = ri->next)
+        {
+          if( (ri == new_select) || ( ri == old_select))
+            continue;
+          if(bgp_is_mpath_entry(ri, new_select))
+            {
+              bgp_vrf_update(vrf, afi, rn, ri, true);
+            }
+        }
     }
 
   /* Reap old select bgp_info, if it has been removed */
@@ -2377,6 +2480,7 @@ bgp_rib_remove (struct bgp_node *rn, struct bgp_info *ri, struct peer *peer,
   bgp_vrf_process_imports (peer->bgp, afi, safi, rn, ri, NULL);
   bgp_process (peer->bgp, rn, afi, safi);
 }
+
 
 static void
 bgp_rib_withdraw (struct bgp_node *rn, struct bgp_info *ri, struct peer *peer,
