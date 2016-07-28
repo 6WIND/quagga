@@ -38,6 +38,7 @@
 #include "bgpd/bgp_aspath.h"
 #include "bgpd/bgp_community.h"
 #include "bgpd/bgp_ecommunity.h"
+#include "bgpd/bgp_mplsvpn.h"
 #include "bgpd/bgp_mpath.h"
 
 bool
@@ -335,9 +336,13 @@ bgp_info_mpath_enqueue (struct bgp_info *prev_info, struct bgp_info *binfo)
 void
 bgp_info_mpath_dequeue (struct bgp_info *binfo)
 {
-  struct bgp_info_mpath *mpath = binfo->mpath;
+  struct bgp_info_mpath *mpath;
+  if (!binfo)
+    return;
+  mpath = binfo->mpath;
   if (!mpath)
     return;
+
   if (mpath->mp_prev)
     mpath->mp_prev->mp_next = mpath->mp_next;
   if (mpath->mp_next)
@@ -471,6 +476,8 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
   int mpath_changed, debug;
   char pfx_buf[INET6_ADDRSTRLEN], nh_buf[2][INET6_ADDRSTRLEN];
   struct bgp_maxpaths_cfg *mpath_cfg = NULL;
+  struct prefix_rd *prd = NULL;
+  struct bgp_vrf *vrf = NULL;
 
   mpath_changed = 0;
   maxpaths = BGP_DEFAULT_MAXPATHS;
@@ -493,6 +500,31 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
         bgp_info_mpath_dequeue (new_best);
       maxpaths = (new_best->peer->sort == BGP_PEER_IBGP) ?
         mpath_cfg->maxpaths_ibgp : mpath_cfg->maxpaths_ebgp;
+    }
+  if (safi == SAFI_MPLS_VPN)
+    {
+      prd = &bgp_node_table (rn)->prd;
+      if (new_best)
+        vrf = bgp_vrf_lookup(new_best->peer->bgp, prd);
+      else if (old_best)
+        vrf = bgp_vrf_lookup(old_best->peer->bgp, prd);
+    }
+  else if(bgp_node_table (rn)->type == BGP_TABLE_VRF)
+    {
+      if (new_best)
+        vrf = bgp_vrf_lookup_per_rn(new_best->peer->bgp, afi, rn);
+      else if (old_best)
+        vrf = bgp_vrf_lookup_per_rn(old_best->peer->bgp, afi, rn);
+    }
+  if (vrf)
+    {
+      maxpaths = vrf->max_mpath;
+      if(debug && vrf)
+        {
+          char vrf_rd_str[RD_ADDRSTRLEN];
+          prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+          zlog_debug ("vrf[%s] : mpath. max detected : %d", vrf_rd_str, maxpaths);
+        }
     }
 
   if (old_best)
