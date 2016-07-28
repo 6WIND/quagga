@@ -280,5 +280,8 @@ extern void bgp_peer_clear_node_queue_drain_immediate (struct peer *peer);
 extern void bgp_process_queues_drain_immediate (void);
 
 extern void bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi);
+extern void
+bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
+                struct bgp_info *selected, uint8_t announce);
 
 #endif /* _QUAGGA_BGP_ROUTE_H */

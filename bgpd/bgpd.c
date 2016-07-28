@@ -6015,4 +6015,9 @@ bgp_terminate (void)
       work_queue_free (bm->process_rsclient_queue);
       bm->process_rsclient_queue = NULL;
     }
+  if (bm->process_vrf_queue)
+    {
+      work_queue_free (bm->process_vrf_queue);
+      bm->process_vrf_queue = NULL;
+    }
 }
