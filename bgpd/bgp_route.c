@@ -4542,8 +4542,10 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
       attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
     }
   if (bgp_static->igpnexthop.s_addr)
+    {
     bgp_attr_extra_get (&attr)->mp_nexthop_global_in = bgp_static->igpnexthop;
-
+    bgp_attr_extra_get (&attr)->mp_nexthop_len = IPV4_MAX_BYTELEN;
+    }
   /* Apply route-map. */
   if (bgp_static->rmap.name)
     {
