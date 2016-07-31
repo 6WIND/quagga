@@ -164,8 +164,9 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
 
           prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
           inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
-          qthrift_bgp_updater_on_update_push_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen, \
-                                                                  inet_ntoa(s->nexthop), s->label);
+          qthrift_bgp_updater_on_update_push_route(PROTOCOL_TYPE_PROTOCOL_L3VPN, vrf_rd_str, pfx_str, 
+                                                   (const gint32)s->prefix.prefixlen, inet_ntoa(s->nexthop), 
+                                                   0, NULL, NULL, s->label, 0, NULL);
         }
       else
         {
@@ -175,7 +176,9 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
           inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
           prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
           inet_ntop (p->family, &s->nexthop, nh_str, INET6_BUFSIZ);
-          qthrift_bgp_updater_on_update_withdraw_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen, nh_str, s->label);
+          qthrift_bgp_updater_on_update_withdraw_route (PROTOCOL_TYPE_PROTOCOL_L3VPN, vrf_rd_str, pfx_str, 
+                                                        (const gint32)s->prefix.prefixlen, nh_str, 
+                                                        0, NULL, NULL, s->label, 0);
         }
     }
   else

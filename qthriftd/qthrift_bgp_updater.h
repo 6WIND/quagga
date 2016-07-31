@@ -30,11 +30,12 @@ gboolean
 qthrift_bgp_updater_on_start_config_resync_notification (void);
 
 gboolean
-qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * prefix, const gint32 prefixlen,
-                                              const gchar * nexthop, const gint32 label);
+qthrift_bgp_updater_on_update_withdraw_route (const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop,  
+                                              const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label);
 
 gboolean
-qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix, \
-                                          const gint32 prefixlen, const gchar * nexthop, const gint32 label);
+qthrift_bgp_updater_on_update_push_route (const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, 
+                                          const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, 
+                                          const gint32 l3label, const gint32 l2label, const gchar * routermac);
 
 #endif /* _QTHRIFT_BGP_UPDATER_H */

@@ -58,17 +58,19 @@ gboolean
 instance_bgp_configurator_handler_unset_ebgp_multihop(BgpConfiguratorIf *iface, gint32* _return,
                                                       const gchar * peerIp, GError **error);
 gboolean
-instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _return, const gchar * prefix,
-                                             const gchar * nexthop, const gchar * rd, const gint32 label, GError **error);
+instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
+                                             const gchar * nexthop, const gchar * rd, const gint32 ethtag, const gchar * esi,
+                                             const gchar * macaddress, const gint32 l3label, const gint32 l2label,
+                                             const encap_type enc_type, const gchar * routermac, GError **error);
 gboolean
-instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint32* _return, const gchar * prefix,
-                                                 const gchar * rd, GError **error);
+instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
+                                                 const gchar * rd,  const gint32 ethtag, const gchar * esi, const gchar * macaddress, GError **error);
 gboolean
 instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, GError **error);
 gboolean
 instance_bgp_configurator_handler_delete_peer(BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, GError **error);
 gboolean
-instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _return, const gchar * rd,
+instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _return, const layer_type l_type, const gchar * rd,
                                           const GPtrArray * irts, const GPtrArray * erts, GError **error);
 gboolean
 instance_bgp_configurator_handler_del_vrf(BgpConfiguratorIf *iface, gint32* _return, const gchar * rd, GError **error);
@@ -99,8 +101,8 @@ gboolean
 instance_bgp_configurator_handler_disable_default_originate(BgpConfiguratorIf *iface, gint32* _return, const gchar * peerIp,
                                                             const af_afi afi, const af_safi safi, GError **error);
 gboolean
-instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes ** _return, const gint32 optype,
-                                              const gint32 winSize, GError **error);
+instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes ** _return, const protocol_type p_type, 
+                                              const gint32 optype, const gint32 winSize, GError **error);
 
 gboolean
 instance_bgp_configurator_handler_enable_multipath(BgpConfiguratorIf *iface, gint32* _return,
@@ -762,9 +764,10 @@ instance_bgp_configurator_handler_unset_ebgp_multihop(BgpConfiguratorIf *iface, 
  * an error is returned
  */
 gboolean
-instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _return,
-                                             const gchar * prefix, const gchar * nexthop,
-                                             const gchar * rd, const gint32 label, GError **error)
+instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
+                                             const gchar * nexthop, const gchar * rd, const gint32 ethtag, const gchar * esi,
+                                             const gchar * macaddress, const gint32 l3label, const gint32 l2label, 
+                                             const encap_type enc_type, const gchar * routermac, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
   struct bgp_api_route inst;
@@ -802,7 +805,7 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
     }
   /* prepare route entry for AFI=IP */
   memset(&inst, 0, sizeof(struct bgp_api_route));
-  inst.label = label;
+  inst.label = l3label;
   inet_aton (nexthop, &inst.nexthop);
   str2prefix_ipv4(prefix,&inst.prefix);
   capn_init_malloc(&rc);
@@ -821,7 +824,7 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
   else
     {
       if(IS_QTHRIFT_DEBUG)
-        zlog_debug ("pushRoute(prefix %s, nexthop %s, rd %s, label %d) OK", prefix, nexthop, rd, label);
+        zlog_debug ("pushRoute(prefix %s, nexthop %s, rd %s, l3label %d) OK", prefix, nexthop, rd, l3label);
     }
   capn_free(&rc);
   return ret;
@@ -833,8 +836,8 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
  * an error is returned
  */
 gboolean
-instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint32* _return,
-                                                 const gchar * prefix, const gchar * rd, GError **error)
+instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
+                                                 const gchar * rd,  const gint32 ethtag, const gchar * esi, const gchar * macaddress, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
   struct bgp_api_route inst;
@@ -1076,7 +1079,7 @@ instance_bgp_configurator_handler_delete_peer(BgpConfiguratorIf *iface, gint32* 
  * VRF must be removed before being updated
  */
 gboolean
-instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _return, const gchar * rd,
+instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _return, const layer_type l_type, const gchar * rd, 
                                           const GPtrArray * irts, const GPtrArray * erts, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
@@ -1459,7 +1462,7 @@ instance_bgp_configurator_handler_disable_graceful_restart (BgpConfiguratorIf *i
 struct tbliter_v4 *prev_iter_table_ptr = NULL;
 struct tbliter_v4 prev_iter_table_entry;
 gboolean
-instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes ** _return,
+instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes ** _return, const protocol_type p_type, 
                                               const gint32 optype, const gint32 winSize, GError **error)
 {
   struct capn_ptr afikey, iter_table, *iter_table_ptr = NULL;
@@ -1605,7 +1608,11 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
           upd->prefixlen = inst_route.prefix.prefixlen;
           upd->prefix = g_strdup(inet_ntop(AF_INET, &(inst_route.prefix.prefix), rdstr, RD_ADDRSTRLEN));
           upd->nexthop = g_strdup(inet_ntop(AF_INET, &(inst_route.nexthop), rdstr, RD_ADDRSTRLEN));
-          upd->label = inst_route.label;
+          upd->l3label = inst_route.label;
+          upd->ethtag = 0;
+          upd->esi = NULL;
+          upd->macaddress = NULL;
+          upd->routermac = NULL;
           upd->rd = g_strdup(prefix_rd2str(&(entry->outbound_rd), rdstr, RD_ADDRSTRLEN));
           g_ptr_array_add((*_return)->updates, upd);
           route_updates++;
@@ -1668,7 +1675,7 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
               upd->prefixlen = inst_route.prefix.prefixlen; /* keep prefix from main loop */
               upd->prefix = g_strdup(inet_ntop(AF_INET, &(inst_route.prefix.prefix), rdstr, RD_ADDRSTRLEN));
               upd->nexthop = g_strdup(inet_ntop(AF_INET, &(inst_multipath_route.nexthop), rdstr, RD_ADDRSTRLEN));
-              upd->label = inst_multipath_route.label;
+              upd->l3label = inst_multipath_route.label;
               upd->rd = g_strdup(prefix_rd2str(&(entry->outbound_rd), rdstr, RD_ADDRSTRLEN));
               g_ptr_array_add((*_return)->updates, upd);
               route_updates++;
