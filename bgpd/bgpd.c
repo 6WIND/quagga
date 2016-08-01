@@ -3553,8 +3553,7 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
   if (!d)
     {
       memcpy (&found->nh, nh, sizeof(*nh));
-      if (nlabels)
-        memcpy (&found->labels, labels, sizeof(*labels));
+      memcpy (&found->labels, labels, sizeof(*labels));
       found->nlabels = nlabels;
       listnode_add(peer->def_route_rd, found);
     }
