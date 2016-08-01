@@ -2438,43 +2438,6 @@ bgp_rib_withdraw (struct bgp_node *rn, struct bgp_info *ri, struct peer *peer,
   bgp_rib_remove (rn, ri, peer, afi, safi);
 }
 
-static void
-labels_add(struct bgp_info *info, uint32_t *labels, size_t nlabels)
-{
-  uint32_t *info_labels;
-  size_t info_nlabels;
-  uint32_t i = 0, j;
-  int found = 0;
-
-  if (!info->extra)
-    {
-      info->extra = bgp_info_extra_new();
-    }
-  info_labels = info->extra->labels;
-  info_nlabels = info->extra->nlabels;
-  if(info_nlabels + 1 > BGP_MAX_LABELS)
-    return;
-  for(i=0; i < nlabels; i++)
-    {
-      for(j=0; j< info_nlabels; j++)
-        {
-          found = 0;
-          if(labels[i] == info_labels[j])
-            {
-              /* label already set */
-              found = 1;
-              break;
-            }
-          if(found == 0)
-            {
-              /* append new label */
-              info_labels[info->extra->nlabels] = labels[i];
-              info->extra->nlabels++;
-            }
-        }
-    }
-}
-
 static bool
 labels_equal(struct bgp_info *info, uint32_t *labels, size_t nlabels)
 {
@@ -4614,10 +4577,6 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
             bgp_info_restore(rn, ri);
           else
             bgp_aggregate_decrement (bgp, p, ri, afi, safi);
-
-          /* label update */
-          labels_add(ri, bgp_static->labels, bgp_static->nlabels);
-
           bgp_attr_unintern (&ri->attr);
           ri->attr = attr_new;
           ri->uptime = bgp_clock ();
