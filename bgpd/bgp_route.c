@@ -4227,6 +4227,13 @@ bgp_static_update_rsclient (struct peer *rsclient, struct prefix *p,
           /* The attribute is changed. */
           bgp_info_set_flag (rn, ri, BGP_INFO_ATTR_CHANGED);
 
+          /* update label information - add or remove*/
+          if(bgp_static->nlabels)
+            {
+              bgp_info_extra_get (ri)->nlabels = bgp_static->nlabels;
+              memcpy (ri->extra->labels, bgp_static->labels, sizeof(*bgp_static->labels) * bgp_static->nlabels);
+            }
+
           /* Rewrite BGP route information. */
 	  if (CHECK_FLAG(ri->flags, BGP_INFO_REMOVED))
 	    bgp_info_restore(rn, ri);
