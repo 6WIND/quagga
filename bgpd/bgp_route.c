@@ -1912,7 +1912,7 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
   /* check if global RIB plans for destroying initial entry
    * if yes, then suppress it
    */
-  if(!vrf)
+  if(!vrf || !vrf->rib[afi] || !select)
     {
       return;
     }
