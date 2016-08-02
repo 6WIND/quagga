@@ -1618,8 +1618,7 @@ void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
         for (ri = rn->info; ri; ri = ri_next)
           {
             ri_next = ri->next;
-            if (CHECK_FLAG (ri->flags, BGP_INFO_SELECTED))
-              bgp_vrf_update(vrf, afi, rn, ri, false);
+            bgp_vrf_update(vrf, afi, rn, ri, false);
             bgp_info_reap (rn, ri);
           }
       bgp_table_finish (&vrf->rib[afi]);
@@ -2210,7 +2209,7 @@ void
 bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
 {
   struct bgp_node *rd_rn, *rn;
-  struct bgp_info *sel;
+  struct bgp_info *sel, *mp;
   struct bgp_table *table;
   struct ecommunity *ecom;
   size_t i, j;
@@ -2228,9 +2227,31 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
         for (rn = bgp_table_top (table); rn; rn = bgp_route_next (rn))
           {
             for (sel = rn->info; sel; sel = sel->next)
+              /* selected or mpath entry selected */
               if (CHECK_FLAG (sel->flags, BGP_INFO_SELECTED))
                 break;
-            if (!sel || !sel->attr || !sel->attr->extra)
+            if (!sel)
+              continue;
+            for (mp = rn->info; mp; mp = mp->next)
+              if(mp != sel &&  bgp_is_mpath_entry(mp, sel))
+                {
+                  /* call bgp_vrf_process_two */
+                  if (!mp->attr || !mp->attr->extra)
+                    continue;
+                  ecom = mp->attr->extra->ecommunity;
+                  if (!ecom)
+                    continue;
+
+                  found = false;
+                  for (i = 0; i < (size_t)ecom->size && !found; i++)
+                    for (j = 0; j < (size_t)vrf->rt_import->size && !found; j++)
+                      if (!memcmp(ecom->val + i * 8, vrf->rt_import->val + j * 8, 8))
+                        found = true;
+                  if (!found)
+                    continue;
+                  bgp_vrf_process_two(vrf, afi, SAFI_MPLS_VPN, rn, mp, 0);
+                }
+            if (!sel->attr || !sel->attr->extra)
               continue;
             ecom = sel->attr->extra->ecommunity;
             if (!ecom)
@@ -2407,6 +2428,7 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
   safi_t safi = pq->safi;
   struct bgp_info *new_select;
   struct bgp_info *old_select;
+  struct bgp_info *ri;
   struct bgp_info_pair old_and_new;
   struct bgp_vrf *vrf = NULL;
 
@@ -2417,12 +2439,24 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
   bgp_best_selection (bgp, rn, &old_and_new, afi, safi);
   old_select = old_and_new.old;
   new_select = old_and_new.new;
-
   /* Nothing to do. */
   if (old_select && old_select == new_select)
     {
       if (! CHECK_FLAG (old_select->flags, BGP_INFO_ATTR_CHANGED))
         {
+          /* case mpath number of entries changed */
+          if (CHECK_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG))
+            {
+              UNSET_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG);
+              SET_FLAG (old_select->flags, BGP_INFO_MULTIPATH);
+              for(ri = rn->info; ri; ri = ri->next)
+                {
+                  if(ri == old_select)
+                    continue;
+                  if(!bgp_is_mpath_entry(ri, new_select))
+                    bgp_vrf_update(vrf, afi, rn, ri, false);
+                }
+            }
           /* no zebra announce */
 	  UNSET_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG);
           UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_SCHEDULED);
@@ -2433,23 +2467,55 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
   if (old_select)
     {
       /* dont call bgp_vrf_update if multipath set */
-      if( CHECK_FLAG (old_select->flags, BGP_INFO_SELECTED) &&
-          !CHECK_FLAG (old_select->flags, BGP_INFO_MULTIPATH))
+      if( CHECK_FLAG (old_select->flags, BGP_INFO_SELECTED))
         {
-          bgp_vrf_update(vrf, afi, rn, old_select, false);
+          if(!bgp_is_mpath_entry(old_select, new_select))
+            {
+              bgp_vrf_update(vrf, afi, rn, old_select, false);
+            }
+          else
+            {
+              UNSET_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG);
+              SET_FLAG (old_select->flags, BGP_INFO_MULTIPATH);
+            }
+        }
+      /* withdraw mp entries which could have been removed
+       * and that a update has previously been sent
+       */
+      for(ri = rn->info; ri; ri = ri->next)
+        {
+          if(ri == old_select || (ri == new_select) )
+            continue;
+          if(!bgp_is_mpath_entry(ri, new_select))
+            {
+              bgp_vrf_update(vrf, afi, rn, ri, false);
+            }
         }
       bgp_info_unset_flag (rn, old_select, BGP_INFO_SELECTED);
     }
   if (new_select)
     {
       if(!CHECK_FLAG (new_select->flags, BGP_INFO_SELECTED) ||
-         CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH))
+         CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH) ||
+         CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH_CHG))
         {
           bgp_vrf_update(vrf, afi, rn, new_select, true);
         }
       bgp_info_set_flag (rn, new_select, BGP_INFO_SELECTED);
       bgp_info_unset_flag (rn, new_select, BGP_INFO_ATTR_CHANGED);
       UNSET_FLAG (new_select->flags, BGP_INFO_MULTIPATH_CHG);
+      /* append mp entries which could have been added 
+       * and that a update has not been sent
+       */
+      for(ri = rn->info; ri; ri = ri->next)
+        {
+          if( (ri == new_select) || ( ri == old_select))
+            continue;
+          if(bgp_is_mpath_entry(ri, new_select))
+            {
+              bgp_vrf_update(vrf, afi, rn, ri, true);
+            }
+        }
     }
 
   /* Reap old select bgp_info, if it has been removed */

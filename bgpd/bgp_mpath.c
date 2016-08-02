@@ -317,6 +317,8 @@ void
 bgp_info_mpath_dequeue (struct bgp_info *binfo)
 {
   struct bgp_info_mpath *mpath = binfo->mpath;
+  if (!binfo)
+    return;
   if (!mpath)
     return;
   if (mpath->mp_prev)
@@ -550,7 +552,6 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
                               sockunion2str (cur_mpath->peer->su_remote,
                                                  nh_buf[1], sizeof (nh_buf[1])));
                 }
-              bgp_vrf_update(vrf, afi, rn, cur_mpath, false);
             }
           mp_node = mp_next_node;
           cur_mpath = next_mpath;
@@ -589,7 +590,6 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
                           sockunion2str (cur_mpath->peer->su_remote,
                                          nh_buf[1], sizeof (nh_buf[1])));
             }
-          bgp_vrf_update(vrf, afi, rn, cur_mpath, false);
         }
       else
         {
@@ -636,7 +636,6 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
                               nh_str, sockunion2str (new_mpath->peer->su_remote,
                                                      nh_buf[1], sizeof (nh_buf[1])));
                 }
-              bgp_vrf_update(vrf, afi, rn, new_mpath, true);
             }
           mp_node = mp_next_node;
         }
@@ -831,4 +830,19 @@ bgp_info_mpath_aggregate_update (struct bgp_info *new_best,
     }
   else
     bgp_attr_unintern (&new_attr);
+}
+
+/* returns 1 if ri is part of the mpath list from new_select */
+int bgp_is_mpath_entry(struct bgp_info *ri, struct bgp_info *curr)
+{
+  struct bgp_info *mpinfo;
+
+  /* not a multipath entry */
+  if(!curr || !curr->mpath)
+    return 0;
+  for (mpinfo = bgp_info_mpath_first (curr); mpinfo;
+       mpinfo = bgp_info_mpath_next (mpinfo))
+    if(mpinfo == ri)
+      return 1;
+  return 0;
 }
