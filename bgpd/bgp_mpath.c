@@ -615,6 +615,7 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
                           sockunion2str (cur_mpath->peer->su_remote,
                                          nh_buf[1], sizeof (nh_buf[1])));
             }
+          mp_node = mp_next_node;
           cur_mpath = next_mpath;
         }
       else
