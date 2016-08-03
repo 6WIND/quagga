@@ -1476,7 +1476,8 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
   if (!bgp_flag_check (bgp, BGP_FLAG_DETERMINISTIC_MED))
     bgp_info_mpath_update (rn, new_select, old_select, &mp_list, afi, safi);
 
-  bgp_info_mpath_aggregate_update (new_select, old_select);
+  if(!( new_select && !CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH_CHG)))
+    bgp_info_mpath_aggregate_update (new_select, old_select);
   bgp_mp_list_clear (&mp_list);
 
   result->old = old_select;
