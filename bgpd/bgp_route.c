@@ -2463,6 +2463,15 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
           return WQ_SUCCESS;
         }
     }
+  if (old_select && new_select)
+    {
+      if(!CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH_CHG) &&
+         !CHECK_FLAG (new_select->flags, BGP_INFO_ATTR_CHANGED))
+        {
+          UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_SCHEDULED);
+          return WQ_SUCCESS;
+        }
+    }
 
   if (old_select)
     {
