@@ -63,6 +63,7 @@ struct qthrift_cache_peer
   uint64_t peer_nid;
   as_t asNumber;
   char *peerIp;
+  u_int8_t enableAddressFamily[AFI_MAX][SAFI_MAX];
 };
 
 struct qthrift_vpnservice
