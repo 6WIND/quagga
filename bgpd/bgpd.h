@@ -279,6 +279,10 @@ struct tbliter_v4
   struct prefix_ipv4 prefix;
 };
 
+#define ROUTE_TYPE_LABELED_UNICAST  1
+#define ROUTE_TYPE_MPLSVPN          2
+#define ROUTE_TYPE_EVPN             3
+
 struct bgp_api_route
 {
   struct prefix_ipv4 prefix;

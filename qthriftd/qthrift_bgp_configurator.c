@@ -317,7 +317,7 @@ qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const 
   struct capn_segment *cs;
   capn_ptr afisafi_ctxt, peer_ctxt;
   struct peer peer;
-  int af = AFI_IP, saf = SAFI_MPLS_VPN;
+  int af, saf;
   int ret;
   struct QZCGetRep *grep_peer;
   struct qthrift_cache_peer *c_peer;
@@ -333,26 +333,27 @@ qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const 
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
-  if( (afi != AF_AFI_AFI_IP) && (afi != AF_AFI_AFI_L2VPN))
-    {
-      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
-      *_return = BGP_ERR_PARAM;
-      return FALSE;
-    }
-  if( (safi != AF_SAFI_SAFI_MPLS_VPN) && (safi != AF_SAFI_SAFI_EVPN))
-    {
-      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
-      *_return = BGP_ERR_PARAM;
-      return FALSE;
-    }
   if(afi == AF_AFI_AFI_IP)
     af = AFI_IP;
   else if(afi == AF_AFI_AFI_L2VPN)
     af = AFI_INTERNAL_L2VPN;
+  else
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
   if(safi == AF_SAFI_SAFI_MPLS_VPN)
     saf = SAFI_MPLS_VPN;
   else if(safi == AF_SAFI_SAFI_EVPN)
     saf = SAFI_INTERNAL_EVPN;
+  else
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+
   c_peer = qthrift_bgp_configurator_find_peer(ctxt, peerIp, _return, 1);
   if(c_peer == NULL)
     {
@@ -437,7 +438,7 @@ qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _retur
   struct capn_segment *cs;
   capn_ptr afisafi_ctxt, peer_ctxt;
   struct peer peer;
-  int af = AFI_IP, saf = SAFI_MPLS_VPN;
+  int af, saf;
   int ret;
   struct QZCGetRep *grep_peer;
   struct qthrift_cache_peer *c_peer;
@@ -454,19 +455,26 @@ qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _retur
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
-  if( (afi != AF_AFI_AFI_IP) && (afi != AF_AFI_AFI_L2VPN))
+  if(afi == AF_AFI_AFI_IP)
+    af = AFI_IP;
+  else if(afi == AF_AFI_AFI_L2VPN)
+    af = AFI_INTERNAL_L2VPN;
+  else
     {
       *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
-  if( (safi != AF_SAFI_SAFI_MPLS_VPN) && (safi != AF_SAFI_SAFI_EVPN))
+  if(safi == AF_SAFI_SAFI_MPLS_VPN)
+    saf = SAFI_MPLS_VPN;
+  else if(safi == AF_SAFI_SAFI_EVPN)
+    saf = SAFI_INTERNAL_EVPN;
+  else
     {
       *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
-
   c_peer = qthrift_bgp_configurator_find_peer(ctxt, peerIp, _return, 0);
   if(c_peer == NULL || c_peer->peer_nid == 0)
     {
@@ -479,14 +487,7 @@ qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _retur
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
   afisafi_ctxt = qcapn_new_AfiSafiKey(cs);
-  if(afi == AF_AFI_AFI_IP)
-    af = AFI_IP;
-  else if(afi == AF_AFI_AFI_L2VPN)
-    af = AFI_INTERNAL_L2VPN;
-  if(safi == AF_SAFI_SAFI_MPLS_VPN)
-    saf = SAFI_MPLS_VPN;
-  else if(safi == AF_SAFI_SAFI_EVPN)
-    saf = SAFI_INTERNAL_EVPN;
+
   capn_write8(afisafi_ctxt, 0, af);
   capn_write8(afisafi_ctxt, 1, saf);
   /* retrieve peer context */
@@ -819,7 +820,7 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
   struct bgp_api_route inst;
   struct prefix_rd rd_inst;
   uint64_t bgpvrf_nid = 0;
-  afi_t afi = AFI_IP;
+  afi_t afi;
   struct capn_ptr bgpvrfroute;
   struct capn_ptr afikey;
   struct capn rc;
@@ -849,11 +850,32 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
-  /* prepare route entry for AFI=IP */
+  /* prepare route entry for IPv4 */
   memset(&inst, 0, sizeof(struct bgp_api_route));
   inst.label = l3label;
   inet_aton (nexthop, &inst.nexthop);
   str2prefix_ipv4(prefix,&inst.prefix);
+  if(p_type == PROTOCOL_TYPE_PROTOCOL_EVPN)
+    {
+      inst.ethtag = ethtag;
+      if( !esi || str2esi ((uint8_t *)esi, NULL) == 0)
+        {
+          *_return = BGP_ERR_PARAM;
+          return FALSE;
+        }
+      if( !routermac || str2mac ((uint8_t *)routermac, NULL) == 0)
+        {
+          *_return = BGP_ERR_PARAM;
+          return FALSE;
+        }
+      inst.esi = (uint8_t *) strdup(esi);
+      inst.mac_router = (uint8_t *) strdup(routermac);
+      afi = AFI_INTERNAL_L2VPN;
+    }
+  else
+    {
+      afi = AFI_IP;
+    }
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
   bgpvrfroute = qcapn_new_BGPVRFRoute(cs, 0);
@@ -873,6 +895,10 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
         zlog_debug ("pushRoute(prefix %s, nexthop %s, rd %s, l3label %d) OK", prefix, nexthop, rd, l3label);
     }
   capn_free(&rc);
+  if(inst.esi)
+    free(inst.esi);
+  if(inst.mac_router)
+    free(inst.mac_router);
   return ret;
 }
 
@@ -889,7 +915,7 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
   struct bgp_api_route inst;
   struct prefix_rd rd_inst;
   uint64_t bgpvrf_nid = 0;
-  afi_t afi = AFI_IP;
+  afi_t afi;
   struct capn_ptr bgpvrfroute;
   struct capn_ptr afikey;
   struct capn rc;
@@ -921,6 +947,21 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
   /* prepare route entry for AFI=IP */
   memset(&inst, 0, sizeof(struct bgp_api_route));
   str2prefix_ipv4(prefix,&inst.prefix);
+  if(p_type == PROTOCOL_TYPE_PROTOCOL_EVPN)
+    {
+      if( !esi || str2esi ((uint8_t *)esi,NULL) == 0)
+        {
+          *_return = BGP_ERR_PARAM;
+          return FALSE;
+        }
+      inst.esi = (uint8_t *) strdup(esi);
+      inst.ethtag = ethtag;
+      afi = AFI_INTERNAL_L2VPN;
+    }
+  else
+    {
+      afi = AFI_IP;
+    }
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
   bgpvrfroute = qcapn_new_BGPVRFRoute(cs, 0);
@@ -1816,8 +1857,26 @@ qthrift_bgp_set_multipath(struct qthrift_vpnservice *ctxt,  gint32* _return, con
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
   afisafi_ctxt = qcapn_new_AfiSafiKey(cs);
-  af = AFI_IP;
-  saf = SAFI_MPLS_VPN;
+  if(afi == AF_AFI_AFI_IP)
+    af = AFI_IP;
+  else if(afi == AF_AFI_AFI_L2VPN)
+    af = AFI_INTERNAL_L2VPN;
+  else
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  if(safi == AF_SAFI_SAFI_MPLS_VPN)
+    saf = SAFI_MPLS_VPN;
+  else if(safi == AF_SAFI_SAFI_EVPN)
+    saf = SAFI_INTERNAL_EVPN;
+  else
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
   capn_write8(afisafi_ctxt, 0, af);
   capn_write8(afisafi_ctxt, 1, saf);
   /* retrieve bgp context */
