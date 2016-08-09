@@ -1989,7 +1989,7 @@ bgp_update_receive (struct peer *peer, bgp_size_t size)
        * Note2: This will also remap the wire code-point for VPN safi to the
        * internal safi_t point, as needs be.
        */
-      if (!bgp_afi_safi_valid_indices (nlris[i].afi, &nlris[i].safi))
+      if (!bgp_afi_safi_valid_indices (&nlris[i].afi, &nlris[i].safi))
         {
           plog_info (peer->log,
                      "%s [Info] UPDATE with unsupported AFI/SAFI %u/%u",
@@ -2060,7 +2060,7 @@ bgp_update_receive (struct peer *peer, bgp_size_t size)
        */
       else if (attr.flag == BGP_ATTR_MP_UNREACH_NLRI
                && nlris[NLRI_MP_WITHDRAW].length == 0
-               && bgp_afi_safi_valid_indices (nlris[NLRI_MP_WITHDRAW].afi,
+               && bgp_afi_safi_valid_indices (&nlris[NLRI_MP_WITHDRAW].afi,
                                               &nlris[NLRI_MP_WITHDRAW].safi))
         {
           afi = nlris[NLRI_MP_WITHDRAW].afi;
@@ -2464,7 +2464,7 @@ bgp_capability_msg_parse (struct peer *peer, u_char *pnt, bgp_size_t length)
           if (CHECK_FLAG (peer->flags, PEER_FLAG_OVERRIDE_CAPABILITY))
 	    continue;
           
-          if (!bgp_afi_safi_valid_indices (afi, &safi))
+          if (!bgp_afi_safi_valid_indices (&afi, &safi))
             {
               if (BGP_DEBUG (normal, NORMAL))
                 zlog_debug ("%s Dynamic Capability MP_EXT afi/safi invalid "

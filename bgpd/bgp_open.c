@@ -132,9 +132,9 @@ bgp_capability_mp_data (struct stream *s, struct capability_mp_data *mpc)
 }
 
 int
-bgp_afi_safi_valid_indices (afi_t afi, safi_t *safi)
+bgp_afi_safi_valid_indices (afi_t *afi, safi_t *safi)
 {
-  switch (afi)
+  switch (*afi)
     {
     case AFI_IP:
     case AFI_IP6:
@@ -149,6 +149,15 @@ bgp_afi_safi_valid_indices (afi_t afi, safi_t *safi)
 	case SAFI_ENCAP:
 	  return 1;
 	}
+    case AFI_IANA_L2VPN:
+      *afi = AFI_L2VPN;
+      switch (*safi)
+	{
+        case SAFI_IANA_EVPN:
+	  *safi = SAFI_EVPN;
+          return 1;
+        }
+      break;
     case AFI_L2VPN:
       switch (*safi)
 	{
@@ -157,8 +166,7 @@ bgp_afi_safi_valid_indices (afi_t afi, safi_t *safi)
         }
       break;
     }
-
-  zlog_debug ("unknown afi/safi (%u/%u)", afi, *safi);
+  zlog_debug ("unknown afi/safi (%u/%u)", *afi, *safi);
 
   return 0;
 }
@@ -176,7 +184,7 @@ bgp_capability_mp (struct peer *peer, struct capability_header *hdr)
     zlog_debug ("%s OPEN has MP_EXT CAP for afi/safi: %u/%u",
                peer->host, mpc.afi, mpc.safi);
   
-  if (!bgp_afi_safi_valid_indices (mpc.afi, &mpc.safi))
+  if (!bgp_afi_safi_valid_indices (&mpc.afi, &mpc.safi))
     return -1;
    
   /* Now safi remapped, and afi/safi are valid array indices */
@@ -238,7 +246,7 @@ bgp_capability_orf_entry (struct peer *peer, struct capability_header *hdr)
 	        peer->host, entry.mpc.afi, entry.mpc.safi);
 
   /* Check AFI and SAFI. */
-  if (!bgp_afi_safi_valid_indices (entry.mpc.afi, &safi))
+  if (!bgp_afi_safi_valid_indices (&afi, &safi))
     {
       zlog_info ("%s Addr-family %d/%d not supported."
                  " Ignoring the ORF capability",
@@ -381,7 +389,7 @@ bgp_capability_restart (struct peer *peer, struct capability_header *caphdr)
       safi_t safi = stream_getc (s);
       u_char flag = stream_getc (s);
       
-      if (!bgp_afi_safi_valid_indices (afi, &safi))
+      if (!bgp_afi_safi_valid_indices (&afi, &safi))
         {
           if (BGP_DEBUG (normal, NORMAL))
             zlog_debug ("%s Addr-family %d/%d(afi/safi) not supported."
