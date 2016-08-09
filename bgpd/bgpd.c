@@ -5981,7 +5981,9 @@ bgp_config_write (struct vty *vty)
             vty_out(vty, " vrf rd %s%s", str_p == NULL?"<err>":str_p, VTY_NEWLINE);
             if(vrf->rt_import)
               {
-                str2_p = ecommunity_ecom2str (vrf->rt_import, ECOMMUNITY_FORMAT_ROUTE_MAP);
+                str2_p = ecommunity_ecom2str (vrf->rt_import,
+                                              ECOMMUNITY_FORMAT_ROUTE_MAP,
+                                              ECOMMUNITY_ROUTE_TARGET);
                 if(str2_p)
                   {
                     vty_out(vty, " vrf rd %s import %s%s", str_p == NULL?"<err>":str_p, str2_p, VTY_NEWLINE);
@@ -5990,7 +5992,9 @@ bgp_config_write (struct vty *vty)
               }
             if(vrf->rt_export)
               {
-                str2_p = ecommunity_ecom2str (vrf->rt_export, ECOMMUNITY_FORMAT_ROUTE_MAP);
+                str2_p = ecommunity_ecom2str (vrf->rt_export,
+                                              ECOMMUNITY_FORMAT_ROUTE_MAP,
+                                              ECOMMUNITY_ROUTE_TARGET);
                 if(str2_p)
                   {
                     vty_out(vty, " vrf rd %s export %s%s", str_p == NULL?"<err>":str_p, str2_p, VTY_NEWLINE);
