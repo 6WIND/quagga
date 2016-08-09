@@ -6136,7 +6136,9 @@ bgp_config_write (struct vty *vty)
               }
             if(vrf->rt_import)
               {
-                str2_p = ecommunity_ecom2str (vrf->rt_import, ECOMMUNITY_FORMAT_ROUTE_MAP);
+                str2_p = ecommunity_ecom2str (vrf->rt_import,
+                                              ECOMMUNITY_FORMAT_ROUTE_MAP,
+                                              ECOMMUNITY_ROUTE_TARGET);
                 if(str2_p)
                   {
                     vty_out(vty, "  rt import %s%s", str2_p, VTY_NEWLINE);
@@ -6145,7 +6147,9 @@ bgp_config_write (struct vty *vty)
               }
             if(vrf->rt_export)
               {
-                str2_p = ecommunity_ecom2str (vrf->rt_export, ECOMMUNITY_FORMAT_ROUTE_MAP);
+                str2_p = ecommunity_ecom2str (vrf->rt_export,
+                                              ECOMMUNITY_FORMAT_ROUTE_MAP,
+                                              ECOMMUNITY_ROUTE_TARGET);
                 if(str2_p)
                   {
                     vty_out(vty, "  rt export %s%s", str2_p, VTY_NEWLINE);

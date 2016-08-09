@@ -58,7 +58,7 @@ ecommunity_free (struct ecommunity **ecom)
    structure, we don't add the value.  Newly added value is sorted by
    numerical order.  When the value is added to the structure return 1
    else return 0.  */
-static int
+int
 ecommunity_add_val (struct ecommunity *ecom, struct ecommunity_val *eval)
 {
   u_int8_t *p;
@@ -166,7 +166,7 @@ char *
 ecommunity_str (struct ecommunity *ecom)
 {
   if (! ecom->str)
-    ecom->str = ecommunity_ecom2str (ecom, ECOMMUNITY_FORMAT_DISPLAY);
+    ecom->str = ecommunity_ecom2str (ecom, ECOMMUNITY_FORMAT_DISPLAY, 0);
   return ecom->str;
 }
 
@@ -204,7 +204,7 @@ ecommunity_intern (struct ecommunity *ecom)
   find->refcnt++;
 
   if (! find->str)
-    find->str = ecommunity_ecom2str (find, ECOMMUNITY_FORMAT_DISPLAY);
+    find->str = ecommunity_ecom2str (find, ECOMMUNITY_FORMAT_DISPLAY, 0);
 
   return find;
 }
@@ -585,9 +585,12 @@ ecommunity_str2com (const char *str, int type, int keyword_included)
    ECOMMUNITY_FORMAT_ROUTE_MAP
    ECOMMUNITY_FORMAT_COMMUNITY_LIST
    ECOMMUNITY_FORMAT_DISPLAY
+
+   Filter is added to display only ECOMMUNITY_ROUTE_TARGET in some cases. 
+   0 value displays all
 */
 char *
-ecommunity_ecom2str (struct ecommunity *ecom, int format)
+ecommunity_ecom2str (struct ecommunity *ecom, int format, int filter)
 {
   int i;
   u_int8_t *pnt;
@@ -652,6 +655,11 @@ ecommunity_ecom2str (struct ecommunity *ecom, int format)
           break;
 
         case ECOMMUNITY_ENCODE_OPAQUE:
+          if(filter == ECOMMUNITY_ROUTE_TARGET)
+            {
+              first = 0;
+              continue;
+            }
           if (*pnt == ECOMMUNITY_OPAQUE_SUBTYPE_ENCAP)
             {
               uint16_t tunneltype;
@@ -662,8 +670,32 @@ ecommunity_ecom2str (struct ecommunity *ecom, int format)
               first = 0;
               continue;
             }
-            /* fall through */
-
+          len = sprintf (str_buf + str_pnt, "?");
+          str_pnt += len;
+          first = 0;
+          continue;
+        case ECOMMUNITY_ENCODE_EVPN:
+          if(filter == ECOMMUNITY_ROUTE_TARGET)
+            {
+              first = 0;
+              continue;
+            }
+          if (*pnt == ECOMMUNITY_SITE_ORIGIN)
+            {
+              char macaddr[6];
+              pnt++;
+              memcpy(&macaddr, pnt, 6);
+              len = sprintf(str_buf + str_pnt, "EVPN:%02x:%02x:%02x:%02x:%02x:%02x",
+                            macaddr[0], macaddr[1], macaddr[2],
+                            macaddr[3], macaddr[4], macaddr[5]);
+              str_pnt += len;
+              first = 0;
+              continue;
+            }
+          len = sprintf (str_buf + str_pnt, "?");
+          str_pnt += len;
+          first = 0;
+          continue;
         default:
           len = sprintf (str_buf + str_pnt, "?");
           str_pnt += len;
@@ -774,3 +806,20 @@ ecommunity_match (const struct ecommunity *ecom1,
     return 0;
 }
 
+/* return first occurence of type */
+extern struct ecommunity_val *ecommunity_lookup (const struct ecommunity *ecom, uint8_t type)
+{
+  u_int8_t *p;
+  int c;
+  struct ecommunity_val *ecom_val;
+
+  /* If the value already exists in the structure return 0.  */
+  c = 0;
+  for (p = ecom->val; c < ecom->size; p += ECOMMUNITY_SIZE, c++)
+    {
+      ecom_val = (struct ecommunity_val *)p;
+      if(ecom_val->val[0] == type)
+        return ecom_val;
+    }
+  return NULL;
+}
