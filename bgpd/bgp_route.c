@@ -57,7 +57,9 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_vty.h"
 #include "bgpd/bgp_mpath.h"
 #include "bgpd/bgp_encap_types.h"
+#include "bgpd/bgp_encap_tlv.h"
 #include "bgpd/bgp_evpn.h"
+
 
 /* Extern from bgp_dump.c */
 extern const char *bgp_origin_str[];
@@ -5110,6 +5112,12 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
     }
   if(afi == AFI_INTERNAL_L2VPN)
     {
+      struct bgp_encap_type_vxlan bet;
+
+      memset(&bet, 0, sizeof(struct bgp_encap_type_vxlan));
+      if(bgp_static->eth_t_id)
+        bet.vnid = bgp_static->eth_t_id;
+      bgp_encap_type_vxlan_to_tlv(&bet, &attr);
      if(bgp_static->router_mac)
         {
           struct ecommunity_val routermac;

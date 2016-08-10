@@ -3023,8 +3023,9 @@ bgp_packet_attribute (struct bgp *bgp, struct peer *peer,
       stream_put_ipv4 (s, attr->extra->aggregator_addr.s_addr);
     }
 
-  if ((afi == AFI_IP || afi == AFI_IP6) &&
-      (safi == SAFI_ENCAP || safi == SAFI_MPLS_VPN))
+  if (((afi == AFI_IP || afi == AFI_IP6) &&
+       (safi == SAFI_ENCAP || safi == SAFI_MPLS_VPN)) ||
+      (afi == AFI_INTERNAL_L2VPN && safi == SAFI_INTERNAL_EVPN))
     {
 	/* Tunnel Encap attribute */
 	bgp_packet_mpattr_tea(bgp, peer, s, attr, BGP_ATTR_ENCAP);
