@@ -88,6 +88,7 @@ struct bgp_info
 #define BGP_INFO_MULTIPATH_CHG  (1 << 12)
 #define BGP_INFO_UPDATE_SENT    (1 << 13)
 #define BGP_INFO_WITHDRAW_SENT  (1 << 14)
+#define BGP_INFO_ORIGIN_EVPN    (1 << 15)
 
   /* BGP route type.  This can be static, RIP, OSPF, BGP etc.  */
   u_char type;

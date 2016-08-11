@@ -1688,6 +1688,8 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
         {
           if (selected->extra->nlabels)
             event.label = selected->extra->labels[0] >> 4;
+          else
+            event.label = 0;
         }
       else
         {
@@ -1916,6 +1918,8 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
   struct prefix_rd *prd;
   char pfx_str[INET6_BUFSIZ];
 
+  if(afi == AFI_INTERNAL_L2VPN)
+    afi = AFI_IP; /* XXX should be set to appropriate AFI : AF_INET or AF_INET6 */
   prd = &bgp_node_table (rn)->prd;
   if (BGP_DEBUG (events, EVENTS))
     {
@@ -2048,10 +2052,14 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
               memcpy (iter->extra->labels, select->extra->labels,
                       select->extra->nlabels * sizeof(select->extra->labels[0]));
             }
+	  if (select->attr->extra)
+	    overlay_index_dup(iter->attr, &(select->attr->extra->evpn_overlay));
           iter->type = select->type;
           iter->sub_type = select->sub_type;
           iter->uptime = bgp_clock ();
           iter->peer = select->peer;
+          if(safi == SAFI_INTERNAL_EVPN)
+            SET_FLAG (iter->flags, BGP_INFO_ORIGIN_EVPN);
           SET_FLAG (iter->flags, BGP_INFO_VALID);
           bgp_info_add (vrf_rn, iter);
           bgp_unlock_node (vrf_rn);
@@ -2105,7 +2113,7 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
   int action;
   struct bgp_info *ri;
 
-  if (safi != SAFI_MPLS_VPN)
+  if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_INTERNAL_EVPN))
     return;
 
   prd = &bgp_node_table (rn)->prd;
