@@ -91,6 +91,17 @@ static struct bgp_info *
 info_make (int type, int sub_type, struct peer *peer, struct attr *attr,
 	   struct bgp_node *rn);
 
+static void
+overlay_index_dup(struct attr *attr, struct overlay_index *src)
+{
+  if(!src)
+    return;
+  if(!attr->extra)
+    bgp_attr_extra_get(attr);
+  memcpy(&(attr->extra->evpn_overlay), src, sizeof(struct overlay_index));
+  return;
+}
+
 static struct bgp_node *
 bgp_afi_node_get (struct bgp_table *table, afi_t afi, safi_t safi, struct prefix *p,
 		  struct prefix_rd *prd)
@@ -1709,12 +1720,12 @@ void
 bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                 struct bgp_info *selected, uint8_t announce)
 {
+  char *esi = NULL, *mac_router = NULL;
+  uint32_t ethtag = 0, l3label = 0, l2label = 0;
+
   struct bgp_event_vrf event = {
     .announce         = announce,
-    .outbound_rd      = vrf->outbound_rd,
-    .prefix.family    = rn->p.family,
-    .prefix.prefixlen = rn->p.prefixlen,
-    .prefix.prefix    = rn->p.u.prefix4,
+    .outbound_rd      = vrf->outbound_rd
   };
 
   if(!vrf || (rn && bgp_node_table (rn)->type != BGP_TABLE_VRF))
@@ -1727,7 +1738,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
 
   if (BGP_DEBUG (events, EVENTS))
     {
-      char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+      char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[PREFIX_STRLEN];
       char label_str[BUFSIZ] = "<?>", nh_str[BUFSIZ] = "<?>";
       char pre_str[20], post_str[20];
 
@@ -1791,7 +1802,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
   if (afi == AFI_IP)
     {
       if (selected->attr && selected->attr->extra)
-        event.nexthop = selected->attr->extra->mp_nexthop_global_in;
+          event.nexthop = selected->attr->extra->mp_nexthop_global_in;
 #ifdef HAVE_ZEROMQ
       bgp_notify_route (vrf->bgp, &event);
 #endif /* HAVE_ZEROMQ */
@@ -1852,7 +1863,6 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
         }
       return ret;
     }
-
 
   bgp_static = bgp_static_new ();
   bgp_static->backdoor = 0;
@@ -1960,6 +1970,8 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
   struct prefix_rd *prd;
   char pfx_str[INET6_BUFSIZ];
 
+  if(afi == AFI_L2VPN)
+    afi = AFI_IP; /* XXX should be set to appropriate AFI : AF_INET or AF_INET6 */
   prd = &bgp_node_table (rn)->prd;
   if (BGP_DEBUG (events, EVENTS))
     {
@@ -2092,6 +2104,10 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
               memcpy (iter->extra->labels, select->extra->labels,
                       select->extra->nlabels * sizeof(select->extra->labels[0]));
             }
+	  if (select->attr->extra)
+	    overlay_index_dup(iter->attr, &(select->attr->extra->evpn_overlay));
+          if(safi == SAFI_EVPN)
+            SET_FLAG (iter->flags, BGP_INFO_ORIGIN_EVPN);
           SET_FLAG (iter->flags, BGP_INFO_VALID);
           bgp_info_add (vrf_rn, iter);
           bgp_unlock_node (vrf_rn);
@@ -2144,7 +2160,7 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
   int action;
   struct bgp_info *ri;
 
-  if (safi != SAFI_MPLS_VPN)
+  if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_EVPN))
     return;
 
   prd = &bgp_node_table (rn)->prd;
@@ -2254,6 +2270,8 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
 {
   if (!vrf->rt_import || vrf->rt_import->size == 0)
     return;
+if (afi == AFI_L2VPN)
+  return bgp_vrf_apply_new_imports_internal (vrf, afi, SAFI_EVPN);
   bgp_vrf_apply_new_imports_internal (vrf, afi, SAFI_MPLS_VPN);
   bgp_vrf_apply_new_imports_internal (vrf, afi, SAFI_ENCAP);
   return;
