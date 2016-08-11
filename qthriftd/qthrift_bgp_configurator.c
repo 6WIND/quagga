@@ -1171,6 +1171,12 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
       *error = ERROR_BGP_AS_NOT_STARTED;
       return FALSE;
     }
+  if(rd == NULL)
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
   memset(&instvrf, 0, sizeof(struct bgp_vrf));
   /* get route distinguisher internal representation */
   prefix_str2rd((char *)rd, &instvrf.outbound_rd);
