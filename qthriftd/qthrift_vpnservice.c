@@ -156,17 +156,32 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
   qcapn_BGPEventVRFRoute_read(s, p);
   if (s->announce != BGP_EVENT_SHUT)
     {
+      gchar *esi;
+
+      if(s->esi)
+        {
+          esi = g_strdup((const gchar *)s->esi);
+        }
+      else
+        esi = NULL;
+
       announce = (s->announce & BGP_EVENT_MASK_ANNOUNCE)?TRUE:FALSE;
       if (announce == TRUE)
         {
           char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+          gchar *mac_router;
           struct prefix *p = (struct prefix *)&(s->prefix);
 
+          if(s->mac_router)
+            mac_router = g_strdup((const gchar *)s->mac_router);
+          else
+            mac_router = NULL;
           prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
           inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
-          qthrift_bgp_updater_on_update_push_route(PROTOCOL_TYPE_PROTOCOL_L3VPN, vrf_rd_str, pfx_str, 
+          qthrift_bgp_updater_on_update_push_route(s->esi?PROTOCOL_TYPE_PROTOCOL_EVPN:PROTOCOL_TYPE_PROTOCOL_L3VPN, 
+                                                   vrf_rd_str, pfx_str, 
                                                    (const gint32)s->prefix.prefixlen, inet_ntoa(s->nexthop), 
-                                                   0, NULL, NULL, s->label, 0, NULL);
+                                                   s->ethtag, esi, NULL, s->label, 0, mac_router);
         }
       else
         {
@@ -176,10 +191,15 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
           inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
           prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
           inet_ntop (p->family, &s->nexthop, nh_str, INET6_BUFSIZ);
-          qthrift_bgp_updater_on_update_withdraw_route (PROTOCOL_TYPE_PROTOCOL_L3VPN, vrf_rd_str, pfx_str, 
+          qthrift_bgp_updater_on_update_withdraw_route (s->esi?PROTOCOL_TYPE_PROTOCOL_EVPN:PROTOCOL_TYPE_PROTOCOL_L3VPN, 
+                                                        vrf_rd_str, pfx_str, 
                                                         (const gint32)s->prefix.prefixlen, nh_str, 
-                                                        0, NULL, NULL, s->label, 0);
+                                                        s->ethtag, esi, NULL, s->label, 0);
         }
+      if(s->esi)
+        free(s->esi);
+      if(s->mac_router)
+        free(s->mac_router);
     }
   else
     {

@@ -62,6 +62,18 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 /* Extern from bgp_dump.c */
 extern const char *bgp_origin_str[];
 extern const char *bgp_origin_long_str[];
+
+static void
+overlay_index_dup(struct attr *attr, struct overlay_index *src)
+{
+  if(!src)
+    return;
+  if(!attr->extra)
+    bgp_attr_extra_get(attr);
+  memcpy(&(attr->extra->evpn_overlay), src, sizeof(struct overlay_index));
+  return;
+}
+
 static struct bgp_node *
 bgp_afi_node_get (struct bgp_table *table, afi_t afi, safi_t safi, struct prefix *p,
 		  struct prefix_rd *prd)
@@ -1576,8 +1588,23 @@ bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn,
   if (sel->attr && sel->attr->extra)
     out->nexthop = sel->attr->extra->mp_nexthop_global_in;
   if (sel->extra && sel->extra->nlabels)
-    out->label = sel->extra->labels[0] >> 4;
+    {
+        out->label = sel->extra->labels[0] >> 4;
+    }
+  if(sel->attr && sel->attr->extra && CHECK_FLAG (sel->flags, BGP_INFO_ORIGIN_EVPN))
+    {
+      out->esi = esi2str(&(sel->attr->extra->evpn_overlay.eth_s_id));
+      out->ethtag = sel->attr->extra->eth_t_id;
+      if(sel->attr->extra->ecommunity)
+        {
+          struct ecommunity_val *routermac = ecommunity_lookup (sel->attr->extra->ecommunity, ECOMMUNITY_ENCODE_EVPN);
 
+          if(routermac)
+            {
+              out->mac_router = ecom_mac2str((uint8_t *)routermac->val);
+            }
+        }
+    }
   /* now that an entry with SELECTED flag was found, check for possibly MULTIPATH entries
      in next items */
   for (iter = sel->next; iter; iter = iter->next)
@@ -1683,20 +1710,45 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
   if (afi == AFI_IP)
     {
       if (selected->attr && selected->attr->extra)
-        event.nexthop = selected->attr->extra->mp_nexthop_global_in;
+        {
+          event.nexthop = selected->attr->extra->mp_nexthop_global_in;
+          /* get routermac if origin evpn */
+          if(CHECK_FLAG (selected->flags, BGP_INFO_ORIGIN_EVPN))
+            {
+              event.esi = esi2str(&(selected->attr->extra->evpn_overlay.eth_s_id));
+              event.ethtag = selected->attr->extra->eth_t_id;
+            }
+          else
+            {
+                event.esi = NULL;
+            }
+        }
       if (announce)
         {
           if (selected->extra->nlabels)
-            event.label = selected->extra->labels[0] >> 4;
+	    event.label = selected->extra->labels[0] >> 4;
+          if(selected->attr && selected->attr->extra && selected->attr->extra->ecommunity)
+            {
+              struct ecommunity_val *routermac = ecommunity_lookup (selected->attr->extra->ecommunity, ECOMMUNITY_ENCODE_EVPN);
+
+              if(routermac)
+                event.mac_router = ecom_mac2str((uint8_t *)routermac->val);
+              else
+                event.mac_router = NULL;
+            }
           else
-            event.label = 0;
+            event.mac_router = NULL;
         }
       else
         {
+          event.mac_router = NULL;
           if (selected->extra)
-            event.label = selected->extra->labels[0] >> 4;
-          else
-            event.label = 0;
+            {
+              if (selected->extra->nlabels)
+                event.label = selected->extra->labels[0] >> 4;
+              else
+                event.label = 0;
+            }
         }
       bgp_notify_route (vrf->bgp, &event);
     }
@@ -1727,6 +1779,10 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
         zlog_debug ("vrf[%s] %s: prefix withdrawn nh %s label %d",
                     vrf_rd_str, pfx_str, nh_str, event.label);
     }
+  if(event.mac_router)
+    free(event.mac_router);
+  if(event.esi)
+    free(event.esi);
 }
 
 int
@@ -2023,13 +2079,17 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
                       if(iter->attr)
                         bgp_attr_unintern(&iter->attr);
                       iter->attr = bgp_attr_intern (select->attr);
-                      if(select->attr->extra && select->attr->extra->ecommunity)
-                        {
-                          bgp_attr_extra_get(iter->attr);
-                          iter->attr->extra->ecommunity = 
-                            ecommunity_dup(select->attr->extra->ecommunity);
-                        }
-                    }
+                      if(select->attr->extra)
+			{
+			  if(select->attr->extra->ecommunity)
+			    {
+			      bgp_attr_extra_get(iter->attr);
+			      iter->attr->extra->ecommunity =
+				ecommunity_dup(select->attr->extra->ecommunity);
+			    }
+			  overlay_index_dup(iter->attr, &(select->attr->extra->evpn_overlay));
+			}
+		    }
                   /* if changes, update, and permit resending
                      information */
                   bgp_info_set_flag (rn, iter, BGP_INFO_ATTR_CHANGED);
@@ -2814,7 +2874,6 @@ bgp_rib_withdraw (struct bgp_node *rn, struct bgp_info *ri, struct peer *peer,
     
   bgp_rib_remove (rn, ri, peer, afi, safi);
 }
-
 
 static void
 overlay_index_update(struct attr *attr, struct eth_segment_id *eth_s_id, union gw_addr *gw_ip)

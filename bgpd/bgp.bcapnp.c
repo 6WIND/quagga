@@ -612,7 +612,14 @@ void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
         capn_write32(tempptr, 0, ntohl(s->nexthop.s_addr));
         capn_setp(p, 1, tempptr);
     }
-    capn_write32(p, 4, s->label);
+    {
+        capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
+	capn_write32(tempptr, 0, s->label);
+	capn_write32(tempptr, 4, s->ethtag);
+        capn_setp(p, 2, tempptr);
+    }
+    { capn_text tp = { .str = s->esi, .len = s->esi ? strlen((const char *)s->esi) : 0 }; capn_set_text(p, 3, tp); }
+    { capn_text tp = { .str = s->mac_router, .len = s->mac_router ? strlen((const char *)s->mac_router) : 0 }; capn_set_text(p, 4, tp); }
 }
 
 
@@ -640,7 +647,7 @@ void qcapn_BGPEventVRFRoute_set(struct bgp_event_vrf *s, capn_ptr p)
 
 capn_ptr qcapn_new_BGPEventVRFRoute(struct capn_segment *s)
 {
-    return capn_new_struct(s, 16, 2);
+    return capn_new_struct(s, 16, 5);
 }
 
 

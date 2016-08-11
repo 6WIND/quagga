@@ -179,6 +179,9 @@ struct BGPEventVRFRoute $ctype("struct bgp_event_vrf") $cgen
 	prefix			 @2 :PrefixV4;
 	nexthop			 @3 :IPv4;
 	label			 @4 :UInt32;
+        ethtag                   @5 :UInt32;
+        esi                      @6 :Text;
+        macaddress               @7 :Text;
 }
 
 struct BGPEventShut $ctype("struct bgp_event_shut") $cgen

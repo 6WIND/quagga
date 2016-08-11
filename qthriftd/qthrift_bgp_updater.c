@@ -47,12 +47,21 @@ qthrift_bgp_updater_on_update_push_route (const protocol_type p_type, const gcha
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt || !ctxt->bgp_updater_client)
       return FALSE;
-  response = bgp_updater_client_send_on_update_push_route(ctxt->bgp_updater_client, PROTOCOL_TYPE_PROTOCOL_L3VPN,
-                                                          rd, prefix, prefixlen, nexthop, 0, NULL, NULL, 
-                                                          l3label, 0, NULL, &error);
+  response = bgp_updater_client_send_on_update_push_route(ctxt->bgp_updater_client, p_type,
+                                                          rd, prefix, prefixlen, nexthop, ethtag, esi, macaddress, 
+                                                          l3label, l2label, routermac, &error);
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_info ("onUpdatePushRoute(rd %s, pfx %s, nh %s, label %d)", \
-               rd, prefix, nexthop, label);
+    {
+    char ethtag_str[20];
+    sprintf(ethtag_str,"ethtag %u", ethtag);
+
+    zlog_info ("onUpdatePushRoute(rd %s, pfx %s, nh %s, label %d, %s%s %s %s%s) sent %s", \
+             rd, prefix, nexthop, l3label,\
+             esi==NULL?"":"esi ",esi==NULL?"":esi,\
+             ethtag==0?"":ethtag_str,
+             routermac==NULL?"":"routermac ", routermac==NULL?"":routermac,
+             (response == TRUE)?"OK":"NOK");
+  }
   return response;
 }
 
@@ -71,12 +80,20 @@ qthrift_bgp_updater_on_update_withdraw_route (const protocol_type p_type, const 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt || !ctxt->bgp_updater_client)
       return FALSE;
-  response = bgp_updater_client_on_update_withdraw_route(ctxt->bgp_updater_client, PROTOCOL_TYPE_PROTOCOL_L3VPN,
-                                                         rd, prefix, prefixlen, nexthop, 0, NULL, NULL,
-                                                         l3label, 0, &error);
+  response = bgp_updater_client_on_update_withdraw_route(ctxt->bgp_updater_client, p_type,
+                                                         rd, prefix, prefixlen, nexthop, ethtag, esi, macaddress,
+                                                         l3label, l2label, &error);
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_debug ("onUpdateWithdrawRoute(rd %s, pfx %s/%d, nh %s, label %d)", \
-                rd, prefix, prefixlen, nexthop, label);
+    {
+      char ethtag_str[20];
+      sprintf(ethtag_str,"ethtag %u", ethtag);
+
+      zlog_info ("onUpdateWithdrawRoute(rd %s, pfx %s/%d, nh %s, label %d, %s%s %s %s%s) sent %s", \
+                rd, prefix, prefixlen, nexthop, l3label,                \
+                esi==NULL?"":"esi ",esi==NULL?"":esi,                   \
+                ethtag==0?"":ethtag_str,
+                (response == TRUE)?"OK":"NOK");
+    }
   return response;
 }
 

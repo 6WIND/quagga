@@ -504,7 +504,41 @@ void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
         capn_ptr tmp_p = capn_getp(p, 1, 1);
         s->nexthop.s_addr = htonl(capn_read32(tmp_p, 0));
     }
-    s->label = capn_read32(p, 4);
+    {
+        capn_ptr tmp_p = capn_getp(p, 2, 1);
+	s->label = capn_read32(tmp_p, 0);
+	s->ethtag = capn_read32(tmp_p, 4);
+    }
+    {
+      const char * esi = NULL;
+      int len;
+      capn_text tp = capn_get_text(p, 3, capn_val0);
+      esi = tp.str;
+      len = tp.len;
+      if (esi && len != 0)
+        {
+          s->esi = (uint8_t *)strdup(esi);
+        }
+      else
+        {
+          s->esi = NULL;
+        }
+    }
+    {
+      const char * mac_router = NULL;
+      int len;
+      capn_text tp = capn_get_text(p, 4, capn_val0);
+      mac_router = tp.str;
+      len = tp.len;
+      if (mac_router && len != 0)
+        {
+          s->mac_router  = (uint8_t *)strdup(mac_router);
+        }
+      else
+        {
+          s->mac_router = NULL;
+        }
+    }
 }
 
 void qcapn_BGPEventShut_read(struct bgp_event_shut *s, capn_ptr p)
