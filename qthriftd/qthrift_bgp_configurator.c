@@ -1675,9 +1675,6 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
           qcapn_BGPVRFRoute_read(&inst_route, grep_route->data);
           if(grep_route->datatype != 0)
             {
-              /* if datatype is valid, iter type may be valid. continue */
-              qcapn_BGPVRFRoute_read(&inst_route, grep_route->data);
-
               /* this is possibly a multipath route, get additionnal data in the
                same grep_route->data exchange channel to get a pointer to the
                next bgp_info struct linked to that route.
@@ -1771,11 +1768,6 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
                 }
               memset(&inst_multipath_route, 0, sizeof(struct bgp_api_route));
               qcapn_BGPVRFRoute_read(&inst_multipath_route, grep_multipath_route->data);
-              if(grep_route->datatype != 0)
-                {
-                  /* if datatype is valid, iter type may be valid. continue */
-                  qcapn_BGPVRFRoute_read(&inst_multipath_route, grep_multipath_route->data);
-                }
               mpath_iter_ptr = 0;
               /* look for another multipath entry with that check */
               if(grep_multipath_route->itertype != 0)
