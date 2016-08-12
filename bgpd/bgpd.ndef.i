@@ -648,6 +648,16 @@ _qzc_get_bgp_vrf_4(struct bgp_vrf *p,
         rep->nextiter = qcapn_new_BGPVRFInfoIter(seg);
         qcapn_BGPVRFInfoIter_write((unsigned long) next, rep->nextiter, 0);
       }
+    if(outptr->esi)
+      {
+        free(outptr->esi);
+        outptr->esi = NULL;
+      }
+    if(outptr->mac_router)
+      {
+        free(outptr->mac_router);
+        outptr->mac_router = NULL;
+      }
 }
 
 static struct bgp_node * qcap_iter_bgp_vrf_route(struct bgp_table *table,

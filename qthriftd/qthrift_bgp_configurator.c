@@ -1702,7 +1702,10 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
           if ( (inst_route.nexthop.s_addr == 0) &&              \
                (inst_route.prefix.prefix.s_addr == 0) &&        \
                (inst_route.prefix.prefixlen == 0) &&            \
-               (inst_route.label == 0))
+               (inst_route.label == 0) &&             \
+               (inst_route.ethtag == 0) &&                      \
+               (inst_route.esi == NULL) &&                      \
+               (inst_route.mac_router == NULL))
             {
               if(prev_iter_table_ptr != NULL)
                 {
@@ -1721,14 +1724,25 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
           upd->prefix = g_strdup(inet_ntop(AF_INET, &(inst_route.prefix.prefix), rdstr, RD_ADDRSTRLEN));
           upd->nexthop = g_strdup(inet_ntop(AF_INET, &(inst_route.nexthop), rdstr, RD_ADDRSTRLEN));
           upd->l3label = inst_route.label;
-          upd->ethtag = 0;
-          upd->esi = NULL;
+          upd->ethtag = inst_route.ethtag;
+          if(inst_route.esi)
+            upd->esi = g_strdup(inst_route.esi);
           upd->macaddress = NULL;
-          upd->routermac = NULL;
+          if(inst_route.mac_router)
+            upd->routermac = g_strdup(inst_route.mac_router);
           upd->rd = g_strdup(prefix_rd2str(&(entry->outbound_rd), rdstr, RD_ADDRSTRLEN));
           g_ptr_array_add((*_return)->updates, upd);
           route_updates++;
-
+          if(inst_route.mac_router)
+            {
+              free(inst_route.mac_router);
+              inst_route.mac_router = NULL;
+            }
+          if(inst_route.esi)
+            {
+              free(inst_route.esi);
+              inst_route.esi = NULL;
+            }
           /* multipath specific loop */
           while (mpath_iter_ptr)
             {
@@ -1762,7 +1776,6 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
                   /* if datatype is valid, iter type may be valid. continue */
                   qcapn_BGPVRFRoute_read(&inst_multipath_route, grep_multipath_route->data);
                 }
-
               mpath_iter_ptr = 0;
               /* look for another multipath entry with that check */
               if(grep_multipath_route->itertype != 0)
@@ -1777,7 +1790,10 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
               if ( (inst_multipath_route.nexthop.s_addr == 0) &&              \
                    (inst_multipath_route.prefix.prefix.s_addr == 0) &&        \
                    (inst_multipath_route.prefix.prefixlen == 0) &&            \
-                   (inst_multipath_route.label == 0))
+                   (inst_multipath_route.label == 0) && \
+                   (inst_multipath_route.ethtag == 0) &&        \
+                   (inst_multipath_route.esi == NULL) &&        \
+                   (inst_multipath_route.mac_router == NULL))
                 {
                   break;
                 }
@@ -1789,9 +1805,25 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
               upd->nexthop = g_strdup(inet_ntop(AF_INET, &(inst_multipath_route.nexthop), rdstr, RD_ADDRSTRLEN));
               upd->l3label = inst_multipath_route.label;
               upd->rd = g_strdup(prefix_rd2str(&(entry->outbound_rd), rdstr, RD_ADDRSTRLEN));
+              upd->ethtag = inst_multipath_route.ethtag;
+              if(inst_multipath_route.esi)
+                {
+                upd->esi = g_strdup(inst_multipath_route.esi);
+                }
+              if(inst_multipath_route.mac_router)
+                upd->routermac = g_strdup(inst_multipath_route.mac_router);
               g_ptr_array_add((*_return)->updates, upd);
               route_updates++;
-
+              if(inst_multipath_route.mac_router)
+                {
+                  free(inst_multipath_route.mac_router);
+                  inst_multipath_route.mac_router = NULL;
+                }
+              if(inst_multipath_route.esi)
+                {
+                  free(inst_multipath_route.esi);
+                  inst_multipath_route.esi = NULL;
+                }
               if (!mpath_iter_ptr)
                 break; /* no more nexthop with MULTIPATH flag, go to next prefix */
             }

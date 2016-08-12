@@ -457,7 +457,7 @@ void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p)
     s->label = capn_read32(p, 0);
     s->ethtag = capn_read32(p, 4);
     {
-      const char * esi = NULL;
+      char * esi = NULL;
       int len;
       capn_text tp = capn_get_text(p, 2, capn_val0);
       esi = tp.str;
@@ -472,7 +472,7 @@ void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p)
         }
     }
     {
-      const char * mac_router = NULL;
+      char * mac_router = NULL;
       int len;
       capn_text tp = capn_get_text(p, 3, capn_val0);
       mac_router = tp.str;
