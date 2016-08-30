@@ -1,6 +1,6 @@
 ## Process this file with Automake to create Makefile.in
 
-AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib -I$(top_srcdir)/lib/c-capnproto
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib -I$(top_srcdir)/lib/c-capnproto @ZEROMQ_CFLAGS@
 DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\"
 
 LIBS = @LIBS@ @CURSES@ @LIBPAM@
