@@ -48,9 +48,11 @@ static void qthrift_transport_check_response(struct qthrift_vpnservice *setup, g
 static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thread);
 static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *thread);
 int qthrift_monitor_retry_job_in_progress;
+static gboolean qthrift_transport_current_status = FALSE;
 
 static void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response)
 {
+  qthrift_transport_current_status = response;
   if(qthrift_monitor_retry_job_in_progress)
     return;
   if(response == FALSE)
@@ -143,7 +145,7 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
     }
   ctxt->bgp_update_total++;
   /* if first time or previous failure, try to reconnect to client */
-  if( (ctxt->bgp_updater_client == NULL) || client_ready == FALSE)
+  if((ctxt->bgp_updater_client == NULL) || (qthrift_transport_current_status == FALSE))
     {
       if(ctxt->bgp_updater_client)
         qthrift_vpnservice_terminate_thrift_bgp_updater_client(ctxt);
@@ -170,7 +172,7 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
 
           prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
           inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
-          client_ready = qthrift_bgp_updater_on_update_push_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen, \
+          qthrift_bgp_updater_on_update_push_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen, \
                                                                   inet_ntoa(s->nexthop), s->label);
         }
       else
@@ -181,7 +183,7 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
           inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
           prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
           inet_ntop (p->family, &s->nexthop, nh_str, INET6_BUFSIZ);
-          client_ready = qthrift_bgp_updater_on_update_withdraw_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen, nh_str, s->label);
+          qthrift_bgp_updater_on_update_withdraw_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen, nh_str, s->label);
         }
     }
   else
@@ -193,7 +195,7 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
       t->type = (uint8_t)s->label;
       t->subtype = (uint8_t)s->prefix.prefix.s_addr;
       inet_ntop (AF_INET,&(t->peer), ip_str, INET6_BUFSIZ);
-      client_ready = qthrift_bgp_updater_on_notification_send_event(ip_str, t->type, t->subtype);
+      qthrift_bgp_updater_on_notification_send_event(ip_str, t->type, t->subtype);
     }
   capn_free(&rc);
   if(client_ready == FALSE)
