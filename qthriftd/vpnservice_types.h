@@ -17,7 +17,9 @@
 /* begin types */
 
 enum _af_afi {
-  AF_AFI_AFI_IP = 1
+  AF_AFI_AFI_IP = 1,
+  AF_AFI_AFI_IPV6 = 2,
+  AF_AFI_AFI_L2VPN = 3
 };
 typedef enum _af_afi af_afi;
 
@@ -27,7 +29,8 @@ toString_af_afi(int value);
 
 enum _af_safi {
   AF_SAFI_SAFI_IPV4_LABELED_UNICAST = 4,
-  AF_SAFI_SAFI_MPLS_VPN = 5
+  AF_SAFI_SAFI_MPLS_VPN = 5,
+  AF_SAFI_SAFI_EVPN = 6
 };
 typedef enum _af_safi af_safi;
 

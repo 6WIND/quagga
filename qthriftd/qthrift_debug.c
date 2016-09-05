@@ -24,7 +24,7 @@
 #include "qthriftd/qthrift_debug.h"
 
 /* For debug statement. */
-unsigned long qthrift_debug = 0;
+unsigned long qthrift_debug = 0xff;
 
 DEFUN (show_debugging_qthrift,
        show_debugging_qthrift_cmd,

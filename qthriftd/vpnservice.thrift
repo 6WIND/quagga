@@ -42,12 +42,15 @@
  
  // supported afi-safi combinations 
  enum af_afi {
-     AFI_IP = 1
- }
+     AFI_IP = 1,
+     AFI_IPV6 = 2,
+     AFI_L2VPN = 3
+     }
  
  enum af_safi {
      SAFI_IPV4_LABELED_UNICAST = 4,
-     SAFI_MPLS_VPN = 5
+     SAFI_MPLS_VPN = 5,
+     SAFI_EVPN = 6
  }
  
  // supported encapsulation types - RFC 5512

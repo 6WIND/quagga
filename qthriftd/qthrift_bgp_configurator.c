@@ -304,7 +304,7 @@ qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const 
   struct capn_segment *cs;
   capn_ptr afisafi_ctxt, peer_ctxt;
   struct peer peer;
-  int af, saf;
+  int af = AFI_IP, saf = SAFI_MPLS_VPN;
   int ret;
   struct QZCGetRep *grep_peer;
 
@@ -319,13 +319,13 @@ qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const 
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
-  if(afi != AF_AFI_AFI_IP)
+  if( (afi != AF_AFI_AFI_IP) && (afi != AF_AFI_AFI_L2VPN))
     {
       *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
-  if(safi != AF_SAFI_SAFI_MPLS_VPN)
+  if( (safi != AF_SAFI_SAFI_MPLS_VPN) && (safi != AF_SAFI_SAFI_EVPN))
     {
       *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
       *_return = BGP_ERR_PARAM;
@@ -342,8 +342,14 @@ qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const 
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
   afisafi_ctxt = qcapn_new_AfiSafiKey(cs);
-  af = AFI_IP;
-  saf = SAFI_MPLS_VPN;
+  if(afi == AF_AFI_AFI_IP)
+    af = AFI_IP;
+  else if(afi == AF_AFI_AFI_L2VPN)
+    af = AFI_INTERNAL_L2VPN;
+  if(safi == AF_SAFI_SAFI_MPLS_VPN)
+    saf = SAFI_MPLS_VPN;
+  else if(safi == AF_SAFI_SAFI_EVPN)
+    saf = SAFI_INTERNAL_EVPN;
   capn_write8(afisafi_ctxt, 0, af);
   capn_write8(afisafi_ctxt, 1, saf);
   /* retrieve peer context */
@@ -402,7 +408,7 @@ qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _retur
   struct capn_segment *cs;
   capn_ptr afisafi_ctxt, peer_ctxt;
   struct peer peer;
-  int af, saf;
+  int af = AFI_IP, saf = SAFI_MPLS_VPN;
   int ret;
   struct QZCGetRep *grep_peer;
 
@@ -418,13 +424,13 @@ qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _retur
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
-  if(afi != AF_AFI_AFI_IP)
+  if( (afi != AF_AFI_AFI_IP) && (afi != AF_AFI_AFI_L2VPN))
     {
       *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
-  if(safi != AF_SAFI_SAFI_MPLS_VPN)
+  if( (safi != AF_SAFI_SAFI_MPLS_VPN) && (safi != AF_SAFI_SAFI_EVPN))
     {
       *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
       *_return = BGP_ERR_PARAM;
@@ -441,8 +447,14 @@ qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _retur
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
   afisafi_ctxt = qcapn_new_AfiSafiKey(cs);
-  af = AFI_IP;
-  saf = SAFI_MPLS_VPN;
+  if(afi == AF_AFI_AFI_IP)
+    af = AFI_IP;
+  else if(afi == AF_AFI_AFI_L2VPN)
+    af = AFI_INTERNAL_L2VPN;
+  if(safi == AF_SAFI_SAFI_MPLS_VPN)
+    saf = SAFI_MPLS_VPN;
+  else if(safi == AF_SAFI_SAFI_EVPN)
+    saf = SAFI_INTERNAL_EVPN;
   capn_write8(afisafi_ctxt, 0, af);
   capn_write8(afisafi_ctxt, 1, saf);
   /* retrieve peer context */
@@ -1009,12 +1021,22 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
   listnode_add(ctxt->bgp_peer_list, entry);
   /* set aficfg */
   ret = qthrift_bgp_afi_config(ctxt, _return, routerId, \
+                               AF_AFI_AFI_L2VPN, AF_SAFI_SAFI_EVPN, TRUE, error);
+  /* set aficfg */
+  ret = qthrift_bgp_afi_config(ctxt, _return, routerId, \
                                AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN, TRUE, error);
 
-  return ret && qthrift_bgp_peer_af_flag_config(ctxt, _return, routerId, \
-                                                AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN,
-                                                PEER_FLAG_NEXTHOP_UNCHANGED, TRUE,
-                                                error);
+  ret = qthrift_bgp_peer_af_flag_config(ctxt, _return, routerId, \
+                                        AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN,
+                                        PEER_FLAG_NEXTHOP_UNCHANGED, TRUE,
+                                        error);
+
+  ret = qthrift_bgp_peer_af_flag_config(ctxt, _return, routerId,        \
+                                        AF_AFI_AFI_L2VPN, AF_SAFI_SAFI_EVP,
+                                        PEER_FLAG_NEXTHOP_UNCHANGED, TRUE,
+                                        error);
+
+  return ret;
 }
 
 /*

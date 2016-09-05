@@ -17,6 +17,8 @@ toString_af_afi(int value)
   static __thread char buf[16] = {0};
   switch(value) {
   case AF_AFI_AFI_IP:return "AF_AFI_AFI_IP";
+  case AF_AFI_AFI_IPV6:return "AF_AFI_AFI_IPV6";
+  case AF_AFI_AFI_L2VPN:return "AF_AFI_AFI_L2VPN";
   default: g_snprintf(buf, 16, "%d", value); return buf;
   }
 }
@@ -29,6 +31,7 @@ toString_af_safi(int value)
   switch(value) {
   case AF_SAFI_SAFI_IPV4_LABELED_UNICAST:return "AF_SAFI_SAFI_IPV4_LABELED_UNICAST";
   case AF_SAFI_SAFI_MPLS_VPN:return "AF_SAFI_SAFI_MPLS_VPN";
+  case AF_SAFI_SAFI_EVPN:return "AF_SAFI_SAFI_EVPN";
   default: g_snprintf(buf, 16, "%d", value); return buf;
   }
 }
@@ -8633,7 +8636,7 @@ bgp_configurator_enable_address_family_args_class_init (BgpConfiguratorEnableAdd
                        NULL,
                        NULL,
                        1,
-                       1,
+                       3,
                        1,
                        G_PARAM_READWRITE));
 
@@ -8644,7 +8647,7 @@ bgp_configurator_enable_address_family_args_class_init (BgpConfiguratorEnableAdd
                        NULL,
                        NULL,
                        4,
-                       5,
+                       6,
                        4,
                        G_PARAM_READWRITE));
 }
@@ -9200,7 +9203,7 @@ bgp_configurator_disable_address_family_args_class_init (BgpConfiguratorDisableA
                        NULL,
                        NULL,
                        1,
-                       1,
+                       3,
                        1,
                        G_PARAM_READWRITE));
 
@@ -9211,7 +9214,7 @@ bgp_configurator_disable_address_family_args_class_init (BgpConfiguratorDisableA
                        NULL,
                        NULL,
                        4,
-                       5,
+                       6,
                        4,
                        G_PARAM_READWRITE));
 }
