@@ -320,8 +320,16 @@ bgp_update_packet_eor (struct peer *peer, afi_t afi, safi_t safi)
       stream_putc (s, BGP_ATTR_FLAG_OPTIONAL);
       stream_putc (s, BGP_ATTR_MP_UNREACH_NLRI);
       stream_putc (s, 3);
-      stream_putw (s, afi);
-      stream_putc (s, (safi == SAFI_MPLS_VPN) ? SAFI_MPLS_LABELED_VPN : safi);
+      if(afi == AFI_INTERNAL_L2VPN)
+         stream_putw (s, AFI_L2VPN);
+      else
+        stream_putw (s, afi);
+      if(safi == SAFI_MPLS_VPN)
+        stream_putc (s, SAFI_MPLS_LABELED_VPN);
+      else if(safi == SAFI_INTERNAL_EVPN)
+        stream_putc (s, SAFI_EVPN);
+      else
+        stream_putc (s, safi);
     }
 
   bgp_packet_set_size (s);
@@ -1278,9 +1286,15 @@ bgp_capability_send (struct peer *peer, afi_t afi, safi_t safi,
   struct stream *s;
   int length;
 
+  /* Adjust afi code. */
+  if (afi == AFI_INTERNAL_L2VPN)
+    afi = AFI_L2VPN;
+
   /* Adjust safi code. */
   if (safi == SAFI_MPLS_VPN)
     safi = SAFI_MPLS_LABELED_VPN;
+  if (safi == SAFI_INTERNAL_EVPN)
+    safi = SAFI_EVPN;
 
   s = stream_new (BGP_MAX_PACKET_SIZE);
 

@@ -212,6 +212,8 @@ afi2family (afi_t afi)
 #endif /* HAVE_IPV6 */
   else if (afi == AFI_ETHER)
     return AF_ETHERNET;
+  else if (afi == AFI_INTERNAL_L2VPN)
+    return AFI_INTERNAL_L2VPN;
   return 0;
 }
 

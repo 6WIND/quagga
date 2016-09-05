@@ -2639,7 +2639,8 @@ peer_active (struct peer *peer)
       || peer->afc[AFI_IP6][SAFI_UNICAST]
       || peer->afc[AFI_IP6][SAFI_MULTICAST]
       || peer->afc[AFI_IP6][SAFI_MPLS_VPN]
-      || peer->afc[AFI_IP6][SAFI_ENCAP])
+      || peer->afc[AFI_IP6][SAFI_ENCAP]
+      || peer->afc[AFI_INTERNAL_L2VPN][SAFI_INTERNAL_EVPN])
     return 1;
   return 0;
 }
@@ -2655,7 +2656,8 @@ peer_active_nego (struct peer *peer)
       || peer->afc_nego[AFI_IP6][SAFI_UNICAST]
       || peer->afc_nego[AFI_IP6][SAFI_MULTICAST]
       || peer->afc_nego[AFI_IP6][SAFI_MPLS_VPN]
-      || peer->afc_nego[AFI_IP6][SAFI_ENCAP])
+      || peer->afc_nego[AFI_IP6][SAFI_ENCAP]
+      || peer->afc_nego[AFI_INTERNAL_L2VPN][SAFI_INTERNAL_EVPN])
     return 1;
   return 0;
 }
@@ -5742,7 +5744,11 @@ bgp_config_write_family_header (struct vty *vty, afi_t afi, safi_t safi,
             vty_out (vty, " multicast");
         }
     }
-
+  else if (afi == AFI_INTERNAL_L2VPN)
+    {
+      if (safi == SAFI_INTERNAL_EVPN)
+	vty_out (vty, "evpn");
+    }
   vty_out (vty, "%s", VTY_NEWLINE);
 
   *write = 1;
@@ -6026,6 +6032,9 @@ bgp_config_write (struct vty *vty)
 
       /* ENCAPv6 configuration.  */
       write += bgp_config_write_family (vty, bgp, AFI_IP6, SAFI_ENCAP);
+
+      /* EVPN configuration.  */
+      write += bgp_config_write_family (vty, bgp, AFI_INTERNAL_L2VPN, SAFI_INTERNAL_EVPN);
 
       vty_out (vty, " exit%s", VTY_NEWLINE);
 

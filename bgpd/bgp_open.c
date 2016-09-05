@@ -82,6 +82,9 @@ bgp_capability_vty_out (struct vty *vty, struct peer *peer)
 	    case AFI_IP6:
 	      vty_out (vty, "AFI IPv6, ");
 	      break;
+	    case AFI_L2VPN:
+	      vty_out (vty, "AFI L2VPN, ");
+	      break;
 	    default:
 	      vty_out (vty, "AFI Unknown %d, ", ntohs (mpc.afi));
 	      break;
@@ -99,6 +102,9 @@ bgp_capability_vty_out (struct vty *vty, struct peer *peer)
 	      break;
 	    case SAFI_ENCAP:
 	      vty_out (vty, "SAFI ENCAP");
+	      break;
+	    case SAFI_EVPN:
+	      vty_out (vty, "SAFI EVPN");
 	      break;
 	    default:
 	      vty_out (vty, "SAFI Unknown %d ", mpc.safi);
@@ -143,6 +149,12 @@ bgp_afi_safi_valid_indices (afi_t afi, safi_t *safi)
 	case SAFI_ENCAP:
 	  return 1;
 	}
+    case AFI_INTERNAL_L2VPN:
+      switch (*safi)
+	{
+        case SAFI_INTERNAL_EVPN:
+          return 1;
+        }
       break;
     }
 
@@ -884,6 +896,8 @@ bgp_open_capability_orf (struct stream *s, struct peer *peer,
 
   if (safi == SAFI_MPLS_VPN)
     safi = SAFI_MPLS_LABELED_VPN;
+  else if (safi == SAFI_INTERNAL_EVPN)
+    safi = SAFI_EVPN;
 
   stream_putc (s, BGP_OPEN_OPT_CAP);
   capp = stream_get_endp (s);           /* Set Capability Len Pointer */
@@ -1054,6 +1068,18 @@ bgp_open_capability (struct stream *s, struct peer *peer)
       stream_putc (s, 0);
       stream_putc (s, SAFI_ENCAP);
     }
+  /* IPv6 ENCAP. */
+  if (peer->afc[AFI_INTERNAL_L2VPN][SAFI_INTERNAL_EVPN])
+    {
+      peer->afc_adv[AFI_INTERNAL_L2VPN][SAFI_INTERNAL_EVPN] = 1;
+      stream_putc (s, BGP_OPEN_OPT_CAP);
+      stream_putc (s, CAPABILITY_CODE_MP_LEN + 2);
+      stream_putc (s, CAPABILITY_CODE_MP);
+      stream_putc (s, CAPABILITY_CODE_MP_LEN);
+      stream_putw (s, AFI_L2VPN);
+      stream_putc (s, 0);
+      stream_putc (s, SAFI_EVPN);
+    }
 
   /* Route refresh. */
   SET_FLAG (peer->cap, PEER_CAP_REFRESH_ADV);
@@ -1123,8 +1149,16 @@ bgp_open_capability (struct stream *s, struct peer *peer)
 
           if (peer->afc[afi][safi])
             {
-              stream_putw (s, afi);
-              stream_putc (s, (safi == SAFI_MPLS_VPN) ? SAFI_MPLS_LABELED_VPN : safi);
+              if(afi == AFI_INTERNAL_L2VPN)
+                stream_putw (s, AFI_L2VPN);
+              else
+                stream_putw (s, afi);
+              if(safi == SAFI_MPLS_VPN)
+                stream_putc (s, SAFI_MPLS_LABELED_VPN);
+              else if(safi == SAFI_INTERNAL_EVPN)
+                stream_putc (s, SAFI_EVPN );
+              else
+                stream_putc (s, safi);
               if (bgp_flag_check(peer->bgp, BGP_FLAG_GR_PRESERVE_FWD))
                 stream_putc (s, RESTART_F_BIT);
               else

@@ -2389,9 +2389,16 @@ bgp_packet_mpattr_start (struct stream *s, afi_t afi, safi_t safi,
   sizep = stream_get_endp (s);
   stream_putw (s, 0);	/* Marker: Attribute length. */
 
-  stream_putw (s, afi);
-  stream_putc (s, (safi == SAFI_MPLS_VPN) ? SAFI_MPLS_LABELED_VPN : safi);
-
+  if(afi == AFI_INTERNAL_L2VPN)
+    stream_putw (s, AFI_L2VPN);
+  else
+    stream_putw (s, afi);
+  if(safi == SAFI_MPLS_VPN)
+    stream_putc (s, SAFI_MPLS_LABELED_VPN);
+  else if(safi == SAFI_INTERNAL_EVPN)
+    stream_putc (s, SAFI_EVPN);
+  else
+    stream_putc (s, safi);
   /* Nexthop */
   switch (afi)
     {
@@ -2981,8 +2988,16 @@ bgp_packet_mpunreach_start (struct stream *s, afi_t afi, safi_t safi)
   attrlen_pnt = stream_get_endp (s);
   stream_putw (s, 0);		/* Length of this attribute. */
 
-  stream_putw (s, afi);
-  stream_putc (s, (safi == SAFI_MPLS_VPN) ? SAFI_MPLS_LABELED_VPN : safi);
+  if(afi == AFI_INTERNAL_L2VPN)
+    stream_putw (s, AFI_L2VPN);
+  else
+    stream_putw (s, afi);
+  if(safi == SAFI_MPLS_VPN)
+    stream_putc (s, SAFI_MPLS_LABELED_VPN);
+  else if(safi == SAFI_INTERNAL_EVPN)
+    stream_putc (s, SAFI_EVPN);
+  else
+    stream_putc (s, safi);
   return attrlen_pnt;
 }
 

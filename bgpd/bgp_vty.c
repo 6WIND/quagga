@@ -8006,6 +8006,8 @@ afi_safi_print (afi_t afi, safi_t safi)
     return "VPN-IPv6 Unicast";
   else if (afi == AFI_IP6 && safi == SAFI_ENCAP)
     return "ENCAP-IPv6 Unicast";
+  else if (afi == AFI_INTERNAL_L2VPN && safi == SAFI_INTERNAL_EVPN)
+    return "EVPN";
   else
     return "Unknown";
 }
