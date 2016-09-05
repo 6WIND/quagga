@@ -1805,6 +1805,11 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
           str2esi (route->esi, bgp_static->eth_s_id);
         }
       bgp_static->eth_t_id = route->ethtag;
+      if(route->mac_router)
+        {
+          bgp_static->router_mac = XCALLOC (MTYPE_ATTR, MAC_LEN+1);
+          str2mac (route->mac_router, bgp_static->router_mac);
+        }
     }
   if (bgp_static->ecomm)
     {
@@ -4595,6 +4600,8 @@ bgp_static_free (struct bgp_static *bgp_static)
     free (bgp_static->rmap.name);
   if(bgp_static->eth_s_id)
     XFREE(MTYPE_ATTR, bgp_static->eth_s_id);
+  if(bgp_static->router_mac)
+    XFREE(MTYPE_ATTR, bgp_static->router_mac);
   XFREE (MTYPE_BGP_STATIC, bgp_static);
 }
 
@@ -5036,6 +5043,15 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
     }
   if(afi == AFI_INTERNAL_L2VPN)
     {
+     if(bgp_static->router_mac)
+        {
+          struct ecommunity_val routermac;
+          memset(&routermac, 0, sizeof(struct ecommunity_val));
+          routermac.val[0] = ECOMMUNITY_ENCODE_EVPN;
+          routermac.val[1] = ECOMMUNITY_SITE_ORIGIN;
+          memcpy(&routermac.val[2], bgp_static->router_mac, MAC_LEN);
+          ecommunity_add_val(bgp_attr_extra_get (&attr)->ecommunity,&routermac);
+        }
       if (bgp_static->igpnexthop.s_addr)
         {
           union gw_addr add;
