@@ -16,7 +16,7 @@ libbgp_a_SOURCES = \
 	bgp_packet.c bgp_network.c bgp_filter.c bgp_regex.c bgp_clist.c \
 	bgp_dump.c bgp_snmp.c bgp_ecommunity.c bgp_mplsvpn.c bgp_nexthop.c \
 	bgp_damp.c bgp_table.c bgp_advertise.c bgp_vty.c bgp_mpath.c \
-	bgp_encap.c bgp_encap_tlv.c bgp_nht.c bgp_attr_evpn.c
+	bgp_encap.c bgp_encap_tlv.c bgp_nht.c bgp_attr_evpn.c bgp_evpn.c
 
 noinst_HEADERS = \
 	bgp_aspath.h bgp_attr.h bgp_community.h bgp_debug.h bgp_fsm.h \
@@ -25,7 +25,7 @@ noinst_HEADERS = \
 	bgp_ecommunity.h bgp_mplsvpn.h bgp_nexthop.h bgp_damp.h bgp_table.h \
 	bgp_advertise.h bgp_snmp.h bgp_vty.h bgp_mpath.h \
 	bgp_encap.h bgp_encap_tlv.h bgp_encap_types.h bgp_nht.h \
-	bgp_attr_evpn.h
+	bgp_attr_evpn.h bgp_evpn.h
 
 if HAVE_ZEROMQ
 libbgp_a_SOURCES += bgp_zmq.c

@@ -2837,7 +2837,8 @@ labels_equal(struct bgp_info *info, uint32_t *labels, size_t nlabels)
 static void
 bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
       struct attr *attr, struct peer *peer, struct prefix *p, int type,
-      int sub_type, struct prefix_rd *prd, uint32_t *labels, size_t nlabels)
+      int sub_type, struct prefix_rd *prd, uint32_t *labels, size_t nlabels,
+      struct bgp_route_evpn* evpn)
 {
   struct bgp_node *rn;
   struct bgp *bgp;
@@ -3062,7 +3063,7 @@ static int
 bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 	    afi_t afi, safi_t safi, int type, int sub_type,
 	    struct prefix_rd *prd, uint32_t *labels, size_t nlabels,
-	    int soft_reconfig)
+            int soft_reconfig, struct bgp_route_evpn* evpn)
 {
   int ret;
   int aspath_loop_count = 0;
@@ -3416,7 +3417,7 @@ int
 bgp_update (struct peer *peer, struct prefix *p, struct attr *attr,
             afi_t afi, safi_t safi, int type, int sub_type,
             struct prefix_rd *prd, uint32_t *labels, size_t nlabels,
-            int soft_reconfig)
+            int soft_reconfig, struct bgp_route_evpn* evpn)
 {
   struct peer *rsclient;
   struct listnode *node, *nnode;
@@ -3424,7 +3425,8 @@ bgp_update (struct peer *peer, struct prefix *p, struct attr *attr,
   int ret;
 
   ret = bgp_update_main (peer, p, attr, afi, safi, type, sub_type, prd,
-                         labels, nlabels, soft_reconfig);
+                         labels, nlabels, soft_reconfig,
+                         evpn);
 
   bgp = peer->bgp;
 
@@ -3433,7 +3435,7 @@ bgp_update (struct peer *peer, struct prefix *p, struct attr *attr,
     {
       if (CHECK_FLAG (rsclient->af_flags[afi][safi], PEER_FLAG_RSERVER_CLIENT))
         bgp_update_rsclient (rsclient, afi, safi, attr, peer, p, type,
-                sub_type, prd, labels, nlabels);
+                             sub_type, prd, labels, nlabels, evpn);
     }
 
   return ret;
@@ -3442,7 +3444,8 @@ bgp_update (struct peer *peer, struct prefix *p, struct attr *attr,
 int
 bgp_withdraw (struct peer *peer, struct prefix *p, struct attr *attr, 
 	     afi_t afi, safi_t safi, int type, int sub_type, 
-	     struct prefix_rd *prd, uint32_t *labels, size_t nlabels)
+             struct prefix_rd *prd, uint32_t *labels, size_t nlabels,
+             struct bgp_route_evpn* evpn)
 {
   struct bgp *bgp;
   char buf[SU_ADDRSTRLEN];
@@ -3796,7 +3799,8 @@ bgp_soft_reconfig_table_rsclient (struct peer *rsclient, afi_t afi,
         size_t nlabels = (ri && ri->extra) ? ri->extra->nlabels : 0;
 
         bgp_update_rsclient (rsclient, afi, safi, ain->attr, ain->peer,
-                &rn->p, ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, prd, labels, nlabels);
+                             &rn->p, ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, prd,
+                             labels, nlabels, NULL);
       }
 }
 
@@ -3845,7 +3849,7 @@ bgp_soft_reconfig_table (struct peer *peer, afi_t afi, safi_t safi,
 
 	    ret = bgp_update (peer, &rn->p, ain->attr, afi, safi,
 			      ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL,
-			      prd, labels, nlabels, 1);
+			      prd, labels, nlabels, 1, NULL);
 
 	    if (ret < 0)
 	      {
@@ -4428,10 +4432,12 @@ bgp_nlri_parse_ip (struct peer *peer, struct attr *attr,
       /* Normal process. */
       if (attr)
 	ret = bgp_update (peer, &p, attr, packet->afi, packet->safi, 
-			  ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, NULL, NULL, 0, 0);
+			  ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, NULL, NULL, 0, 0,
+                          NULL);
       else
 	ret = bgp_withdraw (peer, &p, attr, packet->afi, packet->safi, 
-			    ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, NULL, NULL, 0);
+			    ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, NULL, NULL, 0,
+                            NULL);
 
       /* Address family configuration mismatch or maximum-prefix count
          overflow. */

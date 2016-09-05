@@ -238,10 +238,10 @@ bgp_nlri_parse_vpn (struct peer *peer, struct attr *attr,
 
       if (attr)
         bgp_update (peer, &p, attr, packet->afi, SAFI_MPLS_VPN,
-                    ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, labels, nlabels, 0);
+                    ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, labels, nlabels, 0, NULL);
       else
         bgp_withdraw (peer, &p, attr, packet->afi, SAFI_MPLS_VPN,
-                      ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, labels, nlabels);
+                      ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, labels, nlabels, NULL);
     }
   /* Packet length consistency check. */
   if (pnt != lim)
