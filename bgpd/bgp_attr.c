@@ -41,6 +41,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_ecommunity.h"
 #include "table.h"
 #include "bgp_encap_types.h"
+#include "bgp_evpn.h"
 
 /* Attribute strings for logging. */
 static const struct message attr_str [] = 
@@ -2499,10 +2500,68 @@ bgp_packet_mpattr_start (struct stream *s, afi_t afi, safi_t safi,
   return sizep;
 }
 
+static void
+bgp_packet_mpattr_route_type_5 (struct stream *s,
+                                struct prefix *p, struct prefix_rd *prd,
+                                uint32_t *labels, size_t nlabels, struct attr *attr)
+{
+  int len;
+  char temp[16];
+
+  memset(&temp, 0, 16);
+  if(p->family == AF_INET)
+    len = 8; /* ipv4 */
+  else if (p->family == AF_INET6)
+    len = 32; /* ipv6 */
+  else
+    len = 8; /* XXX */
+  stream_putc (s, EVPN_IP_PREFIX);
+  stream_putc (s, 8 /* RD */ + 10 /* ESI */  + 4 /* EthTag */ + 1 + len + 3 /* label */);
+  stream_put (s, prd->val, 8);
+  if(attr && attr->extra)
+    stream_put (s, &(attr->extra->evpn_overlay.eth_s_id), 10);
+  else
+    stream_put (s, &temp, 10);
+  if(attr && attr->extra)
+    stream_putl (s, attr->extra->eth_t_id);
+  else
+    stream_putl (s, 0);
+  stream_putc (s, p->prefixlen);
+  if(p->family == AF_INET)
+    stream_put_ipv4(s, p->u.prefix4.s_addr);
+  else if (p->family == AF_INET6)
+    stream_put(s, &p->u.prefix, 16);
+  if(attr && attr->extra)
+    {
+      //CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_NEXTHOP_UNCHANGED)
+      if(p->family == AF_INET)
+        {
+          if (attr->extra->use_gw)
+            stream_put_ipv4(s, attr->extra->evpn_overlay.gw_ip.ipv4.s_addr);
+          else
+            stream_put_ipv4(s, attr->extra->mp_nexthop_global_in.s_addr);
+        }
+      else if (p->family == AF_INET6)
+        stream_put(s, &(attr->extra->evpn_overlay.gw_ip.ipv6), 16);
+    }
+  else
+    {
+      if(p->family == AF_INET)
+        stream_put_ipv4(s, 0);
+      else if (p->family == AF_INET6)
+        stream_put(s, &temp, 16);
+    }
+  if(labels)
+    stream_put3 (s, labels[0]);
+  else
+    stream_put3 (s, 0);
+  return;
+}
+
 void
 bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
 			  struct prefix *p, struct prefix_rd *prd,
-			  uint32_t *labels, size_t nlabels)
+			  uint32_t *labels, size_t nlabels, struct attr *attr)
 {
   if (safi == SAFI_MPLS_VPN)
     {
@@ -2522,6 +2581,10 @@ bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
         }
       stream_put (s, prd->val, 8);
       stream_put (s, &p->u.prefix, PSIZE (p->prefixlen));
+    }
+  else if ((safi == SAFI_EVPN))
+    {
+      bgp_packet_mpattr_route_type_5(s, p, prd, labels, nlabels, attr);
     }
   else
     stream_put_prefix (s, p);
@@ -2656,7 +2719,7 @@ bgp_packet_attribute (struct bgp *bgp, struct peer *peer,
     {
       size_t mpattrlen_pos = 0;
       mpattrlen_pos = bgp_packet_mpattr_start(s, afi, safi, attr);
-      bgp_packet_mpattr_prefix(s, afi, safi, p, prd, labels, nlabels);
+      bgp_packet_mpattr_prefix(s, afi, safi, p, prd, labels, nlabels, attr);
       bgp_packet_mpattr_end(s, mpattrlen_pos);
     }
 #endif
@@ -3026,9 +3089,9 @@ bgp_packet_mpunreach_start (struct stream *s, afi_t afi, safi_t safi)
 void
 bgp_packet_mpunreach_prefix (struct stream *s, struct prefix *p,
 			     afi_t afi, safi_t safi, struct prefix_rd *prd,
-			     uint32_t *labels, size_t nlabels)
+			     uint32_t *labels, size_t nlabels, struct attr *attr)
 {
-  bgp_packet_mpattr_prefix (s, afi, safi, p, prd, labels, nlabels);
+  bgp_packet_mpattr_prefix (s, afi, safi, p, prd, labels, nlabels, attr);
 }
 
 void

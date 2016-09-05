@@ -49,6 +49,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_mplsvpn.h"
 #include "bgpd/bgp_evpn.h"
 #include "bgpd/bgp_encap.h"
+#include "bgpd/bgp_evpn.h"
 #include "bgpd/bgp_advertise.h"
 #include "bgpd/bgp_vty.h"
 
@@ -262,7 +263,7 @@ bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
 	  if (stream_empty(snlri))
 	    mpattrlen_pos = bgp_packet_mpattr_start(snlri, afi, safi,
 						    adv->baa->attr);
-	  bgp_packet_mpattr_prefix(snlri, afi, safi, &rn->p, prd, labels, nlabels);
+	  bgp_packet_mpattr_prefix(snlri, afi, safi, &rn->p, prd, labels, nlabels, adv->baa->attr);
 	}
       if (BGP_DEBUG (update, UPDATE_OUT))
         {
@@ -420,8 +421,10 @@ bgp_withdraw_packet (struct peer *peer, afi_t afi, safi_t safi)
 	      mp_start = stream_get_endp (s);
 	      mplen_pos = bgp_packet_mpunreach_start(s, afi, safi);
 	    }
-
-	  bgp_packet_mpunreach_prefix(s, &rn->p, afi, safi, prd, NULL, 0);
+          if(adv && adv->baa)
+            bgp_packet_mpunreach_prefix(s, &rn->p, afi, safi, prd, NULL, 0, adv->baa->attr);
+          else
+            bgp_packet_mpunreach_prefix(s, &rn->p, afi, safi, prd, NULL, 0, NULL);
 	}
 
       if (BGP_DEBUG (update, UPDATE_OUT))
@@ -589,7 +592,7 @@ bgp_default_update_vpnv4_send(struct peer *peer, struct prefix_rd *rd,
   /* Encode the prefix in MP_REACH_NLRI attribute */
   mpattrlen_pos = bgp_packet_mpattr_start(s, afi, SAFI_MPLS_VPN, attr);
 
-  bgp_packet_mpattr_prefix(s, afi, SAFI_MPLS_VPN, &p, rd, labels, nlabels);
+  bgp_packet_mpattr_prefix(s, afi, SAFI_MPLS_VPN, &p, rd, labels, nlabels, attr);
 
   /* set size of mp attributes at good position in UPDATE message */
   bgp_packet_mpattr_end(s, mpattrlen_pos);
@@ -668,7 +671,7 @@ bgp_default_withdraw_send (struct peer *peer, afi_t afi, safi_t safi)
       stream_putw (s, 0);
       mp_start = stream_get_endp (s);
       mplen_pos = bgp_packet_mpunreach_start(s, afi, safi);
-      bgp_packet_mpunreach_prefix(s, &p, afi, safi, NULL, NULL, 0);
+      bgp_packet_mpunreach_prefix(s, &p, afi, safi, NULL, NULL, 0, NULL);
 
       /* Set the mp_unreach attr's length */
       bgp_packet_mpunreach_end(s, mplen_pos);
@@ -738,7 +741,7 @@ bgp_default_withdraw_vpnv4_send (struct peer *peer, afi_t afi, struct prefix_rd 
   mpattrlen_pos = bgp_packet_mpunreach_start(s, afi, SAFI_MPLS_VPN);
 
   /* Encode the prefix in MP_UNREACH_NLRI attribute */
-  bgp_packet_mpunreach_prefix(s, &p, afi, SAFI_MPLS_VPN, rd, labels, nlabels);
+  bgp_packet_mpunreach_prefix(s, &p, afi, SAFI_MPLS_VPN, rd, labels, nlabels, NULL);
 
   /* set size of mp attributes at good position in UPDATE message */
   bgp_packet_mpunreach_end(s, mpattrlen_pos);
