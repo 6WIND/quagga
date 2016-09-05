@@ -2625,6 +2625,7 @@ node_parent ( enum node_type node )
     case BGP_VPNV6_NODE:
     case BGP_ENCAP_NODE:
     case BGP_ENCAPV6_NODE:
+    case BGP_EVPN_NODE:
     case BGP_IPV4_NODE:
     case BGP_IPV4M_NODE:
     case BGP_IPV6_NODE:
@@ -3003,6 +3004,7 @@ DEFUN (config_exit,
     case BGP_VPNV6_NODE:
     case BGP_ENCAP_NODE:
     case BGP_ENCAPV6_NODE:
+    case BGP_EVPN_NODE:
     case BGP_IPV6_NODE:
     case BGP_IPV6M_NODE:
     case BGP_VRF_NODE:
@@ -3048,6 +3050,7 @@ DEFUN (config_end,
     case BGP_NODE:
     case BGP_ENCAP_NODE:
     case BGP_ENCAPV6_NODE:
+    case BGP_EVPN_NODE:
     case BGP_VPNV4_NODE:
     case BGP_VPNV6_NODE:
     case BGP_IPV4_NODE:

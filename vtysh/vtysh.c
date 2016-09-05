@@ -297,7 +297,8 @@ vtysh_execute_func (const char *line, int pager)
 	   || saved_node == BGP_ENCAP_NODE || saved_node == BGP_ENCAPV6_NODE
            || saved_node == BGP_IPV4_NODE
 	   || saved_node == BGP_IPV6_NODE || saved_node == BGP_IPV4M_NODE
-	   || saved_node == BGP_IPV6M_NODE)
+	   || saved_node == BGP_IPV6M_NODE
+           || saved_node == BGP_EVPN_NODE)
 	  && (tried == 1))
 	{
 	  vtysh_execute("exit-address-family");
@@ -721,6 +722,12 @@ static struct cmd_node bgp_encapv6_node =
   "%s(config-router-af)# "
 };
 
+static struct cmd_node bgp_evpn_node =
+{
+  BGP_EVPN_NODE,
+  "%s(config-router-af)# "
+};
+
 static struct cmd_node bgp_ipv4_node =
 {
   BGP_IPV4_NODE,
@@ -921,6 +928,17 @@ DEFUNSH (VTYSH_BGPD,
 	 "Address family\n")
 {
   vty->node = BGP_ENCAPV6_NODE;
+  return CMD_SUCCESS;
+}
+
+DEFUNSH (VTYSH_BGPD,
+	 address_family_evpn,
+	 address_family_evpn_cmd,
+	 "address-family evpn",
+	 "Enter Address Family command mode\n"
+	 "Address family\n")
+{
+  vty->node = BGP_EVPN_NODE;
   return CMD_SUCCESS;
 }
 
@@ -1164,6 +1182,7 @@ vtysh_exit (struct vty *vty)
     case BGP_VPNV6_NODE:
     case BGP_ENCAP_NODE:
     case BGP_ENCAPV6_NODE:
+    case BGP_EVPN_NODE:
     case BGP_IPV4_NODE:
     case BGP_IPV4M_NODE:
     case BGP_IPV6_NODE:
@@ -1209,6 +1228,7 @@ DEFUNSH (VTYSH_BGPD,
       || vty->node == BGP_VPNV6_NODE
       || vty->node == BGP_ENCAP_NODE
       || vty->node == BGP_ENCAPV6_NODE
+      || vty->node == BGP_EVPN_NODE
       || vty->node == BGP_IPV6_NODE
       || vty->node == BGP_IPV6M_NODE)
     vty->node = BGP_NODE;
@@ -2457,6 +2477,7 @@ vtysh_init_vty (void)
   install_node (&bgp_vpnv6_node, NULL);
   install_node (&bgp_encap_node, NULL);
   install_node (&bgp_encapv6_node, NULL);
+  install_node (&bgp_evpn_node, NULL);
   install_node (&bgp_ipv4_node, NULL);
   install_node (&bgp_ipv4m_node, NULL);
 /* #ifdef HAVE_IPV6 */
@@ -2487,6 +2508,7 @@ vtysh_init_vty (void)
   vtysh_install_default (BGP_VPNV6_NODE);
   vtysh_install_default (BGP_ENCAP_NODE);
   vtysh_install_default (BGP_ENCAPV6_NODE);
+  vtysh_install_default (BGP_EVPN_NODE);
   vtysh_install_default (BGP_IPV4_NODE);
   vtysh_install_default (BGP_IPV4M_NODE);
   vtysh_install_default (BGP_IPV6_NODE);
@@ -2528,6 +2550,7 @@ vtysh_init_vty (void)
   install_element (BGP_ENCAP_NODE, &vtysh_quit_bgpd_cmd);
   install_element (BGP_ENCAPV6_NODE, &vtysh_exit_bgpd_cmd);
   install_element (BGP_ENCAPV6_NODE, &vtysh_quit_bgpd_cmd);
+  install_element (BGP_EVPN_NODE, &vtysh_quit_bgpd_cmd);
   install_element (BGP_IPV4_NODE, &vtysh_exit_bgpd_cmd);
   install_element (BGP_IPV4_NODE, &vtysh_quit_bgpd_cmd);
   install_element (BGP_IPV4M_NODE, &vtysh_exit_bgpd_cmd);
@@ -2564,6 +2587,7 @@ vtysh_init_vty (void)
   install_element (BGP_VPNV6_NODE, &vtysh_end_all_cmd);
   install_element (BGP_ENCAP_NODE, &vtysh_end_all_cmd);
   install_element (BGP_ENCAPV6_NODE, &vtysh_end_all_cmd);
+  install_element (BGP_EVPN_NODE, &vtysh_end_all_cmd);
   install_element (BGP_IPV6_NODE, &vtysh_end_all_cmd);
   install_element (BGP_IPV6M_NODE, &vtysh_end_all_cmd);
   install_element (BGP_VRF_NODE, &vtysh_end_all_cmd);
@@ -2597,6 +2621,7 @@ vtysh_init_vty (void)
   install_element (BGP_NODE, &address_family_vpnv6_unicast_cmd);
   install_element (BGP_NODE, &address_family_encap_cmd);
   install_element (BGP_NODE, &address_family_encapv6_cmd);
+  install_element (BGP_NODE, &address_family_evpn_cmd);
   install_element (BGP_NODE, &address_family_ipv4_unicast_cmd);
   install_element (BGP_NODE, &address_family_ipv4_multicast_cmd);
 #ifdef HAVE_IPV6
@@ -2609,6 +2634,7 @@ vtysh_init_vty (void)
   install_element (BGP_VPNV6_NODE, &exit_address_family_cmd);
   install_element (BGP_ENCAP_NODE, &exit_address_family_cmd);
   install_element (BGP_ENCAPV6_NODE, &exit_address_family_cmd);
+  install_element (BGP_EVPN_NODE, &exit_address_family_cmd);
   install_element (BGP_IPV4_NODE, &exit_address_family_cmd);
   install_element (BGP_IPV4M_NODE, &exit_address_family_cmd);
   install_element (BGP_IPV6_NODE, &exit_address_family_cmd);

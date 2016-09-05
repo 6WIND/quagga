@@ -91,6 +91,7 @@ enum node_type
   BGP_ENCAP_NODE,		/* BGP ENCAP SAFI */
   BGP_ENCAPV6_NODE,		/* BGP ENCAP SAFI */
   BGP_VRF_NODE,			/* BGP VRF node. */
+  BGP_EVPN_NODE,		/* BGP EVPN SAFI */
   OSPF_NODE,			/* OSPF protocol mode */
   OSPF6_NODE,			/* OSPF protocol for IPv6 mode */
   ISIS_NODE,			/* ISIS protocol mode */
