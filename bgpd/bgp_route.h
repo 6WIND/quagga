@@ -292,6 +292,7 @@ extern safi_t bgp_node_safi (struct vty *);
 
 extern void route_vty_out (struct vty *, struct prefix *, struct bgp_info *, int, safi_t);
 extern void route_vty_out_tag (struct vty *, struct prefix *, struct bgp_info *, int, safi_t);
+extern void route_vty_out_overlay (struct vty *, struct prefix *, struct bgp_info *, int);
 extern void route_vty_out_tmp (struct vty *, struct prefix *, struct attr *, safi_t);
 
 extern void bgp_peer_clear_node_queue_drain_immediate (struct peer *peer);

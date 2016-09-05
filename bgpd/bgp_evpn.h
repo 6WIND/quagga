@@ -21,6 +21,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #ifndef _QUAGGA_BGP_EVPN_H
 #define _QUAGGA_BGP_EVPN_H
 
+extern void bgp_ethernetvpn_init (void);
 extern int bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
                      struct bgp_nlri *packet);
 
