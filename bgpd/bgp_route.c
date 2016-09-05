@@ -4615,6 +4615,8 @@ bgp_static_free (struct bgp_static *bgp_static)
     free (bgp_static->rmap.name);
   if(bgp_static->eth_s_id)
     XFREE(MTYPE_ATTR, bgp_static->eth_s_id);
+  if(bgp_static->router_mac)
+    XFREE(MTYPE_ATTR, bgp_static->router_mac);
   XFREE (MTYPE_BGP_STATIC, bgp_static);
 }
 
@@ -5119,6 +5121,15 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
       if(bgp_static->eth_t_id)
         bet.vnid = bgp_static->eth_t_id;
       bgp_encap_type_vxlan_to_tlv(&bet, &attr);
+     if(bgp_static->router_mac)
+        {
+          struct ecommunity_val routermac;
+          memset(&routermac, 0, sizeof(struct ecommunity_val));
+          routermac.val[0] = ECOMMUNITY_ENCODE_EVPN;
+          routermac.val[1] = ECOMMUNITY_SITE_ORIGIN;
+          memcpy(&routermac.val[2], bgp_static->router_mac, MAC_LEN);
+          ecommunity_add_val(bgp_attr_extra_get (&attr)->ecommunity,&routermac);
+        }
       if (bgp_static->igpnexthop.s_addr)
         {
           union gw_addr add;
