@@ -177,6 +177,33 @@ struct rd_ip
   u_int16_t val;
 };
 
+/* value of first byte of ESI */
+#define ESI_TYPE_ARBITRARY 0 /* */
+#define ESI_TYPE_LACP      1 /* <> */
+#define ESI_TYPE_BRIDGE    2 /* <Root bridge Mac-6B>:<Root Br Priority-2B>:00 */
+#define ESI_TYPE_MAC       3 /* <Syst Mac Add-6B>:<Local Discriminator Value-3B> */
+#define ESI_TYPE_ROUTER    4 /* <RouterId-4B>:<Local Discriminator Value-4B> */
+#define ESI_TYPE_AS        5 /* <AS-4B>:<Local Discriminator Value-4B> */
+#define MAX_ESI {0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff}
+#define ESI_LEN 10
+
+#define MAX_ET 0xffffffff
+u_long eth_tag_id;
+
+struct eth_segment_id
+{
+  u_char val[ESI_LEN];
+};
+
+#define MAC_LEN 6
+
+union gw_addr {
+  struct in_addr ipv4;
+#ifdef HAVE_IPV6
+  struct in6_addr ipv6;
+#endif /* HAVE_IPV6 */
+};
+
 #ifndef INET_ADDRSTRLEN
 #define INET_ADDRSTRLEN 16
 #endif /* INET_ADDRSTRLEN */
@@ -324,4 +351,10 @@ extern void decode_rd_ip (u_char *pnt, struct rd_ip *rd_ip);
 extern char *prefix_rd2str (struct prefix_rd *prd, char *buf, size_t size);
 extern int prefix_str2rd (char *buf, struct prefix_rd *prd);
 extern int prefix_rd_cmp(struct prefix_rd *p1, struct prefix_rd *p2);
+extern int str2esi (const uint8_t *str, struct eth_segment_id *id);
+extern int str2mac (const uint8_t *str, uint8_t *mac);
+extern uint8_t *esi2str (struct eth_segment_id *id);
+extern uint8_t *mac2str (uint8_t *mac);
+extern uint8_t *ecom_mac2str(uint8_t *ecom_mac);
+
 #endif /* _ZEBRA_PREFIX_H */

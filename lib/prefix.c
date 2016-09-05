@@ -1154,3 +1154,233 @@ int prefix_rd_cmp(struct prefix_rd *p1, struct prefix_rd *p2)
     return 1;
   return 0;
 }
+
+static uint8_t convertchartohexa (uint8_t *hexa, int *error)
+{
+  if( (*hexa == '0') || (*hexa == '1') || (*hexa == '2') ||
+      (*hexa == '3') || (*hexa == '4') || (*hexa == '5') ||
+      (*hexa == '6') || (*hexa == '7') || (*hexa == '8') ||
+      (*hexa == '9'))
+    return (uint8_t)(*hexa)-'0';
+  if((*hexa == 'a') || (*hexa == 'A'))
+    return 0xa;
+  if((*hexa == 'b') || (*hexa == 'B'))
+    return 0xb;
+  if((*hexa == 'c') || (*hexa == 'C'))
+    return 0xc;
+  if((*hexa == 'd') || (*hexa == 'D'))
+    return 0xd;
+  if((*hexa == 'e') || (*hexa == 'E'))
+    return 0xe;
+  if((*hexa == 'f') || (*hexa == 'F'))
+    return 0xf;
+  *error = -1;
+  return 0;
+}
+
+/* converts to internal representation of mac address
+ * returns 1 on success, 0 otherwise 
+ * format accepted: AA:BB:CC:DD:EE:FF
+ * if mac parameter is null, then check only
+ */
+int
+str2mac (const uint8_t *str, uint8_t *mac)
+{
+  unsigned int k=0, i, j;
+  uint8_t *ptr, *ptr2;
+  size_t len;
+  uint8_t car;
+
+  if (!str)
+    return 0;
+
+  if (str[0] == ':' && str[1] == '\0')
+    return 1;
+
+  i = 0;
+  ptr = (uint8_t *)str;
+  while (i < 6)
+    {
+      uint8_t temp[5];
+      int error = 0;
+      ptr2 = (uint8_t *)strchr((const char *)ptr, ':');
+      if (ptr2 == NULL)
+	{
+	  /* if last occurence return ok */
+	  if(i != 5)
+            {
+              zlog_err("[%s]: format non recognized",mac);
+              return 0;
+            }
+          len = strlen((char *)ptr);
+	} 
+      else
+        {
+          len = ptr2 - ptr;
+        }
+      if(len > 5)
+        {
+          zlog_err("[%s]: format non recognized",mac);
+         return 0;
+        }
+      memcpy(temp, ptr, len);
+      for(j=0;j< len;j++)
+	{
+	  if (k >= MAC_LEN)
+	    return 0;
+          if(mac)
+            mac[k] = 0;
+          car = convertchartohexa (&temp[j], &error);
+	  if (error)
+	    return 0;
+	  if(mac)
+            mac[k] = car << 4;
+	  j++;
+          if(j == len)
+            return 0;
+          car = convertchartohexa (&temp[j], &error) & 0xf;
+	  if (error)
+	    return 0;
+	  if(mac)
+            mac[k] |= car & 0xf;
+	  k++;
+	  i++;
+	}
+      ptr = ptr2;
+      if(ptr == NULL)
+        break;
+      ptr++;
+    }
+  if(mac && 0)
+    {
+      zlog_err("leave correct : %02x:%02x:%02x:%02x:%02x:%02x",
+               mac[0] & 0xff, mac[1] & 0xff, mac[2] & 0xff,
+               mac[3] & 0xff, mac[4] & 0xff, mac[5] & 0xff);
+    }
+  return 1;
+}
+
+/* converts to an esi
+ * returns 1 on success, 0 otherwise
+ * format accepted: AA:BB:CC:DD:EE:FF:GG:HH:II:JJ
+ * if id is null, check only is done
+ */
+int
+str2esi (const uint8_t *str, struct eth_segment_id *id)
+{
+  unsigned int k=0, i, j;
+  uint8_t *ptr, *ptr2;
+  size_t len;
+  uint8_t car;
+
+  if (!str)
+    return 0;
+  if (str[0] == ':' && str[1] == '\0')
+    return 1;
+
+  i = 0;
+  ptr = (uint8_t *)str;
+  while (i < 10)
+    {
+      uint8_t temp[5];
+      int error = 0;
+      ptr2 = (uint8_t *)strchr((const char *)ptr, ':');
+      if (ptr2 == NULL)
+	{
+	  /* if last occurence return ok */
+	  if(i != 9)
+            {
+              zlog_err("[%s]: format non recognized",str);
+              return 0;
+            }
+          len = strlen((char *)ptr);
+	}
+      else
+        {
+          len = ptr2 - ptr;
+        }
+      memcpy(temp, ptr, len);
+      if(len > 5)
+        {
+          zlog_err("[%s]: format non recognized",str);
+         return 0;
+        }
+      for(j=0;j< len;j++)
+	{
+	  if (k >= ESI_LEN)
+	    return 0;
+          if(id)
+            id->val[k] = 0;
+          car = convertchartohexa (&temp[j], &error);
+          if (error)
+            return 0;
+          if(id)
+            id->val[k] = car << 4;
+          j++;
+          if(j == len)
+            return 0;
+          car = convertchartohexa (&temp[j], &error) & 0xf;
+          if (error)
+            return 0;
+          if(id)
+            id->val[k] |= car & 0xf;
+         k++;
+         i++;
+	}
+      ptr = ptr2;
+      if(ptr == NULL)
+        break;
+      ptr++;
+    }
+  if(id && 0)
+    {
+      zlog_err("leave correct : %02x:%02x:%02x:%02x:%02x",
+               id->val[0], id->val[1], id->val[2], id->val[3], id->val[4]);
+      zlog_err("%02x:%02x:%02x:%02x:%02x",
+               id->val[5], id->val[6], id->val[7], id->val[8], id->val[9]);
+    }
+  return 1;
+}
+
+uint8_t *
+esi2str (struct eth_segment_id *id)
+{
+  int i;
+  uint8_t pos[40];
+  uint8_t *ptr = pos;
+
+  if(!id)
+    return NULL;
+  for (i = 0; i < 10; i++)
+    {
+      ptr+=sprintf (( char *)ptr,"%02x%s", id->val[i], i ==9?"":":");
+    }
+  ptr = pos;
+  return (uint8_t *)strdup((const char *)ptr);
+}
+
+uint8_t *
+mac2str (uint8_t *mac)
+{
+  int i;
+  static uint8_t pos[40];
+  char *ptr = (char *)pos;
+
+  if(!mac)
+    return NULL;
+  for (i = 0; i < 6; i++)
+    {
+      ptr+=sprintf (ptr,"%02x%s", mac[i], i ==5?"":":");
+    }
+  ptr = (char *)pos;
+  return (uint8_t *)strdup((const char *)ptr);
+}
+
+uint8_t *ecom_mac2str(uint8_t *ecom_mac)
+{
+  uint8_t *en;
+
+  en = ecom_mac;
+  en+=2;
+  return mac2str(en);
+}
