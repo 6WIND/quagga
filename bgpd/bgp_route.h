@@ -149,6 +149,11 @@ struct bgp_static
   /* MPLS label. */
   uint32_t labels[BGP_MAX_LABELS];
   size_t nlabels;
+
+  /* EVPN */
+  uint32_t eth_t_id;
+  struct eth_segment_id *eth_s_id;
+  char *router_mac;
 };
 
 #define BGP_INFO_COUNTABLE(BI) \

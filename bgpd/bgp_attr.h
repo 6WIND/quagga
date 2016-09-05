@@ -21,6 +21,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #ifndef _QUAGGA_BGP_ATTR_H
 #define _QUAGGA_BGP_ATTR_H
 
+#include "bgp_attr_evpn.h"
+
 /* Simple bit mapping. */
 #define BITMAP_NBBY 8
 
@@ -52,6 +54,13 @@ struct bgp_attr_encap_subtlv {
     uint16_t				type;
     uint16_t				length;
     uint8_t				value[1];	/* will be extended */
+};
+
+/* Overlay Index Info */
+struct overlay_index
+{
+  struct eth_segment_id eth_s_id;
+  union gw_addr gw_ip;
 };
 
 /* Additional/uncommon BGP attributes.
@@ -95,6 +104,11 @@ struct attr_extra
 
   /* route tag */
   route_tag_t tag;
+
+  /* EVPN */
+  uint32_t eth_t_id;
+  struct overlay_index evpn_overlay;
+  short use_gw;
 };
 
 /* BGP core attribute structure. */
