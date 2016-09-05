@@ -43,6 +43,10 @@ struct bgp_info_extra
   size_t nlabels;
 
   struct prefix_rd vrf_rd;
+
+  /* EVPN */
+  uint32_t eth_t_id;
+  struct eth_segment_id eth_s_id;
 };
 
 struct bgp_info
@@ -232,10 +236,14 @@ extern int bgp_static_unset_safi (safi_t safi, struct vty *, const char *,
 /* this is primarily for MPLS-VPN */
 extern int bgp_update (struct peer *, struct prefix *, struct attr *,
 		       afi_t, safi_t, int, int, struct prefix_rd *, 
-		       uint32_t *labels, size_t nlabels, int);
+		       uint32_t *labels, size_t nlabels, int,
+                       uint32_t *, struct eth_segment_id *, union gw_addr *);
+
+
 extern int bgp_withdraw (struct peer *, struct prefix *, struct attr *,
 			 afi_t, safi_t, int, int, struct prefix_rd *,
-			 uint32_t *labels, size_t nlabels);
+			 uint32_t *labels, size_t nlabels,
+                         uint32_t *, struct eth_segment_id *, union gw_addr *);
 
 /* for bgp_nexthop and bgp_damp */
 extern void bgp_process (struct bgp *, struct bgp_node *, afi_t, safi_t);

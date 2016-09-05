@@ -1772,6 +1772,9 @@ bgp_nlri_parse (struct peer *peer, struct attr *attr, struct bgp_nlri *packet)
         return bgp_nlri_parse_vpn (peer, attr, packet);
       case SAFI_ENCAP:
         return bgp_nlri_parse_encap (peer, attr, packet);
+      case SAFI_EVPN:
+      case SAFI_INTERNAL_EVPN:
+        return bgp_nlri_parse_evpn (peer, attr, packet);
     }
   return -1;
 }
