@@ -7285,6 +7285,18 @@ route_vty_out(
 	} else {
 	    vty_out(vty, "?");
 	}
+      } else if (safi == SAFI_INTERNAL_EVPN) {
+	if (attr->extra) {
+          char	buf[BUFSIZ];
+          if (p->family == AF_INET)
+            vty_out (vty, "%s", inet_ntop(AF_INET,
+                                          &(attr->extra->evpn_overlay.gw_ip.ipv4), buf, BUFSIZ));
+          else if (p->family == AF_INET6)
+            vty_out (vty, "%s", inet_ntop(AF_INET6,
+                                          &(attr->extra->evpn_overlay.gw_ip.ipv6), buf, BUFSIZ));
+	} else {
+          vty_out(vty, "?");
+	}
       } else {
 
 	  if (p->family == AF_INET)
@@ -7457,6 +7469,84 @@ route_vty_out_tag (struct vty *vty, struct prefix *p,
 
   vty_out (vty, "%s", VTY_NEWLINE);
 }  
+
+void
+route_vty_out_overlay (struct vty *vty, struct prefix *p,
+                       struct bgp_info *binfo, int display)
+{
+  struct attr *attr;
+
+  if (!binfo->extra)
+    return;
+
+  /* short status lead text */
+  route_vty_short_status_out (vty, binfo);
+
+  /* print prefix and mask */
+  if (! display)
+    route_vty_out_route (p, vty);
+  else
+    vty_out (vty, "%*s", 17, " ");
+
+  /* Print attribute */
+  attr = binfo->attr;
+  if (attr)
+    {
+      if (p->family == AF_INET)
+	{
+          vty_out (vty, "%-16s",
+                   inet_ntoa (attr->extra->mp_nexthop_global_in));
+	}
+      else if (p->family == AF_INET6)
+	{
+	  assert (attr->extra);
+	  char buf[BUFSIZ];
+	  char buf1[BUFSIZ];
+	  if (attr->extra->mp_nexthop_len == 16)
+	    vty_out (vty, "%s",
+		     inet_ntop (AF_INET6, &attr->extra->mp_nexthop_global,
+                     buf, BUFSIZ));
+	  else if (attr->extra->mp_nexthop_len == 32)
+	    vty_out (vty, "%s(%s)",
+		     inet_ntop (AF_INET6, &attr->extra->mp_nexthop_global,
+		                buf, BUFSIZ),
+		     inet_ntop (AF_INET6, &attr->extra->mp_nexthop_local,
+		                buf1, BUFSIZ));
+	}
+    }
+
+  char buf[BUFSIZ];
+  vty_out (vty, "%u/", attr->extra->eth_t_id);
+  if(attr->extra)
+    {
+      struct eth_segment_id *id = &(attr->extra->evpn_overlay.eth_s_id);
+      vty_out (vty, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+               id->val[0], id->val[1], id->val[2], id->val[3], id->val[4],
+               id->val[5], id->val[6], id->val[7], id->val[8], id->val[9]);
+      if (p->family == AF_INET)
+	{
+          vty_out (vty, "/%s", inet_ntoa (attr->extra->evpn_overlay.gw_ip.ipv4));
+	}
+      else if (p->family == AF_INET6)
+	{
+          vty_out (vty, "/%s",
+                   inet_ntop (AF_INET6, &(attr->extra->evpn_overlay.gw_ip.ipv6),
+                              buf, BUFSIZ));
+	}
+      if(attr->extra->ecommunity)
+        {
+          struct ecommunity_val *routermac = ecommunity_lookup (attr->extra->ecommunity, ECOMMUNITY_ENCODE_EVPN);
+
+          if(routermac)
+            {
+              uint8_t *mac = ecom_mac2str((uint8_t *)routermac->val);
+              vty_out (vty, "/%s",(char *)mac);
+              free(mac);
+            }
+        }
+    }
+  vty_out (vty, "%s", VTY_NEWLINE);
+}
 
 /* dampening route */
 static void

@@ -6084,6 +6084,7 @@ bgp_init (void)
   bgp_scan_init ();
   bgp_mplsvpn_init ();
   bgp_encap_init ();
+  bgp_ethernetvpn_init ();
 
   /* Access list initialize. */
   access_list_init ();
