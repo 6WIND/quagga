@@ -56,6 +56,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_zebra.h"
 #include "bgpd/bgp_vty.h"
 #include "bgpd/bgp_mpath.h"
+#include "bgpd/bgp_encap_types.h"
+#include "bgpd/bgp_evpn.h"
 
 /* Extern from bgp_dump.c */
 extern const char *bgp_origin_str[];
@@ -1732,14 +1734,20 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   struct prefix *p = (struct prefix *)&route->prefix;
   struct bgp_node *rn;
   struct prefix def_route;
+  safi_t safi;
 
-  if (afi != AFI_IP)
+  if ((afi != AFI_IP) && (afi != AFI_INTERNAL_L2VPN))
     return -1;
+  if(afi == AFI_INTERNAL_L2VPN)
+    safi = SAFI_INTERNAL_EVPN;
+  else
+    safi = SAFI_MPLS_VPN;
 
   str2prefix ("0.0.0.0/0", &def_route);
 
   /* if we try to install a default route, set flag accordingly */
-  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p))
+  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p) &&
+      (safi != SAFI_INTERNAL_EVPN))
     {
       struct bgp_vrf *v;
       struct bgp *bgp;
@@ -1767,7 +1775,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
               /* Retrieve peer and set DEFAULT_ORIGINATE flag */
               peer = listgetdata(iter);
               /* Only send UPDATE messages to VPNv4 peers */
-              if (peer && peer->status == Established && peer->afc_nego[afi][SAFI_MPLS_VPN])
+              if (peer && peer->status == Established && peer->afc_nego[afi][safi])
                 {
                   SET_FLAG (peer->af_flags[afi][SAFI_MPLS_VPN], PEER_FLAG_DEFAULT_ORIGINATE);
                   peer_default_originate_set_rd (peer, &vrf->outbound_rd, afi,
@@ -1789,6 +1797,15 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   bgp_static->nlabels = route->label ? 1 : 0;
   bgp_static->prd = vrf->outbound_rd;
   bgp_static->ecomm = vrf->rt_export;
+  if(afi == AFI_INTERNAL_L2VPN)
+    {
+      if(route->esi)
+        {
+          bgp_static->eth_s_id = XCALLOC (MTYPE_ATTR, sizeof(struct eth_segment_id));
+          str2esi (route->esi, bgp_static->eth_s_id);
+        }
+      bgp_static->eth_t_id = route->ethtag;
+    }
   if (bgp_static->ecomm)
     {
       assert(bgp_static->ecomm->refcnt > 0);
@@ -1807,7 +1824,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
     }
   rn->info = bgp_static;
 
-  bgp_static_update_safi (vrf->bgp, p, bgp_static, afi, SAFI_MPLS_VPN);
+  bgp_static_update_safi (vrf->bgp, p, bgp_static, afi, safi);
   return 0;
 }
 
@@ -1818,15 +1835,21 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   struct bgp_static *old;
   struct bgp_node *rn;
   struct prefix def_route;
+  safi_t safi;
 
-  if (afi != AFI_IP)
+  if ((afi != AFI_IP) && (afi != AFI_INTERNAL_L2VPN))
     return -1;
+  if(afi == AFI_INTERNAL_L2VPN)
+    safi = SAFI_INTERNAL_EVPN;
+  else
+    safi = SAFI_MPLS_VPN;
 
   str2prefix ("0.0.0.0/0", &def_route);
 
   /* if we try to withdraw a default route, unset flag accordingly */
-  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p))
-    {
+  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p) &&
+      (safi != SAFI_INTERNAL_EVPN))
+     {
       int ret = -1;
       struct bgp_vrf *v;
       struct bgp *bgp;
@@ -1847,7 +1870,7 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
               /* Retrieve peer and set DEFAULT_ORIGINATE flag */
               peer = listgetdata(iter);
               /* Only send UPDATE messages to VPNv4 peers */
-              if (peer && peer->status == Established && peer->afc_nego[afi][SAFI_MPLS_VPN])
+              if (peer && peer->status == Established && peer->afc_nego[afi][safi])
                 {
                   peer_default_originate_unset_rd (peer, afi, &vrf->outbound_rd);
                   ret = 0;
@@ -1861,7 +1884,7 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   if (!rn || !rn->info)
     return -1;
 
-  bgp_static_withdraw_safi (vrf->bgp, p, afi, SAFI_MPLS_VPN,
+  bgp_static_withdraw_safi (vrf->bgp, p, afi, safi,
                             &vrf->outbound_rd, NULL, 0);
 
   old = rn->info;
@@ -2779,6 +2802,77 @@ bgp_rib_withdraw (struct bgp_node *rn, struct bgp_info *ri, struct peer *peer,
   bgp_rib_remove (rn, ri, peer, afi, safi);
 }
 
+
+static void
+overlay_index_update(struct attr *attr, struct eth_segment_id *eth_s_id, union gw_addr *gw_ip)
+{
+  struct attr_extra *extra;
+
+  if(!attr)
+    return;
+  extra = bgp_attr_extra_get(attr);
+
+  if(eth_s_id == NULL)
+    {
+      memset(&(extra->evpn_overlay.eth_s_id),0, sizeof(struct eth_segment_id));
+    }
+  else
+    {
+      memcpy(&(extra->evpn_overlay.eth_s_id), eth_s_id, sizeof(struct eth_segment_id));
+    }
+  if(gw_ip == NULL)
+    {
+      memset(&(extra->evpn_overlay.gw_ip), 0, sizeof(union gw_addr));
+    }
+  else
+    {
+      memcpy(&(extra->evpn_overlay.gw_ip),gw_ip, sizeof(union gw_addr));
+    }
+}
+
+static bool
+eth_tag_id_equal(afi_t afi, struct bgp_info *info, uint32_t *eth_t_id)
+{
+  uint32_t local_eth_t_id;
+
+  if(afi != AFI_INTERNAL_L2VPN)
+    return true;
+  if (!info->attr || !info->attr->extra) {
+    local_eth_t_id = 0;
+    if(eth_t_id == NULL)
+      return true;
+  } else {
+    local_eth_t_id = info->attr->extra->eth_t_id;
+  }
+  if(local_eth_t_id == *eth_t_id)
+    return true;
+  return false;
+}
+
+static bool
+overlay_index_equal(afi_t afi, struct bgp_info *info, struct eth_segment_id *eth_s_id, union gw_addr *gw_ip)
+{
+  struct eth_segment_id *info_eth_s_id;
+  union gw_addr *info_gw_ip;
+  char temp[16];
+
+  if(afi != AFI_INTERNAL_L2VPN)
+    return true;
+  if (!info->attr || !info->attr->extra) {
+    memset(&temp, 0, 16);
+    info_eth_s_id = (struct eth_segment_id *)&temp;
+    info_gw_ip = (union gw_addr *)&temp;
+    if(eth_s_id == NULL && gw_ip == NULL)
+      return true;
+  } else {
+    info_eth_s_id = &(info->attr->extra->evpn_overlay.eth_s_id);
+    info_gw_ip = &(info->attr->extra->evpn_overlay.gw_ip);
+  }
+  if(!memcmp(info_gw_ip, gw_ip, sizeof(union gw_addr)))
+    return false;
+  return !memcmp(info_eth_s_id, eth_s_id, sizeof(struct eth_segment_id));
+}
+
 static bool
 labels_equal(struct bgp_info *info, uint32_t *labels, size_t nlabels)
 {
@@ -2893,7 +2987,9 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
       /* Same attribute comes in. */
       if (!CHECK_FLAG(ri->flags, BGP_INFO_REMOVED)
           && attrhash_cmp (ri->attr, attr_new)
-          && labels_equal (ri, labels, nlabels))
+          && labels_equal (ri, labels, nlabels)
+          && eth_tag_id_equal(afi, ri, eth_t_id)
+          && (overlay_index_equal(afi, ri, eth_s_id, gw_ip)))
         {
 
           bgp_info_unset_flag (rn, ri, BGP_INFO_ATTR_CHANGED);
@@ -2938,6 +3034,18 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
       else if (ri->extra)
         ri->extra->nlabels = 0;
 
+      /* Update Overlay Index */
+      if(afi == AFI_INTERNAL_L2VPN)
+        {
+          overlay_index_update(ri->attr, eth_s_id, gw_ip);
+          if(ri->attr && ri->attr->extra)
+            {
+              if(eth_t_id)
+                ri->attr->extra->eth_t_id = *eth_t_id;
+              else
+                ri->attr->extra->eth_t_id = 0;
+            }
+        }
       bgp_info_set_flag (rn, ri, BGP_INFO_VALID);
 
       /* Process change. */
@@ -2971,6 +3079,18 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
       memcpy (ri->extra->labels, labels, sizeof(*labels) * nlabels);
     }
 
+  /* Update Overlay Index */
+  if(afi == AFI_INTERNAL_L2VPN)
+    {
+      overlay_index_update(new->attr, eth_s_id, gw_ip);
+      if(new->attr && new->attr->extra)
+        {
+          if(eth_t_id)
+            new->attr->extra->eth_t_id = *eth_t_id;
+          else
+            new->attr->extra->eth_t_id = 0;
+        }
+    }
   bgp_info_set_flag (rn, new, BGP_INFO_VALID);
 
   /* Register new BGP information. */
@@ -3165,7 +3285,9 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       /* Same attribute comes in. */
       if (!CHECK_FLAG (ri->flags, BGP_INFO_REMOVED) 
           && attrhash_cmp (ri->attr, attr_new)
-          && labels_equal (ri, labels, nlabels))
+          && labels_equal (ri, labels, nlabels)
+          && eth_tag_id_equal(afi, ri, eth_t_id)
+          && (overlay_index_equal(afi, ri, eth_s_id, gw_ip)))
 	{
 	  bgp_info_unset_flag (rn, ri, BGP_INFO_ATTR_CHANGED);
 
@@ -3261,6 +3383,18 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       else if (ri->extra)
         ri->extra->nlabels = 0;
 
+      /* Update Overlay Index */
+      if(afi == AFI_INTERNAL_L2VPN)
+        {
+          overlay_index_update(ri->attr, eth_s_id, gw_ip);
+          if(ri->attr && ri->attr->extra)
+            {
+              if(eth_t_id)
+                ri->attr->extra->eth_t_id = *eth_t_id;
+              else
+                ri->attr->extra->eth_t_id = 0;
+            }
+        }
       bgp_attr_flush (&new_attr);
 
       /* Update bgp route dampening information.  */
@@ -3330,6 +3464,18 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       memcpy (new->extra->labels, labels, sizeof(*labels) * nlabels);
     }
 
+  /* Update Overlay Index */
+  if(afi == AFI_INTERNAL_L2VPN)
+    {
+      overlay_index_update(new->attr, eth_s_id, gw_ip);
+      if(new->attr && new->attr->extra)
+        {
+          if(eth_t_id)
+            new->attr->extra->eth_t_id = *eth_t_id;
+          else
+            new->attr->extra->eth_t_id = 0;
+        }
+    }
   /* Nexthop reachability check. */
   if ((afi == AFI_IP || afi == AFI_IP6)
       && safi == SAFI_UNICAST
@@ -4447,6 +4593,8 @@ bgp_static_free (struct bgp_static *bgp_static)
 {
   if (bgp_static->rmap.name)
     free (bgp_static->rmap.name);
+  if(bgp_static->eth_s_id)
+    XFREE(MTYPE_ATTR, bgp_static->eth_s_id);
   XFREE (MTYPE_BGP_STATIC, bgp_static);
 }
 
@@ -4886,6 +5034,23 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
       bgp_attr_extra_get (&attr)->ecommunity = ecommunity_dup (bgp_static->ecomm);
       attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
     }
+  if(afi == AFI_INTERNAL_L2VPN)
+    {
+      if (bgp_static->igpnexthop.s_addr)
+        {
+          union gw_addr add;
+
+          memset(&add, 0, sizeof(union gw_addr));
+          add.ipv4.s_addr = bgp_static->igpnexthop.s_addr;
+          overlay_index_update(&attr, bgp_static->eth_s_id, &add);
+        }
+      else
+        {
+          overlay_index_update(&attr, bgp_static->eth_s_id, NULL);
+        }
+      if((&attr)->extra)
+        (&attr)->extra->eth_t_id = bgp_static->eth_t_id;
+    }
   if (bgp_static->igpnexthop.s_addr)
     {
     bgp_attr_extra_get (&attr)->mp_nexthop_global_in = bgp_static->igpnexthop;
@@ -4934,8 +5099,13 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
 
   if (ri)
     {
+      union gw_addr add;
+      memset(&add, 0, sizeof(union gw_addr));
+      add.ipv4.s_addr = bgp_static->igpnexthop.s_addr;
       if (attrhash_cmp (ri->attr, attr_new) &&
           labels_equal (ri, bgp_static->labels, bgp_static->nlabels) &&
+          eth_tag_id_equal(afi, ri, &bgp_static->eth_t_id) &&
+          overlay_index_equal(afi, ri, bgp_static->eth_s_id, &add) &&
           !CHECK_FLAG(ri->flags, BGP_INFO_REMOVED))
         {
           bgp_unlock_node (rn);

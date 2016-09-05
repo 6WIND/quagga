@@ -54,6 +54,13 @@ struct bgp_attr_encap_subtlv {
     uint8_t				value[1];	/* will be extended */
 };
 
+/* Overlay Index Info */
+struct overlay_index
+{
+  struct eth_segment_id eth_s_id;
+  union gw_addr gw_ip;
+};
+
 /* Additional/uncommon BGP attributes.
  * lazily allocated as and when a struct attr
  * requires it.
@@ -93,6 +100,9 @@ struct attr_extra
 
   uint16_t			encap_tunneltype;	/* grr */
   struct bgp_attr_encap_subtlv *encap_subtlvs;		/* rfc5512 */
+  /* EVPN */
+  uint32_t eth_t_id;
+  struct overlay_index evpn_overlay;
 };
 
 /* BGP core attribute structure. */

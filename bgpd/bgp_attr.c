@@ -311,6 +311,18 @@ encap_same(struct bgp_attr_encap_subtlv *h1, struct bgp_attr_encap_subtlv *h2)
     return 1;
 }
 
+static bool
+overlay_index_same(struct attr_extra *ae1, struct attr_extra *ae2)
+{
+  if(!ae1 && ae2)
+    return false;
+  if(!ae2 && ae1)
+    return false;
+  if(!ae1 && !ae2)
+    return false;
+  return !memcmp(&(ae1->evpn_overlay), &(ae2->evpn_overlay), sizeof(struct overlay_index));
+}
+
 /* Unknown transit attribute. */
 static struct hash *transit_hash;
 
@@ -549,7 +561,9 @@ attrhash_cmp (const void *p1, const void *p2)
           && ae1->transit == ae2->transit
 	  && (ae1->encap_tunneltype == ae2->encap_tunneltype)
 	  && encap_same(ae1->encap_subtlvs, ae2->encap_subtlvs)
-          && IPV4_ADDR_SAME (&ae1->originator_id, &ae2->originator_id))
+          && IPV4_ADDR_SAME (&ae1->originator_id, &ae2->originator_id)
+          && ae1->eth_t_id == ae2->eth_t_id
+          && overlay_index_same(ae1, ae2))
         return 1;
       else if (ae1 || ae2)
         return 0;

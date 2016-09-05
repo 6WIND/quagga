@@ -44,9 +44,6 @@ struct bgp_info_extra
 
   struct prefix_rd vrf_rd;
 
-  /* EVPN */
-  uint32_t eth_t_id;
-  struct eth_segment_id eth_s_id;
 };
 
 struct bgp_info
@@ -137,6 +134,11 @@ struct bgp_static
   /* MPLS label. */
   uint32_t labels[BGP_MAX_LABELS];
   size_t nlabels;
+
+  /* EVPN */
+  uint32_t eth_t_id;
+  struct eth_segment_id *eth_s_id;
+  uint8_t *router_mac;
 };
 
 /* Flags which indicate a route is unuseable in some form */
