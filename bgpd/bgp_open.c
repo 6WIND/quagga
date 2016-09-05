@@ -82,6 +82,9 @@ bgp_capability_vty_out (struct vty *vty, struct peer *peer)
 	    case AFI_IP6:
 	      vty_out (vty, "AFI IPv6, ");
 	      break;
+	    case AFI_IANA_L2VPN:
+	      vty_out (vty, "AFI L2VPN, ");
+	      break;
 	    default:
 	      vty_out (vty, "AFI Unknown %d, ", ntohs (mpc.afi));
 	      break;
@@ -99,6 +102,9 @@ bgp_capability_vty_out (struct vty *vty, struct peer *peer)
 	      break;
 	    case SAFI_ENCAP:
 	      vty_out (vty, "SAFI ENCAP");
+	      break;
+	    case SAFI_IANA_EVPN:
+	      vty_out (vty, "SAFI EVPN");
 	      break;
 	    default:
 	      vty_out (vty, "SAFI Unknown %d ", mpc.safi);
@@ -143,6 +149,12 @@ bgp_afi_safi_valid_indices (afi_t afi, safi_t *safi)
 	case SAFI_ENCAP:
 	  return 1;
 	}
+    case AFI_L2VPN:
+      switch (*safi)
+	{
+        case SAFI_EVPN:
+          return 1;
+        }
       break;
     }
 
@@ -849,7 +861,8 @@ bgp_open_option_parse (struct peer *peer, u_char length, int *mp_capability)
 	  && ! peer->afc_nego[AFI_IP6][SAFI_UNICAST]
 	  && ! peer->afc_nego[AFI_IP6][SAFI_MULTICAST]
 	  && ! peer->afc_nego[AFI_IP6][SAFI_MPLS_VPN]
-	  && ! peer->afc_nego[AFI_IP6][SAFI_ENCAP])
+	  && ! peer->afc_nego[AFI_IP6][SAFI_ENCAP]
+	  && ! peer->afc_nego[AFI_L2VPN][SAFI_EVPN])
 	{
 	  plog_err (peer->log, "%s [Error] Configured AFI/SAFIs do not "
 		    "overlap with received MP capabilities",
@@ -884,6 +897,8 @@ bgp_open_capability_orf (struct stream *s, struct peer *peer,
 
   if (safi == SAFI_MPLS_VPN)
     safi = SAFI_MPLS_LABELED_VPN;
+  else if (safi == SAFI_EVPN)
+    safi = SAFI_IANA_EVPN;
 
   stream_putc (s, BGP_OPEN_OPT_CAP);
   capp = stream_get_endp (s);           /* Set Capability Len Pointer */
@@ -1053,6 +1068,18 @@ bgp_open_capability (struct stream *s, struct peer *peer)
       stream_putw (s, AFI_IP6);
       stream_putc (s, 0);
       stream_putc (s, SAFI_ENCAP);
+    }
+  /* IPv6 ENCAP. */
+  if (peer->afc[AFI_L2VPN][SAFI_EVPN])
+    {
+      peer->afc_adv[AFI_L2VPN][SAFI_EVPN] = 1;
+      stream_putc (s, BGP_OPEN_OPT_CAP);
+      stream_putc (s, CAPABILITY_CODE_MP_LEN + 2);
+      stream_putc (s, CAPABILITY_CODE_MP);
+      stream_putc (s, CAPABILITY_CODE_MP_LEN);
+      stream_putw (s, AFI_IANA_L2VPN);
+      stream_putc (s, 0);
+      stream_putc (s, SAFI_IANA_EVPN);
     }
 
   /* Route refresh. */

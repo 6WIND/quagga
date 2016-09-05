@@ -1051,6 +1051,8 @@ peer_as_change (struct peer *peer, as_t as)
 		  PEER_FLAG_REFLECTOR_CLIENT);
       UNSET_FLAG (peer->af_flags[AFI_IP6][SAFI_ENCAP],
 		  PEER_FLAG_REFLECTOR_CLIENT);
+      UNSET_FLAG (peer->af_flags[AFI_L2VPN][SAFI_EVPN],
+		  PEER_FLAG_REFLECTOR_CLIENT);
     }
 
   /* local-as reset */
@@ -1523,7 +1525,8 @@ peer_group_active (struct peer *peer)
       || peer->af_group[AFI_IP6][SAFI_UNICAST]
       || peer->af_group[AFI_IP6][SAFI_MULTICAST]
       || peer->af_group[AFI_IP6][SAFI_MPLS_VPN]
-      || peer->af_group[AFI_IP6][SAFI_ENCAP])
+      || peer->af_group[AFI_IP6][SAFI_ENCAP]
+      || peer->af_group[AFI_L2VPN][SAFI_EVPN])
     return 1;
   return 0;
 }
@@ -2771,7 +2774,8 @@ peer_active (struct peer *peer)
       || peer->afc[AFI_IP6][SAFI_UNICAST]
       || peer->afc[AFI_IP6][SAFI_MULTICAST]
       || peer->afc[AFI_IP6][SAFI_MPLS_VPN]
-      || peer->afc[AFI_IP6][SAFI_ENCAP])
+      || peer->afc[AFI_IP6][SAFI_ENCAP]
+      || peer->afc[AFI_L2VPN][SAFI_EVPN])
     return 1;
   return 0;
 }
@@ -2787,7 +2791,8 @@ peer_active_nego (struct peer *peer)
       || peer->afc_nego[AFI_IP6][SAFI_UNICAST]
       || peer->afc_nego[AFI_IP6][SAFI_MULTICAST]
       || peer->afc_nego[AFI_IP6][SAFI_MPLS_VPN]
-      || peer->afc_nego[AFI_IP6][SAFI_ENCAP])
+      || peer->afc_nego[AFI_IP6][SAFI_ENCAP]
+      || peer->afc_nego[AFI_L2VPN][SAFI_EVPN])
     return 1;
   return 0;
 }
@@ -5883,7 +5888,11 @@ bgp_config_write_family_header (struct vty *vty, afi_t afi, safi_t safi,
             vty_out (vty, " multicast");
         }
     }
-
+  else if (afi == AFI_L2VPN)
+    {
+      if (safi == SAFI_EVPN)
+	vty_out (vty, "evpn");
+    }
   vty_out (vty, "%s", VTY_NEWLINE);
 
   *write = 1;
@@ -6178,6 +6187,9 @@ bgp_config_write (struct vty *vty)
 
       /* ENCAPv6 configuration.  */
       write += bgp_config_write_family (vty, bgp, AFI_IP6, SAFI_ENCAP);
+
+      /* EVPN configuration.  */
+      write += bgp_config_write_family (vty, bgp, AFI_L2VPN, SAFI_EVPN);
 
       vty_out (vty, " exit%s", VTY_NEWLINE);
 
