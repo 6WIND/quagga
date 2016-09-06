@@ -774,6 +774,8 @@ _qzc_set_bgp_vrf_3(struct bgp_vrf *p,
         return;
 
     struct bgp_api_route data;
+
+    memset(&data, 0, sizeof(data));
     qcapn_BGPVRFRoute_read(&data, req->data);
 
     bgp_vrf_static_set(p, afi, &data);
@@ -801,6 +803,7 @@ _qzc_unset_bgp_vrf_3(struct bgp_vrf *p,
         return;
 
     struct bgp_api_route data;
+    memset(&data, 0, sizeof(data));
     qcapn_BGPVRFRoute_read(&data, req->data);
 
     bgp_vrf_static_unset(p, afi, &data);
