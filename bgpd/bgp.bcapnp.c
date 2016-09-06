@@ -465,9 +465,9 @@ void qcapn_BGPAfiSafi_set(struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
       {
         uint8_t max = capn_read8(p, 3);
         bgp_af_flag_set(s, BGP_CONFIG_MULTIPATH, afi, safi);
-        bgp_maximum_paths_set (s, AFI_IP, SAFI_MPLS_VPN,
+        bgp_maximum_paths_set (s, afi, safi,
                                BGP_PEER_EBGP, max);
-        bgp_maximum_paths_set (s, AFI_IP, SAFI_MPLS_VPN,
+        bgp_maximum_paths_set (s, afi, safi,
                                BGP_PEER_IBGP, max);
         bgp_maximum_paths_set (s, AFI_IP, SAFI_UNICAST,
                                BGP_PEER_EBGP, max);
@@ -477,9 +477,9 @@ void qcapn_BGPAfiSafi_set(struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
       else
       {
         bgp_af_flag_unset(s, BGP_CONFIG_MULTIPATH, afi, safi);
-        bgp_maximum_paths_unset (s, AFI_IP, SAFI_MPLS_VPN,
+        bgp_maximum_paths_unset (s, afi, safi,
                                  BGP_PEER_EBGP);
-        bgp_maximum_paths_unset (s, AFI_IP, SAFI_MPLS_VPN,
+        bgp_maximum_paths_unset (s, afi, safi,
                                  BGP_PEER_IBGP);
         bgp_maximum_paths_unset (s, AFI_IP, SAFI_UNICAST,
                                  BGP_PEER_EBGP);
