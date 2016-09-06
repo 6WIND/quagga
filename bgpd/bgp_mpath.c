@@ -414,6 +414,37 @@ bgp_info_mpath_attr_set (struct bgp_info *binfo, struct attr *attr)
   mpath->mp_attr = attr;
 }
 
+static int 
+bgp_info_mpath_sprint_nh(afi_t afi, struct bgp_node *rn, struct bgp_info *mpath, char *nh_str)
+{
+  if(mpath->attr && mpath->attr->extra)
+    {
+      if ( afi == AFI_INTERNAL_L2VPN)
+        {
+          struct prefix *p = &rn->p;
+          if (p->family == AF_INET)
+            strcpy (nh_str, inet_ntoa (mpath->attr->extra->mp_nexthop_global_in));
+          else if (p->family == AF_INET6)
+            inet_ntop (AF_INET6, &mpath->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+        }
+      else if (afi == AFI_IP)
+        strcpy (nh_str, inet_ntoa (mpath->attr->extra->mp_nexthop_global_in));
+      else if (afi == AFI_IP6)
+        inet_ntop (AF_INET6, &mpath->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+    }
+  else if(mpath->attr)
+    {
+      inet_ntop (AF_INET, &mpath->attr->nexthop,
+                 nh_str, sizeof (nh_str));
+    }
+  else 
+    return 0;
+  return 1;
+}
+
+
+
+
 /*
  * bgp_info_mpath_update
  *
@@ -456,7 +487,7 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
       maxpaths = (new_best->peer->sort == BGP_PEER_IBGP) ?
         mpath_cfg->maxpaths_ibgp : mpath_cfg->maxpaths_ebgp;
     }
-  if (safi == SAFI_MPLS_VPN)
+  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_INTERNAL_EVPN))
     {
       prd = &bgp_node_table (rn)->prd;
       if (new_best)
@@ -535,18 +566,8 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
               if (debug)
                 {
                   char nh_str[BUFSIZ] = "<?>";
-                  if(cur_mpath->attr && cur_mpath->attr->extra)
-                    {
-                      if (afi == AFI_IP)
-                        strcpy (nh_str, inet_ntoa (cur_mpath->attr->extra->mp_nexthop_global_in));
-                      else if (afi == AFI_IP6)
-                        inet_ntop (AF_INET6, &cur_mpath->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
-                    }
-                  else
-                    {
-                      inet_ntop (AF_INET, &cur_mpath->attr->nexthop,
-                                 nh_str, sizeof (nh_str));
-                    }
+
+                  bgp_info_mpath_sprint_nh(afi, rn, cur_mpath, nh_str);
                   zlog_debug ("%s remove mpath nexthop %s peer %s", pfx_buf,
                               nh_str,
                               sockunion2str (cur_mpath->peer->su_remote,
@@ -573,18 +594,8 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
           if (debug)
             {
               char nh_str[BUFSIZ] = "<?>";
-              if(cur_mpath->attr && cur_mpath->attr->extra)
-                {
-                  if (afi == AFI_IP)
-                    strcpy (nh_str, inet_ntoa (cur_mpath->attr->extra->mp_nexthop_global_in));
-                  else if (afi == AFI_IP6)
-                    inet_ntop (AF_INET6, &cur_mpath->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
-                }
-              else
-                {
-                  inet_ntop (AF_INET, &cur_mpath->attr->nexthop,
-                             nh_str, sizeof (nh_str));
-                }
+
+              bgp_info_mpath_sprint_nh(afi, rn, cur_mpath, nh_str);
               zlog_debug ("%s remove mpath nexthop %s peer %s", pfx_buf,
                           nh_str,
                           sockunion2str (cur_mpath->peer->su_remote,
@@ -622,18 +633,8 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
               if (debug)
                 {
                   char nh_str[BUFSIZ] = "<?>";
-                  if(new_mpath->attr && new_mpath->attr->extra)
-                    {
-                      if (afi == AFI_IP)
-                        strcpy (nh_str, inet_ntoa (new_mpath->attr->extra->mp_nexthop_global_in));
-                      else if (afi == AFI_IP6)
-                        inet_ntop (AF_INET6, &new_mpath->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
-                    }
-                  else
-                    {
-                      inet_ntop (AF_INET, &new_mpath->attr->nexthop,
-                                 nh_str, sizeof (nh_str));
-                    }
+
+                  bgp_info_mpath_sprint_nh(afi, rn, new_mpath, nh_str);
                   zlog_debug ("%s add mpath nexthop %s peer %s", pfx_buf,
                               nh_str, sockunion2str (new_mpath->peer->su_remote,
                                                      nh_buf[1], sizeof (nh_buf[1])));

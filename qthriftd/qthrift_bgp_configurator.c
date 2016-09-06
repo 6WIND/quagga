@@ -1864,18 +1864,6 @@ qthrift_bgp_set_multipath(struct qthrift_vpnservice *ctxt,  gint32* _return, con
       *error = ERROR_BGP_AS_NOT_STARTED;
       return FALSE;
     }
-  if(afi != AF_AFI_AFI_IP)
-    {
-      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
-      *_return = BGP_ERR_PARAM;
-      return FALSE;
-    }
-  if(safi != AF_SAFI_SAFI_MPLS_VPN)
-    {
-      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
-      *_return = BGP_ERR_PARAM;
-      return FALSE;
-    }
 
   /* prepare afisafi context */
   capn_init_malloc(&rc);
@@ -1925,6 +1913,7 @@ qthrift_bgp_set_multipath(struct qthrift_vpnservice *ctxt,  gint32* _return, con
     {
       bgp_af_flag_unset(&inst, af, saf, BGP_CONFIG_ASPATH_MULTIPATH_RELAX);
       bgp_af_flag_unset(&inst, af, saf, BGP_CONFIG_MULTIPATH);
+
     }
 
   /* reset qzc reply and rc context */
