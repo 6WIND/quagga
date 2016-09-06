@@ -3112,6 +3112,12 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
       if(afi == AFI_INTERNAL_L2VPN)
         {
           overlay_index_update(ri->attr, eth_s_id, gw_ip);
+          /* overwrite nexthop ip address */
+          if(gw_ip && ri->attr && p->family == AF_INET)
+            {
+              ri->attr->nexthop.s_addr = gw_ip->ipv4.s_addr;
+              ri->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
+            }
           if(ri->attr && ri->attr->extra)
             {
               if(eth_t_id)
@@ -3157,6 +3163,12 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
   if(afi == AFI_INTERNAL_L2VPN)
     {
       overlay_index_update(new->attr, eth_s_id, gw_ip);
+      /* overwrite nexthop ip address */
+      if(gw_ip && new->attr && p->family == AF_INET)
+        {
+          new->attr->nexthop.s_addr = gw_ip->ipv4.s_addr;
+          new->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
+        }
       if(new->attr && new->attr->extra)
         {
           if(eth_t_id)
@@ -3461,6 +3473,12 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       if(afi == AFI_INTERNAL_L2VPN)
         {
           overlay_index_update(ri->attr, eth_s_id, gw_ip);
+          /* overwrite nexthop ip address */
+          if(gw_ip && ri->attr && p->family == AF_INET)
+            {
+              ri->attr->nexthop.s_addr = gw_ip->ipv4.s_addr;
+              ri->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
+            }
           if(ri->attr && ri->attr->extra)
             {
               if(eth_t_id)
@@ -3542,6 +3560,12 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
   if(afi == AFI_INTERNAL_L2VPN)
     {
       overlay_index_update(new->attr, eth_s_id, gw_ip);
+      /* overwrite nexthop ip address */
+      if(gw_ip && new->attr && p->family == AF_INET)
+        {
+          new->attr->nexthop.s_addr = gw_ip->ipv4.s_addr;
+          new->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
+        }
       if(new->attr && new->attr->extra)
         {
           if(eth_t_id)
@@ -5134,6 +5158,12 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
           memset(&add, 0, sizeof(union gw_addr));
           add.ipv4.s_addr = bgp_static->igpnexthop.s_addr;
           overlay_index_update(&attr, bgp_static->eth_s_id, &add);
+          /* overwrite nexthop ip address */
+          if(p->family == AF_INET)
+            {
+              (&attr)->nexthop.s_addr = (&add)->ipv4.s_addr;
+              (&attr)->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
+            }
         }
       else
         {
