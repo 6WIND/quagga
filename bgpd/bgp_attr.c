@@ -835,7 +835,7 @@ bgp_attr_unintern (struct attr **pattr)
   if (attr->refcnt == 0)
     {
       ret = hash_release (attrhash, attr);
-      assert (ret != NULL);
+      //assert (ret != NULL);
       bgp_attr_extra_free (attr);
       XFREE (MTYPE_ATTR, attr);
       *pattr = NULL;
@@ -2560,6 +2560,7 @@ bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
         stream_put(s, &p->u.prefix, 16);
       if(attr && attr->extra)
         {
+          //CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_NEXTHOP_UNCHANGED)
           if(p->family == AF_INET)
             stream_put_ipv4(s, attr->extra->evpn_overlay.gw_ip.ipv4.s_addr);
           else if (p->family == AF_INET6)

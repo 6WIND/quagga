@@ -226,7 +226,7 @@ ecommunity_unintern (struct ecommunity **ecom)
     {
       /* Extended community must be in the hash.  */
       ret = (struct ecommunity *) hash_release (ecomhash, *ecom);
-      assert (ret != NULL);
+      /* assert (ret != NULL); */
 
       ecommunity_free (ecom);
     }
