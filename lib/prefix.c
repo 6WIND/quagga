@@ -1025,6 +1025,7 @@ prefix_str2rd (char *buf, struct prefix_rd *prd)
   unsigned long as_val = 0;
   uint64_t vrf_val = 0;
   char buf_local[RD_ADDRSTRLEN];
+  int error = 0 ;
 
   /* bad length */
   if(strlen(buf) > RD_ADDRSTRLEN)
@@ -1039,15 +1040,24 @@ prefix_str2rd (char *buf, struct prefix_rd *prd)
       ptr++;
       cnt++;
     }
-  if(dot_presence)
-    return 0;
   /* extract as number */
   if(*ptr == ':')
     {
+      struct in_addr addr_ipv4;
+
+      addr_ipv4.s_addr = 0;
       strncpy(buf_local, buf, cnt);
       buf_local[cnt]='\0';
-      as_val = atol(buf_local);
+      if(dot_presence)
+        if(inet_pton(AF_INET, buf_local, &addr_ipv4))
+          as_val = ntohl(addr_ipv4.s_addr);
+        else
+          error = 1;
+      else
+        as_val = atol(buf_local);
     }
+  if(error)
+    return 0;
   /* search for vrf val */
   remaining_length = strlen(buf) - cnt;
   ptr++;
@@ -1065,7 +1075,21 @@ prefix_str2rd (char *buf, struct prefix_rd *prd)
       buf_local[cnt]='\0';
       vrf_val = atoll(buf_local);
     }
-  if(as_val > 0xffff)
+  if(dot_presence)
+    {
+      /* RD_TYPE_IP */
+      prd->val[0]=0;
+      prd->val[1]=1;
+      /* IP Address */
+      prd->val[2]= (as_val & 0xff000000) >> 24;
+      prd->val[3]= (as_val & 0x00ff0000) >> 16;
+      prd->val[4]= (as_val & 0x0000ff00) >> 8;
+      prd->val[5]= as_val & 0x000000ff;
+      /* vrf */
+      prd->val[6]= (vrf_val & 0xff00) >> 8;
+      prd->val[7]= vrf_val & 0xff;
+    }
+  else if(as_val > 0xffff )
     {
       /* RD_TYPE_AS4 */
       prd->val[0]=0;
