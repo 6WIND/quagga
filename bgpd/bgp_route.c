@@ -2319,11 +2319,15 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
   struct ecommunity *ecom;
   size_t i, j;
   bool found;
+  safi_t safi;
 
   if (!vrf->rt_import || vrf->rt_import->size == 0)
     return;
-
-  for (rd_rn = bgp_table_top (vrf->bgp->rib[afi][SAFI_MPLS_VPN]); rd_rn;
+  if(afi == AFI_INTERNAL_L2VPN)
+    safi = SAFI_INTERNAL_EVPN;
+  else
+    safi = SAFI_MPLS_VPN;
+  for (rd_rn = bgp_table_top (vrf->bgp->rib[afi][safi]); rd_rn;
                   rd_rn = bgp_route_next (rd_rn))
     if (rd_rn->info != NULL)
       {
@@ -2354,7 +2358,7 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
                         found = true;
                   if (!found)
                     continue;
-                  bgp_vrf_process_two(vrf, afi, SAFI_MPLS_VPN, rn, mp, 0);
+                  bgp_vrf_process_two(vrf, afi, safi, rn, mp, 0);
                 }
             if (!sel->attr || !sel->attr->extra)
               continue;
@@ -2369,7 +2373,7 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
                   found = true;
             if (!found)
               continue;
-            bgp_vrf_process_two(vrf, afi, SAFI_MPLS_VPN, rn, sel, 0);
+            bgp_vrf_process_two(vrf, afi, safi, rn, sel, 0);
           }
       }
 }
@@ -2789,8 +2793,15 @@ bgp_maximum_prefix_overflow (struct peer *peer, afi_t afi,
        u_int8_t ndata[7];
 
        if (safi == SAFI_MPLS_VPN)
-         safi = SAFI_MPLS_LABELED_VPN;
-         
+         ndata[2]  = SAFI_MPLS_LABELED_VPN;
+       else if (safi == SAFI_INTERNAL_EVPN)
+         ndata[2] = SAFI_EVPN;
+       else
+         ndata[2] = safi;
+       if (afi == AFI_INTERNAL_L2VPN)
+         ndata[1] = AFI_L2VPN;
+       else
+         ndata[1] = afi;
        ndata[0] = (afi >>  8);
        ndata[1] = afi;
        ndata[2] = safi;
@@ -4031,7 +4042,7 @@ bgp_soft_reconfig_rsclient (struct peer *rsclient, afi_t afi, safi_t safi)
   struct bgp_table *table;
   struct bgp_node *rn;
   
-  if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP))
+  if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP) && (safi != SAFI_INTERNAL_EVPN))
     bgp_soft_reconfig_table_rsclient (rsclient, afi, safi, NULL, NULL);
 
   else
@@ -4092,7 +4103,7 @@ bgp_soft_reconfig_in (struct peer *peer, afi_t afi, safi_t safi)
   if (peer->status != Established)
     return;
 
-  if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP))
+  if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP) && (safi != SAFI_INTERNAL_EVPN))
     bgp_soft_reconfig_table (peer, afi, safi, NULL, NULL);
   else
     for (rn = bgp_table_top (peer->bgp->rib[afi][safi]); rn;
@@ -4435,7 +4446,7 @@ bgp_clear_stale_route (struct peer *peer, afi_t afi, safi_t safi)
 
   table = peer->bgp->rib[afi][safi];
 
-  if (table && safi == SAFI_MPLS_VPN)
+  if (table && (safi == SAFI_MPLS_VPN || safi == SAFI_INTERNAL_EVPN))
   {
     rn = bgp_table_top (table);
     table = rn ? rn->info : NULL;
@@ -5451,7 +5462,7 @@ bgp_static_delete (struct bgp *bgp)
       for (rn = bgp_table_top (bgp->route[afi][safi]); rn; rn = bgp_route_next (rn))
 	if (rn->info != NULL)
 	  {      
-	    if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP))
+	    if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_INTERNAL_EVPN))
 	      {
 		table = rn->info;
 
@@ -6305,7 +6316,7 @@ bgp_aggregate_increment (struct bgp *bgp, struct prefix *p,
   struct bgp_table *table;
 
   /* MPLS-VPN aggregation is not yet supported. */
-  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP))
+  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_INTERNAL_EVPN))
     return;
 
   table = bgp->aggregate[afi][safi];
@@ -6342,7 +6353,7 @@ bgp_aggregate_decrement (struct bgp *bgp, struct prefix *p,
   struct bgp_table *table;
 
   /* MPLS-VPN aggregation is not yet supported. */
-  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP))
+  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_INTERNAL_EVPN))
     return;
 
   table = bgp->aggregate[afi][safi];
