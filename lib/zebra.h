@@ -493,10 +493,12 @@ typedef enum {
 #define SAFI_MULTICAST            2
 #define SAFI_RESERVED_3           3
 #define SAFI_MPLS_VPN             4
+#define SAFI_UNUSED_5		  5
+#define SAFI_UNUSED_6		  6
 #define SAFI_ENCAP		  7 /* per IANA */
 #define SAFI_INTERNAL_EVPN        8 /* temp */
 #define SAFI_EVPN                 70 /* per IANA */
-#define SAFI_RESERVED_5           5
+#define SAFI_RESERVED_9           9
 #define SAFI_MAX                  9
 
 /* Filter direction.  */
