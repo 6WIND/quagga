@@ -53,9 +53,13 @@ extern void bgp_default_update_send (struct peer *, struct attr *,
 extern void bgp_default_withdraw_send (struct peer *, afi_t, safi_t);
 extern void bgp_default_withdraw_vpnv4_send (struct peer *, afi_t,
                                              struct prefix_rd *rd);
-
+extern void bgp_default_withdraw_evpn_send (struct peer *, afi_t,
+                                            struct prefix_rd *rd);
 extern int bgp_capability_receive (struct peer *, bgp_size_t);
 extern void bgp_default_update_vpnv4_send (struct peer *peer, struct prefix_rd *rd,
+                                           struct attr *attr, afi_t afi,
+                                           size_t nlabels, uint32_t *labels);
+extern void bgp_default_update_evpn_send (struct peer *peer, struct prefix_rd *rd,
                                            struct attr *attr, afi_t afi,
                                            size_t nlabels, uint32_t *labels);
 

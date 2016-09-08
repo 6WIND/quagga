@@ -1807,18 +1807,12 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
 
   /* if we try to install a default route, set flag accordingly */
   if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p) &&
-      (safi != SAFI_INTERNAL_EVPN))
+      ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_INTERNAL_EVPN)))
     {
       struct bgp_vrf *v;
       struct bgp *bgp;
       struct listnode *iter;
-      struct bgp_nexthop nh;
-      size_t nlabels = route->label ? 1 : 0;
-      uint32_t labels[1];
       int ret = -1;
-
-      labels[0] = (route->label << 4) | 1;
-      nh.v4  = route->nexthop;
 
       /* list all peers that have VPNv4 family enabled */
       bgp = vrf->bgp;
@@ -1834,12 +1828,11 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
 
               /* Retrieve peer and set DEFAULT_ORIGINATE flag */
               peer = listgetdata(iter);
-              /* Only send UPDATE messages to VPNv4 peers */
+              /* Only send UPDATE messages to VPNv4 and EVPN peers */
               if (peer && peer->status == Established && peer->afc_nego[afi][safi])
                 {
-                  SET_FLAG (peer->af_flags[afi][SAFI_MPLS_VPN], PEER_FLAG_DEFAULT_ORIGINATE);
-                  peer_default_originate_set_rd (peer, &vrf->outbound_rd, afi,
-                                                 &nh, nlabels, labels);
+                  SET_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE);
+                  peer_default_originate_set_rd (peer, &vrf->outbound_rd, afi, safi, route);
                   ret = 0;
                 }
             }
@@ -1913,8 +1906,8 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
 
   /* if we try to withdraw a default route, unset flag accordingly */
   if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p) &&
-      (safi != SAFI_INTERNAL_EVPN))
-     {
+      ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_INTERNAL_EVPN)))
+    {
       int ret = -1;
       struct bgp_vrf *v;
       struct bgp *bgp;
@@ -1934,10 +1927,10 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
 
               /* Retrieve peer and set DEFAULT_ORIGINATE flag */
               peer = listgetdata(iter);
-              /* Only send UPDATE messages to VPNv4 peers */
+              /* Only send UPDATE messages to VPNv4 and EVPN peers */
               if (peer && peer->status == Established && peer->afc_nego[afi][safi])
                 {
-                  peer_default_originate_unset_rd (peer, afi, &vrf->outbound_rd);
+                  peer_default_originate_unset_rd (peer, afi, safi, &vrf->outbound_rd);
                   ret = 0;
                 }
             }
@@ -3844,20 +3837,30 @@ bgp_default_originate (struct peer *peer, afi_t afi, safi_t safi, int withdraw)
 }
 
 void
-bgp_default_originate_rd (struct peer *peer, afi_t afi, struct prefix_rd *rd,
-                          struct bgp_nexthop *nh, size_t nlabels,
-                          uint32_t *labels, int withdraw)
+bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct prefix_rd *rd,
+                          struct bgp_vrf *vrf, int withdraw)
 {
   if (withdraw)
     {
-      int empty;
+      int empty = 0;
 
-      if (CHECK_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE))
-        bgp_default_withdraw_vpnv4_send (peer, afi, rd);
+      if (CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_DEFAULT_ORIGINATE))
+        {
+          if (safi == SAFI_MPLS_VPN)
+            {
+              bgp_default_withdraw_vpnv4_send (peer, afi, rd);
+              empty = (NULL == listnode_head(peer->def_route_rd_vpnv4));
+            }
+          else if (safi == SAFI_INTERNAL_EVPN)
+            {
+              /* XXX IPv4 */
+              bgp_default_withdraw_evpn_send (peer, AFI_IP, rd);
+              empty = (NULL == listnode_head(peer->def_route_rd_evpn));
+            }
+        }
 
-      empty = (NULL == listnode_head(peer->def_route_rd));
       if (empty)
-        UNSET_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE);
+        UNSET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_DEFAULT_ORIGINATE);
     }
   else
     {
@@ -3871,19 +3874,55 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, struct prefix_rd *rd,
       attr.local_pref = bgp->default_local_pref;
       ae = attr.extra;
 
-      memcpy (&attr.nexthop, &nh->v4, IPV4_MAX_BYTELEN);
+      if (vrf->nh.v4.s_addr)
+        memcpy (&attr.nexthop, &(vrf->nh.v4), IPV4_MAX_BYTELEN);
+      else
+        attr.nexthop.s_addr = 0;
 
-      if (nh)
-        ae->mp_nexthop_global_in = nh->v4;
+      if (vrf->nh.v4.s_addr)
+        ae->mp_nexthop_global_in = vrf->nh.v4;
       else
         ae->mp_nexthop_global_in = bgp->router_id;
-
-      if (! CHECK_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE))
+      if (safi == SAFI_INTERNAL_EVPN)
         {
-          SET_FLAG (peer->af_sflags[afi][SAFI_MPLS_VPN], PEER_STATUS_DEFAULT_ORIGINATE);
-        }
-      bgp_default_update_vpnv4_send(peer, rd, &attr, afi, nlabels, labels);
+          struct eth_segment_id esi;
+          union gw_addr add;
 
+          ae->eth_t_id = vrf->ethtag;
+          /* overlay index */
+          if(vrf->esi)
+            str2esi ((const uint8_t *)vrf->esi, &esi);/* esi2str */
+          else
+            memset(&esi, 0, sizeof(struct eth_segment_id));
+          memset(&add, 0, sizeof(union gw_addr));
+          if (vrf->nh.v4.s_addr)
+            add.ipv4.s_addr = vrf->nh.v4.s_addr;
+          else
+            add.ipv4 = bgp->router_id;
+          overlay_index_update(&attr, &esi, &add);
+          /* router mac */
+          if(vrf->mac_router)
+            {
+              char routermac_int[MAC_LEN+1];
+              struct ecommunity_val routermac_ecom;
+
+              str2mac (vrf->mac_router, (uint8_t *)&routermac_int);
+              memset(&routermac_ecom, 0, sizeof(struct ecommunity_val));
+              routermac_ecom.val[0] = ECOMMUNITY_ENCODE_EVPN;
+              routermac_ecom.val[1] = ECOMMUNITY_SITE_ORIGIN;
+              memcpy(&routermac_ecom.val[2], routermac_int, MAC_LEN);
+              if(ae->ecommunity)
+                ecommunity_add_val(ae->ecommunity, &routermac_ecom);
+            }
+        }
+      if (! CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_DEFAULT_ORIGINATE))
+        {
+          SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_DEFAULT_ORIGINATE);
+        }
+      if (safi == SAFI_MPLS_VPN)
+        bgp_default_update_vpnv4_send(peer, rd, &attr, afi, vrf->nlabels, vrf->labels);
+      else if (safi == SAFI_INTERNAL_EVPN)
+        bgp_default_update_evpn_send(peer, rd, &attr, AFI_IP, vrf->nlabels, vrf->labels);
       bgp_attr_extra_free (&attr);
       aspath_unintern (&aspath);
     }
@@ -3924,17 +3963,10 @@ bgp_announce_table (struct peer *peer, afi_t afi, safi_t safi,
                      {
                        if (rd_header)
                          {
-                           size_t nlabels = 0;
                            struct listnode *node;
                            struct bgp_vrf *vrf;
-                           u_int32_t *labels = NULL;
 
-                           /* get labels */
-                           if (ri->extra)
-                             {
-                               labels = ri->extra->labels;
-                               nlabels = ri->extra->nlabels;
-                             }
+                           /* use vrf labels */
 
                            rd_header = 0;
 
@@ -3944,9 +3976,9 @@ bgp_announce_table (struct peer *peer, afi_t afi, safi_t safi,
                                if (!prefix_rd_cmp((struct prefix_rd*)&rn->p,
                                                    &vrf->outbound_rd))
                                  {
-                                   bgp_default_originate_rd (peer, afi,
+                                   bgp_default_originate_rd (peer, afi, safi,
                                                              (struct prefix_rd*)&rn->p,
-                                                             &vrf->nh, nlabels, labels, 0);
+                                                             vrf, 0);
                                    break;
                                  }
                              }

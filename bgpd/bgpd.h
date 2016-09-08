@@ -247,6 +247,10 @@ struct bgp_vrf
   /* labels of Route Distinguishers */
   uint32_t labels[BGP_MAX_LABELS];
   size_t nlabels;
+  /* EVPN information */
+  uint32_t ethtag;
+  uint8_t *esi;
+  uint8_t *mac_router;
 
   /* maximum multipath entries for the VRF */
   uint32_t max_mpath;
@@ -519,8 +523,9 @@ struct peer
 #define PEER_FLAG_NEXTHOP_LOCAL_UNCHANGED   (1 << 16) /* leave link-local nexthop unchanged */
 #define PEER_FLAG_NEXTHOP_SELF_ALL          (1 << 17) /* next-hop-self all */
 
- /* list of VPNv4 default route configured (bgp_vrf*) */
- struct list *def_route_rd;
+ /* list of EVPN and VPNv4 default route configured (bgp_vrf*) */
+ struct list *def_route_rd_vpnv4;
+ struct list *def_route_rd_evpn;
 
   /* MD5 password */
   char *password;
@@ -1055,10 +1060,11 @@ extern int peer_update_source_unset (struct peer *);
 extern int peer_default_originate_set (struct peer *, afi_t, safi_t, const char *);
 extern int peer_default_originate_unset (struct peer *, afi_t, safi_t);
 extern int peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd,
-                                          afi_t afi, struct bgp_nexthop *nh,
-                                          size_t nlabels, uint32_t *labels);
+                                          afi_t afi, safi_t safi,
+                                          const struct bgp_api_route *route);
 extern int peer_default_originate_unset_rd (struct peer *peer, afi_t afi,
-                                            struct prefix_rd *rd);
+                                            safi_t safi, struct prefix_rd *rd);
+
 
 extern int peer_port_set (struct peer *, u_int16_t);
 extern int peer_port_unset (struct peer *);

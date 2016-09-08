@@ -912,8 +912,9 @@ peer_create (union sockunion *su, struct bgp *bgp, as_t local_as,
   if (! active && peer_active (peer))
     bgp_timer_set (peer);
 
-  /* Initialize list of VPNv4 default routes */
-  peer->def_route_rd = list_new();
+  /* Initialize list of VPNv4 and EVPN default routes */
+  peer->def_route_rd_vpnv4 = list_new();
+  peer->def_route_rd_evpn = list_new();
 
   return peer;
 }
@@ -1444,9 +1445,14 @@ peer_delete (struct peer *peer)
     bgp_peer_clear_node_queue_drain_immediate(peer);
 
   /* Delete list of VPNv4 default routes */
-  if (peer->def_route_rd)
+  if (peer->def_route_rd_vpnv4)
     {
-      list_delete (peer->def_route_rd);
+      list_delete (peer->def_route_rd_vpnv4);
+    }
+  /* Delete list of EVPN default routes */
+  if (peer->def_route_rd_evpn)
+    {
+      list_delete (peer->def_route_rd_evpn);
     }
   peer_unlock (peer); /* initial reference */
 
@@ -3534,23 +3540,24 @@ peer_default_originate_unset (struct peer *peer, afi_t afi, safi_t safi)
 }
 
 int
-peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t afi,
-                               struct bgp_nexthop *nh, size_t nlabels, uint32_t *labels)
+peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t afi, safi_t safi,
+                               const struct bgp_api_route *route)
 {
   char rdstr[RD_ADDRSTRLEN];
-  char labelstr[RD_ADDRSTRLEN];
   struct listnode *node;
   struct bgp_vrf *vrf, *found = NULL;
   struct prefix_rd* d;
+  struct list *list_to_parse = NULL;
+  struct bgp_nexthop nh;
 
   prefix_rd2str(rd, rdstr, RD_ADDRSTRLEN);
 
   /* Adress family must be activated.  */
-  if (! peer->afc[afi][SAFI_MPLS_VPN])
+  if (! peer->afc[afi][safi])
     return BGP_ERR_PEER_INACTIVE;
 
   /* Default originate can't be used for peer group member.  */
-  if (peer_is_group_member (peer, afi, SAFI_MPLS_VPN))
+  if (peer_is_group_member (peer, afi, safi))
     return BGP_ERR_INVALID_FOR_PEER_GROUP_MEMBER;
 
   /* Check RD has been recorded for the peer */
@@ -3565,50 +3572,70 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
 
   if (!found)
     return 1;
-
-  labels2str(labelstr, RD_ADDRSTRLEN, labels, nlabels);
-  zlog_info("%s: rd=%s, afi=%d, nh=%s, nlabels=%zu, labels=%s", __func__,
-            rdstr, afi, inet_ntoa(nh->v4), nlabels, nlabels? labelstr:"");
-
-  /* add this VRF in peer list of VPNv4 default route if not already present */
-  d = (struct prefix_rd*) listnode_lookup(peer->def_route_rd, found);
+  if(route)
+    nh.v4 = route->nexthop;
+  zlog_info("%s: rd=%s, afi=%d, nh=%s, label=%u", __func__,
+            rdstr, afi, route?inet_ntoa(route->nexthop):"<none>", route->label << 4 | 1);
+  if (safi == SAFI_MPLS_VPN)
+    list_to_parse = peer->def_route_rd_vpnv4;
+  else if (safi == SAFI_INTERNAL_EVPN)
+    list_to_parse = peer->def_route_rd_evpn;
+  /* add this VRF in peer list of VPNv4 or EVPN default route if not already present */
+  d = (struct prefix_rd*) listnode_lookup(list_to_parse, found);
   if (!d)
     {
-      memcpy (&found->nh, nh, sizeof(*nh));
-      if (labels)
-        memcpy (&found->labels, labels, sizeof(*labels));
-      found->nlabels = nlabels;
-      listnode_add(peer->def_route_rd, found);
+      memcpy (&found->nh, &nh, sizeof(nh));
+      if (route && route->label)
+        {
+          found->labels[0] = route->label << 4 | 1;
+          found->nlabels = 1;
+        }
+      else
+        found->nlabels = 0;
+      if(safi == SAFI_INTERNAL_EVPN)
+        {
+          found->ethtag = route->ethtag;
+          if(route->esi)
+            found->esi = (uint8_t *)strdup((const char *)route->esi);
+          if(route->mac_router)
+            found->mac_router = (uint8_t *)strdup((const char *)route->mac_router);
+        }
+      listnode_add(list_to_parse, found);
     }
-
-  if (!CHECK_FLAG (peer->af_flags[afi][SAFI_MPLS_VPN], PEER_FLAG_DEFAULT_ORIGINATE))
-    SET_FLAG (peer->af_flags[afi][SAFI_MPLS_VPN], PEER_FLAG_DEFAULT_ORIGINATE);
+  if (!CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE))
+    SET_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE);
 
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
-    if (peer->status == Established && peer->afc_nego[afi][SAFI_MPLS_VPN])
-      bgp_default_originate_rd(peer, afi, rd, nh, nlabels, labels, 0);
+    if (peer->status == Established && peer->afc_nego[afi][safi])
+      bgp_default_originate_rd(peer, afi, safi, rd, found, 0);
 
   return 0;
 }
 
 int
-peer_default_originate_unset_rd (struct peer *peer, afi_t afi, struct prefix_rd *rd)
+peer_default_originate_unset_rd (struct peer *peer, afi_t afi, safi_t safi, struct prefix_rd *rd)
 {
   char rdstr[RD_ADDRSTRLEN];
   struct listnode *node;
   struct bgp_vrf *vrf, *found = NULL;
   int empty;
+  struct list *list_to_parse = NULL;
 
   /* Adress family must be activated.  */
-  if (! peer->afc[afi][SAFI_MPLS_VPN])
+  if (! peer->afc[afi][safi])
     return BGP_ERR_PEER_INACTIVE;
 
   /* Default originate can't be used for peer group member.  */
-  if (peer_is_group_member (peer, afi, SAFI_MPLS_VPN))
+  if (peer_is_group_member (peer, afi, safi))
     return BGP_ERR_INVALID_FOR_PEER_GROUP_MEMBER;
 
+  if (safi == SAFI_MPLS_VPN)
+    list_to_parse = peer->def_route_rd_vpnv4;
+  else if (safi == SAFI_INTERNAL_EVPN)
+    list_to_parse = peer->def_route_rd_evpn;
+
   /* Check RD has been recorded for the peer */
-  for (ALL_LIST_ELEMENTS_RO(peer->def_route_rd, node, vrf))
+  for (ALL_LIST_ELEMENTS_RO(list_to_parse, node, vrf))
     {
       if (!prefix_rd_cmp(rd, &vrf->outbound_rd))
         found = vrf;
@@ -3621,25 +3648,38 @@ peer_default_originate_unset_rd (struct peer *peer, afi_t afi, struct prefix_rd 
   found->nlabels = 0;
   memset(&found->nh, 0, sizeof(found->nh));
   memset(&found->labels, 0, sizeof(found->labels));
-
-  /* remove this RD in peer list of VPNv4 default route */
-  listnode_delete(peer->def_route_rd, found);
-  empty = (NULL == listnode_head(peer->def_route_rd));
+  if (safi == SAFI_INTERNAL_EVPN)
+    {
+      found->ethtag = 0;
+      if (found->mac_router)
+        {
+          free(found->mac_router);
+          found->mac_router = NULL;
+        }
+      if (found->esi)
+        {
+          free(found->esi);
+          found->esi = NULL;
+        }
+    }
+  /* remove this RD in peer list of VPNv4 or EVPN default route */
+  listnode_delete(list_to_parse, found);
+  empty = (NULL == listnode_head(list_to_parse));
 
   /* if there is no more entry in list, unset flag PEER_FLAG_DEFAULT_ORIGINATE */
-  if (empty && CHECK_FLAG (peer->af_flags[afi][SAFI_MPLS_VPN], PEER_FLAG_DEFAULT_ORIGINATE))
+  if (empty && CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE))
     {
-      UNSET_FLAG (peer->af_flags[afi][SAFI_MPLS_VPN], PEER_FLAG_DEFAULT_ORIGINATE);
+      UNSET_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE);
       zlog_debug("%s: Unset peer's flag PEER_FLAG_DEFAULT_ORIGINATE for afi=%d safi=%d",
-                 __func__, afi, SAFI_MPLS_VPN);
+                 __func__, afi, safi);
     }
 
   prefix_rd2str(rd, rdstr, RD_ADDRSTRLEN);
   zlog_info("%s: rd=%s, afi=%d", __func__, rdstr, afi);
 
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
-    if (peer->status == Established && peer->afc_nego[afi][SAFI_MPLS_VPN])
-      bgp_default_originate_rd (peer, afi, rd, NULL, 0, NULL, 1);
+    if (peer->status == Established && peer->afc_nego[afi][safi])
+      bgp_default_originate_rd (peer, afi, safi, rd, found, 1);
 
   return 0;
 }
@@ -5605,7 +5645,7 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
   if (peer_af_flag_check (peer, afi, safi, PEER_FLAG_DEFAULT_ORIGINATE)
       && ! peer->af_group[afi][safi])
     {
-      if (safi != SAFI_MPLS_VPN)
+      if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_INTERNAL_EVPN))
         vty_out (vty, " neighbor %s default-originate%s", addr, VTY_NEWLINE);
       else
         {
@@ -5614,7 +5654,7 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
           char rdstr[RD_ADDRSTRLEN];
           char labelstr[RD_ADDRSTRLEN];
 
-          for (ALL_LIST_ELEMENTS_RO(peer->def_route_rd, node, vrf))
+          for (ALL_LIST_ELEMENTS_RO(peer->def_route_rd_vpnv4, node, vrf))
             {
               prefix_rd2str(&vrf->outbound_rd, rdstr, RD_ADDRSTRLEN);
               if (!vrf->nh.v4.s_addr)
