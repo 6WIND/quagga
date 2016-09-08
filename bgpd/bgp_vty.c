@@ -3369,53 +3369,54 @@ peer_default_originate_set_rd_vty (struct vty *vty, const char *peer_str,
 {
   int ret = CMD_WARNING;
   struct peer *peer;
+  struct bgp_api_route route;
+  struct prefix_rd prd;
 
   peer = peer_and_group_lookup_vty (vty, peer_str);
   if (! peer)
     return CMD_WARNING;
 
-  if (safi == SAFI_MPLS_VPN)
+  if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_EVPN))
     {
-      struct prefix_rd prd;
-
-      if (!str2prefix_rd(rd, &prd))
-        {
-          vty_out (vty, "%% Malformed Route Distinguisher%s%s", rd, VTY_NEWLINE);
-          return CMD_WARNING;
-        }
-
-      if (set)
-        {
-          struct bgp_nexthop bnh;
-          uint32_t l[1];
-          size_t nlabels = 1;
-
-          if (nh)
-            {
-              if (!inet_aton(nh, &bnh.v4))
-                {
-                  vty_out (vty, "%% Malformed Next Hop address %s%s", nh, VTY_NEWLINE);
-                  return CMD_WARNING;
-                }
-            }
-          else
-            bnh.v4 = peer->bgp->router_id;
-
-          if (labels)
-            if (!str2labels(labels, l, &nlabels))
-              {
-                vty_out (vty, "%% Malformed Label%s%s", labels, VTY_NEWLINE);
-                return CMD_WARNING;
-              }
-
-          ret = peer_default_originate_set_rd(peer, &prd, afi, &bnh,
-                                              labels? nlabels: 0,
-                                              labels? l: NULL);
-        }
-      else
-        ret = peer_default_originate_unset_rd(peer, afi, &prd);
+      return bgp_vty_return (vty, ret);
     }
 
+  if (!str2prefix_rd(rd, &prd))
+    {
+      vty_out (vty, "%% Malformed Route Distinguisher%s%s", rd, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  memset(&route, 0, sizeof(struct bgp_api_route));
+  if (set)
+    {
+      uint32_t l[1];
+      size_t nlabels = 1;
+
+      l[0] = 0;
+      if (nh)
+        {
+          if (!inet_aton(nh, &route.nexthop))
+            {
+              vty_out (vty, "%% Malformed Next Hop address %s%s", nh, VTY_NEWLINE);
+              return CMD_WARNING;
+            }
+        }
+      else
+        route.nexthop.s_addr = peer->bgp->router_id.s_addr;
+
+      if (labels)
+        {
+          if (!str2labels(labels, l, &nlabels))
+            {
+              vty_out (vty, "%% Malformed Label%s%s", labels, VTY_NEWLINE);
+              return CMD_WARNING;
+            }
+          route.label = l[0];
+        }
+      ret = peer_default_originate_set_rd(peer, &prd, afi, safi, &route);
+    }
+  else
+    ret = peer_default_originate_unset_rd(peer, afi, safi, &prd);
   return bgp_vty_return (vty, ret);
 }
 
