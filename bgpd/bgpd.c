@@ -5673,6 +5673,36 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
                              rdstr, inet_ntoa(vrf->nh.v4), VTY_NEWLINE);
                 }
             }
+          for (ALL_LIST_ELEMENTS_RO(peer->def_route_rd_evpn, node, vrf))
+            {
+              prefix_rd2str(&vrf->outbound_rd, rdstr, RD_ADDRSTRLEN);
+              if (!vrf->nh.v4.s_addr)
+                vty_out (vty, " neighbor %s default-originate rd %s%s", addr,
+                         rdstr, VTY_NEWLINE);
+              else
+                {
+                  char local_string[200];
+                  char *ptr = local_string;
+                  
+                  ptr+=sprintf (ptr, " neighbor %s default-originate rd %s %s ", addr,
+                                rdstr, inet_ntoa(vrf->nh.v4));
+                  if (vrf->nlabels)
+                    {
+                      labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
+                      ptr+=sprintf (ptr, "%s", labelstr);
+                    }
+                  if (vrf->esi)
+                    {
+                      ptr+=sprintf (ptr, " %s", vrf->esi);
+                    }
+                  ptr+=sprintf (ptr, " %u", vrf->ethtag);
+                  if (vrf->mac_router)
+                    {
+                      ptr+=sprintf (ptr, " %s", vrf->mac_router);
+                    }
+                  vty_out(vty, "%s%s", local_string, VTY_NEWLINE);
+                }
+            }
         }
       if (peer->default_rmap[afi][safi].name)
         {
