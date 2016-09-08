@@ -5816,6 +5816,25 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
                              rdstr, inet_ntoa(vrf->nh.v4), VTY_NEWLINE);
                 }
             }
+          for (ALL_LIST_ELEMENTS_RO(peer->def_route_rd_evpn, node, vrf))
+            {
+              prefix_rd2str(&vrf->outbound_rd, rdstr, RD_ADDRSTRLEN);
+              if (!vrf->nh.v4.s_addr)
+                vty_out (vty, " neighbor %s default-originate rd %s%s", addr,
+                         rdstr, VTY_NEWLINE);
+              else
+                {
+                  char local_string[200];
+                  char *ptr = local_string;
+                  
+                  if (vrf->nlabels)
+                    labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
+                  ptr+=snprintf (ptr, 200," neighbor %s default-originate rd %s %s %s %s %u %s", addr,
+                                 rdstr, inet_ntoa(vrf->nh.v4),vrf->nlabels?labelstr:"",
+                                 vrf->esi?vrf->esi:"",vrf->ethtag, vrf->mac_router?vrf->mac_router:"");
+                  vty_out(vty, "%s%s", local_string, VTY_NEWLINE);
+                }
+            }
         }
       if (peer->default_rmap[afi][safi].name)
         {

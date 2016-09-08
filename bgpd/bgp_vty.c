@@ -3365,7 +3365,9 @@ static int
 peer_default_originate_set_rd_vty (struct vty *vty, const char *peer_str,
                                    afi_t afi, safi_t safi,
                                    const char *rd, const char *nh,
-                                   const char *labels, int set)
+                                   const char *labels, const char *esi, 
+                                   const char *ethtag, const char *routermac,
+                                   int set)
 {
   int ret = CMD_WARNING;
   struct peer *peer;
@@ -3389,10 +3391,6 @@ peer_default_originate_set_rd_vty (struct vty *vty, const char *peer_str,
   memset(&route, 0, sizeof(struct bgp_api_route));
   if (set)
     {
-      uint32_t l[1];
-      size_t nlabels = 1;
-
-      l[0] = 0;
       if (nh)
         {
           if (!inet_aton(nh, &route.nexthop))
@@ -3406,12 +3404,17 @@ peer_default_originate_set_rd_vty (struct vty *vty, const char *peer_str,
 
       if (labels)
         {
-          if (!str2labels(labels, l, &nlabels))
-            {
-              vty_out (vty, "%% Malformed Label%s%s", labels, VTY_NEWLINE);
-              return CMD_WARNING;
-            }
-          route.label = l[0];
+          /* no shift, restrict to one label */
+          route.label = atol(labels);
+        }
+      if(safi == SAFI_EVPN)
+        {
+          if(esi)
+            route.esi = strdup(esi);
+          if(routermac)
+            route.mac_router = strdup(routermac);
+          if(ethtag)
+            route.ethtag = atol(ethtag);
         }
       ret = peer_default_originate_set_rd(peer, &prd, afi, safi, &route);
     }
@@ -3452,7 +3455,68 @@ DEFUN (neighbor_default_originate_rd,
   return peer_default_originate_set_rd_vty (vty, argv[0],
                                             bgp_node_afi (vty),
                                             bgp_node_safi (vty),
-                                            argv1, argv2, argv3, 1);
+                                            argv1, argv2, argv3, 
+                                            NULL, NULL, NULL, 1);
+}
+
+DEFUN (neighbor_default_originate_rd_evpn,
+       neighbor_default_originate_rd_evpn_cmd,
+       NEIGHBOR_CMD2 "default-originate rd ASN:nn [A.B.C.D] [0-1048575] [AA:BB:CC:DD:EE:FF:GG:HH:II:JJ] [0-16777215] [AA:BB:CC:DD:EE:FF]",
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "Originate default route to this route distinguisher\n"
+       "route distinguisher\n"
+       "route distinguisher value\n"
+       "Optional next hop\n"
+       "Optional label\n"
+       "Optional Ethernet Segment Identifier\n"
+       "Optional Ethernet Tag Number\n"
+       "Optional Router Mac Address\n")
+
+{
+  const char *argv1 = NULL, *argv2 = NULL, *argv3 = NULL, *argv4 = NULL, *argv5 = NULL, *argv6 = NULL;
+
+  switch (argc)
+  {
+  case 2:
+    argv1 = argv[1];
+    break;
+  case 3:
+    argv1 = argv[1];
+    argv2 = argv[2];
+    break;
+  case 4:
+    argv1 = argv[1];
+    argv2 = argv[2];
+    argv3 = argv[3];
+    break;
+  case 5:
+    argv1 = argv[1];
+    argv2 = argv[2];
+    argv3 = argv[3];
+    argv4 = argv[4];
+    break;
+  case 6:
+    argv1 = argv[1];
+    argv2 = argv[2];
+    argv3 = argv[3];
+    argv4 = argv[4];
+    argv5 = argv[5];
+    break;
+  case 7:
+    argv1 = argv[1];
+    argv2 = argv[2];
+    argv3 = argv[3];
+    argv4 = argv[4];
+    argv5 = argv[5];
+    argv6 = argv[6];
+    break;
+  }
+  return peer_default_originate_set_rd_vty (vty, argv[0],
+                                            bgp_node_afi (vty),
+                                            bgp_node_safi (vty),
+                                            argv1, argv2, argv3, 
+                                            argv4, argv5, argv6, 1);
 }
 
 DEFUN (no_neighbor_default_originate_rd,
@@ -3468,7 +3532,8 @@ DEFUN (no_neighbor_default_originate_rd,
   return peer_default_originate_set_rd_vty (vty, argv[0],
                                             bgp_node_afi (vty),
                                             bgp_node_safi (vty),
-                                            argv[1], NULL, NULL, 0);
+                                            argv[1], NULL, NULL,
+                                            NULL, NULL, NULL, 0);
 }
 
 /* Set neighbor's BGP port.  */
@@ -11183,6 +11248,8 @@ bgp_vty_init (void)
   install_element (BGP_IPV6M_NODE, &no_neighbor_default_originate_rmap_cmd);
   install_element (BGP_VPNV4_NODE, &neighbor_default_originate_rd_cmd);
   install_element (BGP_VPNV4_NODE, &no_neighbor_default_originate_rd_cmd);
+  install_element (BGP_EVPN_NODE, &neighbor_default_originate_rd_evpn_cmd);
+  install_element (BGP_EVPN_NODE, &no_neighbor_default_originate_rd_cmd);
 
   /* "neighbor port" commands. */
   install_element (BGP_NODE, &neighbor_port_cmd);
