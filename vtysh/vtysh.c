@@ -708,7 +708,7 @@ static struct cmd_node bgp_encapv6_node =
 static struct cmd_node bgp_evpn_node =
 {
   BGP_EVPN_NODE,
-  "%s(config-router-af)# "
+  "%s(config-router-evpn)# "
 };
 
 static struct cmd_node bgp_ipv4_node =
