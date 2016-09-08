@@ -54,6 +54,7 @@ $ignore{'"address-family encap"'} = "ignore";
 $ignore{'"address-family encapv4"'} = "ignore";
 $ignore{'"address-family encapv6"'} = "ignore";
 $ignore{'"vrf WORD"'} = "ignore";
+$ignore{'"address-family evpn"'} = "ignore";
 $ignore{'"exit-address-family"'} = "ignore";
 $ignore{'"exit-bgp-vrf"'} = "ignore";
 $ignore{'"key chain WORD"'} = "ignore";
