@@ -1119,8 +1119,8 @@ prefix_str2rd (char *buf, struct prefix_rd *prd)
 
     }
   /* family AF_INET */
-  prd->family = AF_INET;
-  prd->prefixlen = 0;
+  prd->family = AF_UNSPEC;
+  prd->prefixlen = 64;
   return 1;
 }
 
