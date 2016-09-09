@@ -2562,7 +2562,12 @@ bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
         {
           //CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_NEXTHOP_UNCHANGED)
           if(p->family == AF_INET)
-            stream_put_ipv4(s, attr->extra->evpn_overlay.gw_ip.ipv4.s_addr);
+            {
+              if (attr->extra->use_gw)
+                stream_put_ipv4(s, attr->extra->evpn_overlay.gw_ip.ipv4.s_addr);
+              else
+                stream_put_ipv4(s, attr->extra->mp_nexthop_global_in.s_addr);
+            }
           else if (p->family == AF_INET6)
             stream_put(s, &(attr->extra->evpn_overlay.gw_ip.ipv6), 16);
         }

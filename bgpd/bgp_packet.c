@@ -242,6 +242,21 @@ bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
 	  if (stream_empty(snlri))
 	    mpattrlen_pos = bgp_packet_mpattr_start(snlri, afi, safi,
 						    adv->baa->attr);
+          if (afi == AFI_INTERNAL_L2VPN && safi == SAFI_INTERNAL_EVPN)
+          {
+            struct attr_extra *attre = adv->baa->attr->extra;
+
+            if (attre)
+              {
+                attre->use_gw = CHECK_FLAG(peer->af_flags[afi][safi],
+                                           PEER_FLAG_NEXTHOP_UNCHANGED);
+                if (!attre->use_gw)
+                  {
+                    struct bgp *bgp = bgp_get_default ();
+                    attre->mp_nexthop_global_in = bgp->router_id;
+                  }
+              }
+          }
 	  bgp_packet_mpattr_prefix(snlri, afi, safi, &rn->p, prd, labels, nlabels, adv->baa->attr);
 	}
       if (BGP_DEBUG (update, UPDATE_OUT))

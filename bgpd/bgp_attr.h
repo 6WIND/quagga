@@ -103,6 +103,7 @@ struct attr_extra
   /* EVPN */
   uint32_t eth_t_id;
   struct overlay_index evpn_overlay;
+  short use_gw;
 };
 
 /* BGP core attribute structure. */
