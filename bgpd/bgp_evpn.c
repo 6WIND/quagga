@@ -417,7 +417,7 @@ DEFUN (show_bgp_evpn_rd,
   int ret;
   struct prefix_rd prd;
 
-  ret = str2prefix_rd (argv[0], &prd);
+  ret = prefix_str2rd (argv[0], &prd);
   if (! ret)
     {
       vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
@@ -455,7 +455,7 @@ DEFUN (show_bgp_evpn_rd_tags,
   int ret;
   struct prefix_rd prd;
 
-  ret = str2prefix_rd (argv[0], &prd);
+  ret = prefix_str2rd (argv[0], &prd);
   if (! ret)
     {
       vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
@@ -493,7 +493,7 @@ DEFUN (show_bgp_evpn_rd_overlay,
   int ret;
   struct prefix_rd prd;
 
-  ret = str2prefix_rd (argv[0], &prd);
+  ret = prefix_str2rd (argv[0], &prd);
   if (! ret)
     {
       vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
@@ -555,7 +555,7 @@ DEFUN (show_bgp_evpn_rd_neighbor_routes,
   struct peer *peer;
   struct prefix_rd prd;
 
-  ret = str2prefix_rd (argv[0], &prd);
+  ret = prefix_str2rd (argv[0], &prd);
   if (! ret)
     {
       vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
@@ -643,7 +643,7 @@ DEFUN (show_bgp_evpn_rd_neighbor_advertised_routes,
       return CMD_WARNING;
     }
 
-  ret = str2prefix_rd (argv[0], &prd);
+  ret = prefix_str2rd (argv[0], &prd);
   if (! ret)
     {
       vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
