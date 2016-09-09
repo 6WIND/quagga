@@ -9976,7 +9976,7 @@ DEFUN (bgp_vrf_exports,
   i = 1;
   rts = XCALLOC(MTYPE_TMP,2048);
   rts_ptr = rts;
-  while(argv[i] != NULL)
+  while(i < argc)
     {
       rts_ptr += sprintf(rts_ptr, "rt %s ",argv[i]);
       i++;
@@ -10033,7 +10033,7 @@ DEFUN (bgp_vrf_imports,
   i = 1;
   rts = XCALLOC(MTYPE_TMP,2048);
   rts_ptr = rts;
-  while(argv[i] != NULL)
+  while(i < argc)
     {
       rts_ptr += sprintf(rts_ptr, "rt %s ",argv[i]);
       i++;
