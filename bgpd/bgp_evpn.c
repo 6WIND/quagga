@@ -37,7 +37,7 @@ int
 bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
                      struct bgp_nlri *packet)
 {
-  u_char *pnt;
+  u_char *pnt,*pnt2;
   u_char *lim;
   struct prefix p;
   struct prefix_rd prd;
@@ -45,7 +45,6 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
   uint8_t route_type, route_length;
   uint32_t labels[BGP_MAX_LABELS];
   size_t nlabels;
-  afi_t afi;
 
   /* Check peer status. */
   if (peer->status != Established)
@@ -57,7 +56,6 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
 
   pnt = packet->nlri;
   lim = pnt + packet->length;
-  afi = afi2family (packet->afi);
   while (pnt < lim)
     {
       /* clear evpn structure */
@@ -71,9 +69,10 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
 
       /* Fetch Route Type */ 
       route_type = *pnt++;
+      pnt2 = pnt;
       route_length = *pnt++;
       /* simply ignore. goto next route type if any */
-      if(route_type != EVPN_IP_PREFIX)
+      if(route_type != EVPN_IP_PREFIX && route_type != EVPN_MACIP_ADVERTISEMENT)
 	{
 	  if (pnt + route_length > lim)
 	    {
@@ -110,35 +109,85 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           zlog_err ("not enough bytes for Eth Tag left in NLRI?");
           return -1;
         }
-      memcpy(&evpn.eth_t_id, pnt, 4);
-      evpn.eth_t_id = ntohl(evpn.eth_t_id);
-      pnt += 4;
 
-      /* Fetch prefix length. */
-      p.prefixlen = *pnt++;
+      if (route_type == EVPN_MACIP_ADVERTISEMENT)
+        {
+          memcpy(&p.u.prefix_macip.eth_tag_id, pnt, 4);
+          p.u.prefix_macip.eth_tag_id = ntohl(p.u.prefix_macip.eth_tag_id);
+          pnt += 4;
 
-      if (p.prefixlen > 128)
-	{
-	  zlog_err ("invalid prefixlen in EVPN NLRI?");
-	  return -1;
-	}
-      /* determine IPv4 or IPv6 prefix */
-      if(route_length - 4 - 10 - 8 - 3 /* label to be read */ >= 32)
-	{
-          p.family = AF_INET6;
-	  memcpy (&p.u.prefix, pnt, 16);
-	  pnt += 16;
-	  memcpy(&evpn.gw_ip.ipv6, pnt, 16);
-	  pnt += 16;
-	}
-      else
-	{
-          p.family = AF_INET;
-	  memcpy (&p.u.prefix, pnt, 4);
-	  pnt += 4;
-	  memcpy(&evpn.gw_ip.ipv4, pnt, 4);
-	  pnt += 4;
-	}
+          /* MAC address len in bits */
+          p.family = AF_L2VPN;
+          p.u.prefix_macip.mac_len = *pnt++;
+
+          if (p.u.prefix_macip.mac_len != 8*ETHER_ADDR_LEN)
+            {
+              zlog_err ("invalid mac length %d in RT2 NLRI, should be 48",
+                         p.u.prefix_macip.mac_len);
+              return -1;
+            }
+
+          /* MAC address */
+          memcpy(&p.u.prefix_macip.mac, pnt, ETHER_ADDR_LEN);
+          pnt += ETHER_ADDR_LEN;
+
+          /* IP Address lenght in bits */
+          p.u.prefix_macip.ip_len = *pnt++;
+          if (p.u.prefix_macip.ip_len == IPV4_MAX_PREFIXLEN)
+            {
+              p.prefixlen = L2VPN_IPV4_PREFIX_LEN;
+              memcpy (&p.u.prefix_macip.ip.in4, pnt, 4);
+              pnt += 4;
+              p.prefixlen = L2VPN_MAX_PREFIXLEN - IPV6_MAX_PREFIXLEN + IPV4_MAX_PREFIXLEN;
+            }
+          else if (p.u.prefix_macip.ip_len == IPV6_MAX_PREFIXLEN)
+            {
+              p.prefixlen = L2VPN_IPV6_PREFIX_LEN;
+              memcpy (&p.u.prefix_macip.ip.in6, pnt, 16);
+              pnt += 16;
+              p.prefixlen = L2VPN_MAX_PREFIXLEN;
+            }
+          else if (p.u.prefix_macip.ip_len == 0)
+            p.prefixlen = L2VPN_MAX_PREFIXLEN - IPV6_MAX_PREFIXLEN + IPV4_MAX_PREFIXLEN;
+          else
+            {
+              zlog_err ("invalid IP length %d in RT2 NLRI, should be 0, 32 or 128",
+                         p.u.prefix_macip.ip_len);
+              return -1;
+            }
+        }
+      else if (route_type == EVPN_IP_PREFIX)
+        {
+          memcpy(&evpn.eth_t_id, pnt, 4);
+          evpn.eth_t_id = ntohl(evpn.eth_t_id);
+          pnt += 4;
+
+           /* Fetch prefix length. */
+          p.prefixlen = *pnt++;
+
+          if (p.prefixlen > 128)
+            {
+              zlog_err ("invalid prefixlen %d in EVPN NLRI?", p.prefixlen);
+              return -1;
+            }
+          /* determine IPv4 or IPv6 prefix */
+          if(route_length - 4 - 10 - 8 - 3 /* label to be read */ >= 32)
+            {
+              p.family = AF_INET6;
+              memcpy (&p.u.prefix, pnt, 16);
+              pnt += 16;
+              memcpy(&evpn.gw_ip.ipv6, pnt, 16);
+              pnt += 16;
+            }
+          else
+            {
+              p.family = AF_INET;
+              memcpy (&p.u.prefix, pnt, 4);
+              pnt += 4;
+              memcpy(&evpn.gw_ip.ipv4, pnt, 4);
+              pnt += 4;
+            }
+        }
 
       /* Fetch Label */
       if (pnt + 3 > lim)
@@ -150,16 +199,38 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
       nlabels = 1;
 
       pnt += 3;
-      
+
+      if (route_type == EVPN_MACIP_ADVERTISEMENT)
+        {
+          if (pnt + 3 > lim)
+            {
+              zlog_err ("not enough bytes for Label left in NLRI?");
+              return -1;
+            }
+          labels[1] = (pnt[0] << 16) + (pnt[1] << 8) + pnt[2];
+          nlabels = 2;
+
+          pnt += 3;
+
+          if((pnt - route_length != pnt2))
+            {
+              plog_err (peer->log,
+                        "%s [Error] Update packet error / EVPN?"
+                        " (NLRI length mismatch %d observed %d)",
+                        peer->host, route_length, pnt - pnt2);
+              return -1;
+            }
+        }
+
       if (attr)
         {
-          bgp_update (peer, &p, attr, afi, SAFI_INTERNAL_EVPN,
+          bgp_update (peer, &p, attr, AFI_INTERNAL_L2VPN, SAFI_INTERNAL_EVPN,
                       ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd,
                       labels, nlabels, 0, &evpn);
         }
       else
         {
-          bgp_withdraw (peer, &p, attr, afi, SAFI_INTERNAL_EVPN,
+          bgp_withdraw (peer, &p, attr, AFI_INTERNAL_L2VPN, SAFI_INTERNAL_EVPN,
                         ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL,
                         &prd, labels, nlabels, &evpn);
         }

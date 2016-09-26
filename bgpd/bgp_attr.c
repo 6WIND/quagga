@@ -2507,31 +2507,11 @@ bgp_packet_mpattr_start (struct stream *s, afi_t afi, safi_t safi,
   return sizep;
 }
 
-void
-bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
-			  struct prefix *p, struct prefix_rd *prd,
-			  uint32_t *labels, size_t nlabels, struct attr *attr)
+static void
+bgp_packet_mpattr_route_type_5 (struct stream *s,
+                                struct prefix *p, struct prefix_rd *prd,
+                                uint32_t *labels, size_t nlabels, struct attr *attr)
 {
-  if (safi == SAFI_MPLS_VPN)
-    {
-      if (nlabels != 0)
-        {
-          /* Tag, RD, Prefix write. */
-          stream_putc (s, p->prefixlen + 8 * (8 + 3 * nlabels));
-          for (size_t i = 0; i < nlabels; i++)
-            stream_put3 (s, labels[i]);
-        }
-      else
-        {
-          /* Withdraw, put bottom of stack as only label */
-          stream_putc (s, p->prefixlen + 8 * (8 + 3));
-          stream_put3 (s, 0x1);
-        }
-      stream_put (s, prd->val, 8);
-      stream_put (s, &p->u.prefix, PSIZE (p->prefixlen));
-    }
-  else if ((safi == SAFI_INTERNAL_EVPN))
-    {
       int len;
       char temp[16];
 
@@ -2582,6 +2562,90 @@ bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
         stream_put3 (s, labels[0]);
       else
         stream_put3 (s, 0);
+}
+
+static void
+bgp_packet_mpattr_route_type_2 (struct stream *s,
+                                struct prefix *p, struct prefix_rd *prd,
+                                uint32_t *labels, size_t nlabels, struct attr *attr)
+{
+      int len;
+      uint8_t ip_len;
+      char temp[16];
+
+      ip_len = p->u.prefix_macip.ip_len;
+      memset(&temp, 0, 16);
+
+      if(ip_len == 32)
+        len = 4; /* ipv4 */
+      else if (ip_len == 128)
+        len = 16; /* ipv6 */
+      else
+        len = 0; /* No Ip address in prefix */
+      stream_putc (s, EVPN_MACIP_ADVERTISEMENT);
+      stream_putc (s, 8 /* RD */ + 10 /* ESI */  + 4 /* EthTag */ + 1 /* MAC len */
+                   + 6 /* MAC */ + 1 + len + 3 /* label 1 */ + 3 /* label 2*/ + 1 /* len from TLV */);
+      /* route distinguisher */
+      stream_put (s, prd->val, 8);
+
+      /* Ethernet Segment Identifier */
+      if(attr && attr->extra)
+        stream_put (s, &(attr->extra->evpn_overlay.eth_s_id), 10);
+      else
+        stream_put (s, &temp, 10);
+
+      /* Ethernet Tag Id (VNI), MSB must be null */
+      stream_putl (s, p->u.prefix_macip.eth_tag_id);
+
+      /* MAC address lenght in bits */
+      stream_putc (s, ETHER_ADDR_LEN * 8);
+
+      /* MAC address */
+      stream_put(s, &p->u.prefix_macip.mac, ETHER_ADDR_LEN);
+
+      /* IP address lenght in bits */
+      stream_putc (s, ip_len);
+
+      /* IP address */
+      if (ip_len == 32)
+        stream_put_ipv4 (s, p->u.prefix_macip.ip.in4.s_addr);
+      else if (ip_len == 128)
+        stream_put (s, &p->u.prefix_macip.ip.in6, 16);
+
+      /* labels */
+      for (size_t i = 0; i < nlabels; i++)
+        stream_put3 (s, labels[i]);
+}
+
+void
+bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
+			  struct prefix *p, struct prefix_rd *prd,
+			  uint32_t *labels, size_t nlabels, struct attr *attr)
+{
+  if (safi == SAFI_MPLS_VPN)
+    {
+      if (nlabels != 0)
+        {
+          /* Tag, RD, Prefix write. */
+          stream_putc (s, p->prefixlen + 8 * (8 + 3 * nlabels));
+          for (size_t i = 0; i < nlabels; i++)
+            stream_put3 (s, labels[i]);
+        }
+      else
+        {
+          /* Withdraw, put bottom of stack as only label */
+          stream_putc (s, p->prefixlen + 8 * (8 + 3));
+          stream_put3 (s, 0x1);
+        }
+      stream_put (s, prd->val, 8);
+      stream_put (s, &p->u.prefix, PSIZE (p->prefixlen));
+    }
+  else if ((safi == SAFI_INTERNAL_EVPN))
+    {
+      if (p->family == AF_L2VPN)
+        bgp_packet_mpattr_route_type_2(s, p, prd, labels, nlabels, attr);
+      else
+        bgp_packet_mpattr_route_type_5(s, p, prd, labels, nlabels, attr);
     }
   else
     stream_put_prefix (s, p);
