@@ -35,6 +35,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "log.h"
 #include "plist.h"
 #include "linklist.h"
+#include "hash.h"
 #include "workqueue.h"
 #include "table.h"
 
@@ -2057,6 +2058,164 @@ bgp_startup_timer_expire (struct thread *thread)
   return 0;
 }
 
+/* VRFs */
+
+static unsigned int bgp_rt_hash_key (void *arg)
+{
+  const struct bgp_rt_sub *rt_sub = arg;
+  uint32_t *rtval = (uint32_t *)(char *)&rt_sub->rt;
+  return rtval[0] ^ rtval[1];
+}
+
+static int bgp_rt_hash_cmp (const void *a, const void *b)
+{
+  const struct bgp_rt_sub *aa = a, *bb = b;
+  return !memcmp(&aa->rt, &bb->rt, sizeof(aa->rt));
+}
+
+static void *
+bgp_rt_hash_alloc (void *dummy)
+{
+  struct bgp_rt_sub *ddummy = dummy, *rt_sub;
+  rt_sub = XMALLOC (MTYPE_BGP_RT_SUB, sizeof (*rt_sub));
+  rt_sub->rt = ddummy->rt;
+  rt_sub->vrfs = list_new();
+  return rt_sub;
+}
+
+static void
+bgp_rt_hash_dealloc (struct bgp_rt_sub *rt_sub)
+{
+  list_delete (rt_sub->vrfs);
+  XFREE (MTYPE_BGP_RT_SUB, rt_sub);
+}
+
+struct bgp_vrf *
+bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd)
+{
+  struct listnode *node;
+  struct bgp_vrf *vrf;
+
+  for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+    if (!memcmp (outbound_rd->val, vrf->outbound_rd.val, 8))
+      return vrf;
+  return NULL;
+}
+
+struct bgp_vrf *
+bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
+{
+  struct bgp_vrf *vrf;
+  afi_t afi;
+
+  if ( (vrf = XCALLOC (MTYPE_BGP_VRF, sizeof (struct bgp_vrf))) == NULL)
+    return NULL;
+
+  vrf->bgp = bgp;
+  vrf->outbound_rd = *outbound_rd;
+
+  for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    {
+      vrf->route[afi] = bgp_table_init (afi, SAFI_UNICAST);
+      vrf->route[afi]->type = BGP_TABLE_VRF;
+      vrf->rib[afi] = bgp_table_init (afi, SAFI_UNICAST);
+      vrf->rib[afi]->type = BGP_TABLE_VRF;
+    }
+
+  listnode_add (bgp->vrfs, vrf);
+  return vrf;
+}
+
+static struct ecommunity * ecommunity_reintern (struct ecommunity *ecom)
+{
+  assert (ecom->refcnt > 0);
+  ecom->refcnt++;
+  return ecom;
+}
+
+void
+bgp_vrf_rt_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export)
+{
+  if (vrf->rt_export)
+    ecommunity_unintern (&vrf->rt_export);
+
+  vrf->rt_export = ecommunity_reintern (rt_export);
+}
+
+static void
+bgp_vrf_rt_import_unset (struct bgp_vrf *vrf)
+{
+  size_t i;
+
+  if (!vrf->rt_import)
+    return;
+
+  for (i = 0; i < (size_t)vrf->rt_import->size; i++)
+    {
+      struct bgp_rt_sub dummy, *rt_sub;
+      memcpy (&dummy.rt, vrf->rt_import->val + 8 * i, 8);
+
+      rt_sub = hash_lookup (vrf->bgp->rt_subscribers, &dummy);
+      assert(rt_sub);
+      listnode_delete (rt_sub->vrfs, vrf);
+      if (list_isempty (rt_sub->vrfs))
+        {
+          hash_release (vrf->bgp->rt_subscribers, rt_sub);
+          bgp_rt_hash_dealloc (rt_sub);
+        }
+    }
+
+  ecommunity_unintern (&vrf->rt_import);
+}
+
+void
+bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import)
+{
+  size_t i;
+  afi_t afi;
+
+  bgp_vrf_rt_import_unset (vrf);
+
+  vrf->rt_import = ecommunity_reintern (rt_import);
+
+  for (i = 0; i < (size_t)vrf->rt_import->size; i++)
+    {
+      struct bgp_rt_sub dummy, *rt_sub;
+      memcpy (&dummy.rt, vrf->rt_import->val + 8 * i, 8);
+
+      rt_sub = hash_get (vrf->bgp->rt_subscribers, &dummy, bgp_rt_hash_alloc);
+      listnode_add (rt_sub->vrfs, vrf);
+    }
+
+  for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    bgp_vrf_apply_new_imports (vrf, afi);
+}
+
+static void
+bgp_vrf_delete_int (void *arg)
+{
+  struct bgp_vrf *vrf = arg;
+  char vrf_rd_str[RD_ADDRSTRLEN];
+
+  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+  zlog_info ("deleting vrf %s", vrf_rd_str);
+
+  bgp_vrf_clean_tables (vrf);
+
+  bgp_vrf_rt_import_unset (vrf);
+  if (vrf->rt_export)
+    ecommunity_unintern (&vrf->rt_export);
+
+  XFREE (MTYPE_BGP_VRF, vrf);
+}
+
+void
+bgp_vrf_delete (struct bgp_vrf *vrf)
+{
+  listnode_delete (vrf->bgp->vrfs, vrf);
+  bgp_vrf_delete_int(vrf);
+}
+
 /* BGP instance creation by `router bgp' commands. */
 static struct bgp *
 bgp_create (as_t *as, const char *name)
@@ -2102,6 +2261,10 @@ bgp_create (as_t *as, const char *name)
 
   if (name)
     bgp->name = strdup (name);
+
+  bgp->vrfs = list_new();
+  bgp->vrfs->del = bgp_vrf_delete_int;
+  bgp->rt_subscribers = hash_create(bgp_rt_hash_key, bgp_rt_hash_cmp);
 
   THREAD_TIMER_ON (bm->master, bgp->t_startup, bgp_startup_timer_expire,
                    bgp, bgp->restart_time);
@@ -2236,7 +2399,13 @@ bgp_delete (struct bgp *bgp)
                              BGP_NOTIFY_CEASE_PEER_UNCONFIG);
         }
     }
-
+  if(bgp->vrfs)
+    list_delete (bgp->vrfs);
+  if(bgp->rt_subscribers)
+    {
+      hash_clean (bgp->rt_subscribers, NULL);
+      hash_free (bgp->rt_subscribers);
+    }
   /* Delete static route. */
   bgp_static_delete (bgp);
 
@@ -5615,6 +5784,34 @@ bgp_config_write (struct vty *vty)
 	    bgp_config_write_peer (vty, bgp, peer, AFI_IP, SAFI_UNICAST);
 	}
 
+      {
+        struct bgp_vrf *vrf;
+        char rdstr[RD_ADDRSTRLEN];
+        char *str_p, *str2_p;
+        for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+          {
+            str_p = prefix_rd2str(&(vrf->outbound_rd), rdstr, RD_ADDRSTRLEN);
+            vty_out(vty, " vrf rd %s%s", str_p == NULL?"<err>":str_p, VTY_NEWLINE);
+            if(vrf->rt_import)
+              {
+                str2_p = ecommunity_ecom2str (vrf->rt_import, ECOMMUNITY_FORMAT_ROUTE_MAP);
+                if(str2_p)
+                  {
+                    vty_out(vty, " vrf rd %s import %s%s", str_p == NULL?"<err>":str_p, str2_p, VTY_NEWLINE);
+                    XFREE (MTYPE_ECOMMUNITY_STR, str2_p);
+                  }
+              }
+            if(vrf->rt_export)
+              {
+                str2_p = ecommunity_ecom2str (vrf->rt_export, ECOMMUNITY_FORMAT_ROUTE_MAP);
+                if(str2_p)
+                  {
+                    vty_out(vty, " vrf rd %s export %s%s", str_p == NULL?"<err>":str_p, str2_p, VTY_NEWLINE);
+                    XFREE (MTYPE_ECOMMUNITY_STR, str2_p);
+                  }
+              }
+          }
+      }
       /* maximum-paths */
       bgp_config_write_maxpaths (vty, bgp, AFI_IP, SAFI_UNICAST, &write);
 
