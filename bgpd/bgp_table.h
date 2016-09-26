@@ -27,6 +27,7 @@ typedef enum
 {
   BGP_TABLE_MAIN,
   BGP_TABLE_RSCLIENT,
+  BGP_TABLE_VRF,
 } bgp_table_t;
 
 struct bgp_table
@@ -43,6 +44,8 @@ struct bgp_table
   struct peer *owner;
 
   struct route_table *route_table;
+
+  struct prefix_rd prd;
 };
 
 struct bgp_node

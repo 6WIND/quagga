@@ -23,11 +23,21 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 /* For union sockunion.  */
 #include "sockunion.h"
+#include "bgp_ecommunity.h"
+#include "prefix.h"
 
 /* Typedef BGP specific types.  */
 typedef u_int32_t as_t;
 typedef u_int16_t as16_t; /* we may still encounter 16 Bit asnums */
 typedef u_int16_t bgp_size_t;
+
+/* BGP router distinguisher value.  */
+#define BGP_RD_SIZE                8
+
+struct bgp_rd
+{
+  u_char val[BGP_RD_SIZE];
+};
 
 /* BGP master for system wide configurations and variables.  */
 struct bgp_master
@@ -179,6 +189,38 @@ struct bgp
     u_int16_t maxpaths_ebgp;
     u_int16_t maxpaths_ibgp;
   } maxpaths[AFI_MAX][SAFI_MAX];
+
+  /* VRFs */
+  struct list *vrfs;
+
+  struct hash *rt_subscribers;
+
+};
+
+struct bgp_rt_sub
+{
+  struct ecommunity_val rt;
+
+  struct list *vrfs;
+};
+
+struct bgp_vrf
+{
+  struct bgp *bgp;
+
+  /* RD used for route advertisements */
+  struct prefix_rd outbound_rd;
+
+  /* import and export lists */
+  struct ecommunity *rt_import;
+  struct ecommunity *rt_export;
+
+  /* BGP routing information base.  */
+  struct bgp_table *rib[AFI_MAX];
+
+  /* Static route configuration.  */
+  struct bgp_table *route[AFI_MAX];
+
 };
 
 /* BGP peer-group support. */
@@ -213,14 +255,6 @@ struct bgp_nexthop
   struct in_addr v4;
   struct in6_addr v6_global;
   struct in6_addr v6_local;
-};
-
-/* BGP router distinguisher value.  */
-#define BGP_RD_SIZE                8
-
-struct bgp_rd
-{
-  u_char val[BGP_RD_SIZE];
 };
 
 #define RMAP_IN           0
@@ -999,4 +1033,11 @@ extern int peer_ttl_security_hops_set (struct peer *, int);
 extern int peer_ttl_security_hops_unset (struct peer *);
 
 extern void bgp_scan_finish (void);
+extern struct bgp_vrf *bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd);
+extern struct bgp_vrf *bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd);
+extern void bgp_vrf_delete (struct bgp_vrf *vrf);
+extern void bgp_vrf_rt_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export);
+extern void bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import);
+extern void bgp_vrf_clean_tables (struct bgp_vrf *vrf);
+
 #endif /* _QUAGGA_BGPD_H */
