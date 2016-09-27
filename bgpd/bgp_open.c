@@ -136,6 +136,8 @@ bgp_afi_safi_valid_indices (afi_t *afi, safi_t *safi)
 {
   switch (*afi)
     {
+    case AFI_ETHER:
+      break;
     case AFI_IP:
     case AFI_IP6:
       switch (*safi)
