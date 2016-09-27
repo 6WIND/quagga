@@ -1018,7 +1018,7 @@ decode_rd_ip (u_char *pnt, struct rd_ip *rd_ip)
 
 /* from string <AS>:<VRF>, build internal structure prefix_rd */
 int
-prefix_str2rd (char *buf, struct prefix_rd *prd)
+prefix_str2rd (const char *buf, struct prefix_rd *prd)
 {
   char *ptr, *ptr_init;
   unsigned int cnt, dot_presence = 0, remaining_length;
@@ -1030,7 +1030,7 @@ prefix_str2rd (char *buf, struct prefix_rd *prd)
   /* bad length */
   if(strlen(buf) > RD_ADDRSTRLEN)
     return 0;
-  ptr = buf;
+  ptr = (char *)buf;
   cnt = 0;
   /* search : separator */
   while(*ptr != ':' && cnt < strlen(buf))
@@ -1208,7 +1208,7 @@ static uint8_t convertchartohexa (uint8_t *hexa, int *error)
  * if mac parameter is null, then check only
  */
 int
-str2mac (const uint8_t *str, uint8_t *mac)
+str2mac (const char *str, char *mac)
 {
   unsigned int k=0, i, j;
   uint8_t *ptr, *ptr2;
@@ -1290,7 +1290,7 @@ str2mac (const uint8_t *str, uint8_t *mac)
  * if id is null, check only is done
  */
 int
-str2esi (const uint8_t *str, struct eth_segment_id *id)
+str2esi (const char *str, struct eth_segment_id *id)
 {
   unsigned int k=0, i, j;
   uint8_t *ptr, *ptr2;
@@ -1366,28 +1366,28 @@ str2esi (const uint8_t *str, struct eth_segment_id *id)
   return 1;
 }
 
-uint8_t *
+char *
 esi2str (struct eth_segment_id *id)
 {
   int i;
-  uint8_t pos[40];
-  uint8_t *ptr = pos;
+  char pos[40];
+  char *ptr = (char *)pos;
 
   if(!id)
     return NULL;
   for (i = 0; i < 10; i++)
     {
-      ptr+=sprintf (( char *)ptr,"%02x%s", id->val[i], i ==9?"":":");
+      ptr+=sprintf (ptr,"%02x%s", id->val[i], i ==9?"":":");
     }
-  ptr = pos;
-  return (uint8_t *)strdup((const char *)ptr);
+  ptr = (char *)pos;
+  return strdup((const char *)ptr);
 }
 
-uint8_t *
-mac2str (uint8_t *mac)
+char *
+mac2str (char *mac)
 {
   int i;
-  static uint8_t pos[40];
+  static char pos[40];
   char *ptr = (char *)pos;
 
   if(!mac)
@@ -1397,12 +1397,12 @@ mac2str (uint8_t *mac)
       ptr+=sprintf (ptr,"%02x%s", mac[i], i ==5?"":":");
     }
   ptr = (char *)pos;
-  return (uint8_t *)strdup((const char *)ptr);
+  return strdup((const char *)ptr);
 }
 
-uint8_t *ecom_mac2str(uint8_t *ecom_mac)
+char *ecom_mac2str(char *ecom_mac)
 {
-  uint8_t *en;
+  char *en;
 
   en = ecom_mac;
   en+=2;

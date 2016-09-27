@@ -349,12 +349,12 @@ extern void decode_rd_as (u_char *pnt, struct rd_as *rd_as);
 extern void decode_rd_as4 (u_char *pnt, struct rd_as *rd_as);
 extern void decode_rd_ip (u_char *pnt, struct rd_ip *rd_ip);
 extern char *prefix_rd2str (struct prefix_rd *prd, char *buf, size_t size);
-extern int prefix_str2rd (char *buf, struct prefix_rd *prd);
+extern int prefix_str2rd (const char *buf, struct prefix_rd *prd);
 extern int prefix_rd_cmp(struct prefix_rd *p1, struct prefix_rd *p2);
-extern int str2esi (const uint8_t *str, struct eth_segment_id *id);
-extern int str2mac (const uint8_t *str, uint8_t *mac);
-extern uint8_t *esi2str (struct eth_segment_id *id);
-extern uint8_t *mac2str (uint8_t *mac);
-extern uint8_t *ecom_mac2str(uint8_t *ecom_mac);
+extern int str2esi (const char *str, struct eth_segment_id *id);
+extern int str2mac (const char *str, char *mac);
+extern char *esi2str (struct eth_segment_id *id);
+extern char *mac2str (char *mac);
+extern char *ecom_mac2str(char *ecom_mac);
 
 #endif /* _ZEBRA_PREFIX_H */
