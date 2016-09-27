@@ -8,6 +8,7 @@
 
 #include "zebra.h"
 #include "bgpd.h"
+#include "bgp_mpath.h"
 afi_t qcapn_AfiSafiKey_get_afi(capn_ptr p);
 safi_t qcapn_AfiSafiKey_get_safi(capn_ptr p);
 capn_ptr qcapn_new_AfiSafiKey(struct capn_segment *s);
