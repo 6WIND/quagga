@@ -40,11 +40,8 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
   u_char *pnt;
   u_char *lim;
   struct prefix p;
-  unsigned prefixlen;
   struct prefix_rd prd;
-  union gw_addr gw_ip;
-  struct eth_segment_id eth_s_id;
-  uint32_t eth_t_id;
+  struct bgp_route_evpn evpn;
   uint8_t route_type, route_length;
   uint32_t labels[BGP_MAX_LABELS];
   size_t nlabels;
@@ -63,11 +60,14 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
   afi = afi2family (packet->afi);
   while (pnt < lim)
     {
+      /* clear evpn structure */
+      memset (&evpn, 0, sizeof (evpn));
+
       /* Clear prefix structure. */
       memset (&p, 0, sizeof (struct prefix));
-      memset(&gw_ip, 0, sizeof(union gw_addr));
-      eth_t_id = 0;
-      memset(&eth_s_id, 0, sizeof(struct eth_segment_id));
+      memset(&evpn.gw_ip, 0, sizeof(union gw_addr));
+      evpn.eth_t_id = 0;
+      memset(&evpn.eth_s_id, 0, sizeof(struct eth_segment_id));
 
       /* Fetch Route Type */ 
       route_type = *pnt++;
@@ -101,7 +101,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           zlog_err ("not enough bytes for ESI left in NLRI?");
           return -1;
         }
-      memcpy(&eth_s_id.val, pnt, 10);
+      memcpy(&evpn.eth_s_id.val, pnt, 10);
       pnt += 10;
 
       /* Fetch Ethernet Tag */
@@ -110,8 +110,8 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           zlog_err ("not enough bytes for Eth Tag left in NLRI?");
           return -1;
         }
-      memcpy(&eth_t_id, pnt, 4);
-      eth_t_id = ntohl(eth_t_id);
+      memcpy(&evpn.eth_t_id, pnt, 4);
+      evpn.eth_t_id = ntohl(evpn.eth_t_id);
       pnt += 4;
 
       /* Fetch prefix length. */
@@ -128,7 +128,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           p.family = AF_INET6;
 	  memcpy (&p.u.prefix, pnt, 16);
 	  pnt += 16;
-	  memcpy(&gw_ip.ipv6, pnt, 16);
+	  memcpy(&evpn.gw_ip.ipv6, pnt, 16);
 	  pnt += 16;
 	}
       else
@@ -136,7 +136,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           p.family = AF_INET;
 	  memcpy (&p.u.prefix, pnt, 4);
 	  pnt += 4;
-	  memcpy(&gw_ip.ipv4, pnt, 4);
+	  memcpy(&evpn.gw_ip.ipv4, pnt, 4);
 	  pnt += 4;
 	}
 
@@ -155,13 +155,13 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
         {
           bgp_update (peer, &p, attr, afi, SAFI_INTERNAL_EVPN,
                       ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd,
-		      labels, nlabels, 0, &eth_t_id, &eth_s_id, &gw_ip);
+                      labels, nlabels, 0, &evpn);
         }
       else
         {
           bgp_withdraw (peer, &p, attr, afi, SAFI_INTERNAL_EVPN,
                         ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL,
-			&prd, labels, nlabels, &eth_t_id, &eth_s_id, &gw_ip);
+                        &prd, labels, nlabels, &evpn);
         }
     }
 

@@ -182,11 +182,11 @@ bgp_nlri_parse_encap(
 	    p.prefixlen);
 
       if (attr) {
-	bgp_update (peer, &p, attr, afi, SAFI_ENCAP,
-		    ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, NULL, 0, 0, NULL, NULL, NULL);
+        bgp_update (peer, &p, attr, afi, SAFI_ENCAP,
+                    ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, NULL, 0, 0, NULL);
       } else {
-	bgp_withdraw (peer, &p, attr, afi, SAFI_ENCAP,
-		      ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, NULL, 0, NULL, NULL, NULL);
+        bgp_withdraw (peer, &p, attr, afi, SAFI_ENCAP,
+                      ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd, NULL, 0, NULL);
       }
     }
 

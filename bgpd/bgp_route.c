@@ -2978,7 +2978,7 @@ static void
 bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
       struct attr *attr, struct peer *peer, struct prefix *p, int type,
       int sub_type, struct prefix_rd *prd, uint32_t *labels, size_t nlabels,
-      uint32_t *eth_t_id, struct eth_segment_id *eth_s_id, union gw_addr *gw_ip)
+      struct bgp_route_evpn* evpn)
 {
   struct bgp_node *rn;
   struct bgp *bgp;
@@ -2990,6 +2990,7 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
   struct bgp_info *new;
   const char *reason;
   char buf[SU_ADDRSTRLEN];
+  struct bgp_route_evpn evpn_s, *evpn_p = evpn; /* evpn_s used when evpn is null */
 
   /* Do not insert announces from a rsclient into its own 'bgp_table'. */
   if (peer == rsclient)
@@ -3057,6 +3058,12 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
        }
     }
 
+  if (!evpn)
+  {
+    memset (&evpn_s, 0, sizeof(evpn_s));
+    evpn_p = &evpn_s;
+  }
+
   /* If the update is implicit withdraw. */
   if (ri)
     {
@@ -3066,8 +3073,8 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
       if (!CHECK_FLAG(ri->flags, BGP_INFO_REMOVED)
           && attrhash_cmp (ri->attr, attr_new)
           && labels_equal (ri, labels, nlabels)
-          && eth_tag_id_equal(afi, ri, eth_t_id)
-          && (overlay_index_equal(afi, ri, eth_s_id, gw_ip)))
+          && eth_tag_id_equal(afi, ri, &evpn_p->eth_t_id)
+          && (overlay_index_equal(afi, ri, &evpn_p->eth_s_id, &evpn_p->gw_ip)))
         {
 
           bgp_info_unset_flag (rn, ri, BGP_INFO_ATTR_CHANGED);
@@ -3115,19 +3122,16 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
       /* Update Overlay Index */
       if(afi == AFI_INTERNAL_L2VPN)
         {
-          overlay_index_update(ri->attr, eth_s_id, gw_ip);
-          /* overwrite nexthop ip address */
-          if(gw_ip && ri->attr && p->family == AF_INET)
+          overlay_index_update(ri->attr, &evpn_p->eth_s_id, &evpn_p->gw_ip);
+          /* overwrite nexthop ip addrep-> */
+          if(evpn_p->gw_ip.ipv4.s_addr && ri->attr && p->family == AF_INET)
             {
-              ri->attr->nexthop.s_addr = gw_ip->ipv4.s_addr;
+              ri->attr->nexthop.s_addr = evpn_p->gw_ip.ipv4.s_addr;
               ri->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
             }
           if(ri->attr && ri->attr->extra)
             {
-              if(eth_t_id)
-                ri->attr->extra->eth_t_id = *eth_t_id;
-              else
-                ri->attr->extra->eth_t_id = 0;
+              ri->attr->extra->eth_t_id = evpn_p->eth_t_id;
             }
         }
       bgp_info_set_flag (rn, ri, BGP_INFO_VALID);
@@ -3166,19 +3170,16 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
   /* Update Overlay Index */
   if(afi == AFI_INTERNAL_L2VPN)
     {
-      overlay_index_update(new->attr, eth_s_id, gw_ip);
-      /* overwrite nexthop ip address */
-      if(gw_ip && new->attr && p->family == AF_INET)
+      overlay_index_update(new->attr, &evpn_p->eth_s_id, &evpn_p->gw_ip);
+      /* overwrite nexthop ip addrep-> */
+      if(evpn_p->gw_ip.ipv4.s_addr && new->attr && p->family == AF_INET)
         {
-          new->attr->nexthop.s_addr = gw_ip->ipv4.s_addr;
+          new->attr->nexthop.s_addr = evpn_p->gw_ip.ipv4.s_addr;
           new->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
         }
       if(new->attr && new->attr->extra)
         {
-          if(eth_t_id)
-            new->attr->extra->eth_t_id = *eth_t_id;
-          else
-            new->attr->extra->eth_t_id = 0;
+          new->attr->extra->eth_t_id = evpn_p->eth_t_id;
         }
     }
   bgp_info_set_flag (rn, new, BGP_INFO_VALID);
@@ -3248,8 +3249,7 @@ static int
 bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 	    afi_t afi, safi_t safi, int type, int sub_type,
 	    struct prefix_rd *prd, uint32_t *labels, size_t nlabels,
-            int soft_reconfig, uint32_t *eth_t_id,
-            struct eth_segment_id *eth_s_id, union gw_addr *gw_ip)
+            int soft_reconfig, struct bgp_route_evpn* evpn)
 {
   int ret;
   int aspath_loop_count = 0;
@@ -3262,9 +3262,16 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
   struct bgp_info *new;
   const char *reason;
   char buf[SU_ADDRSTRLEN];
+  struct bgp_route_evpn evpn_s, *evpn_p = evpn; /* evpn_s used when evpn is null */
 
   memset (&new_attr, 0, sizeof(struct attr));
   memset (&new_extra, 0, sizeof(struct attr_extra));
+
+  if (!evpn)
+  {
+    memset (&evpn_s, 0, sizeof(evpn_s));
+    evpn_p = &evpn_s;
+  }
 
   bgp = peer->bgp;
   rn = bgp_afi_node_get (bgp->rib[afi][safi], afi, safi, p, prd);
@@ -3376,8 +3383,8 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       if (!CHECK_FLAG (ri->flags, BGP_INFO_REMOVED) 
           && attrhash_cmp (ri->attr, attr_new)
           && labels_equal (ri, labels, nlabels)
-          && eth_tag_id_equal(afi, ri, eth_t_id)
-          && (overlay_index_equal(afi, ri, eth_s_id, gw_ip)))
+          && eth_tag_id_equal(afi, ri, &evpn_p->eth_t_id)
+          && (overlay_index_equal(afi, ri, &evpn_p->eth_s_id, &evpn_p->gw_ip)))
 	{
 	  bgp_info_unset_flag (rn, ri, BGP_INFO_ATTR_CHANGED);
 
@@ -3476,19 +3483,16 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       /* Update Overlay Index */
       if(afi == AFI_INTERNAL_L2VPN)
         {
-          overlay_index_update(ri->attr, eth_s_id, gw_ip);
+          overlay_index_update(ri->attr, &evpn_p->eth_s_id, &evpn_p->gw_ip);
           /* overwrite nexthop ip address */
-          if(gw_ip && ri->attr && p->family == AF_INET)
+          if(evpn_p->gw_ip.ipv4.s_addr && ri->attr && p->family == AF_INET)
             {
-              ri->attr->nexthop.s_addr = gw_ip->ipv4.s_addr;
+              ri->attr->nexthop.s_addr = evpn_p->gw_ip.ipv4.s_addr;
               ri->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
             }
           if(ri->attr && ri->attr->extra)
             {
-              if(eth_t_id)
-                ri->attr->extra->eth_t_id = *eth_t_id;
-              else
-                ri->attr->extra->eth_t_id = 0;
+              ri->attr->extra->eth_t_id = evpn_p->eth_t_id;
             }
         }
       bgp_attr_flush (&new_attr);
@@ -3563,19 +3567,16 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
   /* Update Overlay Index */
   if(afi == AFI_INTERNAL_L2VPN)
     {
-      overlay_index_update(new->attr, eth_s_id, gw_ip);
+      overlay_index_update(new->attr, &evpn_p->eth_s_id, &evpn_p->gw_ip);
       /* overwrite nexthop ip address */
-      if(gw_ip && new->attr && p->family == AF_INET)
+      if(evpn_p->gw_ip.ipv4.s_addr && new->attr && p->family == AF_INET)
         {
-          new->attr->nexthop.s_addr = gw_ip->ipv4.s_addr;
+          new->attr->nexthop.s_addr = evpn_p->gw_ip.ipv4.s_addr;
           new->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
         }
       if(new->attr && new->attr->extra)
         {
-          if(eth_t_id)
-            new->attr->extra->eth_t_id = *eth_t_id;
-          else
-            new->attr->extra->eth_t_id = 0;
+          new->attr->extra->eth_t_id = evpn_p->eth_t_id;
         }
     }
   /* Nexthop reachability check. */
@@ -3639,8 +3640,7 @@ int
 bgp_update (struct peer *peer, struct prefix *p, struct attr *attr,
             afi_t afi, safi_t safi, int type, int sub_type,
             struct prefix_rd *prd, uint32_t *labels, size_t nlabels,
-            int soft_reconfig, uint32_t *eth_t_id,
-            struct eth_segment_id *eth_s_id, union gw_addr *gw_ip)
+            int soft_reconfig, struct bgp_route_evpn* evpn)
 {
   struct peer *rsclient;
   struct listnode *node, *nnode;
@@ -3649,7 +3649,7 @@ bgp_update (struct peer *peer, struct prefix *p, struct attr *attr,
 
   ret = bgp_update_main (peer, p, attr, afi, safi, type, sub_type, prd,
                          labels, nlabels, soft_reconfig,
-                         eth_t_id, eth_s_id, gw_ip);
+                         evpn);
 
   bgp = peer->bgp;
 
@@ -3659,7 +3659,7 @@ bgp_update (struct peer *peer, struct prefix *p, struct attr *attr,
       if (CHECK_FLAG (rsclient->af_flags[afi][safi], PEER_FLAG_RSERVER_CLIENT))
         bgp_update_rsclient (rsclient, afi, safi, attr, peer, p, type,
                              sub_type, prd, labels, nlabels,
-                             eth_t_id, eth_s_id, gw_ip);
+                             evpn);
     }
 
   return ret;
@@ -3669,7 +3669,7 @@ int
 bgp_withdraw (struct peer *peer, struct prefix *p, struct attr *attr, 
 	     afi_t afi, safi_t safi, int type, int sub_type, 
              struct prefix_rd *prd, uint32_t *labels, size_t nlabels,
-             uint32_t *eth_t_id, struct eth_segment_id *eth_s_id, union gw_addr *gw_ip)
+             struct bgp_route_evpn* evpn)
 {
   struct bgp *bgp;
   char buf[SU_ADDRSTRLEN];
@@ -4064,7 +4064,7 @@ bgp_soft_reconfig_table_rsclient (struct peer *rsclient, afi_t afi,
 
         bgp_update_rsclient (rsclient, afi, safi, ain->attr, ain->peer,
                              &rn->p, ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, prd,
-                             labels, nlabels, NULL, NULL, NULL);
+                             labels, nlabels, NULL);
       }
 }
 
@@ -4114,7 +4114,7 @@ bgp_soft_reconfig_table (struct peer *peer, afi_t afi, safi_t safi,
 	    ret = bgp_update (peer, &rn->p, ain->attr, afi, safi,
 			      ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL,
 			      prd, labels, nlabels, 1,
-                              NULL, NULL, NULL);
+                              NULL);
 
 	    if (ret < 0)
 	      {
@@ -4698,11 +4698,11 @@ bgp_nlri_parse_ip (struct peer *peer, struct attr *attr,
       if (attr)
 	ret = bgp_update (peer, &p, attr, packet->afi, packet->safi, 
 			  ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, NULL, NULL, 0, 0,
-                          NULL, NULL, NULL);
+                          NULL);
       else
 	ret = bgp_withdraw (peer, &p, attr, packet->afi, packet->safi, 
 			    ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, NULL, NULL, 0,
-                            NULL, NULL, NULL);
+                            NULL);
 
       /* Address family configuration mismatch or maximum-prefix count
          overflow. */

@@ -142,6 +142,13 @@ struct bgp_static
   uint8_t *router_mac;
 };
 
+struct bgp_route_evpn
+{
+  uint32_t eth_t_id;
+  struct eth_segment_id eth_s_id;
+  union gw_addr gw_ip;
+};
+
 /* Flags which indicate a route is unuseable in some form */
 #define BGP_INFO_UNUSEABLE \
   (BGP_INFO_HISTORY|BGP_INFO_DAMPED|BGP_INFO_REMOVED)
@@ -239,13 +246,13 @@ extern int bgp_static_unset_safi (safi_t safi, struct vty *, const char *,
 extern int bgp_update (struct peer *, struct prefix *, struct attr *,
 		       afi_t, safi_t, int, int, struct prefix_rd *, 
 		       uint32_t *labels, size_t nlabels, int,
-                       uint32_t *, struct eth_segment_id *, union gw_addr *);
+                       struct bgp_route_evpn*);
 
 
 extern int bgp_withdraw (struct peer *, struct prefix *, struct attr *,
 			 afi_t, safi_t, int, int, struct prefix_rd *,
 			 uint32_t *labels, size_t nlabels,
-                         uint32_t *, struct eth_segment_id *, union gw_addr *);
+                         struct bgp_route_evpn*);
 
 /* for bgp_nexthop and bgp_damp */
 extern void bgp_process (struct bgp *, struct bgp_node *, afi_t, safi_t);
