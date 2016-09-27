@@ -82,8 +82,11 @@ void qcapn_BGPAfiSafi_write(const struct bgp *s, capn_ptr p, afi_t afi, safi_t s
 
 void qcapn_BGPVRF_read(struct bgp_vrf *s, capn_ptr p)
 {
+    uint64_t tmp;
+
     capn_resolve(&p);
-    *(uint64_t *)s->outbound_rd.val = capn_read64(p, 0);
+    tmp = capn_read64(p, 0);
+    memcpy(&s->outbound_rd.val, &tmp, 8);
     s->outbound_rd.family = AF_UNSPEC;
     s->outbound_rd.prefixlen = 64;
     s->max_mpath = capn_read32(p, 8);
@@ -113,8 +116,11 @@ void qcapn_BGPVRF_read(struct bgp_vrf *s, capn_ptr p)
 
 void qcapn_BGPVRF_write(const struct bgp_vrf *s, capn_ptr p)
 {
+    uint64_t tmp;
+
+    memcpy(&tmp,&(s->outbound_rd.val), 8);
     capn_resolve(&p);
-    capn_write64(p, 0, *(uint64_t *)s->outbound_rd.val);
+    capn_write64(p, 0, tmp);
     capn_write32(p, 8, s->max_mpath);
     capn_write8(p, 12, s->ltype);
     {
@@ -524,9 +530,12 @@ capn_ptr qcapn_new_VRFTableIter(struct capn_segment *s)
 
 void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
 {
+    uint64_t tmp;
+
     capn_resolve(&p);
     s->announce = capn_read8(p, 0);
-    *(uint64_t *)s->outbound_rd.val = capn_read64(p, 8);
+    tmp = capn_read64(p, 8);
+    memcpy(&s->outbound_rd.val, &tmp, 8);
     s->outbound_rd.family = AF_UNSPEC;
     s->outbound_rd.prefixlen = 64;
 

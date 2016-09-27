@@ -4721,87 +4721,87 @@ bgp_configurator_processor_process_multipaths (BgpConfiguratorProcessor *,
 static bgp_configurator_processor_process_function_def
 bgp_configurator_processor_process_function_defs[21] = {
   {
-    "startBgp",
+    (gchar *)"startBgp",
     bgp_configurator_processor_process_start_bgp
   },
   {
-    "stopBgp",
+    (gchar *)"stopBgp",
     bgp_configurator_processor_process_stop_bgp
   },
   {
-    "createPeer",
+    (gchar *)"createPeer",
     bgp_configurator_processor_process_create_peer
   },
   {
-    "deletePeer",
+    (gchar *)"deletePeer",
     bgp_configurator_processor_process_delete_peer
   },
   {
-    "addVrf",
+    (gchar *)"addVrf",
     bgp_configurator_processor_process_add_vrf
   },
   {
-    "delVrf",
+    (gchar *)"delVrf",
     bgp_configurator_processor_process_del_vrf
   },
   {
-    "pushRoute",
+    (gchar *)"pushRoute",
     bgp_configurator_processor_process_push_route
   },
   {
-    "withdrawRoute",
+    (gchar *)"withdrawRoute",
     bgp_configurator_processor_process_withdraw_route
   },
   {
-    "setEbgpMultihop",
+    (gchar *)"setEbgpMultihop",
     bgp_configurator_processor_process_set_ebgp_multihop
   },
   {
-    "unsetEbgpMultihop",
+    (gchar *)"unsetEbgpMultihop",
     bgp_configurator_processor_process_unset_ebgp_multihop
   },
   {
-    "setUpdateSource",
+    (gchar *)"setUpdateSource",
     bgp_configurator_processor_process_set_update_source
   },
   {
-    "unsetUpdateSource",
+    (gchar *)"unsetUpdateSource",
     bgp_configurator_processor_process_unset_update_source
   },
   {
-    "enableAddressFamily",
+    (gchar *)"enableAddressFamily",
     bgp_configurator_processor_process_enable_address_family
   },
   {
-    "disableAddressFamily",
+    (gchar *)"disableAddressFamily",
     bgp_configurator_processor_process_disable_address_family
   },
   {
-    "setLogConfig",
+    (gchar *)"setLogConfig",
     bgp_configurator_processor_process_set_log_config
   },
   {
-    "enableGracefulRestart",
+    (gchar *)"enableGracefulRestart",
     bgp_configurator_processor_process_enable_graceful_restart
   },
   {
-    "disableGracefulRestart",
+    (gchar *)"disableGracefulRestart",
     bgp_configurator_processor_process_disable_graceful_restart
   },
   {
-    "getRoutes",
+    (gchar *)"getRoutes",
     bgp_configurator_processor_process_get_routes
   },
   {
-    "enableMultipath",
+    (gchar *)"enableMultipath",
     bgp_configurator_processor_process_enable_multipath
   },
   {
-    "disableMultipath",
+    (gchar *)"disableMultipath",
     bgp_configurator_processor_process_disable_multipath
   },
   {
-    "multipaths",
+    (gchar *)"multipaths",
     bgp_configurator_processor_process_multipaths
   }
 };

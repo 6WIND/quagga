@@ -671,19 +671,19 @@ bgp_updater_processor_process_on_notification_send_event (BgpUpdaterProcessor *,
 static bgp_updater_processor_process_function_def
 bgp_updater_processor_process_function_defs[4] = {
   {
-    "onUpdatePushRoute",
+    (gchar *)"onUpdatePushRoute",
     bgp_updater_processor_process_on_update_push_route
   },
   {
-    "onUpdateWithdrawRoute",
+    (gchar *)"onUpdateWithdrawRoute",
     bgp_updater_processor_process_on_update_withdraw_route
   },
   {
-    "onStartConfigResyncNotification",
+    (gchar *)"onStartConfigResyncNotification",
     bgp_updater_processor_process_on_start_config_resync_notification
   },
   {
-    "onNotificationSendEvent",
+    (gchar *)"onNotificationSendEvent",
     bgp_updater_processor_process_on_notification_send_event
   }
 };

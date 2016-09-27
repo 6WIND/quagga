@@ -573,10 +573,14 @@ void qcapn_BGPVRF_set(struct bgp_vrf *s, capn_ptr p)
 struct prefix_rd qcapn_BGPVRF_get_outbound_rd(capn_ptr p)
 {
     capn_resolve(&p);
+    uint64_t tmp;
     struct prefix_rd tp;
+
     tp.family = AF_UNSPEC;
     tp.prefixlen = 64;
-    *(uint64_t *)tp.val = capn_read64(p, 0); return tp;
+    tmp = capn_read64(p, 0);
+    memcpy(&tp.val, &tmp, 8);
+    return tp;
 }
 
 uint8_t qcapn_BGPVRF_get_layer_type(capn_ptr p)
@@ -606,9 +610,12 @@ void qcapn_BGPVRFRoute_set(struct bgp_api_route *s, capn_ptr p)
 
 void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
 {
+    uint64_t tmp;
+
+    memcpy(&tmp,&(s->outbound_rd.val), 8);
     capn_resolve(&p);
     capn_write8(p, 0, s->announce);
-    capn_write64(p, 8, *(uint64_t *)s->outbound_rd.val);
+    capn_write64(p, 8, tmp);
     
     {
         capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
