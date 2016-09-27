@@ -42,7 +42,7 @@
 #include "qthriftd/qthriftd.h"
 #include "qthriftd/qthrift_debug.h"
 
-static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *msg);
+static void qthrift_vpnservice_callback (void *arg, void *zmqsock, struct zmq_msg_t *message);
 
 static void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response);
 static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thread);
@@ -118,7 +118,7 @@ static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *t
 }
 
 /* callback function for capnproto bgpupdater notifications */
-static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message)
+static void qthrift_vpnservice_callback (void *arg, void *zmqsock, struct zmq_msg_t *message)
 {
   struct capn rc;
   capn_ptr p;
@@ -150,7 +150,7 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
           return;
         }
     }
-  p = qzc_msg_to_notification((zmq_msg_t * )message, &rc);
+  p = qzc_msg_to_notification(message, &rc);
   s = &ss;
   memset(s, 0, sizeof(struct bgp_event_vrf));
   qcapn_BGPEventVRFRoute_read(s, p);

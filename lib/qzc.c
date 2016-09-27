@@ -489,11 +489,10 @@ struct qzc_sock *qzcclient_connect (const char *url)
 }
 
 struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *url,
-                                void (*func)(void *arg, void *zmqsock, void *msg))
+                                void (*func)(void *arg, void *zmqsock, struct zmq_msg_t *msg))
 {
   void *qzc_sock;
   struct qzc_sock *ret;
-  void (*func2)(void *arg, void *zmqsock, struct zmq_msg_t *msg);
 
   qzc_sock = zmq_socket (qzmq_context, ZMQ_SUB);
 
@@ -515,10 +514,9 @@ struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *
       return NULL;
     }
 
-  func2 = func;
   ret = XCALLOC(MTYPE_QZC_SOCK, sizeof(*ret));
   ret->zmq = qzc_sock;
-  ret->cb = qzmq_thread_read_msg (master, func2, NULL, qzc_sock);
+  ret->cb = qzmq_thread_read_msg (master, func, NULL, qzc_sock);
   return ret;
 }
 

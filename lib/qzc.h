@@ -91,7 +91,7 @@ qzc_msg_to_notification(zmq_msg_t *msg, struct capn *rc);
 
 struct qzc_sock *qzcclient_connect (const char *url);
 struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *url,
-                                void (*func)(void *arg, void *zmqsock, void *msg));
+                                void (*func)(void *arg, void *zmqsock, struct zmq_msg_t *msg));
 struct QZCReply *qzcclient_do(struct qzc_sock *sock,
                               struct QZCRequest *req_ptr);
 uint64_t
