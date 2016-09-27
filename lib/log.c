@@ -481,7 +481,10 @@ zlog_backtrace_sigsafe(int priority, void *program_counter)
   void *array[64];
   int size;
   char buf[100];
-  char *s, **bt = NULL;
+  char *s;
+#ifdef HAVE_GLIBC_BACKTRACE
+  char **bt = NULL;
+#endif
 #define LOC s,buf+sizeof(buf)-s
 
 #ifdef HAVE_GLIBC_BACKTRACE
