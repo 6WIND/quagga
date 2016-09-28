@@ -10592,6 +10592,8 @@ bgp_vty_init (void)
   install_element (BGP_ENCAP_NODE, &no_neighbor_soft_reconfiguration_cmd);
   install_element (BGP_ENCAPV6_NODE, &neighbor_soft_reconfiguration_cmd);
   install_element (BGP_ENCAPV6_NODE, &no_neighbor_soft_reconfiguration_cmd);
+  install_element (BGP_EVPN_NODE, &neighbor_soft_reconfiguration_cmd);
+  install_element (BGP_EVPN_NODE, &no_neighbor_soft_reconfiguration_cmd);
 
   /* "neighbor attribute-unchanged" commands.  */
   install_element (BGP_NODE, &neighbor_attr_unchanged_cmd);
