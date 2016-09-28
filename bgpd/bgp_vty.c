@@ -7919,6 +7919,20 @@ DEFUN (show_bgp_ipv4_vpn_summary,
   return bgp_show_summary_vty (vty, NULL, AFI_IP, SAFI_MPLS_VPN);
 }
 
+DEFUN (show_bgp_l2vpn_evpn_all_summary,
+       show_bgp_l2vpn_evpn_all_summary_cmd,
+       "show bgp l2vpn evpn all summary",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display information about all EVPN\n"
+       "Summary of BGP neighbor status\n")
+{
+  return bgp_show_summary_vty (vty, NULL, AFI_L2VPN, SAFI_EVPN);
+}
+
+
 /* `show ip bgp summary' commands. */
 DEFUN (show_bgp_ipv6_vpn_summary,
        show_bgp_ipv6_vpn_summary_cmd,
@@ -9008,6 +9022,16 @@ ALIAS (show_ip_bgp_neighbors,
        "Detailed information on TCP and BGP neighbor connections\n")
 
 ALIAS (show_ip_bgp_neighbors,
+       show_bgp_l2vpn_evpn_all_neighbors_cmd,
+       "show bgp l2vpn evpn all neighbors",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display all information about EVPN\n"
+       "Detailed information on TCP and BGP neighbor connections\n")
+
+ALIAS (show_ip_bgp_neighbors,
        show_ip_bgp_vpnv4_rd_neighbors_cmd,
        "show ip bgp vpnv4 rd ASN:nn_or_IP-address:nn neighbors",
        SHOW_STR
@@ -9060,6 +9084,17 @@ ALIAS (show_ip_bgp_neighbors_peer,
        BGP_STR
        "Display VPNv4 NLRI specific information\n"
        "Display information about all VPNv4 NLRIs\n"
+       "Detailed information on TCP and BGP neighbor connections\n"
+       "Neighbor to display information about\n")
+
+ALIAS (show_ip_bgp_neighbors_peer,
+       show_bgp_l2vpn_evpn_all_neighbors_peer_cmd,
+       "show bgp l2vpn evpn all neighbors A.B.C.D",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display all information about EVPN\n"
        "Detailed information on TCP and BGP neighbor connections\n"
        "Neighbor to display information about\n")
 
@@ -10698,6 +10733,8 @@ bgp_vty_init (void)
   install_element (BGP_ENCAP_NODE, &no_neighbor_soft_reconfiguration_cmd);
   install_element (BGP_ENCAPV6_NODE, &neighbor_soft_reconfiguration_cmd);
   install_element (BGP_ENCAPV6_NODE, &no_neighbor_soft_reconfiguration_cmd);
+  install_element (BGP_EVPN_NODE, &neighbor_soft_reconfiguration_cmd);
+  install_element (BGP_EVPN_NODE, &no_neighbor_soft_reconfiguration_cmd);
 
   /* "neighbor attribute-unchanged" commands.  */
   install_element (BGP_NODE, &neighbor_attr_unchanged_cmd);
@@ -11768,6 +11805,7 @@ bgp_vty_init (void)
   install_element (VIEW_NODE, &show_ip_bgp_instance_ipv4_summary_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_summary_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_rd_summary_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_summary_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_summary_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_summary_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_instance_summary_cmd);
@@ -11775,20 +11813,24 @@ bgp_vty_init (void)
   install_element (RESTRICTED_NODE, &show_ip_bgp_instance_ipv4_summary_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv4_all_summary_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv4_rd_summary_cmd);
+  install_element (RESTRICTED_NODE, &show_bgp_l2vpn_evpn_all_summary_cmd);
   install_element (RESTRICTED_NODE, &show_bgp_ipv6_summary_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_neighbors_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_neighbors_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_neighbors_peer_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_neighbors_peer_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_neighbors_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_neighbors_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_rd_neighbors_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_neighbors_peer_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_neighbors_peer_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_rd_neighbors_peer_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_instance_neighbors_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_instance_neighbors_peer_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_neighbors_peer_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_ipv4_neighbors_peer_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv4_all_neighbors_peer_cmd);
+  install_element (RESTRICTED_NODE, &show_bgp_l2vpn_evpn_all_neighbors_peer_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv4_rd_neighbors_peer_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_instance_neighbors_peer_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_neighbors_cmd);

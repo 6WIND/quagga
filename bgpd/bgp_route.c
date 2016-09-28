@@ -8262,7 +8262,7 @@ bgp_show_route_in_table (struct vty *vty, struct bgp *bgp,
 
   match.family = afi2family (afi);
 
-  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP))
+  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_EVPN))
     {
       for (rn = bgp_table_top (rib); rn; rn = bgp_route_next (rn))
         {
@@ -8536,6 +8536,18 @@ DEFUN (show_ip_bgp_vpnv4_all_route,
   return bgp_show_route (vty, NULL, argv[0], AFI_IP, SAFI_MPLS_VPN, NULL, 0, BGP_PATH_ALL);
 }
 
+DEFUN (show_bgp_l2vpn_evpn_all_route,
+       show_bgp_l2vpn_evpn_all_route_cmd,
+       "show bgp l2vpn all A.B.C.D",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display information about all VPNv4 NLRIs\n"
+       "Network in the BGP routing table to display\n")
+{
+  return bgp_show_route (vty, NULL, argv[0], AFI_L2VPN, SAFI_EVPN, NULL, 0, BGP_PATH_ALL);
+}
 
 DEFUN (show_ip_bgp_vpnv4_rd_route,
        show_ip_bgp_vpnv4_rd_route_cmd,
@@ -8654,6 +8666,19 @@ DEFUN (show_ip_bgp_vpnv4_all_prefix,
   return bgp_show_route (vty, NULL, argv[0], AFI_IP, SAFI_MPLS_VPN, NULL, 1, BGP_PATH_ALL);
 }
 
+DEFUN (show_bgp_l2vpn_evpn_all_prefix,
+       show_bgp_l2vpn_evpn_all_prefix_cmd,
+       "show bgp l2vpn evpn all A.B.C.D/M",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display information about all VPNv4 NLRIs\n"
+       "IP prefix <network>/<length>, e.g., 35.0.0.0/8\n")
+{
+  return bgp_show_route (vty, NULL, argv[0], AFI_L2VPN, SAFI_EVPN, NULL, 1, BGP_PATH_ALL);
+}
+
 DEFUN (show_ip_bgp_vpnv4_rd_prefix,
        show_ip_bgp_vpnv4_rd_prefix_cmd,
        "show ip bgp vpnv4 rd ASN:nn_or_IP-address:nn A.B.C.D/M",
@@ -8675,6 +8700,29 @@ DEFUN (show_ip_bgp_vpnv4_rd_prefix,
       return CMD_WARNING;
     }
   return bgp_show_route (vty, NULL, argv[1], AFI_IP, SAFI_MPLS_VPN, &prd, 1, BGP_PATH_ALL);
+}
+
+DEFUN (show_bgp_l2vpn_evpn_rd_prefix,
+       show_bgp_l2vpn_evpn_rd_prefix_cmd,
+       "show bgp l2vpn evpn rd ASN:nn_or_IP-address:nn A.B.C.D/M",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display information for a route distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "IP prefix <network>/<length>, e.g., 35.0.0.0/8\n")
+{
+  int ret;
+  struct prefix_rd prd;
+
+  ret = str2prefix_rd (argv[0], &prd);
+  if (! ret)
+    {
+      vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  return bgp_show_route (vty, NULL, argv[1], AFI_L2VPN, SAFI_EVPN, &prd, 1, BGP_PATH_ALL);
 }
 
 DEFUN (show_ip_bgp_view,
@@ -8890,6 +8938,29 @@ DEFUN (show_bgp_ipv4_vpn_rd_route,
       return CMD_WARNING;
     }
   return bgp_show_route (vty, NULL, argv[1], AFI_IP, SAFI_MPLS_VPN, &prd, 0, BGP_PATH_ALL);
+}
+
+DEFUN (show_bgp_l2vpn_evpn_rd_route,
+       show_bgp_l2vpn_evpn_rd_route_cmd,
+       "show bgp l2vpn evpn rd ASN:nn_or_IP-address:nn A.B.C.D",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display information for a route distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "Network in the BGP routing table to display\n")
+{
+  int ret;
+  struct prefix_rd prd;
+
+  ret = str2prefix_rd (argv[0], &prd);
+  if (! ret)
+    {
+      vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  return bgp_show_route (vty, NULL, argv[1], AFI_L2VPN, SAFI_EVPN, &prd, 0, BGP_PATH_ALL);
 }
 
 DEFUN (show_bgp_ipv6_vpn_rd_route,
@@ -17841,6 +17912,7 @@ bgp_route_init (void)
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_route_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_route_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_rd_route_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_route_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_rd_route_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_encap_route_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_encap_route_cmd);
@@ -17956,6 +18028,7 @@ bgp_route_init (void)
   /* Restricted node: VIEW_NODE - (set of dangerous commands) */
   install_element (RESTRICTED_NODE, &show_bgp_ipv4_safi_route_cmd);
   install_element (RESTRICTED_NODE, &show_bgp_ipv4_vpn_rd_route_cmd);
+  install_element (RESTRICTED_NODE, &show_bgp_l2vpn_evpn_rd_route_cmd);
   install_element (RESTRICTED_NODE, &show_bgp_ipv6_vpn_rd_route_cmd);
   install_element (RESTRICTED_NODE, &show_bgp_ipv4_safi_rd_route_cmd);
   install_element (RESTRICTED_NODE, &show_bgp_ipv6_safi_rd_route_cmd);
@@ -18196,6 +18269,7 @@ bgp_route_init (void)
   install_element (VIEW_NODE, &show_ip_bgp_vrf_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_route_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_rd_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_prefix_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_prefix_cmd);
@@ -18203,6 +18277,7 @@ bgp_route_init (void)
   install_element (VIEW_NODE, &show_bgp_ipv4_safi_prefix_pathtype_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_prefix_pathtype_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_prefix_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_prefix_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_rd_prefix_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_view_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_view_route_cmd);
@@ -18287,6 +18362,8 @@ bgp_route_init (void)
   install_element (RESTRICTED_NODE, &show_bgp_ipv4_safi_route_pathtype_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_vrf_route_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_ipv4_route_cmd);
+  install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv4_all_route_cmd);
+  install_element (RESTRICTED_NODE, &show_bgp_l2vpn_evpn_all_route_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv4_rd_route_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_prefix_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_ipv4_prefix_cmd);
@@ -18294,6 +18371,7 @@ bgp_route_init (void)
   install_element (RESTRICTED_NODE, &show_bgp_ipv4_safi_prefix_pathtype_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_prefix_pathtype_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv4_all_prefix_cmd);
+  install_element (RESTRICTED_NODE, &show_bgp_l2vpn_evpn_all_prefix_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv4_rd_prefix_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_view_route_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_view_prefix_cmd);
