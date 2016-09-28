@@ -394,12 +394,12 @@ bgp_show_ethernet_vpn (struct vty *vty, struct prefix_rd *prd, enum bgp_show_typ
   return CMD_SUCCESS;
 }
 
-DEFUN (show_bgp_evpn_all,
-       show_bgp_evpn_all_cmd,
-       "show bgp evpn all",
+DEFUN (show_bgp_l2vpn_evpn_all,
+       show_bgp_l2vpn_evpn_all_cmd,
+       "show bgp l2vpn evpn all",
        SHOW_STR
-       IP_STR
        BGP_STR
+       "Display L2VPN AFI information\n"
        "Display EVPN NLRI specific information\n"
        "Display information about all EVPN NLRIs\n")
 {
@@ -411,7 +411,6 @@ DEFUN (show_bgp_evpn_rd,
        show_bgp_evpn_rd_cmd,
        "show bgp evpn rd ASN:nn_or_IP-address:nn",
        SHOW_STR
-       IP_STR
        BGP_STR
        "Display EVPN NLRI specific information\n"
        "Display information for a route distinguisher\n"
@@ -430,12 +429,21 @@ DEFUN (show_bgp_evpn_rd,
                                 SHOW_DISPLAY_STANDARD);
 }
 
-DEFUN (show_bgp_evpn_all_tags,
-       show_bgp_evpn_all_tags_cmd,
-       "show bgp evpn all tags",
+ALIAS (show_bgp_evpn_rd,
+       show_bgp_l2vpn_evpn_rd_cmd,
+       "show bgp l2vpn evpn rd ASN:nn_or_IP-address:nn",
        SHOW_STR
-       IP_STR
        BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display information for a route distinguisher\n"
+       "VPN Route Distinguisher\n")
+
+DEFUN (show_bgp_l2vpn_evpn_all_tags,
+       show_bgp_l2vpn_evpn_all_tags_cmd,
+       "show bgp l2vpn evpn all tags",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
        "Display EVPN NLRI specific information\n"
        "Display information about all EVPN NLRIs\n"
        "Display BGP tags for prefixes\n")
@@ -444,12 +452,12 @@ DEFUN (show_bgp_evpn_all_tags,
                                 SHOW_DISPLAY_TAGS);
 }
 
-DEFUN (show_bgp_evpn_rd_tags,
-       show_bgp_evpn_rd_tags_cmd,
-       "show bgp evpn rd ASN:nn_or_IP-address:nn tags",
+DEFUN (show_bgp_l2vpn_evpn_rd_tags,
+       show_bgp_l2vpn_evpn_rd_tags_cmd,
+       "show bgp l2vpn evpn rd ASN:nn_or_IP-address:nn tags",
        SHOW_STR
-       IP_STR
        BGP_STR
+       "Display L2VPN AFI information\n"
        "Display EVPN NLRI specific information\n"
        "Display information for a route distinguisher\n"
        "VPN Route Distinguisher\n"
@@ -468,12 +476,12 @@ DEFUN (show_bgp_evpn_rd_tags,
                                 SHOW_DISPLAY_TAGS);
 }
 
-DEFUN (show_bgp_evpn_all_overlay,
-       show_bgp_evpn_all_overlay_cmd,
-       "show bgp evpn all overlay",
+DEFUN (show_bgp_l2vpn_evpn_all_overlay,
+       show_bgp_l2vpn_evpn_all_overlay_cmd,
+       "show bgp l2vpn evpn all overlay",
        SHOW_STR
-       IP_STR
        BGP_STR
+       "Display L2VPN AFI information\n"
        "Display EVPN NLRI specific information\n"
        "Display information about all EVPN NLRIs\n"
        "Display BGP tags for prefixes\n")
@@ -486,12 +494,11 @@ DEFUN (show_bgp_evpn_rd_overlay,
        show_bgp_evpn_rd_overlay_cmd,
        "show bgp evpn rd ASN:nn_or_IP-address:nn overlay",
        SHOW_STR
-       IP_STR
        BGP_STR
        "Display EVPN NLRI specific information\n"
        "Display information for a route distinguisher\n"
        "VPN Route Distinguisher\n"
-       "Display BGP tags for prefixes\n")
+       "Display BGP Overlay information\n")
 {
   int ret;
   struct prefix_rd prd;
@@ -506,12 +513,22 @@ DEFUN (show_bgp_evpn_rd_overlay,
                                 SHOW_DISPLAY_OVERLAY);
 }
 
-DEFUN (show_bgp_evpn_all_neighbor_routes,
-       show_bgp_evpn_all_neighbor_routes_cmd,
-       "show bgp evpn all neighbors A.B.C.D routes",
+ALIAS (show_bgp_evpn_rd_overlay,
+       show_bgp_l2vpn_evpn_rd_overlay_cmd,
+       "show bgp l2vpn evpn rd ASN:nn_or_IP-address:nn overlay",
        SHOW_STR
-       IP_STR
        BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display information for a route distinguisher\n"
+       "Display BGP Overlay information\n")
+
+DEFUN (show_bgp_l2vpn_evpn_all_neighbor_routes,
+       show_bgp_l2vpn_evpn_all_neighbor_routes_cmd,
+       "show bgp l2vpn evpn all neighbors A.B.C.D routes",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
        "Display EVPN NLRI specific information\n"
        "Display information about all EVPN NLRIs\n"
        "Detailed information on TCP and BGP neighbor connections\n"
@@ -540,12 +557,12 @@ DEFUN (show_bgp_evpn_all_neighbor_routes,
                                 SHOW_DISPLAY_STANDARD);
 }
 
-DEFUN (show_bgp_evpn_rd_neighbor_routes,
-       show_bgp_evpn_rd_neighbor_routes_cmd,
-       "show bgp evpn rd ASN:nn_or_IP-address:nn neighbors A.B.C.D routes",
+DEFUN (show_bgp_l2vpn_evpn_rd_neighbor_routes,
+       show_bgp_l2vpn_evpn_rd_neighbor_routes_cmd,
+       "show bgp l2vpn evpn rd ASN:nn_or_IP-address:nn neighbors A.B.C.D routes",
        SHOW_STR
-       IP_STR
        BGP_STR
+       "Display L2VPN AFI information\n"
        "Display EVPN NLRI specific information\n"
        "Display information for a route distinguisher\n"
        "VPN Route Distinguisher\n"
@@ -583,12 +600,12 @@ DEFUN (show_bgp_evpn_rd_neighbor_routes,
                                 SHOW_DISPLAY_STANDARD);
 }
 
-DEFUN (show_bgp_evpn_all_neighbor_advertised_routes,
-       show_bgp_evpn_all_neighbor_advertised_routes_cmd,
-       "show bgp evpn all neighbors A.B.C.D advertised-routes",
+DEFUN (show_bgp_l2vpn_evpn_all_neighbor_advertised_routes,
+       show_bgp_l2vpn_evpn_all_neighbor_advertised_routes_cmd,
+       "show bgp l2vpn evpn all neighbors A.B.C.D advertised-routes",
        SHOW_STR
-       IP_STR
        BGP_STR
+       "Display L2VPN AFI information\n"
        "Display EVPN NLRI specific information\n"
        "Display information about all EVPN NLRIs\n"
        "Detailed information on TCP and BGP neighbor connections\n"
@@ -615,12 +632,12 @@ DEFUN (show_bgp_evpn_all_neighbor_advertised_routes,
   return show_adj_route_evpn (vty, peer, NULL);
 }
 
-DEFUN (show_bgp_evpn_rd_neighbor_advertised_routes,
-       show_bgp_evpn_rd_neighbor_advertised_routes_cmd,
-       "show bgp evpn rd ASN:nn_or_IP-address:nn neighbors A.B.C.D advertised-routes",
+DEFUN (show_bgp_l2vpn_evpn_rd_neighbor_advertised_routes,
+       show_bgp_l2vpn_evpn_rd_neighbor_advertised_routes_cmd,
+       "show bgp l2vpn evpn rd ASN:nn_or_IP-address:nn neighbors A.B.C.D advertised-routes",
        SHOW_STR
-       IP_STR
        BGP_STR
+       "Display L2VPN AFI information\n"
        "Display EVPN NLRI specific information\n"
        "Display information for a route distinguisher\n"
        "VPN Route Distinguisher\n"
@@ -659,14 +676,16 @@ DEFUN (show_bgp_evpn_rd_neighbor_advertised_routes,
 void
 bgp_ethernetvpn_init (void)
 {
-  install_element (VIEW_NODE, &show_bgp_evpn_all_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_cmd);
   install_element (VIEW_NODE, &show_bgp_evpn_rd_cmd);
-  install_element (VIEW_NODE, &show_bgp_evpn_all_tags_cmd);
-  install_element (VIEW_NODE, &show_bgp_evpn_rd_tags_cmd);
-  install_element (VIEW_NODE, &show_bgp_evpn_all_neighbor_routes_cmd);
-  install_element (VIEW_NODE, &show_bgp_evpn_rd_neighbor_routes_cmd);
-  install_element (VIEW_NODE, &show_bgp_evpn_all_neighbor_advertised_routes_cmd);
-  install_element (VIEW_NODE, &show_bgp_evpn_rd_neighbor_advertised_routes_cmd);
-  install_element (VIEW_NODE, &show_bgp_evpn_all_overlay_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_tags_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_tags_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_overlay_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_overlay_cmd);
   install_element (VIEW_NODE, &show_bgp_evpn_rd_overlay_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_neighbor_routes_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_neighbor_routes_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_neighbor_advertised_routes_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_neighbor_advertised_routes_cmd);
 }
