@@ -399,13 +399,75 @@ void qcapn_BGPPeerAfiSafi_read(struct peer *s, capn_ptr p, afi_t afi, safi_t saf
     s->allowas_in[afi][safi] = capn_read8(p, 3);
 }
 
+void qcapn_prefix_macip_read(capn_ptr p, struct prefix *pfx, uint8_t *index)
+{
+    size_t i;
+
+    pfx->u.prefix_macip.eth_tag_id = htonl(capn_read32(p, *index));
+    *index = *index + 4;
+    for (i = 0; i < sizeof(struct ethaddr); i++)
+      pfx->u.prefix_macip.mac.octet[i] = capn_read8(p, *index + i);
+
+    *index = *index + i;
+    pfx->u.prefix_macip.mac_len = capn_read8(p, *index);
+    *index = *index + 1;
+    pfx->u.prefix_macip.ip_len = capn_read8(p, *index);
+    *index = *index + 1;
+    pfx->u.prefix_macip.ip.in4.s_addr = ntohl(capn_read32(p, *index));
+    *index = *index + 4;
+}
+
+void qcapn_prefix_macip_write(capn_ptr p, const struct prefix *pfx, uint8_t *index)
+{
+    size_t i;
+
+    capn_write32(p, *index, ntohl(pfx->u.prefix_macip.eth_tag_id));
+    *index = *index + 4;
+    for (i = 0; i < sizeof(struct ethaddr); i++)
+      capn_write8(p, *index + i, pfx->u.prefix_macip.mac.octet[i]);
+    *index = *index + i;
+    capn_write8(p, *index, pfx->u.prefix_macip.mac_len);
+    *index = *index + 1;
+    capn_write8(p, *index, pfx->u.prefix_macip.ip_len);
+    *index = *index + 1;
+    capn_write32(p, *index, ntohl(pfx->u.prefix_macip.ip.in4.s_addr));
+    *index = *index + 4;
+}
+
 void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p)
 {
     capn_resolve(&p);
     {
-        capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
-        capn_write8(tempptr, 4, s->prefix.prefixlen);
-        capn_write32(tempptr, 0, ntohl(s->prefix.prefix.s_addr));
+        capn_ptr tempptr;
+        int size = 8;
+
+        if (s->prefix.family == AF_INET)
+          size = 8;
+        else if (s->prefix.family == AF_INET6)
+          size = 20;
+        else if (s->prefix.family == AF_L2VPN)
+          size = 18;
+
+        tempptr = capn_new_struct(p.seg, size, 0);
+        capn_write8(tempptr, 0, s->prefix.family);
+        capn_write8(tempptr, 1, s->prefix.prefixlen);
+        if (s->prefix.family == AF_INET)
+          {
+            capn_write32(tempptr, 4, ntohl(s->prefix.u.prefix4.s_addr));
+          }
+        else if (s->prefix.family == AF_INET6)
+          {
+            size_t i;
+
+            for(i=0; i < sizeof(struct in6_addr); i++)
+              capn_write8(tempptr, 4 + i, s->prefix.u.prefix + i);
+          }
+        else if (s->prefix.family == AF_L2VPN)
+          {
+            uint8_t index = 2;
+
+            qcapn_prefix_macip_write(tempptr, &s->prefix, &index);
+          }
         capn_setp(p, 0, tempptr);
     }
     {
@@ -415,6 +477,7 @@ void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p)
     }
     capn_write32(p, 0, s->label);
     capn_write32(p, 4, s->ethtag);
+    capn_write32(p, 8, s->l2label);
     { capn_text tp = { .str = s->esi, .len = s->esi ? strlen((const char *)s->esi) : 0 }; capn_set_text(p, 2, tp); }
     { capn_text tp = { .str = s->mac_router, .len = s->mac_router ? strlen((const char *)s->mac_router) : 0 }; capn_set_text(p, 3, tp); }
 }
@@ -450,12 +513,31 @@ capn_ptr qcapn_new_BGPVRFRoute(struct capn_segment *s, uint8_t extend_by)
 void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p)
 {
     capn_resolve(&p);
-    
+
     {
         capn_ptr tmp_p = capn_getp(p, 0, 1);
-        s->prefix.family = AF_INET;
-        s->prefix.prefixlen = capn_read8(tmp_p, 4);
-        s->prefix.prefix.s_addr = htonl(capn_read32(tmp_p, 0));
+
+        s->prefix.family = capn_read8(tmp_p, 0);
+        s->prefix.prefixlen = capn_read8(tmp_p, 1);
+
+        if (s->prefix.family == AF_INET)
+          {
+            s->prefix.u.prefix4.s_addr = htonl(capn_read32(tmp_p, 4));
+          }
+        else if (s->prefix.family == AF_INET6)
+          {
+            size_t i;
+            u_char *in6 = (u_char*) &s->prefix.u.prefix6;
+
+            for(i=0; i < sizeof(struct in6_addr); i++)
+              in6[i] = capn_read8(tmp_p, 4 + i);
+          }
+        else if (s->prefix.family == AF_L2VPN)
+          {
+            uint8_t index = 2;
+
+            qcapn_prefix_macip_read (tmp_p, &s->prefix, &index);
+          }
     }
     
     {
@@ -464,6 +546,7 @@ void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p)
     }
     s->label = capn_read32(p, 0);
     s->ethtag = capn_read32(p, 4);
+    s->l2label = capn_read32(p, 8);
     {
       char * esi = NULL;
       int len;
@@ -494,31 +577,61 @@ void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p)
           s->mac_router = NULL;
         }
     }
-
 }
 
-void qcapn_VRFTableIter_read(struct tbliter_v4 *s, capn_ptr p)
+void qcapn_VRFTableIter_read(struct prefix *s, capn_ptr p)
 {
     capn_resolve(&p);
     
     {
         capn_ptr tmp_p = capn_getp(p, 0, 1);
-        s->prefix.family = AF_INET;
-        s->prefix.prefixlen = capn_read8(tmp_p, 4);
-        s->prefix.prefix.s_addr = htonl(capn_read32(tmp_p, 0));
+
+        s->family = capn_read8(tmp_p, 0);
+        s->prefixlen = capn_read8(tmp_p, 1);
+
+        if (s->family == AF_INET)
+          s->u.prefix4.s_addr = htonl(capn_read32(tmp_p, 2));
+        else if (s->family == AF_INET6)
+          {
+            size_t i;
+            u_char *in6 = (u_char*) &s->u.prefix6;
+
+            for(i=0; i < sizeof(struct in6_addr); i++)
+              in6[i] = capn_read8(tmp_p, i+2);
+          }
+        else if (s->family == AF_L2VPN)
+          {
+            uint8_t index = 2;
+
+            qcapn_prefix_macip_read (tmp_p, s, &index);
+          }
     }
 }
 
-
-
-void qcapn_VRFTableIter_write(const struct tbliter_v4 *s, capn_ptr p)
+void qcapn_VRFTableIter_write(struct prefix *s, capn_ptr p)
 {
     capn_resolve(&p);
     
     {
-        capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
-        capn_write8(tempptr, 4, s->prefix.prefixlen);
-        capn_write32(tempptr, 0, ntohl(s->prefix.prefix.s_addr));
+        capn_ptr tempptr = capn_new_struct(p.seg, 17, 0);
+        capn_write8(tempptr, 0, s->family);
+        capn_write8(tempptr, 1, s->prefixlen);
+
+        if (s->family == AF_INET)
+          capn_write32(tempptr, 2, ntohl(s->u.prefix4.s_addr));
+        else if (s->family == AF_INET6)
+          {
+            size_t i;
+            for(i=0; i < sizeof(struct in6_addr); i++)
+              capn_write8(tempptr, i + 2, s->u.prefix + i);
+          }
+        else if (s->family == AF_L2VPN)
+          {
+            uint8_t index = 2;
+
+            qcapn_prefix_macip_write(tempptr, s, &index);
+          }
+
         capn_setp(p, 0, tempptr);
     }
 }
@@ -540,10 +653,25 @@ void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
     s->outbound_rd.prefixlen = 64;
 
     {
-        capn_ptr tmp_p = capn_getp(p, 0, 1);
-        s->prefix.family = AF_INET;
-        s->prefix.prefixlen = capn_read8(tmp_p, 4);
-        s->prefix.prefix.s_addr = htonl(capn_read32(tmp_p, 0));
+       capn_ptr tmp_p = capn_getp(p, 0, 1);
+       s->prefix.family = capn_read8(tmp_p, 0);
+       s->prefix.prefixlen = capn_read8(tmp_p, 1);
+       if (s->prefix.family == AF_INET)
+         s->prefix.u.prefix4.s_addr = htonl(capn_read32(tmp_p, 2));
+       else if (s->prefix.family == AF_INET6)
+         {
+           size_t i;
+           u_char *in6 = (u_char*) &s->prefix.u.prefix6;
+
+           for(i=0; i < sizeof(struct in6_addr); i++)
+             in6[i] = capn_read8(tmp_p, i+2);
+         }
+       else if (s->prefix.family == AF_L2VPN)
+          {
+            uint8_t index = 2;
+
+            qcapn_prefix_macip_read (tmp_p, &s->prefix, &index);
+          }
     }
 
     {
@@ -554,6 +682,7 @@ void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
         capn_ptr tmp_p = capn_getp(p, 2, 1);
 	s->label = capn_read32(tmp_p, 0);
 	s->ethtag = capn_read32(tmp_p, 4);
+      s->l2label = capn_read32(tmp_p, 8);
     }
     {
       const char * esi = NULL;

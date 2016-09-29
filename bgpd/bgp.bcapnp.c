@@ -32,7 +32,7 @@ afi_t qcapn_AfiKey_get_afi(capn_ptr p)
     return capn_read8(p, 0);
 }
 
-void qcapn_VRFTableIter_set(struct tbliter_v4 *s, capn_ptr p)
+void qcapn_VRFTableIter_set(struct prefix *s, capn_ptr p)
 {
     capn_resolve(&p);
     {
@@ -618,10 +618,36 @@ void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
     capn_write64(p, 8, tmp);
     
     {
-        capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
-        capn_write8(tempptr, 4, s->prefix.prefixlen);
-        capn_write32(tempptr, 0, ntohl(s->prefix.prefix.s_addr));
-        capn_setp(p, 0, tempptr);
+        if (s->prefix.family == AF_INET)
+          {
+            capn_ptr tempptr = capn_new_struct(p.seg, 9, 0);
+            capn_write8(tempptr, 0, s->prefix.family);
+            capn_write8(tempptr, 1, s->prefix.prefixlen);
+            capn_write32(tempptr, 2, ntohl(s->prefix.u.prefix4.s_addr));
+            capn_setp(p, 0, tempptr);
+          }
+        else if (s->prefix.family == AF_INET6)
+          {
+            size_t i;
+            capn_ptr tempptr = capn_new_struct(p.seg, 21, 0);
+            capn_write8(tempptr, 0, s->prefix.family);
+            capn_write8(tempptr, 1, s->prefix.prefixlen);
+
+            for(i=0; i < sizeof(struct in6_addr); i++)
+              capn_write8(tempptr, i + 2, s->prefix.u.prefix + i);
+
+            capn_setp(p, 0, tempptr);
+          }
+        else if (s->prefix.family == AF_L2VPN)
+          {
+            uint8_t index = 2;
+
+            capn_ptr tempptr = capn_new_struct(p.seg, 18, 0);
+            capn_write8(tempptr, 0, s->prefix.family);
+            capn_write8(tempptr, 1, s->prefix.prefixlen);
+            qcapn_prefix_macip_write(tempptr, &s->prefix, &index);
+            capn_setp(p, 0, tempptr);
+          }
     }
     
     {
@@ -630,9 +656,10 @@ void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
         capn_setp(p, 1, tempptr);
     }
     {
-        capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
+        capn_ptr tempptr = capn_new_struct(p.seg, 12, 0);
 	capn_write32(tempptr, 0, s->label);
 	capn_write32(tempptr, 4, s->ethtag);
+	capn_write32(tempptr, 8, s->l2label);
         capn_setp(p, 2, tempptr);
     }
     { capn_text tp = { .str = s->esi, .len = s->esi ? strlen((const char *)s->esi) : 0 }; capn_set_text(p, 3, tp); }

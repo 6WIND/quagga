@@ -1550,13 +1550,14 @@ static void bgp_static_withdraw_safi (struct bgp *bgp, struct prefix *p,
                         afi_t afi, safi_t safi, struct prefix_rd *prd,
                         uint32_t *labels, size_t nlabels);
 
-bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn,
+bool bgp_api_route_get (struct bgp_vrf *vrf,
+                        struct bgp_api_route *out, struct bgp_node *bn,
                         int iter_on_multipath, void **next)
 {
   struct bgp_info *sel, *iter;
 
   memset(out, 0, sizeof (*out));
-  if (bn->p.family != AF_INET)
+  if (bn->p.family == AF_ETHERNET)
     return false;
   if (!bn->info)
     return false;
@@ -1591,19 +1592,52 @@ bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn,
     out->nexthop = sel->attr->extra->mp_nexthop_global_in;
   if (sel->extra && sel->extra->nlabels)
     {
-        out->label = sel->extra->labels[0] >> 4;
+      int idx = 0;
+      /* VRF RIB have one label only */
+      if(CHECK_FLAG (sel->flags, BGP_INFO_ORIGIN_EVPN))
+        {
+          if(vrf->ltype == BGP_LAYER_TYPE_3)
+            out->label = sel->extra->labels[idx] >> 4;
+          else
+            out->l2label = sel->extra->labels[idx] >> 4;
+        }
+      else
+        {
+          if (sel->extra->nlabels > 1)
+            out->l2label = sel->extra->labels[idx++] >> 4;
+          out->label = sel->extra->labels[idx] >> 4;
+        }
     }
   if(sel->attr && sel->attr->extra && CHECK_FLAG (sel->flags, BGP_INFO_ORIGIN_EVPN))
     {
       out->esi = esi2str(&(sel->attr->extra->evpn_overlay.eth_s_id));
-      out->ethtag = sel->attr->extra->eth_t_id;
+      if (bn->p.family == AF_L2VPN)
+        out->ethtag = bn->p.u.prefix_macip.eth_tag_id;
+      else
+        out->ethtag = sel->attr->extra->eth_t_id;
+      /* only router mac is filled in for VRF RIB layer 3 */
       if(sel->attr->extra->ecommunity)
         {
-          struct ecommunity_val *routermac = ecommunity_lookup (sel->attr->extra->ecommunity, ECOMMUNITY_ENCODE_EVPN);
+          struct ecommunity_val *routermac = ecommunity_lookup (sel->attr->extra->ecommunity,
+                                                                ECOMMUNITY_ENCODE_EVPN,
+                                                                ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC);
 
-          if(routermac)
+          out->mac_router = NULL;
+          /* if routermac not present, try to replace it by def gw, if present */
+          if(vrf->ltype == BGP_LAYER_TYPE_3)
             {
-              out->mac_router = ecom_mac2str(routermac->val);
+              if(routermac)
+                  out->mac_router = ecom_mac2str(routermac->val);
+              else
+                {
+                  if(ecommunity_lookup (sel->attr->extra->ecommunity,
+                                        ECOMMUNITY_ENCODE_EVPN,
+                                        ECOMMUNITY_EVPN_SUBTYPE_DEF_GW))
+                    if ((bn->p).u.prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
+                  {
+                    out->mac_router = ecom_mac2str((char *)(&(bn->p).u.prefix_macip.mac));
+                  }
+                }
             }
         }
     }
@@ -1719,16 +1753,16 @@ void
 bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                 struct bgp_info *selected, uint8_t announce)
 {
-  struct bgp_event_vrf event = {
-    .announce         = announce,
-    .outbound_rd      = vrf->outbound_rd,
-    .prefix.family    = rn->p.family,
-    .prefix.prefixlen = rn->p.prefixlen,
-    .prefix.prefix    = rn->p.u.prefix4,
-  };
+  struct bgp_event_vrf event;
 
   if(!vrf || (rn && bgp_node_table (rn)->type != BGP_TABLE_VRF))
     return;
+
+  event.announce = announce;
+  event.outbound_rd = vrf->outbound_rd;
+
+  prefix_copy (&event.prefix, &rn->p);
+
   if (announce == true)
     {
       if(CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
@@ -1755,7 +1789,12 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
           if(CHECK_FLAG (selected->flags, BGP_INFO_ORIGIN_EVPN))
             {
               event.esi = esi2str(&(selected->attr->extra->evpn_overlay.eth_s_id));
-              event.ethtag = selected->attr->extra->eth_t_id;
+              if (rn->p.family == AF_L2VPN)
+                {
+                  event.ethtag = rn->p.u.prefix_macip.eth_tag_id;
+                }
+              else
+                event.ethtag = selected->attr->extra->eth_t_id;
             }
           else
             {
@@ -1794,7 +1833,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
 
   if (BGP_DEBUG (events, EVENTS))
     {
-      char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
+      char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[PREFIX_STRLEN];
       char label_str[BUFSIZ] = "<?>", nh_str[BUFSIZ] = "<?>";
 
       prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
@@ -1818,10 +1857,8 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
         zlog_debug ("vrf[%s] %s: prefix withdrawn nh %s label %d",
                     vrf_rd_str, pfx_str, nh_str, event.label);
     }
-  if(event.mac_router)
-    free(event.mac_router);
-  if(event.esi)
-    free(event.esi);
+  free(event.mac_router);
+  free(event.esi);
 }
 
 int
@@ -1883,8 +1920,14 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   bgp_static->valid = 1;
   bgp_static->igpmetric = 0;
   bgp_static->igpnexthop = route->nexthop;
-  bgp_static->labels[0] = (route->label << 4) | 1;
-  bgp_static->nlabels = route->label ? 1 : 0;
+  if (route->label != 0xFFFFFFFF)
+    {
+      bgp_static->labels[0] = (route->label << 4) | 1;
+      bgp_static->nlabels = 1;
+    }
+  else
+    bgp_static->nlabels = 0;
+
   bgp_static->prd = vrf->outbound_rd;
   bgp_static->ecomm = vrf->rt_export;
   if(afi == AFI_INTERNAL_L2VPN)
@@ -1899,6 +1942,20 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
         {
           bgp_static->router_mac = XCALLOC (MTYPE_ATTR, MAC_LEN+1);
           str2mac ((const char *)route->mac_router, bgp_static->router_mac);
+        }
+      if(p->family == AF_L2VPN)
+        {
+          /* case of RT2 route, l2 label must be considered as mpls label 1 in message */
+          if(vrf->ltype == BGP_LAYER_TYPE_3)
+            {
+              bgp_static->labels[1] = (route->label << 4) | 1;
+            }
+          else
+            {
+              bgp_static->labels[0] = (route->l2label << 4) | 1;
+              bgp_static->labels[1] = (route->label << 4) | 1;
+            }
+          bgp_static->nlabels++;
         }
     }
   if (bgp_static->ecomm)
@@ -5238,20 +5295,24 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   if(afi == AFI_INTERNAL_L2VPN)
     {
       struct bgp_encap_type_vxlan bet;
+      struct attr_extra *extra;
 
       memset(&bet, 0, sizeof(struct bgp_encap_type_vxlan));
       if(bgp_static->eth_t_id)
         bet.vnid = bgp_static->eth_t_id;
       bgp_encap_type_vxlan_to_tlv(&bet, &attr);
-     if(bgp_static->router_mac)
-        {
-          struct ecommunity_val routermac;
-          memset(&routermac, 0, sizeof(struct ecommunity_val));
-          routermac.val[0] = ECOMMUNITY_ENCODE_EVPN;
-          routermac.val[1] = ECOMMUNITY_SITE_ORIGIN;
-          memcpy(&routermac.val[2], bgp_static->router_mac, MAC_LEN);
-          ecommunity_add_val(bgp_attr_extra_get (&attr)->ecommunity,&routermac);
-        }
+      extra = bgp_attr_extra_get (&attr);
+
+      if(bgp_static->router_mac)
+         {
+           struct ecommunity_val routermac;
+           memset (&routermac, 0, sizeof(struct ecommunity_val));
+           routermac.val[0] = ECOMMUNITY_ENCODE_EVPN;
+           routermac.val[1] = ECOMMUNITY_SITE_ORIGIN;
+           memcpy (&routermac.val[2], bgp_static->router_mac, MAC_LEN);
+           ecommunity_add_val (extra->ecommunity, &routermac);
+         }
+
       if (bgp_static->igpnexthop.s_addr)
         {
           union gw_addr add;

@@ -273,7 +273,7 @@ struct bgp_event_vrf
 #define BGP_EVENT_SHUT 0x2
   uint8_t announce;
   struct prefix_rd outbound_rd; /* dummy for event_shut */
-  struct prefix_ipv4 prefix; /* alias subtype */
+  struct prefix prefix; /* alias subtype */
   struct in_addr nexthop; /* alias peer */
   uint32_t label; /* alias type */
   uint32_t ethtag;
@@ -287,18 +287,13 @@ struct bgp_event_shut
   uint8_t type, subtype;
 };
 
-struct tbliter_v4
-{
-  struct prefix_ipv4 prefix;
-};
-
 #define ROUTE_TYPE_LABELED_UNICAST  1
 #define ROUTE_TYPE_MPLSVPN          2
 #define ROUTE_TYPE_EVPN             3
 
 struct bgp_api_route
 {
-  struct prefix_ipv4 prefix;
+  struct prefix prefix;
   struct in_addr nexthop;
   uint32_t label;
   uint32_t ethtag;
@@ -1134,7 +1129,8 @@ extern struct bgp_vrf *bgp_vrf_lookup_per_rn (struct bgp *bgp, int afi, struct b
 extern void bgp_vrf_delete (struct bgp_vrf *vrf);
 extern void bgp_vrf_rt_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export);
 extern void bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import);
-extern bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn, int iter_on_multipath, void **next);
+extern bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out,
+                               struct bgp_node *bn, int iter_on_multipath, void **next);
 extern bool bgp_api_static_get (struct bgp_api_route *out, struct bgp_node *bn);
 extern int bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
 extern int bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);

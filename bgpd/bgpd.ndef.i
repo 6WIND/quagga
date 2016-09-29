@@ -220,7 +220,11 @@ _qzc_create_bgp_3(struct bgp *p,
     case 0x912c4b0c412022b1:
       {
         struct prefix_rd outbound_rd = qcapn_BGPVRF_get_outbound_rd(req->data);
-        ret = bgp_vrf_create(p, &outbound_rd);
+        uint8_t lt = qcapn_BGPVRF_get_layer_type(req->data);
+
+        ret = bgp_vrf_create(p,
+                             (lt == 1) ? BGP_LAYER_TYPE_2 : BGP_LAYER_TYPE_3,
+                             &outbound_rd);
       }
     }
     if (ret)
@@ -514,20 +518,20 @@ _qzc_get_bgp_vrf_1(struct bgp_vrf *p,
 }
 
 static struct bgp_node * qcap_iter_bgp_vrf_rib(struct bgp_table *table,
-        const struct tbliter_v4 *prev_iter,
-        struct tbliter_v4 *next_iter,
+        const struct prefix *prev_iter,
+        struct prefix *next_iter,
         bool *hasnext)
 {
     struct bgp_node *bn;
     if (!prev_iter) {
         bn = bgp_table_top_nolock (table);
     } else {
-        bn = bgp_table_get_next (table, (struct prefix *)&prev_iter->prefix);
+        bn = bgp_table_get_next (table, (struct prefix *)prev_iter);
         if (bn)
             bgp_unlock_node(bn);
     }
     if (bn) {
-        prefix_copy ((struct prefix *)&next_iter->prefix, &bn->p);
+        prefix_copy (next_iter, &bn->p);
         *hasnext = true;
     } else
         *hasnext = false;
@@ -543,8 +547,8 @@ _qzc_get_bgp_vrf_2(struct bgp_vrf *p,
         struct capn_segment *seg)
 {
     struct bgp_table * table;
-    struct tbliter_v4 iter, nextiter;
-    const struct tbliter_v4 *iterptr;
+    struct prefix iter, nextiter;
+    const struct prefix *iterptr;
     afi_t afi;
     void *next  = NULL;
 
@@ -586,7 +590,7 @@ _qzc_get_bgp_vrf_2(struct bgp_vrf *p,
         rep->data = qcapn_new_BGPVRFRoute(seg, sizeof(next));
         rep->datatype = 0x8f217eb4bad6c06f;
         qcapn_BGPVRFRoute_write(outptr, rep->data);
-        if (!bgp_api_route_get(&tmpval, val, 0, &next))
+        if (!bgp_api_route_get(p, &tmpval, val, 0, &next))
             return;
 
         qcapn_BGPVRFRoute_write(outptr, rep->data);
@@ -638,7 +642,7 @@ _qzc_get_bgp_vrf_4(struct bgp_vrf *p,
     qcapn_BGPVRFRoute_write(outptr, rep->data);
 
     /* do this way to look for multipath entries instead of selected */
-    if (!bgp_api_route_get(&tmpval, &dummy, 1, &next))
+    if (!bgp_api_route_get(p, &tmpval, &dummy, 1, &next))
         return;
 
     qcapn_BGPVRFRoute_write(outptr, rep->data);
@@ -665,20 +669,20 @@ _qzc_get_bgp_vrf_4(struct bgp_vrf *p,
 }
 
 static struct bgp_node * qcap_iter_bgp_vrf_route(struct bgp_table *table,
-        const struct tbliter_v4 *prev_iter,
-        struct tbliter_v4 *next_iter,
+        const struct prefix *prev_iter,
+        struct prefix *next_iter,
         bool *hasnext)
 {
     struct bgp_node *bn;
     if (!prev_iter) {
         bn = bgp_table_top_nolock (table);
     } else {
-        bn = bgp_table_get_next (table, (struct prefix *)&prev_iter->prefix);
+        bn = bgp_table_get_next (table, (struct prefix *)prev_iter);
         if (bn)
             bgp_unlock_node(bn);
     }
     if (bn) {
-        prefix_copy ((struct prefix *)&next_iter->prefix, &bn->p);
+        prefix_copy (next_iter, &bn->p);
         *hasnext = true;
     } else
         *hasnext = false;
@@ -694,8 +698,8 @@ _qzc_get_bgp_vrf_3(struct bgp_vrf *p,
         struct capn_segment *seg)
 {
     struct bgp_table * table;
-    struct tbliter_v4 iter, nextiter;
-    const struct tbliter_v4 *iterptr;
+    struct prefix iter, nextiter;
+    const struct prefix *iterptr;
     afi_t afi;
 
     if (req->ctxtype != 0xac25a73c3ff455c0)
@@ -783,6 +787,8 @@ _qzc_set_bgp_vrf_3(struct bgp_vrf *p,
     qcapn_BGPVRFRoute_read(&data, req->data);
 
     bgp_vrf_static_set(p, afi, &data);
+    free(data.esi);
+    free(data.mac_router);
 }
 
 
@@ -811,6 +817,8 @@ _qzc_unset_bgp_vrf_3(struct bgp_vrf *p,
     qcapn_BGPVRFRoute_read(&data, req->data);
 
     bgp_vrf_static_unset(p, afi, &data);
+    free(data.esi);
+    free(data.mac_router);
 }
 
 

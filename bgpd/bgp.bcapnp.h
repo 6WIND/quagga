@@ -14,9 +14,9 @@ safi_t qcapn_AfiSafiKey_get_safi(capn_ptr p);
 capn_ptr qcapn_new_AfiSafiKey(struct capn_segment *s);
 afi_t qcapn_AfiKey_get_afi(capn_ptr p);
 capn_ptr qcapn_new_AfiKey(struct capn_segment *s);
-void qcapn_VRFTableIter_read(struct tbliter_v4 *s, capn_ptr p);
-void qcapn_VRFTableIter_write(const struct tbliter_v4 *s, capn_ptr p);
-void qcapn_VRFTableIter_set(struct tbliter_v4 *s, capn_ptr p);
+void qcapn_VRFTableIter_read(struct prefix *s, capn_ptr p);
+void qcapn_VRFTableIter_write(struct prefix *s, capn_ptr p);
+void qcapn_VRFTableIter_set(struct prefix *s, capn_ptr p);
 capn_ptr qcapn_new_VRFTableIter(struct capn_segment *s);
 void qcapn_BGP_read(struct bgp *s, capn_ptr p);
 void qcapn_BGP_write(const struct bgp *s, capn_ptr p);
@@ -60,6 +60,8 @@ capn_ptr qcapn_new_BGPEventShut(struct capn_segment *s);
 capn_ptr qcapn_new_BGPVRFInfoIter(struct capn_segment *s);
 void qcapn_BGPVRFInfoIter_write(const unsigned long s, capn_ptr p, int offset);
 void qcapn_BGPVRFInfoIter_read(unsigned long *s, capn_ptr p, int offset);
+void qcapn_prefix_macip_read(capn_ptr p, struct prefix *pfx, uint8_t *index);
+void qcapn_prefix_macip_write(capn_ptr p, const struct prefix *pfx, uint8_t *index);
 
 #define  CAPN_BGPVRF_ROUTE_DEF_SIZE  12
 #endif /* CAPN_C4C948A17D3B2250 */
