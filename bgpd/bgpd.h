@@ -224,9 +224,18 @@ struct bgp_nexthop
   struct in6_addr v6_local;
 };
 
+typedef enum
+{
+  BGP_LAYER_TYPE_2 = 1,
+  BGP_LAYER_TYPE_3 = 2,
+} bgp_layer_type_t;
+
 struct bgp_vrf
 {
   struct bgp *bgp;
+
+  /* TYPE2 for EVPN MAC/IP routes, TYPE3 for others */
+  bgp_layer_type_t ltype;
 
   /* RD used for route advertisements */
   struct prefix_rd outbound_rd;
@@ -1118,7 +1127,7 @@ extern int peer_clear_soft (struct peer *, afi_t, safi_t, enum bgp_clear_type);
 extern int peer_ttl_security_hops_set (struct peer *, int);
 extern int peer_ttl_security_hops_unset (struct peer *);
 
-extern struct bgp_vrf *bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd);
+extern struct bgp_vrf *bgp_vrf_create (struct bgp *bgp, bgp_layer_type_t ltype, struct prefix_rd *outbound_rd);
 extern struct bgp_vrf *bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd);
 extern struct bgp_vrf *bgp_vrf_lookup_per_rn (struct bgp *bgp, int afi, struct bgp_node *vrf_rn);
 extern void bgp_vrf_delete (struct bgp_vrf *vrf);

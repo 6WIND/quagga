@@ -9996,20 +9996,36 @@ bgp_config_write_redistribute (struct vty *vty, struct bgp *bgp, afi_t afi,
 
 DEFUN (bgp_vrf,
        bgp_vrf_cmd,
-       "vrf rd WORD",
+       "vrf rd WORD [LAYER]",
        "BGP VPN VRF\n"
        "Route Distinguisher\n"
+       "Layer type: layer_2 or layer_3\n"
        "Route Distinguisher\n"
 )
 {
   struct bgp *bgp = vty->index;
   struct bgp_vrf *vrf;
   struct prefix_rd prd;
+  bgp_layer_type_t ltype = BGP_LAYER_TYPE_3;
 
   if (! str2prefix_rd (argv[0], &prd))
     {
       vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
       return CMD_WARNING;
+    }
+
+  if (argv[1])
+    {
+      if (!strncmp(argv[1], "layer_2", 7))
+        ltype = BGP_LAYER_TYPE_2;
+      else
+        if (!strncmp(argv[1], "layer_3", 7))
+          ltype = BGP_LAYER_TYPE_3;
+        else
+          {
+            vty_out (vty, "%% VRF with layer type '%s' not supported%s", argv[1], VTY_NEWLINE);
+            return CMD_WARNING;
+          }
     }
 
   vrf = bgp_vrf_lookup (bgp, &prd);
@@ -10019,7 +10035,7 @@ DEFUN (bgp_vrf,
       return CMD_WARNING;
     }
 
-  bgp_vrf_create (bgp, &prd);
+  bgp_vrf_create (bgp, ltype, &prd);
   return CMD_SUCCESS;
 }
 

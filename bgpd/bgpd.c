@@ -2141,7 +2141,7 @@ bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd)
 }
 
 struct bgp_vrf *
-bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
+bgp_vrf_create (struct bgp *bgp, bgp_layer_type_t ltype, struct prefix_rd *outbound_rd)
 {
   struct bgp_vrf *vrf;
   afi_t afi;
@@ -2150,8 +2150,13 @@ bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
     return NULL;
 
   vrf->bgp = bgp;
+  vrf->ltype = ltype;
   vrf->outbound_rd = *outbound_rd;
-  vrf->max_mpath = bgp->maxpaths[AFI_IP][SAFI_MPLS_VPN].maxpaths_ibgp;
+
+  if (ltype == BGP_LAYER_TYPE_2)
+    vrf->max_mpath = bgp->maxpaths[AFI_INTERNAL_L2VPN][SAFI_INTERNAL_EVPN].maxpaths_ibgp;
+  else
+    vrf->max_mpath = bgp->maxpaths[AFI_IP][SAFI_MPLS_VPN].maxpaths_ibgp;
 
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     {
@@ -6051,7 +6056,9 @@ bgp_config_write (struct vty *vty)
         for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
           {
             str_p = prefix_rd2str(&(vrf->outbound_rd), rdstr, RD_ADDRSTRLEN);
-            vty_out(vty, " vrf rd %s%s", str_p == NULL?"<err>":str_p, VTY_NEWLINE);
+            vty_out(vty, " vrf rd %s%s%s", str_p == NULL?"<err>":str_p,
+                                          vrf->ltype == BGP_LAYER_TYPE_2 ? " layer_2": "",
+                                          VTY_NEWLINE);
             if(vrf->rt_import)
               {
                 str2_p = ecommunity_ecom2str (vrf->rt_import,
