@@ -1221,6 +1221,7 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
   memset(&instvrf, 0, sizeof(struct bgp_vrf));
   /* get route distinguisher internal representation */
   prefix_str2rd((char *)rd, &instvrf.outbound_rd);
+  instvrf.ltype = (l_type == LAYER_TYPE_LAYER_2) ? BGP_LAYER_TYPE_2 : BGP_LAYER_TYPE_3;
 
   /* retrive bgpvrf context or create new bgpvrf context */
   bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &instvrf.outbound_rd, _return);
@@ -1242,6 +1243,7 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
       /* add vrf entry in qthrift list */
       entry = XCALLOC(MTYPE_QTHRIFT, sizeof(struct qthrift_vpnservice_cache_bgpvrf));
       entry->outbound_rd = instvrf.outbound_rd;
+      entry->ltype = instvrf.ltype;
       entry->bgpvrf_nid = bgpvrf_nid;
       if(IS_QTHRIFT_DEBUG_CACHE)
         zlog_debug ("CACHE_VRF: add entry %llx", (long long unsigned int)bgpvrf_nid);

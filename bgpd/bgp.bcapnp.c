@@ -579,6 +579,16 @@ struct prefix_rd qcapn_BGPVRF_get_outbound_rd(capn_ptr p)
     *(uint64_t *)tp.val = capn_read64(p, 0); return tp;
 }
 
+uint8_t qcapn_BGPVRF_get_layer_type(capn_ptr p)
+{
+    capn_resolve(&p);
+    uint8_t ltype;
+
+    ltype = capn_read8(p, 12);
+
+    return ltype;
+}
+
 void qcapn_BGPVRFRoute_set(struct bgp_api_route *s, capn_ptr p)
 {
     capn_resolve(&p);

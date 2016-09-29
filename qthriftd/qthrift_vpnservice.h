@@ -56,6 +56,7 @@ struct qthrift_vpnservice_cache_bgpvrf
 {
   uint64_t bgpvrf_nid;
   struct prefix_rd outbound_rd;
+  bgp_layer_type_t ltype;
 };
 
 struct qthrift_cache_peer
