@@ -62,7 +62,6 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_evpn.h"
 #include "bgpd/bgp_attr_evpn.h"
 
-
 /* Extern from bgp_dump.c */
 extern const char *bgp_origin_str[];
 extern const char *bgp_origin_long_str[];
@@ -1975,9 +1974,14 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   struct prefix *p = (struct prefix *)&route->prefix;
   struct bgp_node *rn;
   struct prefix def_route;
+  safi_t safi;
 
-  if (afi != AFI_IP)
+  if ((afi != AFI_IP) && (afi != AFI_L2VPN))
     return -1;
+  if(afi == AFI_L2VPN)
+    safi = SAFI_EVPN;
+  else
+    safi = SAFI_MPLS_VPN;
 
   str2prefix ("0.0.0.0/0", &def_route);
 
@@ -2021,10 +2025,44 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   bgp_static->valid = 1;
   bgp_static->igpmetric = 0;
   bgp_static->igpnexthop = route->nexthop;
-  bgp_static->labels[0] = (route->label << 4) | 1;
-  bgp_static->nlabels = route->label ? 1 : 0;
+  if (route->label != 0xFFFFFFFF)
+    {
+      bgp_static->labels[0] = (route->label << 4) | 1;
+      bgp_static->nlabels = 1;
+    }
+  else
+    bgp_static->nlabels = 0;
+
   bgp_static->prd = vrf->outbound_rd;
   bgp_static->ecomm = vrf->rt_export;
+  if(afi == AFI_L2VPN)
+    {
+      if(route->esi)
+        {
+          bgp_static->eth_s_id = XCALLOC (MTYPE_ATTR, sizeof(struct eth_segment_id));
+          str2esi (route->esi, bgp_static->eth_s_id);
+        }
+      bgp_static->eth_t_id = route->ethtag;
+      if(route->mac_router)
+        {
+          bgp_static->router_mac = XCALLOC (MTYPE_ATTR, MAC_LEN+1);
+          str2mac ((const char *)route->mac_router, bgp_static->router_mac);
+        }
+      if(p->family == AF_L2VPN)
+        {
+          /* case of RT2 route, l2 label must be considered as mpls label 1 in message */
+          if(vrf->ltype == BGP_LAYER_TYPE_3)
+            {
+              bgp_static->labels[1] = (route->label << 4) | 1;
+            }
+          else
+            {
+              bgp_static->labels[0] = (route->l2label << 4) | 1;
+              bgp_static->labels[1] = (route->label << 4) | 1;
+            }
+          bgp_static->nlabels++;
+        }
+    }
   if (bgp_static->ecomm)
     {
       assert(bgp_static->ecomm->refcnt > 0);
@@ -2043,7 +2081,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
     }
   rn->info = bgp_static;
 
-  bgp_static_update_safi (vrf->bgp, p, bgp_static, afi, SAFI_MPLS_VPN);
+  bgp_static_update_safi (vrf->bgp, p, bgp_static, afi, safi);
   return 0;
 }
 
@@ -2054,9 +2092,14 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   struct bgp_static *old;
   struct bgp_node *rn;
   struct prefix def_route;
+  safi_t safi;
 
-  if (afi != AFI_IP)
+  if ((afi != AFI_IP) && (afi != AFI_L2VPN))
     return -1;
+  if(afi == AFI_L2VPN)
+    safi = SAFI_EVPN;
+  else
+    safi = SAFI_MPLS_VPN;
 
   str2prefix ("0.0.0.0/0", &def_route);
 
@@ -2098,7 +2141,7 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   if (!rn || !rn->info)
     return -1;
 
-  bgp_static_withdraw_safi (vrf->bgp, p, afi, SAFI_MPLS_VPN,
+  bgp_static_withdraw_safi (vrf->bgp, p, afi, safi,
                             &vrf->outbound_rd, NULL, 0);
 
   old = rn->info;

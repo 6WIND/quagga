@@ -785,6 +785,11 @@ _qzc_set_bgp_vrf_3(struct bgp_vrf *p,
     qcapn_BGPVRFRoute_read(&data, req->data);
 
     bgp_vrf_static_set(p, afi, &data);
+    if (data.esi)
+      free (data.esi);
+    if (data.mac_router)
+      free (data.mac_router);
+    data.esi = data.mac_router = NULL;
 }
 
 
@@ -812,6 +817,11 @@ _qzc_unset_bgp_vrf_3(struct bgp_vrf *p,
     qcapn_BGPVRFRoute_read(&data, req->data);
 
     bgp_vrf_static_unset(p, afi, &data);
+    if (data.esi)
+      free (data.esi);
+    if (data.mac_router)
+      free (data.mac_router);
+    data.mac_router = data.esi = NULL;
 }
 
 
