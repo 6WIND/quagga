@@ -50,8 +50,33 @@ struct PrefixV4 {
 	addr			 @0 :UInt32;
 	prefixlen		 @1 :UInt8;
 }
+
+struct MacIp {
+        ethTag :Uint32;
+        MacAddress : Uint8[6];
+        MacLen : Uint8;
+        IpLen : Uint8;
+        union
+        {
+           addrv4 : IPv4Address;
+           addrv6 : IPv6Address;
+        }u;
+}
+
+struct Prefix {
+# should add AF_L2VPN to AF_INET and AF_INET6 
+	family			 @0 :UInt8 $ctype("afi_t");
+	prefixlen		 @1 :UInt8;
+        Union
+        {
+               addrv4             @2 :IPv4Address;
+               addrv6             @2 :IPv6Address;
+               macip              @2 :MacIp;
+        }u;
+}
+
 struct VRFTableIter $ctype("struct tbliter_v4") $cgen {
-	prefix			 @0 :PrefixV4;
+	prefix			 @0 :Prefix;
 }
 
 struct BGP $ctype("struct bgp") $cgen
@@ -169,7 +194,7 @@ struct BGPVRF $ctype("struct bgp_vrf") $cgen
 
 struct BGPVRFRoute $ctype("struct bgp_api_route") $cgen
 {
-	prefix			 @0 :PrefixV4;
+	prefix			 @0 :Prefix;
 	nexthop			 @1 :IPv4;
 	label			 @2 :UInt32;
         ethtag                   @3 :Uint32;
@@ -182,7 +207,7 @@ struct BGPEventVRFRoute $ctype("struct bgp_event_vrf") $cgen
 {
 	announce		 @0 :Bool;
 	outboundRd		 @1 :UInt64;
-	prefix			 @2 :PrefixV4;
+	prefix			 @2 :Prefix;
 	nexthop			 @3 :IPv4;
 	label			 @4 :UInt32;
         l2label                  @5 :Uint32;

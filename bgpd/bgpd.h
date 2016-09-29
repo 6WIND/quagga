@@ -285,7 +285,7 @@ struct bgp_event_vrf
 #define BGP_EVENT_SHUT 0x2
   uint8_t announce;
   struct prefix_rd outbound_rd; /* dummy for event_shut */
-  struct prefix_ipv4 prefix; /* alias subtype */
+  struct prefix prefix; /* alias subtype */
   struct in_addr nexthop; /* alias peer */
   uint32_t label; /* alias type */
   uint32_t ethtag;
@@ -300,14 +300,9 @@ struct bgp_event_shut
   uint8_t type, subtype;
 };
 
-struct tbliter_v4
-{
-  struct prefix_ipv4 prefix;
-};
-
 struct bgp_api_route
 {
-  struct prefix_ipv4 prefix;
+  struct prefix prefix;
   struct in_addr nexthop;
   uint32_t label;
   uint32_t l2label;

@@ -149,7 +149,7 @@ bgp_notify_shut (struct bgp *bgp, struct bgp_event_shut *shut)
   msg.announce = BGP_EVENT_SHUT;
   msg.nexthop.s_addr = shut->peer.s_addr;
   msg.label = shut->type;
-  msg.prefix.prefix.s_addr = shut->subtype;
+  msg.prefix.u.prefix4.s_addr = shut->subtype;
   bgp_notify_send (bgp, &msg);
 }
 

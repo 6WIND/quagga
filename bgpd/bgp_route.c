@@ -1568,7 +1568,7 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
   struct bgp_info *sel, *iter;
 
   memset(out, 0, sizeof (*out));
-  if (bn->p.family != AF_INET)
+  if (bn->p.family == AF_ETHERNET)
     return false;
   if (!bn->info)
     return false;
@@ -1622,7 +1622,10 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
   if(sel->attr && sel->attr->extra && CHECK_FLAG (sel->flags, BGP_INFO_ORIGIN_EVPN))
     {
       out->esi = esi2str(&(sel->attr->extra->evpn_overlay.eth_s_id));
-      out->ethtag = sel->attr->extra->eth_t_id;
+      if (bn->p.family == AF_L2VPN)
+        out->ethtag = bn->p.u.prefix_macip.eth_tag_id;
+      else
+        out->ethtag = sel->attr->extra->eth_t_id;
       /* only router mac is filled in for VRF RIB layer 3 */
       if(sel->attr->extra->ecommunity)
         {
@@ -1772,6 +1775,8 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
     .outbound_rd      = vrf->outbound_rd
   };
 
+  prefix_copy (&event.prefix, &rn->p);
+
   if(!vrf || (rn && bgp_node_table (rn)->type != BGP_TABLE_VRF))
     return;
 
@@ -1876,8 +1881,6 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
   if(selected->type == ZEBRA_ROUTE_BGP
      && selected->sub_type == BGP_ROUTE_STATIC)
     return;
-  prefix_copy (&event.prefix, &rn->p);
-
 
   if (announce == true)
     {

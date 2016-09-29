@@ -517,20 +517,20 @@ _qzc_get_bgp_vrf_1(struct bgp_vrf *p,
 }
 
 static struct bgp_node * qcap_iter_bgp_vrf_rib(struct bgp_table *table,
-        const struct tbliter_v4 *prev_iter,
-        struct tbliter_v4 *next_iter,
+        const struct prefix *prev_iter,
+        struct prefix *next_iter,
         bool *hasnext)
 {
     struct bgp_node *bn;
     if (!prev_iter) {
         bn = bgp_table_top_nolock (table);
     } else {
-        bn = bgp_table_get_next (table, (struct prefix *)&prev_iter->prefix);
+        bn = bgp_table_get_next (table, (struct prefix *)prev_iter);
         if (bn)
             bgp_unlock_node(bn);
     }
     if (bn) {
-        prefix_copy ((struct prefix *)&next_iter->prefix, &bn->p);
+        prefix_copy (next_iter, &bn->p);
         *hasnext = true;
     } else
         *hasnext = false;
@@ -546,8 +546,8 @@ _qzc_get_bgp_vrf_2(struct bgp_vrf *p,
         struct capn_segment *seg)
 {
     struct bgp_table * table;
-    struct tbliter_v4 iter, nextiter;
-    const struct tbliter_v4 *iterptr;
+    struct prefix iter, nextiter;
+    const struct prefix *iterptr;
     afi_t afi;
     void *next  = NULL;
 
@@ -667,20 +667,20 @@ _qzc_get_bgp_vrf_4(struct bgp_vrf *p,
 }
 
 static struct bgp_node * qcap_iter_bgp_vrf_route(struct bgp_table *table,
-        const struct tbliter_v4 *prev_iter,
-        struct tbliter_v4 *next_iter,
+        const struct prefix *prev_iter,
+        struct prefix *next_iter,
         bool *hasnext)
 {
     struct bgp_node *bn;
     if (!prev_iter) {
         bn = bgp_table_top_nolock (table);
     } else {
-        bn = bgp_table_get_next (table, (struct prefix *)&prev_iter->prefix);
+        bn = bgp_table_get_next (table, (struct prefix *)prev_iter);
         if (bn)
             bgp_unlock_node(bn);
     }
     if (bn) {
-        prefix_copy ((struct prefix *)&next_iter->prefix, &bn->p);
+        prefix_copy (next_iter, &bn->p);
         *hasnext = true;
     } else
         *hasnext = false;
@@ -696,8 +696,8 @@ _qzc_get_bgp_vrf_3(struct bgp_vrf *p,
         struct capn_segment *seg)
 {
     struct bgp_table * table;
-    struct tbliter_v4 iter, nextiter;
-    const struct tbliter_v4 *iterptr;
+    struct prefix iter, nextiter;
+    const struct prefix *iterptr;
     afi_t afi;
 
     if (req->ctxtype != 0xac25a73c3ff455c0)
