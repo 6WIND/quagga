@@ -1036,6 +1036,7 @@ void qcapn_BGPVRF_read(struct bgp_vrf *s, capn_ptr p)
     s->outbound_rd.family = AF_UNSPEC;
     s->outbound_rd.prefixlen = 64;
     s->max_mpath = capn_read32(p, 8);
+    s->ltype = capn_read8(p, 12);
     {
         capn_ptr tmp_p = capn_getp(p, 0, 1);
         capn_list64 listptr = { .p = capn_getp(tmp_p, 0, 1) };
@@ -1069,6 +1070,7 @@ void qcapn_BGPVRF_write(const struct bgp_vrf *s, capn_ptr p)
     capn_resolve(&p);
     capn_write64(p, 0, tmp);
     capn_write32(p, 8, s->max_mpath);
+    capn_write8(p, 12, s->ltype);
     {
         capn_ptr tempptr = capn_new_struct(p.seg, 0, 1);
         size_t size = s->rt_import ? s->rt_import->size : 0;
@@ -1150,7 +1152,7 @@ struct prefix_rd qcapn_BGPVRF_get_outbound_rd(capn_ptr p)
 
 capn_ptr qcapn_new_BGPVRF(struct capn_segment *s)
 {
-    return capn_new_struct(s, 12, 2);
+    return capn_new_struct(s, 13, 2);
 }
 
 
@@ -1230,7 +1232,15 @@ void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p)
     { capn_text tp = { .str = s->mac_router, .len = s->mac_router ? strlen((const char *)s->mac_router) : 0 }; capn_set_text(p, 3, tp); }
 }
 
+uint8_t qcapn_BGPVRF_get_layer_type(capn_ptr p)
+{
+    capn_resolve(&p);
+    uint8_t ltype;
 
+    ltype = capn_read8(p, 12);
+
+    return ltype;
+}
 
 void qcapn_BGPVRFRoute_set(struct bgp_api_route *s, capn_ptr p)
 {
