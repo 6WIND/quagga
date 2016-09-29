@@ -1803,14 +1803,32 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
         }
       if (announce)
         {
-          if (selected->extra->nlabels)
-	    event.label = selected->extra->labels[0] >> 4;
+          if(selected->extra)
+            bgp_vrf_update_labels (vrf, rn, selected, &(event.label), &(event.l2label));
+
           if(selected->attr && selected->attr->extra && selected->attr->extra->ecommunity)
             {
-              struct ecommunity_val *routermac = ecommunity_lookup (selected->attr->extra->ecommunity, ECOMMUNITY_ENCODE_EVPN);
-
-              if(routermac)
-                event.mac_router = ecom_mac2str(routermac->val);
+              /* only router mac is filled in for VRF RIB layer 3 */
+              if(vrf->ltype == BGP_LAYER_TYPE_3)
+                {
+                  /* import routermac */
+                  struct ecommunity_val *routermac = ecommunity_lookup (selected->attr->extra->ecommunity, 
+                                                                        ECOMMUNITY_ENCODE_EVPN,
+                                                                        ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC);
+                  if(routermac)
+                    event.mac_router = ecom_mac2str(routermac->val);
+                  else 
+                    { 
+                      event.mac_router = NULL;
+                      if(ecommunity_lookup (selected->attr->extra->ecommunity, 
+                                            ECOMMUNITY_ENCODE_EVPN,
+                                            ECOMMUNITY_EVPN_SUBTYPE_DEF_GW))
+                        if (                            (rn->p).u.prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
+                          {
+                            event.mac_router = ecom_mac2str((char *)(&(rn->p).u.prefix_macip.mac));
+                          }
+                    }
+                }
               else
                 event.mac_router = NULL;
             }
@@ -1820,13 +1838,12 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
       else
         {
           event.mac_router = NULL;
-          if (selected->extra)
+          if (rn->p.family == AF_L2VPN)
             {
-              if (selected->extra->nlabels)
-                event.label = selected->extra->labels[0] >> 4;
-              else
-                event.label = 0;
+              event.ethtag = rn->p.u.prefix_macip.eth_tag_id;
             }
+          if (selected->extra)
+            bgp_vrf_update_labels (vrf, rn, selected,  &(event.label), &(event.l2label));
         }
       bgp_notify_route (vrf->bgp, &event);
     }
