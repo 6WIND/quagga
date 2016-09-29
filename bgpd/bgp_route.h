@@ -137,6 +137,8 @@ struct bgp_static
   /* Route Distinguisher */
   struct prefix_rd     prd;
 
+  struct ecommunity	*ecomm;
+
   /* MPLS label.  */
   u_char tag[3];
 };
