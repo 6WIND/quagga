@@ -5341,6 +5341,7 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
   struct bgp_static *bgp_static;
   uint32_t labels[BGP_MAX_LABELS];
   size_t nlabels;
+  struct bgp_vrf *vrf;
 
   bgp = vty->index;
 
@@ -5390,6 +5391,11 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
       bgp_static->igpnexthop.s_addr = 0;
       memcpy(bgp_static->labels, labels, sizeof(labels[0]) * nlabels);
       bgp_static->nlabels = nlabels;
+      vrf = bgp_vrf_lookup(bgp, &prd);
+      if (vrf)
+        {
+          bgp_static->ecomm = vrf->rt_export;
+        }
       bgp_static->prd = prd;
 
       if (rmap_str)
