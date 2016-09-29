@@ -2188,7 +2188,7 @@ bgp_vrf_lookup_per_name (struct bgp *bgp, const char *name, int create)
   vrf->name = strdup (name);
   vrf->max_mpath = bgp->maxpaths[AFI_IP][SAFI_MPLS_VPN].maxpaths_ibgp;
   vrf->flag |= BGP_VRF_RD_UNSET;
-
+  vrf->ltype = BGP_LAYER_TYPE_3;
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     {
       vrf->route[afi] = bgp_table_init (afi, SAFI_UNICAST);
@@ -6132,7 +6132,8 @@ bgp_config_write (struct vty *vty)
             if (!(vrf->flag & BGP_VRF_RD_UNSET))
               {
                 str_p = prefix_rd2str(&(vrf->outbound_rd), rdstr, RD_ADDRSTRLEN);
-                vty_out(vty, "  rd %s%s", str_p == NULL?"<err>":str_p, VTY_NEWLINE);
+                vty_out(vty, "  rd %s%s%s", str_p == NULL?"<err>":str_p,
+                        vrf->ltype == BGP_LAYER_TYPE_2 ? " layer_2": "", VTY_NEWLINE);
               }
             if(vrf->rt_import)
               {

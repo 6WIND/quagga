@@ -1665,6 +1665,43 @@ void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
     }
 }
 
+/* from draft-ietf-bess-evpn-inter-subnet-forwarding-01,
+ * for EVPN, MAC/IP advertisement should be filtered
+ * Label-1 = MPLS Label or VNID corresponding to MAC-VRF
+ * Label-2 = MPLS Label or VNID corresponding to IP-VRF
+ */
+static void bgp_vrf_update_labels (struct bgp_vrf *vrf, struct bgp_node *rn,
+                                   struct bgp_info *selected, uint32_t *l3label, uint32_t *l2label)
+{
+  if (selected->extra->nlabels)
+    {
+      if (rn->p.family == AF_L2VPN)
+        {
+          if(vrf->ltype == BGP_LAYER_TYPE_3)
+            {
+              /* either select belongs to vrf table => only 1 label 
+               * or it is part of global rib => 2 labels 
+               */
+              if(rn->table && bgp_node_table (rn) && bgp_node_table (rn)->type == BGP_TABLE_VRF)
+                *l3label = selected->extra->labels[0] >> 4;
+              else
+                *l3label = selected->extra->labels[1] >> 4;
+              *l2label = 0;
+            }
+          else
+            {
+              *l2label = selected->extra->labels[0] >> 4;
+              *l3label = 0;
+            }
+        }
+      else
+        {
+          *l3label = selected->extra->labels[0] >> 4;
+          *l2label = 0;
+        }
+    }
+}
+
 /* messages sent to ODL to signify that an entry
  * has been selected, or unselected
  */

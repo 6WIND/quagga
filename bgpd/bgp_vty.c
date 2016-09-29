@@ -10103,7 +10103,6 @@ DEFUN (bgp_vrf,
     return CMD_ERR_NO_MATCH;
   vty->index_sub = vrf;
   vty->node = BGP_VRF_NODE;
-
   return CMD_SUCCESS;
 }
 
@@ -10164,13 +10163,15 @@ DEFUN (exit_bgp_vrf,
 
 DEFUN (bgp_vrf_rd,
        bgp_vrf_rd_cmd,
-       "rd WORD",
+       "rd WORD [LAYER]",
        "Route Distinguisher\n"
        "Route Distinguisher Name\n"
+       "Layer type: layer_2 or layer_3\n"
 )
 {
   struct bgp *bgp = vty->index;
   struct bgp_vrf *vrf = vty->index_sub;
+  bgp_layer_type_t ltype = BGP_LAYER_TYPE_3;
   struct prefix_rd prd;
 
   if (! str2prefix_rd (argv[0], &prd))
@@ -10179,6 +10180,22 @@ DEFUN (bgp_vrf_rd,
       return CMD_WARNING;
     }
   bgp_vrf_update_rd (bgp, vrf, &prd);
+
+  if (argc == 2)
+    {
+      if (!strncmp(argv[1], "layer_2", 7))
+        ltype = BGP_LAYER_TYPE_2;
+      else
+        if (!strncmp(argv[1], "layer_3", 7))
+          ltype = BGP_LAYER_TYPE_3;
+        else
+          {
+            vty_out (vty, "%% VRF with layer type '%s' not supported%s", argv[1], VTY_NEWLINE);
+            return CMD_WARNING;
+          }
+    }
+  vrf->ltype = ltype;
+
   return CMD_SUCCESS;
 }
 

@@ -230,11 +230,21 @@ struct bgp_nexthop
   struct in6_addr v6_local;
 };
 
+typedef enum
+{
+  BGP_LAYER_TYPE_2 = 1,
+  BGP_LAYER_TYPE_3 = 2,
+} bgp_layer_type_t;
+
 struct bgp_vrf
 {
   struct bgp *bgp;
 
   char *name;
+
+  /* TYPE2 for EVPN MAC/IP routes, TYPE3 for others */
+  bgp_layer_type_t ltype;
+
   /* RD used for route advertisements */
   struct prefix_rd outbound_rd;
 
