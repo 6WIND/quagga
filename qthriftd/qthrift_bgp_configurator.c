@@ -1182,6 +1182,10 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
                                             AF_AFI_AFI_L2VPN, AF_SAFI_SAFI_EVPN,
                                             PEER_FLAG_NEXTHOP_UNCHANGED, TRUE,
                                             error);
+      ret = qthrift_bgp_peer_af_flag_config(ctxt, _return, routerId,    \
+                                            AF_AFI_AFI_L2VPN, AF_SAFI_SAFI_EVPN,
+                                            PEER_FLAG_SOFT_RECONFIG, TRUE,
+                                            error);
     }
   return ret;
 }
