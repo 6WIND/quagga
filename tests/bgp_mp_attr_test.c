@@ -322,13 +322,13 @@ static struct test_segment {
       /* Nexthop */		192, 168,   0,  1, 
       /* SNPA (defunct, MBZ) */	0x0,
       /* NLRI tuples */		88 + 16,
-                                  0, 1, 2,   /* tag */
+                                  0, 1, 1,   /* tag */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_AS */
                                     0, 2, 0, 0xff, 3, 4, /* AS(2):val(4) */
                                   10, 1,    /* 10.1/16 */
                                 88 + 17,
-                                  0xff, 0, 0,   /* tag */
+                                  2, 43, 1,   /* tag */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_IP */
                                     192, 168, 0, 1, /* IPv4 */
@@ -365,13 +365,13 @@ static struct test_segment {
       /* Nexthop */		192, 168,   0,  1, 
       /* SNPA (defunct, MBZ) */	0x0,
       /* NLRI tuples */		88 + 1,
-                                  0, 1, 2,   /* tag */
+                                  0, 2, 1,   /* tag with BOS bit set */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_AS */
                                     0, 2, 0, 0xff, 3, 4, /* AS(2):val(4) */
                                   10, 1,    /* 10.1/16 */
                                 88 + 17,
-                                  0xff, 0, 0,   /* tag */
+                                  3, 4, 1,   /* tag with BOS bit set */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_IP */
                                     192, 168, 0, 1, /* IPv4 */
@@ -391,13 +391,13 @@ static struct test_segment {
       /* Nexthop */		192, 168,   0,  1, 
       /* SNPA (defunct, MBZ) */	0x0,
       /* NLRI tuples */		88 + 32,
-                                  0, 1, 2,   /* tag */
+                                  0, 2, 1,   /* tag  with BOS bit */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_AS */
                                     0, 2, 0, 0xff, 3, 4, /* AS(2):val(4) */
                                   10, 1,    /* 10.1/16 */
                                 88 + 17,
-                                  0xff, 0, 0,   /* tag */
+                                  3, 4, 1,   /* tag with BOS bit set */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_IP */
                                     192, 168, 0, 1, /* IPv4 */
@@ -417,13 +417,13 @@ static struct test_segment {
       /* Nexthop */		192, 168,   0,  1, 
       /* SNPA (defunct, MBZ) */	0x0,
       /* NLRI tuples */		88 + 16,
-                                  0, 1, 2,   /* tag */
+                                  0, 2, 1,   /* tag  with BOS bit */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_AS */
                                     0, 2, 0, 0xff, 3, 4, /* AS(2):val(4) */
                                   10, 1,    /* 10.1/16 */
                                 88 + 17,
-                                  0xff, 0, 0,   /* tag */
+                                  3, 4, 1,   /* tag with BOS bit set */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_IP */
                                     192, 168, 0, 1, /* IPv4 */
@@ -444,13 +444,13 @@ static struct test_segment {
       /* Nexthop */		192, 168,   0,  1, 
       /* SNPA (defunct, MBZ) */	0x0,
       /* NLRI tuples */		88 + 16,
-                                  0, 1, 2,   /* tag */
+                                  0, 2, 1,   /* tag  with BOS bit */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_AS */
                                     0, 2, 0, 0xff, 3, 4, /* AS(2):val(4) */
                                   10, 1,    /* 10.1/16 */
                                 88 + 2,
-                                  0xff, 0, 0,   /* tag */
+                                  3, 4, 1,   /* tag with BOS bit set */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_IP */
                                     192, 168, 0, 1, /* IPv4 */
@@ -470,13 +470,13 @@ static struct test_segment {
       /* Nexthop */		192, 168,   0,  1, 
       /* SNPA (defunct, MBZ) */	0x0,
       /* NLRI tuples */		88 + 16,
-                                  0, 1, 2,   /* tag */
+                                  0, 2, 1,   /* tag  with BOS bit */
                                   /* rd, 8 octets */
                                     0xff, 0, /* Bogus RD */
                                     0, 2, 0, 0xff, 3, 4, /* AS(2):val(4) */
                                   10, 1,    /* 10.1/16 */
                                 88 + 17,
-                                  0xff, 0, 0,   /* tag */
+                                  3, 4, 1,   /* tag with BOS bit set */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_IP */
                                     192, 168, 0, 1, /* IPv4 */
@@ -496,13 +496,13 @@ static struct test_segment {
       /* Nexthop */		192, 168,   0,  1, 
       /* SNPA (defunct, MBZ) */	0x0,
       /* NLRI tuples */		88 + 16,
-                                  0, 1, 2,   /* tag */
+                                  0, 2, 1,   /* tag  with BOS bit */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_AS */
                                     0, 2, 0, 0xff, 3, 4, /* AS(2):val(4) */
                                   10, 1,    /* 10.1/16 */
                                 88 + 17,
-                                  0xff, 0, 0,   /* tag */
+                                  3, 4, 1,   /* tag with BOS bit set */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_IP */
                                     192, 168, 0, 1, /* IPv4 */
@@ -513,7 +513,59 @@ static struct test_segment {
     SHOULD_ERR,
     AFI_IP, SAFI_MPLS_LABELED_VPN, VALID_AFI,
   },
-
+  { "IPv4-VPNv4-2-label",
+    "IPv4/VPNv4 MP Reach, RD, NH, 2 NLRI, 2 label in 1st",
+    {
+      /* AFI / SAFI */		0x0, AFI_IP, SAFI_MPLS_LABELED_VPN,
+      /* nexthop bytes */	12,
+      /* RD */			0, 0, 0, 0, /* RD defined to be 0 */
+                                0, 0, 0, 0,
+      /* Nexthop */		192, 168,   0,  1, 
+      /* SNPA (defunct, MBZ) */	0x0,
+      /* NLRI tuples */		104+3*8,
+                                  44, 2, 0,  /* no BOS bit */
+                                  0, 2, 1,   /* tag  with BOS bit */
+                                  /* rd, 8 octets */
+                                    0, 0, /* RD_TYPE_AS */
+                                    0, 2, 0, 0xff, 3, 4, /* AS(2):val(4) */
+                                  10, 1,    /* 10.1/16 */
+                                88 + 17,
+                                  3, 4, 1,   /* tag with BOS bit set */
+                                  /* rd, 8 octets */
+                                    0, 0, /* RD_TYPE_IP */
+                                    192, 168, 0, 1, /* IPv4 */
+                                  10, 2, 3,  /* 10.2.3/17 */
+    },
+    (4 + 12 + 1 + (1+3+3+8+2) + (1+3+8+3)),
+    SHOULD_PARSE,
+    AFI_IP, SAFI_MPLS_LABELED_VPN, VALID_AFI,
+  },
+  { "IPv4-VPNv4-bogus-label",
+    "IPv4/VPNv4 MP Reach, RD, NH, 2 NLRI, bad label in 1st (log, but parse)",
+    {
+      /* AFI / SAFI */		0x0, AFI_IP, SAFI_MPLS_LABELED_VPN,
+      /* nexthop bytes */	12,
+      /* RD */			0, 0, 0, 0, /* RD defined to be 0 */
+                                0, 0, 0, 0,
+      /* Nexthop */		192, 168,   0,  1, 
+      /* SNPA (defunct, MBZ) */	0x0,
+      /* NLRI tuples */		88 + 16,
+                                  44, 2, 0,   /* no BOS bit */
+                                  /* rd, 8 octets */
+                                    0, 0, /* RD_TYPE_AS */
+                                    0, 2, 0, 0xff, 3, 4, /* AS(2):val(4) */
+                                  10, 1,    /* 10.1/16 */
+                                88 + 17,
+                                  3, 4, 1,   /* tag with BOS bit set */
+                                  /* rd, 8 octets */
+                                    0, 0, /* RD_TYPE_IP */
+                                    192, 168, 0, 1, /* IPv4 */
+                                  10, 2, 3,  /* 10.2.3/17 */
+    },
+    (4 + 12 + 1 + (1+3+8+2) + (1+3+8+3)),
+    SHOULD_PARSE,
+    AFI_IP, SAFI_MPLS_LABELED_VPN, VALID_AFI,
+  },
   /* From bug #385 */
   { "IPv6-bug",
     "IPv6, global nexthop, 1 default NLRI", 
@@ -625,13 +677,13 @@ static struct test_segment mp_unreach_segments [] =
     {
       /* AFI / SAFI */		0x0, AFI_IP, SAFI_MPLS_LABELED_VPN,
       /* NLRI tuples */		88 + 16,
-                                  0, 1, 2,   /* tag */
+                                  0, 2, 1,   /* tag  with BOS bit */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_AS */
                                     0, 2, 0, 0xff, 3, 4, /* AS(2):val(4) */
                                   10, 1,    /* 10.1/16 */
                                 88 + 17,
-                                  0xff, 0, 0,   /* tag */
+                                  3, 4, 1,   /* tag with BOS bit set */
                                   /* rd, 8 octets */
                                     0, 0, /* RD_TYPE_IP */
                                     192, 168, 0, 1, /* IPv4 */
@@ -718,7 +770,6 @@ parse_test (struct peer *peer, struct test_segment *t, int type)
     parse_ret = bgp_mp_reach_parse (&attr_args, &nlri);
   else
     parse_ret = bgp_mp_unreach_parse (&attr_args, &nlri);
-  
   if (parse_ret == 0 && t->afi_valid == VALID_AFI)
     assert (nlri.afi == t->afi && nlri.safi == t->safi);
   
