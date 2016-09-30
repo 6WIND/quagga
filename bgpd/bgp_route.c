@@ -7572,6 +7572,8 @@ void
 route_vty_out_tmp (struct vty *vty, struct prefix *p,
 		   struct attr *attr, safi_t safi)
 {
+  afi_t family;
+
   /* Route status display. */
   vty_out (vty, "*");
   vty_out (vty, ">");
@@ -7579,20 +7581,24 @@ route_vty_out_tmp (struct vty *vty, struct prefix *p,
 
   /* print prefix and mask */
   route_vty_out_route (p, vty);
+  family = p->family;
 
   /* Print attribute */
   if (attr) 
     {
-      if (p->family == AF_INET)
+      if (p->family == AF_L2VPN) /* MAC/IP prefix */
+        {
+          family = AF_INET;
+        }
+      if (family == AF_INET)
 	{
-	  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP))
 	  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_INTERNAL_EVPN))
 	    vty_out (vty, "%-16s",
                      inet_ntoa (attr->extra->mp_nexthop_global_in));
 	  else
 	    vty_out (vty, "%-16s", inet_ntoa (attr->nexthop));
 	}
-      else if (p->family == AF_INET6)
+      else if (family == AF_INET6)
         {
           int len;
           char buf[BUFSIZ];
@@ -8091,7 +8097,7 @@ enum bgp_show_type
 
 static int
 bgp_show_table (struct vty *vty, struct bgp_table *table, struct in_addr *router_id,
-	  enum bgp_show_type type, void *output_arg)
+                enum bgp_show_type type, void *output_arg, int display_all)
 {
   struct bgp_info *ri;
   struct bgp_node *rn;
@@ -8297,7 +8303,10 @@ bgp_show_table (struct vty *vty, struct bgp_table *table, struct in_addr *router
 		     || type == bgp_show_type_flap_neighbor)
 	      flap_route_vty_out (vty, &rn->p, ri, display, safi);
 	    else
-	      route_vty_out (vty, &rn->p, ri, display, safi);
+              if(display_all)
+                route_vty_out (vty, &rn->p, ri, 0, safi);
+              else
+                route_vty_out (vty, &rn->p, ri, display, safi);
 	    display++;
 	  }
 	if (display)
@@ -8336,7 +8345,7 @@ bgp_show (struct vty *vty, struct bgp *bgp, afi_t afi, safi_t safi,
 
   table = bgp->rib[afi][safi];
 
-  return bgp_show_table (vty, table, &bgp->router_id, type, output_arg);
+  return bgp_show_table (vty, table, &bgp->router_id, type, output_arg, 0);
 }
 
 static int
@@ -8365,7 +8374,7 @@ bgp_show_vrf (struct vty *vty, const char *vrf_name, afi_t afi,
       return CMD_WARNING;
     }
 
-  return bgp_show_table (vty, vrf->rib[afi], &bgp->router_id, type, output_arg);
+  return bgp_show_table (vty, vrf->rib[afi], &bgp->router_id, type, output_arg, 1);
 }
 
 /* Header of detailed BGP route information */
@@ -15201,7 +15210,7 @@ DEFUN (show_ip_bgp_view_rsclient,
 
   table = peer->rib[AFI_IP][SAFI_UNICAST];
 
-  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL);
+  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL, 0);
 }
 
 ALIAS (show_ip_bgp_view_rsclient,
@@ -15258,7 +15267,7 @@ DEFUN (show_bgp_view_ipv4_safi_rsclient,
 
   table = peer->rib[AFI_IP][safi];
 
-  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL);
+  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL, 0);
 }
 
 ALIAS (show_bgp_view_ipv4_safi_rsclient,
@@ -16053,7 +16062,7 @@ DEFUN (show_bgp_view_rsclient,
 
   table = peer->rib[AFI_IP6][SAFI_UNICAST];
 
-  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL);
+  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL, 0);
 }
 
 ALIAS (show_bgp_view_rsclient,
@@ -16103,7 +16112,7 @@ DEFUN (show_bgp_view_ipv4_rsclient,
 
   table = peer->rib[AFI_IP][SAFI_UNICAST];
 
-  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL);
+  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL, 0);
 }
 DEFUN (show_bgp_view_ipv6_rsclient,
        show_bgp_view_ipv6_rsclient_cmd,
@@ -16144,7 +16153,7 @@ DEFUN (show_bgp_view_ipv6_rsclient,
 
   table = peer->rib[AFI_IP6][SAFI_UNICAST];
 
-  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL);
+  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL, 0);
 }
 
 ALIAS (show_bgp_view_ipv4_rsclient,
@@ -16210,7 +16219,7 @@ DEFUN (show_bgp_view_ipv6_safi_rsclient,
 
   table = peer->rib[AFI_IP6][safi];
 
-  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL);
+  return bgp_show_table (vty, table, &peer->remote_id, bgp_show_type_normal, NULL, 0);
 }
 
 ALIAS (show_bgp_view_ipv6_safi_rsclient,

@@ -28,6 +28,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_table.h"
+#include "bgpd/bgp_advertise.h"
 #include "bgpd/bgp_route.h"
 #include "bgpd/bgp_attr.h"
 #include "bgpd/bgp_mplsvpn.h"
@@ -243,17 +244,28 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
   return 0;
 }
 
+#define BGP_SHOW_SCODE_HEADER "Status codes: s suppressed, d damped, "\
+			      "h history, * valid, > best, = multipath,%s"\
+		"              i internal, r RIB-failure, S Stale, R Removed%s"
+#define BGP_SHOW_OCODE_HEADER "Origin codes: i - IGP, e - EGP, ? - incomplete%s%s"
+#define BGP_SHOW_HEADER "   Network          Next Hop            Metric LocPrf Weight Path%s"
 static int
-show_adj_route_evpn (struct vty *vty, struct peer *peer, struct prefix_rd *prd)
+show_adj_route_evpn (struct vty *vty, struct peer *peer, struct prefix_rd *prd, int in)
 {
   struct bgp *bgp;
   struct bgp_table *table;
   struct bgp_node *rn;
   struct bgp_node *rm;
-  struct attr *attr;
   int rd_header;
-  int header = 1;
-  char v4_header[] = "   Network          Next Hop            Metric LocPrf Weight Path%s";
+  int header1 = 1;
+  int header2 = 1;
+  struct bgp_adj_in *ain;
+  struct bgp_adj_out *adj;
+  unsigned long output_count;
+  char buf[RD_ADDRSTRLEN];
+  char *ptr;
+
+  output_count = 0;
 
   bgp = bgp_get_default ();
   if (bgp == NULL)
@@ -265,7 +277,7 @@ show_adj_route_evpn (struct vty *vty, struct peer *peer, struct prefix_rd *prd)
   for (rn = bgp_table_top (bgp->rib[AFI_INTERNAL_L2VPN][SAFI_INTERNAL_EVPN]); rn;
        rn = bgp_route_next (rn))
     {
-      if (prd && memcmp (rn->p.u.val, prd->val, 8) != 0)
+      if (prd && memcmp (&(rn->p).u.val, prd->val, 8) != 0)
         continue;
 
       if ((table = rn->info) != NULL)
@@ -273,57 +285,90 @@ show_adj_route_evpn (struct vty *vty, struct peer *peer, struct prefix_rd *prd)
           rd_header = 1;
 
           for (rm = bgp_table_top (table); rm; rm = bgp_route_next (rm))
-            if ((attr = rm->info) != NULL)
+            if (in)
               {
-                if (header)
-                  {
-                    vty_out (vty, "BGP table version is 0, local router ID is %s%s",
-                             inet_ntoa (bgp->router_id), VTY_NEWLINE);
-                    vty_out (vty, "Status codes: s suppressed, d damped, h history, * valid, > best, i - internal%s",
-                             VTY_NEWLINE);
-                    vty_out (vty, "Origin codes: i - IGP, e - EGP, ? - incomplete%s%s",
-                             VTY_NEWLINE, VTY_NEWLINE);
-                    vty_out (vty, v4_header, VTY_NEWLINE);
-                    header = 0;
-                  }
+                for (ain = rm->adj_in; ain; ain = ain->next)
+                  if (ain->peer == peer)
+                    {
+                      if (header1)
+                        {
+                          vty_out (vty, "BGP table version is 0, local router ID is %s%s", inet_ntoa (bgp->router_id), VTY_NEWLINE);
+                          vty_out (vty, BGP_SHOW_SCODE_HEADER, VTY_NEWLINE, VTY_NEWLINE);
+                          vty_out (vty, BGP_SHOW_OCODE_HEADER, VTY_NEWLINE, VTY_NEWLINE);
+                          header1 = 0;
+                        }
+                      if (header2)
+                        {
+                          vty_out (vty, BGP_SHOW_HEADER, VTY_NEWLINE);
+                          header2 = 0;
+                        }
+                      if (rd_header)
+                        {
+                          ptr = prefix_rd2str ((struct prefix_rd *)&(rn->p), buf, RD_ADDRSTRLEN);
 
-                if (rd_header)
-                  {
-                    u_int16_t type;
-                    struct rd_as rd_as;
-                    struct rd_ip rd_ip;
-                    u_char *pnt;
+                          vty_out (vty, "Route Distinguisher: ");
+                          if(ptr)
+                            vty_out (vty, "%s", buf);
+                          else
+                            vty_out (vty, "<unknown>");
+                          vty_out (vty, "%s", VTY_NEWLINE);
+                          rd_header = 0;
+                        }
+                      if (ain->attr)
+                        {
+                          route_vty_out_tmp (vty, &rm->p, ain->attr, SAFI_INTERNAL_EVPN);
+                          output_count++;
+                        }
+                    }
+              }
+            else
+              {
+                for (adj = rm->adj_out; adj; adj = adj->next)
+                  if (adj->peer == peer)
+                    {
+                      if (header1)
+                        {
+                          vty_out (vty, "BGP table version is 0, local router ID is %s%s", inet_ntoa (bgp->router_id), VTY_NEWLINE);
+                          vty_out (vty, BGP_SHOW_SCODE_HEADER, VTY_NEWLINE, VTY_NEWLINE);
+                          vty_out (vty, BGP_SHOW_OCODE_HEADER, VTY_NEWLINE, VTY_NEWLINE);
+                          header1 = 0;
+                        }
+                      if (rd_header)
+                        {
+                          ptr = prefix_rd2str ((struct prefix_rd *)rn->p.u.val, buf, RD_ADDRSTRLEN);
 
-                    pnt = rn->p.u.val;
-
-                    /* Decode RD type. */
-                    type = decode_rd_type (pnt);
-                    /* Decode RD value. */
-                    if (type == RD_TYPE_AS)
-                      decode_rd_as (pnt + 2, &rd_as);
-                    else if (type == RD_TYPE_AS4)
-                      decode_rd_as4 (pnt + 2, &rd_as);
-                    else if (type == RD_TYPE_IP)
-                      decode_rd_ip (pnt + 2, &rd_ip);
-
-                    vty_out (vty, "Route Distinguisher: ");
-
-                    if (type == RD_TYPE_AS)
-                      vty_out (vty, "%u:%d", rd_as.as, rd_as.val);
-                    else if (type == RD_TYPE_AS4)
-                      vty_out (vty, "%u:%d", rd_as.as, rd_as.val);
-                    else if (type == RD_TYPE_IP)
-                      vty_out (vty, "%s:%d", inet_ntoa (rd_ip.ip), rd_ip.val);
-
-                    vty_out (vty, "%s", VTY_NEWLINE);
-                    rd_header = 0;
-                  }
-                route_vty_out_tmp (vty, &rm->p, attr, SAFI_MPLS_VPN);
+                          vty_out (vty, "Route Distinguisher: ");
+                          if(ptr)
+                            vty_out (vty, "%s", buf);
+                          else
+                            vty_out (vty, "<unknown>");
+                          vty_out (vty, "%s", VTY_NEWLINE);
+                          rd_header = 0;
+                        }
+                      if (header2)
+                        {
+                          vty_out (vty, BGP_SHOW_HEADER, VTY_NEWLINE);
+                          header2 = 0;
+                        }
+                      if (adj->attr)
+                        {
+                          route_vty_out_tmp (vty, &rm->p, adj->attr, SAFI_INTERNAL_EVPN);
+                          output_count++;
+                        }
+                    }
               }
         }
     }
+
+  if (output_count != 0)
+    vty_out (vty, "%sTotal number of prefixes %ld%s",
+	     VTY_NEWLINE, output_count, VTY_NEWLINE);
+
   return CMD_SUCCESS;
 }
+#undef BGP_SHOW_SCODE_HEADER
+#undef BGP_SHOW_OCODE_HEADER
+#undef BGP_SHOW_HEADER
 
 enum bgp_show_type
 {
@@ -625,6 +670,39 @@ DEFUN (show_bgp_l2vpn_evpn_all_neighbor_routes,
                                 SHOW_DISPLAY_STANDARD);
 }
 
+DEFUN (show_bgp_l2vpn_evpn_all_neighbor_received_routes,
+       show_bgp_l2vpn_evpn_all_neighbor_received_routes_cmd,
+       "show bgp l2vpn evpn all neighbors A.B.C.D received-routes",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display information about all EVPN NLRIs\n"
+       "Detailed information on TCP and BGP neighbor connections\n"
+       "Neighbor to display information about\n"
+       "Display the routes received from a BGP neighbor\n")
+{
+  int ret;
+  struct peer *peer;
+  union sockunion su;
+
+  ret = str2sockunion (argv[0], &su);
+  if (ret < 0)
+    {
+      vty_out (vty, "%% Malformed address: %s%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  peer = peer_lookup (NULL, &su);
+  if (! peer || ! peer->afc[AFI_INTERNAL_L2VPN][SAFI_INTERNAL_EVPN])
+    {
+      vty_out (vty, "%% No such neighbor or address family%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  return show_adj_route_evpn (vty, peer, NULL, 1);
+}
+
+
 DEFUN (show_bgp_l2vpn_evpn_rd_neighbor_routes,
        show_bgp_l2vpn_evpn_rd_neighbor_routes_cmd,
        "show bgp l2vpn evpn rd ASN:nn_or_IP-address:nn neighbors A.B.C.D routes",
@@ -697,7 +775,7 @@ DEFUN (show_bgp_l2vpn_evpn_all_neighbor_advertised_routes,
       return CMD_WARNING;
     }
 
-  return show_adj_route_evpn (vty, peer, NULL);
+  return show_adj_route_evpn (vty, peer, NULL, 0);
 }
 
 DEFUN (show_bgp_l2vpn_evpn_rd_neighbor_advertised_routes,
@@ -738,7 +816,47 @@ DEFUN (show_bgp_l2vpn_evpn_rd_neighbor_advertised_routes,
       return CMD_WARNING;
     }
 
-  return show_adj_route_evpn (vty, peer, &prd);
+  return show_adj_route_evpn (vty, peer, &prd, 0);
+}
+
+DEFUN (show_bgp_l2vpn_evpn_rd_neighbor_received_routes,
+       show_bgp_l2vpn_evpn_rd_neighbor_received_routes_cmd,
+       "show bgp l2vpn evpn rd ASN:nn_or_IP-address:nn neighbors A.B.C.D received-routes",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display information about all EVPN NLRIs\n"
+       "Detailed information on TCP and BGP neighbor connections\n"
+       "Neighbor to display information about\n"
+       "Display the routes received from a BGP neighbor\n")
+{
+  int ret;
+  struct peer *peer;
+  struct prefix_rd prd;
+  union sockunion su;
+
+  ret = str2sockunion (argv[1], &su);
+  if (ret < 0)
+    {
+      vty_out (vty, "%% Malformed address: %s%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  peer = peer_lookup (NULL, &su);
+  if (! peer || ! peer->afc[AFI_INTERNAL_L2VPN][SAFI_INTERNAL_EVPN])
+    {
+      vty_out (vty, "%% No such neighbor or address family%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  ret = prefix_str2rd (argv[0], &prd);
+  if (! ret)
+    {
+      vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  return show_adj_route_evpn (vty, peer, &prd, 1);
 }
 
 void
@@ -757,7 +875,8 @@ bgp_ethernetvpn_init (void)
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_neighbor_routes_cmd);
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_neighbor_advertised_routes_cmd);
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_neighbor_advertised_routes_cmd);
-
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_neighbor_received_routes_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_neighbor_received_routes_cmd);
   install_element (ENABLE_NODE, &show_bgp_l2vpn_evpn_all_cmd);
   install_element (ENABLE_NODE, &show_bgp_evpn_rd_cmd);
   install_element (ENABLE_NODE, &show_bgp_l2vpn_evpn_rd_cmd);
@@ -770,4 +889,6 @@ bgp_ethernetvpn_init (void)
   install_element (ENABLE_NODE, &show_bgp_l2vpn_evpn_rd_neighbor_routes_cmd);
   install_element (ENABLE_NODE, &show_bgp_l2vpn_evpn_all_neighbor_advertised_routes_cmd);
   install_element (ENABLE_NODE, &show_bgp_l2vpn_evpn_rd_neighbor_advertised_routes_cmd);
+  install_element (ENABLE_NODE, &show_bgp_l2vpn_evpn_all_neighbor_received_routes_cmd);
+  install_element (ENABLE_NODE, &show_bgp_l2vpn_evpn_rd_neighbor_received_routes_cmd);
 }
