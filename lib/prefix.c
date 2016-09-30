@@ -196,7 +196,10 @@ str2family(const char *string)
     return AF_INET6;
   else if (!strcmp("ethernet", string))
     return AF_ETHERNET;
-  return -1;
+  else if (!strcmp("l2vpn", string))
+    return AF_L2VPN;
+  else
+    return -1;
 }
 
 /* Address Famiy Identifier to Address Family converter. */
@@ -211,6 +214,8 @@ afi2family (afi_t afi)
 #endif /* HAVE_IPV6 */
   else if (afi == AFI_ETHER)
     return AF_ETHERNET;
+  else if (afi == AFI_L2VPN)
+    return AF_L2VPN;
   return 0;
 }
 
@@ -225,6 +230,8 @@ family2afi (int family)
 #endif /* HAVE_IPV6 */
   else if (family == AF_ETHERNET)
     return AFI_ETHER;
+  else if (family == AF_L2VPN)
+    return AFI_L2VPN;
   return 0;
 }
 
@@ -257,6 +264,8 @@ safi2str(safi_t safi)
 	return "encap";
     case SAFI_MPLS_VPN:
 	return "vpn";
+    case SAFI_EVPN:
+	return "evpn";
   }
   return NULL;
 }
@@ -312,6 +321,17 @@ prefix_copy (struct prefix *dest, const struct prefix *src)
     {
       dest->u.prefix_eth = src->u.prefix_eth;
     }
+  else if (src->family == AF_L2VPN)
+    {
+      dest->u.prefix_macip.eth_tag_id = src->u.prefix_macip.eth_tag_id;
+      memcpy(&dest->u.prefix_macip.mac, &src->u.prefix_macip.mac, sizeof(dest->u.prefix_macip.mac));
+      dest->u.prefix_macip.mac_len = src->u.prefix_macip.mac_len;
+      dest->u.prefix_macip.ip_len = src->u.prefix_macip.ip_len;
+      if (dest->u.prefix_macip.ip_len == 32)
+        memcpy(&dest->u.prefix_macip.ip.in4, &src->u.prefix_macip.ip.in4, sizeof(dest->u.prefix_macip.ip.in4));
+      else
+        memcpy(&dest->u.prefix_macip.ip.in6, &src->u.prefix_macip.ip.in6, sizeof(dest->u.prefix_macip.ip.in6));
+    }
   else
     {
       zlog (NULL, LOG_ERR, "prefix_copy(): Unknown address family %d",
@@ -341,10 +361,15 @@ prefix_same (const struct prefix *p1, const struct prefix *p2)
 	if (IPV6_ADDR_SAME (&p1->u.prefix6.s6_addr, &p2->u.prefix6.s6_addr))
 	  return 1;
 #endif /* HAVE_IPV6 */
-      if (p1->family == AF_ETHERNET) {
-	if (!memcmp(p1->u.prefix_eth.octet, p2->u.prefix_eth.octet, ETHER_ADDR_LEN))
-	    return 1;
-      }
+      if (p1->family == AF_ETHERNET)
+        if (!memcmp(p1->u.prefix_eth.octet, p2->u.prefix_eth.octet, ETHER_ADDR_LEN))
+            return 1;
+      if (p1->family == AF_L2VPN)
+        if (   (p1->u.prefix_macip.eth_tag_id == p2->u.prefix_macip.eth_tag_id)
+            && (!memcmp(p1->u.prefix_macip.mac.octet, p2->u.prefix_macip.mac.octet, ETHER_ADDR_LEN))
+            && (p1->u.prefix_macip.ip_len == p2->u.prefix_macip.ip_len)
+            && (!memcmp(&p1->u.prefix_macip.ip, &p2->u.prefix_macip.ip, p2->u.prefix_macip.ip_len/8)))
+            return 1;
     }
   return 0;
 }
@@ -438,6 +463,8 @@ prefix_family_str (const struct prefix *p)
 #endif /* HAVE_IPV6 */
   if (p->family == AF_ETHERNET)
     return "ether";
+  if (p->family == AF_L2VPN)
+    return "l2vpn";
   return "unspec";
 }
 
@@ -850,6 +877,8 @@ prefix_blen (const struct prefix *p)
 #endif /* HAVE_IPV6 */
     case AF_ETHERNET:
       return ETHER_ADDR_LEN;
+    case AF_L2VPN:
+      return L2VPN_MAX_BYTELEN;
     }
   return 0;
 }
@@ -903,6 +932,32 @@ prefix2str (union prefix46constptr pu, char *str, int size)
     sprintf(s, "/%d", p->prefixlen);
     return 0;
   }
+
+  if (p->family == AF_L2VPN)
+    {
+      char *s = str;
+
+      assert(size >= PREFIX_STRLEN);
+
+      if (L2VPN_PREFIX_HAS_IPV4(p))
+        inet_ntop (AF_INET, &p->u.prefix_macip.ip.in4, buf, BUFSIZ);
+      else if (L2VPN_PREFIX_HAS_IPV6(p))
+        inet_ntop (AF_INET6, &p->u.prefix_macip.ip.in6, buf, BUFSIZ);
+      else if (L2VPN_PREFIX_HAS_NOIP(p))
+        strcpy(buf, "none");
+      snprintf (s, BUFSIZ, "[%u][%02x:%02x:%02x:%02x:%02x:%02x/%d][%s/%d]",
+                p->u.prefix_macip.eth_tag_id,
+                p->u.prefix_macip.mac.octet[0],
+                p->u.prefix_macip.mac.octet[1],
+                p->u.prefix_macip.mac.octet[2],
+                p->u.prefix_macip.mac.octet[3],
+                p->u.prefix_macip.mac.octet[4],
+                p->u.prefix_macip.mac.octet[5],
+                p->u.prefix_macip.mac_len,
+                buf,
+                p->u.prefix_macip.ip_len);
+      return 0;
+    }
 
   inet_ntop (p->family, &p->u.prefix, buf, BUFSIZ);
   snprintf (str, size, "%s/%d", buf, p->prefixlen);
