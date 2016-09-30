@@ -196,6 +196,8 @@ str2family(const char *string)
     return AF_INET;
   else if (!strcmp("ipv6", string))
     return AF_INET6;
+  else if (!strcmp("l2vpn", string))
+    return AF_L2VPN;
   else
     return -1;
 }
@@ -213,7 +215,7 @@ afi2family (afi_t afi)
   else if (afi == AFI_ETHER)
     return AF_ETHERNET;
   else if (afi == AFI_INTERNAL_L2VPN)
-    return AFI_INTERNAL_L2VPN;
+    return AF_L2VPN;
   return 0;
 }
 
@@ -228,6 +230,8 @@ family2afi (int family)
 #endif /* HAVE_IPV6 */
   else if (family == AF_ETHERNET)
     return AFI_ETHER;
+  else if (family == AF_L2VPN)
+    return AFI_INTERNAL_L2VPN;
   return 0;
 }
 
@@ -243,6 +247,8 @@ safi2str(safi_t safi)
 	return "encap";
     case SAFI_MPLS_VPN:
 	return "vpn";
+    case SAFI_INTERNAL_EVPN:
+	return "evpn";
   }
   return NULL;
 }
@@ -298,6 +304,17 @@ prefix_copy (struct prefix *dest, const struct prefix *src)
     {
       dest->u.prefix_eth = src->u.prefix_eth;
     }
+  else if (src->family == AF_L2VPN)
+    {
+      dest->u.prefix_macip.eth_tag_id = src->u.prefix_macip.eth_tag_id;
+      memcpy(&dest->u.prefix_macip.mac, &src->u.prefix_macip.mac, sizeof(dest->u.prefix_macip.mac));
+      dest->u.prefix_macip.mac_len = src->u.prefix_macip.mac_len;
+      dest->u.prefix_macip.ip_len = src->u.prefix_macip.ip_len;
+      if (dest->u.prefix_macip.ip_len == 32)
+        memcpy(&dest->u.prefix_macip.ip.in4, &src->u.prefix_macip.ip.in4, sizeof(dest->u.prefix_macip.ip.in4));
+      else
+        memcpy(&dest->u.prefix_macip.ip.in6, &src->u.prefix_macip.ip.in6, sizeof(dest->u.prefix_macip.ip.in6));
+    }
   else
     {
       zlog (NULL, LOG_ERR, "prefix_copy(): Unknown address family %d",
@@ -329,6 +346,12 @@ prefix_same (const struct prefix *p1, const struct prefix *p2)
 #endif /* HAVE_IPV6 */
       if (p1->family == AF_ETHERNET)
         if (!memcmp(p1->u.prefix_eth.octet, p2->u.prefix_eth.octet, ETHER_ADDR_LEN))
+            return 1;
+      if (p1->family == AF_L2VPN)
+        if (   (p1->u.prefix_macip.eth_tag_id == p2->u.prefix_macip.eth_tag_id)
+            && (!memcmp(p1->u.prefix_macip.mac.octet, p2->u.prefix_macip.mac.octet, ETHER_ADDR_LEN))
+            && (p1->u.prefix_macip.ip_len == p2->u.prefix_macip.ip_len)
+            && (!memcmp(&p1->u.prefix_macip.ip, &p2->u.prefix_macip.ip, p2->u.prefix_macip.ip_len/8)))
             return 1;
     }
   return 0;
@@ -423,6 +446,8 @@ prefix_family_str (const struct prefix *p)
 #endif /* HAVE_IPV6 */
   if (p->family == AF_ETHERNET)
     return "ether";
+  if (p->family == AF_L2VPN)
+    return "l2vpn";
   return "unspec";
 }
 
@@ -781,6 +806,8 @@ prefix_blen (const struct prefix *p)
 #endif /* HAVE_IPV6 */
     case AF_ETHERNET:
       return ETHER_ADDR_LEN;
+    case AF_L2VPN:
+      return L2VPN_MAX_BYTELEN;
     }
   return 0;
 }
@@ -817,7 +844,7 @@ prefix2str (union prefix46constptr pu, char *str, int size)
       int i;
       char *s = str;
 
-      assert(size > (3*ETHER_ADDR_LEN));
+      assert(size >= PREFIX_STRLEN);
       for (i = 0; i <= ETHER_ADDR_LEN; ++i)
         {
           sprintf(s, "%02x", p->u.prefix_eth.octet[i]);
@@ -825,6 +852,32 @@ prefix2str (union prefix46constptr pu, char *str, int size)
             *(s+2) = ':';
           s += 3;
         }
+      return 0;
+    }
+
+  if (p->family == AF_L2VPN)
+    {
+      char *s = str;
+
+      assert(size >= PREFIX_STRLEN);
+
+      if (L2VPN_PREFIX_HAS_IPV4(p))
+        inet_ntop (AF_INET, &p->u.prefix_macip.ip.in4, buf, BUFSIZ);
+      else if (L2VPN_PREFIX_HAS_IPV6(p))
+        inet_ntop (AF_INET6, &p->u.prefix_macip.ip.in6, buf, BUFSIZ);
+      else if (L2VPN_PREFIX_HAS_NOIP(p))
+        strcpy(buf, "none");
+      snprintf (s, BUFSIZ, "[%u][%02x:%02x:%02x:%02x:%02x:%02x/%d][%s/%d]",
+                p->u.prefix_macip.eth_tag_id,
+                p->u.prefix_macip.mac.octet[0],
+                p->u.prefix_macip.mac.octet[1],
+                p->u.prefix_macip.mac.octet[2],
+                p->u.prefix_macip.mac.octet[3],
+                p->u.prefix_macip.mac.octet[4],
+                p->u.prefix_macip.mac.octet[5],
+                p->u.prefix_macip.mac_len,
+                buf,
+                p->u.prefix_macip.ip_len);
       return 0;
     }
 
@@ -1369,35 +1422,38 @@ str2esi (const char *str, struct eth_segment_id *id)
 char *
 esi2str (struct eth_segment_id *id)
 {
-  int i;
-  char pos[40];
-  char *ptr = (char *)pos;
+  char *ptr;
+  u_char *val;
 
   if(!id)
     return NULL;
-  for (i = 0; i < 10; i++)
-    {
-      ptr+=sprintf (ptr,"%02x%s", id->val[i], i ==9?"":":");
-    }
-  ptr = (char *)pos;
-  return strdup((const char *)ptr);
+
+  val = id->val;
+  ptr = (char *) malloc ((ESI_LEN*2+ESI_LEN-1+1)*sizeof(char));
+
+  snprintf (ptr, (ESI_LEN*2+ESI_LEN-1+1),
+            "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+            val[0], val[1], val[2], val[3], val[4],
+            val[5], val[6], val[7], val[8], val[9]);
+
+  return ptr;
 }
 
 char *
 mac2str (char *mac)
 {
-  int i;
-  static char pos[40];
-  char *ptr = (char *)pos;
+  char *ptr;
 
   if(!mac)
     return NULL;
-  for (i = 0; i < 6; i++)
-    {
-      ptr+=sprintf (ptr,"%02x%s", mac[i], i ==5?"":":");
-    }
-  ptr = (char *)pos;
-  return strdup((const char *)ptr);
+
+  ptr = (char *) malloc ((MAC_LEN*2+MAC_LEN-1+1)*sizeof(char));
+
+  snprintf (ptr, (MAC_LEN*2+MAC_LEN-1+1), "%02x:%02x:%02x:%02x:%02x:%02x",
+           (uint8_t) mac[0], (uint8_t)mac[1], (uint8_t)mac[2], (uint8_t)mac[3],
+           (uint8_t)mac[4], (uint8_t)mac[5]);
+
+  return ptr;
 }
 
 char *ecom_mac2str(char *ecom_mac)
