@@ -4049,7 +4049,7 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
               str2mac (vrf->mac_router, routermac_int);
               memset(&routermac_ecom, 0, sizeof(struct ecommunity_val));
               routermac_ecom.val[0] = ECOMMUNITY_ENCODE_EVPN;
-              routermac_ecom.val[1] = ECOMMUNITY_SITE_ORIGIN;
+              routermac_ecom.val[1] = ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC;
               memcpy(&routermac_ecom.val[2], routermac_int, MAC_LEN);
               if(ae->ecommunity)
                 ecommunity_add_val(ae->ecommunity, &routermac_ecom);
@@ -5333,7 +5333,7 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
            struct ecommunity_val routermac;
            memset (&routermac, 0, sizeof(struct ecommunity_val));
            routermac.val[0] = ECOMMUNITY_ENCODE_EVPN;
-           routermac.val[1] = ECOMMUNITY_SITE_ORIGIN;
+           routermac.val[1] = ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC;
            memcpy (&routermac.val[2], bgp_static->router_mac, MAC_LEN);
            ecommunity_add_val (extra->ecommunity, &routermac);
          }
@@ -7767,11 +7767,22 @@ route_vty_out_overlay (struct vty *vty, struct prefix *p,
 	}
       if(attr->extra->ecommunity)
         {
-          struct ecommunity_val *routermac = ecommunity_lookup (attr->extra->ecommunity, ECOMMUNITY_ENCODE_EVPN);
-
+          char *mac = NULL;
+          struct ecommunity_val *routermac = ecommunity_lookup (attr->extra->ecommunity, 
+                                                                ECOMMUNITY_ENCODE_EVPN,
+                                                                ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC);
           if(routermac)
+            mac = ecom_mac2str((char *)routermac->val);
+          else
             {
-              char *mac = ecom_mac2str((char *)routermac->val);
+              if(ecommunity_lookup (attr->extra->ecommunity, 
+                                    ECOMMUNITY_ENCODE_EVPN,
+                                    ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC))
+                if ((p->u).prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
+                  mac = ecom_mac2str((char *)&(p->u).prefix_macip.mac);
+            }
+          if(mac)
+            {
               vty_out (vty, "/%s",(char *)mac);
               free(mac);
             }
