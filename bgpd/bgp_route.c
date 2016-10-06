@@ -5127,19 +5127,23 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   if(afi == AFI_L2VPN)
     {
       struct bgp_encap_type_vxlan bet;
+      struct attr_extra *extra;
 
       memset(&bet, 0, sizeof(struct bgp_encap_type_vxlan));
       if(bgp_static->eth_t_id)
         bet.vnid = bgp_static->eth_t_id;
       bgp_encap_type_vxlan_to_tlv(&bet, &attr);
-     if(bgp_static->router_mac)
+      extra = bgp_attr_extra_get (&attr);
+      if(bgp_static->router_mac)
         {
           struct ecommunity_val routermac;
           memset(&routermac, 0, sizeof(struct ecommunity_val));
           routermac.val[0] = ECOMMUNITY_ENCODE_EVPN;
-          routermac.val[1] = ECOMMUNITY_SITE_ORIGIN;
+          routermac.val[1] = ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC;
           memcpy(&routermac.val[2], bgp_static->router_mac, MAC_LEN);
-          ecommunity_add_val(bgp_attr_extra_get (&attr)->ecommunity,&routermac);
+           if(!extra->ecommunity)
+             extra->ecommunity = ecommunity_new ();
+          ecommunity_add_val(extra->ecommunity,&routermac);
         }
       if (bgp_static->igpnexthop.s_addr)
         {
@@ -7617,9 +7621,21 @@ route_vty_out_overlay (struct vty *vty, struct prefix *p,
 	}
       if(attr->extra->ecommunity)
         {
-          struct ecommunity_val *routermac = ecommunity_lookup (attr->extra->ecommunity, ECOMMUNITY_ENCODE_EVPN);
-
+          char *mac = NULL;
+          struct ecommunity_val *routermac = ecommunity_lookup (attr->extra->ecommunity, 
+                                                                ECOMMUNITY_ENCODE_EVPN,
+                                                                ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC);
           if(routermac)
+            mac = ecom_mac2str((char *)routermac->val);
+          else
+            {
+              if(ecommunity_lookup (attr->extra->ecommunity, 
+                                    ECOMMUNITY_ENCODE_EVPN,
+                                    ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC))
+                if ((p->u).prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
+                  mac = ecom_mac2str((char *)&(p->u).prefix_macip.mac);
+            }
+          if(mac)
             {
               char *mac = ecom_mac2str(routermac->val);
               vty_out (vty, "/%s",(char *)mac);

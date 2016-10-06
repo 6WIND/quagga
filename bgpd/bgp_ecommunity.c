@@ -34,7 +34,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 static struct hash *ecomhash;
 
 /* Allocate a new ecommunities.  */
-static struct ecommunity *
+struct ecommunity *
 ecommunity_new (void)
 {
   return (struct ecommunity *) XCALLOC (MTYPE_ECOMMUNITY,
@@ -807,19 +807,64 @@ ecommunity_match (const struct ecommunity *ecom1,
 }
 
 /* return first occurence of type */
-extern struct ecommunity_val *ecommunity_lookup (const struct ecommunity *ecom, uint8_t type)
+extern struct ecommunity_val *ecommunity_lookup (const struct ecommunity *ecom, uint8_t type, uint8_t subtype)
 {
   u_int8_t *p;
   int c;
-  struct ecommunity_val *ecom_val;
+
+  if(ecom == NULL)
+    return NULL;
+  /* If the value already exists in the structure return 0.  */
+  c = 0;
+  for (p = ecom->val; c < ecom->size; p += ECOMMUNITY_SIZE, c++)
+    {
+      if(p == NULL)
+        {
+          continue;
+        }
+      if(p[0] == type && p[1] == subtype)
+        return (struct ecommunity_val *)p;
+    }
+  return NULL;
+}
+
+/* remove ext. community matching type and subtype 
+ * return 1 on success ( removed ), 0 otherwise (not present)
+ */
+extern int ecommunity_strip (struct ecommunity *ecom, uint8_t type, uint8_t subtype)
+{
+  u_int8_t *p;
+  int c, found = 0;
+  /* When this is fist value, just add it.  */
+  if (ecom == NULL || ecom->val == NULL)
+    {
+      return 0;
+    }
 
   /* If the value already exists in the structure return 0.  */
   c = 0;
   for (p = ecom->val; c < ecom->size; p += ECOMMUNITY_SIZE, c++)
     {
-      ecom_val = (struct ecommunity_val *)p;
-      if(ecom_val->val[0] == type)
-        return ecom_val;
+      if (p[0] == type && p[1] == subtype)
+        {
+          found = 1;
+          break;
+        }
     }
-  return NULL;
+  if (found == 0)
+    return 0;
+  /* Strip The selected value */
+  ecom->size--;
+  /* size is reduced. no memmove to do */
+  p = XMALLOC (MTYPE_ECOMMUNITY_VAL, ecom->size * ECOMMUNITY_SIZE);
+  if (c != 0)
+    memcpy(p, ecom->val, c * ECOMMUNITY_SIZE);
+  if( (ecom->size - c) != 0)
+    memcpy(p + (c) * ECOMMUNITY_SIZE,
+           ecom->val + (c +1)* ECOMMUNITY_SIZE,
+           (ecom->size - c) * ECOMMUNITY_SIZE);
+  /* shift last ecommunities */
+  XFREE (MTYPE_ECOMMUNITY, ecom->val);
+  ecom->val = p;
+  return 1;
 }
