@@ -2212,6 +2212,15 @@ static void bgp_vrf_process_entry (struct bgp_info *iter,
     afi_int = afi;
   if(action == ROUTE_INFO_TO_REMOVE)
     {
+      if (CHECK_FLAG (iter->peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG)
+          && iter->peer != iter->peer->bgp->peer_self)
+        if (!bgp_adj_in_unset (vrf_rn, iter->peer))
+          {
+            char pfx_str[PREFIX_STRLEN];
+            prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
+            zlog (iter->peer->log, LOG_DEBUG, "%s withdrawing route %s "
+                  "not in adj-in", iter->peer->host, pfx_str);
+          }
       bgp_info_delete(vrf_rn, iter);
       
       if (BGP_DEBUG (events, EVENTS))
@@ -2257,6 +2266,15 @@ static void bgp_vrf_process_entry (struct bgp_info *iter,
           zlog_debug ("%s: processing entry (for %s) from %s [ nh %s]",
                       pfx_str, action == ROUTE_INFO_TO_UPDATE?"upgrading":"adding",
                       iter->peer->host, nh_str);
+        }
+      /* When peer's soft reconfiguration enabled.  Record input packet in
+         Adj-RIBs-In.  */
+      if( ( action == ROUTE_INFO_TO_UPDATE) || (action == ROUTE_INFO_TO_ADD ))
+        {
+          /* soft_reconfig is set to 0 so, it should work XXX */
+          if ( CHECK_FLAG (iter->peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG)
+               && iter->peer != iter->peer->bgp->peer_self)
+            bgp_adj_in_set (vrf_rn, iter->peer, iter->attr);
         }
     }
 }
