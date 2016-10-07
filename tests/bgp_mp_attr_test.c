@@ -709,14 +709,15 @@ handle_result (struct peer *peer, struct test_segment *t,
   if (!parse_ret)
     {
       safi_t safi = t->safi;
-      
-      if (bgp_afi_safi_valid_indices (t->afi, &safi) != t->afi_valid)
+      afi_t afi = t->afi;
+
+      if (bgp_afi_safi_valid_indices ( &afi, &safi) != t->afi_valid)
         failed++;
       
       printf ("MP: %u/%u (%u): recv %u, nego %u\n",
               t->afi, t->safi, safi,
-              peer->afc_recv[t->afi][safi],
-              peer->afc_nego[t->afi][safi]);
+              peer->afc_recv[afi][safi],
+              peer->afc_nego[afi][safi]);
     }
   
   printf ("mp attr parsed?: %s\n", parse_ret ? "no" : "yes");
