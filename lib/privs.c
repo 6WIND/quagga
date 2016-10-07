@@ -336,7 +336,7 @@ zprivs_caps_terminate (void)
     {
       fprintf (stderr, "privs_terminate: cap_set_proc failed, %s",
                 safe_strerror (errno) );
-      exit (1);
+      return;
     }  
 
   /* free up private state */
