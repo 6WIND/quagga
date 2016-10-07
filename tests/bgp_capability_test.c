@@ -584,21 +584,22 @@ parse_test (struct peer *peer, struct test_segment *t, int type)
   if (!ret && t->validate_afi)
     {
       safi_t safi = t->safi;
-      
-      if (bgp_afi_safi_valid_indices (t->afi, &safi) != t->afi_valid)
+      afi_t afi = t->afi;
+
+      if (bgp_afi_safi_valid_indices (&afi, &safi) != t->afi_valid)
         failed++;
       
       printf ("MP: %u/%u (%u): recv %u, nego %u\n",
               t->afi, t->safi, safi,
-              peer->afc_recv[t->afi][safi],
-              peer->afc_nego[t->afi][safi]);
+              peer->afc_recv[afi][safi],
+              peer->afc_nego[afi][safi]);
         
       if (t->afi_valid == VALID_AFI)
         {
         
-          if (!peer->afc_recv[t->afi][safi])
+          if (!peer->afc_recv[afi][safi])
             failed++;
-          if (!peer->afc_nego[t->afi][safi])
+          if (!peer->afc_nego[afi][safi])
             failed++;
         }
     }
