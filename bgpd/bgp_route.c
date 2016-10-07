@@ -1675,6 +1675,43 @@ void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
     }
 }
 
+/* from draft-ietf-bess-evpn-inter-subnet-forwarding-01,
+ * for EVPN, MAC/IP advertisement should be filtered
+ * Label-1 = MPLS Label or VNID corresponding to MAC-VRF
+ * Label-2 = MPLS Label or VNID corresponding to IP-VRF
+ */
+static void bgp_vrf_update_labels (struct bgp_vrf *vrf, struct bgp_node *rn,
+                                   struct bgp_info *selected, uint32_t *l3label, uint32_t *l2label)
+{
+  if (selected->extra->nlabels)
+    {
+      if (rn->p.family == AF_L2VPN)
+        {
+          if(vrf->ltype == BGP_LAYER_TYPE_3)
+            {
+              /* either select belongs to vrf table => only 1 label 
+               * or it is part of global rib => 2 labels 
+               */
+              if(rn->table && bgp_node_table (rn) && bgp_node_table (rn)->type == BGP_TABLE_VRF)
+                *l3label = selected->extra->labels[0] >> 4;
+              else
+                *l3label = selected->extra->labels[1] >> 4;
+              *l2label = 0;
+            }
+          else
+            {
+              *l2label = selected->extra->labels[0] >> 4;
+              *l3label = 0;
+            }
+        }
+      else
+        {
+          *l3label = selected->extra->labels[0] >> 4;
+          *l2label = 0;
+        }
+    }
+}
+
 /* messages sent to ODL to signify that an entry
  * has been selected, or unselected
  */
@@ -1962,15 +1999,18 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
  * on some cases, there is an update request. then it is necessary to have both old and new ri
  */
 static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_node *rn,
-                                 struct bgp_info *select, int action)
+                                 struct bgp_info *select, struct attr *attr, int action)
 {
   struct bgp_node *vrf_rn;
   struct bgp_info *iter = NULL;
   struct prefix_rd *prd;
-  char pfx_str[INET6_BUFSIZ];
+  char pfx_str[PREFIX_STRLEN];
+  afi_t afi_int;
 
   if(afi == AFI_INTERNAL_L2VPN)
-    afi = AFI_IP; /* XXX should be set to appropriate AFI : AF_INET or AF_INET6 */
+    afi_int = AFI_IP; /* XXX should be set to appropriate AFI : AF_INET or AF_INET6 */
+  else
+    afi_int = afi;
   prd = &bgp_node_table (rn)->prd;
   if (BGP_DEBUG (events, EVENTS))
     {
@@ -1982,9 +2022,9 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
       prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
       if(select && select->attr && select->attr->extra)
         {
-          if (afi == AFI_IP)
+          if (afi_int == AFI_IP)
             strcpy (nh_str, inet_ntoa (select->attr->extra->mp_nexthop_global_in));
-          else if (afi == AFI_IP6)
+          else if (afi_int == AFI_IP6)
             inet_ntop (AF_INET6, &select->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
         }
       else if(select)
@@ -2002,11 +2042,11 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
   /* check if global RIB plans for destroying initial entry
    * if yes, then suppress it
    */
-  if(!vrf || !vrf->rib[afi] || !select)
+  if(!vrf || !vrf->rib[afi_int] || !select)
     {
       return;
     }
-  vrf_rn = bgp_node_get (vrf->rib[afi], &rn->p);
+  vrf_rn = bgp_node_get (vrf->rib[afi_int], &rn->p);
   if(!vrf_rn)
     {
       return;
@@ -2020,6 +2060,15 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
           /* coming from same peer */
           if(iter->peer->remote_id.s_addr == select->peer->remote_id.s_addr)
             {
+              if (CHECK_FLAG (iter->peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG)
+                  && iter->peer != iter->peer->bgp->peer_self)
+                if (!bgp_adj_in_unset (rn, iter->peer))
+                  {
+                    prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+                    if (BGP_DEBUG (update, UPDATE_IN))
+                      zlog (iter->peer->log, LOG_DEBUG, "%s withdrawing route %s "
+                            "not in adj-in", iter->peer->host, pfx_str);
+                  }
               bgp_info_delete(vrf_rn, iter);
               prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
               if (BGP_DEBUG (events, EVENTS))
@@ -2027,9 +2076,9 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
                   char nh_str[BUFSIZ] = "<?>";
                   if(iter->attr && iter->attr->extra)
                     {
-                      if (afi == AFI_IP)
+                      if (afi_int == AFI_IP)
                         strcpy (nh_str, inet_ntoa (iter->attr->extra->mp_nexthop_global_in));
-                      else if (afi == AFI_IP6)
+                      else if (afi_int == AFI_IP6)
                         inet_ntop (AF_INET6, &iter->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
                     }
                   else
@@ -2040,7 +2089,7 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
                   zlog_debug ("%s: processing entry (for removal) from %s [ nh %s]", 
                               pfx_str, iter->peer->host, nh_str);
                 }
-              bgp_process (iter->peer->bgp, vrf_rn, afi, SAFI_UNICAST);
+              bgp_process (iter->peer->bgp, vrf_rn, afi_int, SAFI_UNICAST);
               break;
             }
         }
@@ -2060,7 +2109,7 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
               if(action == ROUTE_INFO_TO_UPDATE)
                 {
                   /* because there is an update. signify a withdraw */
-                  bgp_vrf_update (vrf, afi, vrf_rn, iter, false);
+                  bgp_vrf_update (vrf, afi_int, vrf_rn, iter, false);
                   /* update labels labels */
                   /* update attr part / containing next hop */
                   if(select->extra)
@@ -2126,9 +2175,9 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
           prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
           if(iter->attr && iter->attr->extra)
             {
-              if (afi == AFI_IP)
+              if (afi_int == AFI_IP)
                 strcpy (nh_str, inet_ntoa (iter->attr->extra->mp_nexthop_global_in));
-              else if (afi == AFI_IP6)
+              else if (afi_int == AFI_IP6)
                 inet_ntop (AF_INET6, &iter->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
             }
           else
@@ -2141,7 +2190,16 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
                       iter->peer->host, nh_str);
 
         }
-      bgp_process (iter->peer->bgp, vrf_rn, afi, SAFI_UNICAST);
+      /* When peer's soft reconfiguration enabled.  Record input packet in
+         Adj-RIBs-In.  */
+      if( ( action == ROUTE_INFO_TO_UPDATE) || (action == ROUTE_INFO_TO_ADD ))
+        {
+          /* soft_reconfig is set to 0 so, it should work XXX */
+          if ( CHECK_FLAG (iter->peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG)
+               && iter->peer != iter->peer->bgp->peer_self)
+            bgp_adj_in_set (rn, iter->peer, attr);
+        }
+      bgp_process (iter->peer->bgp, vrf_rn, afi_int, SAFI_UNICAST);
     }
 }
 
@@ -2157,7 +2215,8 @@ static void
 bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
                           struct bgp_node *rn,
                           struct bgp_info *old_select,
-                          struct bgp_info *new_select)
+                          struct bgp_info *new_select,
+                          struct attr *attr)
 
 {
   struct ecommunity *old_ecom = NULL, *new_ecom = NULL;
@@ -2206,7 +2265,7 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
       if (!prefix_cmp((struct prefix*)&vrf->outbound_rd,
                       (struct prefix*)prd))
         {
-          bgp_vrf_process_two(vrf, afi, safi, rn, ri, action);
+          bgp_vrf_process_two(vrf, afi, safi, rn, ri, attr, action);
         }
   /* 
    * if old present, for each export target
@@ -2246,7 +2305,7 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
             /* case ecom not present in new_ecom : remove associated ri
              * case ecom present in new_ecom : just update
              */
-            bgp_vrf_process_two(vrf, afi, safi, rn, ri, withdraw == false?
+            bgp_vrf_process_two(vrf, afi, safi, rn, ri, attr, withdraw == false?
                                 ROUTE_INFO_TO_UPDATE:ROUTE_INFO_TO_REMOVE);
           }
       }
@@ -2285,7 +2344,7 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
         if (!found)
           for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
             {
-              bgp_vrf_process_two(vrf, afi, safi, rn, ri, action);
+              bgp_vrf_process_two(vrf, afi, safi, rn, ri, attr, action);
             }
       }
 
@@ -2299,7 +2358,7 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
       if (!prefix_cmp((struct prefix*)&vrf->outbound_rd,
                       (struct prefix*)prd))
         {
-          bgp_vrf_process_two(vrf, afi, safi, rn, ri, action);
+          bgp_vrf_process_two(vrf, afi, safi, rn, ri, attr, action);
         }
 }
 
@@ -2351,7 +2410,7 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
                         found = true;
                   if (!found)
                     continue;
-                  bgp_vrf_process_two(vrf, afi, safi, rn, mp, 0);
+                  bgp_vrf_process_two(vrf, afi, safi, rn, mp, mp->attr, 0);
                 }
             if (!sel->attr || !sel->attr->extra)
               continue;
@@ -2366,7 +2425,7 @@ bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi)
                   found = true;
             if (!found)
               continue;
-            bgp_vrf_process_two(vrf, afi, safi, rn, sel, 0);
+            bgp_vrf_process_two(vrf, afi, safi, rn, sel, sel->attr, 0);
           }
       }
 }
@@ -2632,7 +2691,7 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
   /* Reap old select bgp_info, if it has been removed */
   if (old_select && CHECK_FLAG (old_select->flags, BGP_INFO_REMOVED))
     bgp_info_reap (rn, old_select);
-  
+
   UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_SCHEDULED);
   return WQ_SUCCESS;
   /* no announce */
@@ -2855,7 +2914,7 @@ bgp_rib_remove (struct bgp_node *rn, struct bgp_info *ri, struct peer *peer,
   if (!CHECK_FLAG (ri->flags, BGP_INFO_HISTORY))
     bgp_info_delete (rn, ri); /* keep historical info */
 
-  bgp_vrf_process_imports2(peer->bgp, afi, safi, rn, ri, NULL);
+  bgp_vrf_process_imports2(peer->bgp, afi, safi, rn, ri, NULL, NULL);
   bgp_process (peer->bgp, rn, afi, safi);
 }
 
@@ -3533,8 +3592,8 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 
       bgp_process (bgp, rn, afi, safi);
 
+      bgp_vrf_process_imports2(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri, attr);
       /* non null value for old_select to inform update */
-      bgp_vrf_process_imports2(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri);
       bgp_unlock_node (rn);
 
       return 0;
@@ -3613,7 +3672,7 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 
   /* Process change. */
   bgp_process (bgp, rn, afi, safi);
-  bgp_vrf_process_imports2(peer->bgp, afi, safi, rn, NULL, new);
+  bgp_vrf_process_imports2(peer->bgp, afi, safi, rn, NULL, new, attr);
 
   return 0;
 
@@ -3697,7 +3756,6 @@ bgp_withdraw (struct peer *peer, struct prefix *p, struct attr *attr,
                 "not in adj-in", peer->host,
                 inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
                 p->prefixlen);
-        bgp_unlock_node (rn);
         return 0;
       }
 
@@ -5020,7 +5078,7 @@ bgp_static_update_main (struct bgp *bgp, struct prefix *p,
 	  /* Process change. */
 	  bgp_aggregate_increment (bgp, p, ri, afi, safi);
 	  bgp_process (bgp, rn, afi, safi);
-          bgp_vrf_process_imports2(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri);
+          bgp_vrf_process_imports2(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri, attr_new);
 	  bgp_unlock_node (rn);
 	  aspath_unintern (&attr.aspath);
 	  bgp_attr_extra_free (&attr);
@@ -5048,7 +5106,7 @@ bgp_static_update_main (struct bgp *bgp, struct prefix *p,
   
   /* Process change. */
   bgp_process (bgp, rn, afi, safi);
-  bgp_vrf_process_imports2(bgp, afi, safi, rn, NULL, new);
+  bgp_vrf_process_imports2(bgp, afi, safi, rn, NULL, new, attr_new);
 
   /* Unintern original. */
   aspath_unintern (&attr.aspath);
@@ -5092,7 +5150,7 @@ bgp_static_withdraw (struct bgp *bgp, struct prefix *p, afi_t afi,
     {
       bgp_aggregate_decrement (bgp, p, ri, afi, safi);
       bgp_info_delete (rn, ri);
-      bgp_vrf_process_imports2(bgp, afi, safi, rn, ri, NULL);
+      bgp_vrf_process_imports2(bgp, afi, safi, rn, ri, NULL, NULL);
       bgp_process (bgp, rn, afi, safi);
     }
 
@@ -5145,7 +5203,7 @@ bgp_static_withdraw_safi (struct bgp *bgp, struct prefix *p, afi_t afi,
     {
       bgp_aggregate_decrement (bgp, p, ri, afi, safi);
       bgp_info_delete (rn, ri);
-      bgp_vrf_process_imports2(bgp, afi, safi, rn, ri, NULL);
+      bgp_vrf_process_imports2(bgp, afi, safi, rn, ri, NULL, NULL);
       bgp_process (bgp, rn, afi, safi);
     }
 
@@ -5202,7 +5260,7 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
           add.ipv4.s_addr = bgp_static->igpnexthop.s_addr;
           overlay_index_update(&attr, bgp_static->eth_s_id, &add);
           /* overwrite nexthop ip address */
-          if(p->family == AF_INET)
+          if(p->family == AF_INET || p->family == AF_L2VPN)
             {
               (&attr)->nexthop.s_addr = (&add)->ipv4.s_addr;
               (&attr)->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
@@ -5328,7 +5386,7 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   /* Process change. */
   bgp_process (bgp, rn, afi, safi);
 
-  bgp_vrf_process_imports2(bgp, afi, safi, rn, NULL, new);
+  bgp_vrf_process_imports2(bgp, afi, safi, rn, NULL, new, new->attr);
 
   /* Unintern original. */
   aspath_unintern (&attr.aspath);
