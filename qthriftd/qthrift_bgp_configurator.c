@@ -1543,6 +1543,7 @@ gboolean instance_bgp_configurator_handler_enable_address_family(BgpConfigurator
                                                                  const af_safi safi, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
+  gboolean ret;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -1550,7 +1551,19 @@ gboolean instance_bgp_configurator_handler_enable_address_family(BgpConfigurator
       *_return = BGP_ERR_FAILED;
       return FALSE;
     }
-  return qthrift_bgp_afi_config(ctxt, _return, peerIp, afi, safi, TRUE, error);
+  ret = qthrift_bgp_afi_config(ctxt, _return, peerIp, afi, safi, TRUE, error);
+  if(ret == TRUE && afi == AF_AFI_AFI_L2VPN && safi == AF_SAFI_SAFI_EVPN)
+    {
+      qthrift_bgp_peer_af_flag_config(ctxt, _return, peerIp,
+                                      afi, safi,
+                                      PEER_FLAG_NEXTHOP_UNCHANGED, TRUE,
+                                      error);
+      qthrift_bgp_peer_af_flag_config(ctxt, _return, peerIp,
+                                      afi, safi,
+                                      PEER_FLAG_SOFT_RECONFIG, TRUE,
+                                      error);
+    }
+  return ret;
 }
 
 /*
