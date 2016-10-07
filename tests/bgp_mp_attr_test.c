@@ -587,7 +587,110 @@ static struct test_segment {
     SHOULD_ERR,
     AFI_IP6, SAFI_UNICAST, VALID_AFI,
   },
-  
+  { "EVPN",
+    "EVPN-IPv4 MP Reach, Route type 2, 1 NLRI", 
+    {
+      /* AFI / SAFI */		0x0, AFI_IANA_L2VPN, SAFI_IANA_EVPN,
+      /* nexthop bytes */	12,
+      /* RD */			0,0,0,0,0,0,0,0, /* RD defined to be 0 */
+      /* Nexthop */		192, 168,   0,  1, 
+      /* SNPA (defunct, MBZ) */	0x0,
+      /* NLRI tuples */
+                                   0x2, 
+                                   41, /* length  */ 
+                                   0x0,0x1,0xa,0x7d,0x0,0x1,0x4,0x57, /* RD */
+                                   0x0,0x1,0x2,0x3,0x4,0x5,0x6, 0x7, 0x8, 0x9, /* ESI */
+                                   0,0,0,0,
+                                   0x30,
+                                   0x0,0x12,0xf,0x1,0x2,0x3,
+                                   0x20,
+                                   0xa,0xa,0xa,0xa,
+                                   0x1,0x0,0x1,0x2,0x0,0x1,
+    },
+    (4 + 12 + 1 + (1+1+8+10+4+7+5+6)),
+    SHOULD_PARSE,
+    AFI_IANA_L2VPN, SAFI_IANA_EVPN, VALID_AFI,
+  },
+  { "EVPN",
+    "EVPN-IPv4 MP Reach, Route type 2, 2 NLRI", 
+    {
+      /* AFI / SAFI */		0x0, AFI_IANA_L2VPN, SAFI_IANA_EVPN,
+      /* nexthop bytes */	12,
+      /* RD */			0, 0, 0, 0, 0,0,0,0, /* RD defined to be 0 */
+      /* Nexthop */		192, 168,   0,  1, 
+      /* SNPA (defunct, MBZ) */	0x0,
+      /* NLRI tuples */
+                                   0x2, 
+                                   41, /* length  */ 
+                                   0x0,0x1,0xa,0x7d,0x0,0x1,0x4,0x57, /* RD */
+                                   0x0,0x1,0x2,0x3,0x4,0x5,0x6, 0x7, 0x8, 0x9, /* ESI */
+                                   0,0,0,0,
+                                   0x30,
+                                   0x0,0x12,0xf,0x1,0x2,0x3,
+                                   0x20,
+                                   0xa,0xa,0xa,0xa,
+                                   0x1,0x0,0x1,0x2,0x0,0x1,
+                                   0x2, 
+                                   41, /* length  */ 
+                                   0x0,0x1,0xa,0x7d,0x0,0x1,0x4,0x57, /* RD */
+                                   0x0,0x1,0x2,0x3,0x4,0x5,0x6, 0x7, 0x8, 0x9, /* ESI */
+                                   0,0,0,0,
+                                   0x30,
+                                   0x0,0x12,0xf,0x1,0x2,0x3,
+                                   0x20,
+                                   0xa,0xa,0xa,0xa,
+                                   0x1,0x0,0x1,0x2,0x0,0x1,
+    },
+    (4 + 12 + 1 + (1+1+8+10+4+7+5+6) + (1+1+8+10+4+7+5+6)),
+    SHOULD_PARSE,
+    AFI_IANA_L2VPN, SAFI_IANA_EVPN, VALID_AFI,
+  },
+  { "EVPN",
+    "EVPN-IPv4 MP Reach, Route type 2, 1 NLRI, Incomplete", 
+    {
+      /* AFI / SAFI */		0x0, AFI_IANA_L2VPN, SAFI_IANA_EVPN,
+      /* nexthop bytes */	12,
+      /* RD */			0, 0, 0, 0,0,0,0,0, /* RD defined to be 0 */
+      /* Nexthop */		0x2a, 168,   0,  1, 
+      /* SNPA (defunct, MBZ) */	0x0,
+      /* NLRI tuples */
+                                   0x2, 
+                                   0x2a, /* length  */ 
+                                   0x0,0x1,0xa,0x7d,0x0,0x1,0x4,0x57, /* RD */
+                                   0x0,0x1,0x2,0x3,0x4,0x5,0x6, 0x7, 0x8, 0x9, /* ESI */
+                                   0,0,0,0,
+                                   0x30,
+                                   0x0,0x12,0xf,0x1,0x2,0x3,
+                                   0x20,
+                                   0xa,0xa,0xa,0xa
+    },
+    (4 + 12 + 1 + (1+1+8+10+4+7+5)),
+    SHOULD_ERR,
+    AFI_IANA_L2VPN, SAFI_IANA_EVPN, VALID_AFI,
+  },
+  { "EVPN",
+    "EVPN-IPv4 MP Reach, Route type 2, 1 NLRI, Bad Mac Length", 
+    {
+      /* AFI / SAFI */		0x0, AFI_IANA_L2VPN, SAFI_IANA_EVPN,
+      /* nexthop bytes */	12,
+      /* RD */			0, 0, 0, 0,0,0,0,0, /* RD defined to be 0 */
+      /* Nexthop */		0x2a, 168,   0,  1, 
+      /* SNPA (defunct, MBZ) */	0x0,
+      /* NLRI tuples */
+                                   0x2, 
+                                   0x2a, /* length  */ 
+                                   0x0,0x1,0xa,0x7d,0x0,0x1,0x4,0x57, /* RD */
+                                   0x0,0x1,0x2,0x3,0x4,0x5,0x6, 0x7, 0x8, 0x9, /* ESI */
+                                   0,0,0,0,
+                                   30,
+                                   0x0,0x12,0xf,0x1,0x2,0x3,
+                                   0x20,
+                                   0xa,0xa,0xa,0xa
+    },
+    (4 + 12 + 1 + (1+1+8+10+4+7+5)),
+    SHOULD_ERR,
+    AFI_IANA_L2VPN, SAFI_IANA_EVPN, VALID_AFI,
+  },
   { NULL, NULL, {0}, 0, 0}
 };
 
@@ -714,8 +817,8 @@ handle_result (struct peer *peer, struct test_segment *t,
       if (bgp_afi_safi_valid_indices ( &afi, &safi) != t->afi_valid)
         failed++;
       
-      printf ("MP: %u/%u (%u): recv %u, nego %u\n",
-              t->afi, t->safi, safi,
+      printf ("MP: %u/%u (%u/%u): recv %u, nego %u\n",
+              t->afi, t->safi, afi, safi,
               peer->afc_recv[afi][safi],
               peer->afc_nego[afi][safi]);
     }
@@ -773,7 +876,7 @@ parse_test (struct peer *peer, struct test_segment *t, int type)
     parse_ret = bgp_mp_unreach_parse (&attr_args, &nlri);
   if (parse_ret == 0 && t->afi_valid == VALID_AFI)
     assert (nlri.afi == t->afi && nlri.safi == t->safi);
-  
+
   if (!parse_ret)
     {
       if (type == BGP_ATTR_MP_REACH_NLRI)
