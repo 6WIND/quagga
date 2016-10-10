@@ -8908,6 +8908,16 @@ DEFUN (show_ip_bgp_vrf,
   return bgp_show_vrf (vty, argv[0], AFI_IP, bgp_show_type_normal, NULL);
 }
 
+DEFUN (show_ipv6_bgp_vrf,
+       show_ipv6_bgp_vrf_cmd,
+       "show ipv6 bgp vrf WORD",
+       SHOW_STR
+       IPV6_STR
+       BGP_STR)
+{
+  return bgp_show_vrf (vty, argv[0], AFI_IP6, bgp_show_type_normal, NULL);
+}
+
 DEFUN (show_ip_bgp_ipv4,
        show_ip_bgp_ipv4_cmd,
        "show ip bgp ipv4 (unicast|multicast)",
@@ -8986,6 +8996,20 @@ DEFUN (show_ip_bgp_vrf_route,
        "Route Distinguisher\n")
 {
   afi_t afi = (strncmp (argv[1], "ipv6", 4) == 0) ? AFI_IP6 : AFI_IP;
+  return bgp_show_vrf_route (vty, argv[0], argv[2], afi, 0);
+}
+
+DEFUN (show_ipv6_bgp_vrf_route,
+       show_ipv6_bgp_vrf_route_cmd,
+       "show ipv6 bgp vrf WORD X:X::X:X",
+       SHOW_STR
+       IPV6_STR
+       BGP_STR
+       "VRF\n"
+       "Route Distinguisher\n"
+       "IPv6 address")
+{
+  afi_t afi = AFI_IP6;
   return bgp_show_vrf_route (vty, argv[0], argv[2], afi, 0);
 }
 
@@ -18813,11 +18837,13 @@ bgp_route_init (void)
   /* old style commands */
   install_element (VIEW_NODE, &show_ip_bgp_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vrf_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_vrf_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_route_pathtype_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_safi_route_pathtype_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vrf_route_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_vrf_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_route_cmd);
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_route_cmd);
