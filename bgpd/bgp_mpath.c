@@ -495,7 +495,7 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
       else if (old_best)
         vrf = bgp_vrf_lookup(old_best->peer->bgp, prd);
     }
-  else if(bgp_node_table (rn)->type == BGP_TABLE_VRF)
+  else if(rn->table && bgp_node_table (rn) && bgp_node_table (rn)->type == BGP_TABLE_VRF)
     {
       if (new_best)
         vrf = bgp_vrf_lookup_per_rn(new_best->peer->bgp, afi, rn);
