@@ -73,6 +73,7 @@ struct memory_list memory_list_lib[] =
   { MTYPE_VRF_NAME,		"VRF name"			},
   { MTYPE_VRF_BITMAP,		"VRF bit-map"			},
   { MTYPE_IF_LINK_PARAMS,       "Informational Link Parameters" },
+  { MTYPE_LIB_NEXTHOP,		"Nexthop"			},
   { -1, NULL },
 };
 
@@ -80,7 +81,6 @@ struct memory_list memory_list_zebra[] =
 {
   { MTYPE_RTADV_PREFIX,		"Router Advertisement Prefix"	},
   { MTYPE_ZEBRA_VRF,		"ZEBRA VRF"				},
-  { MTYPE_NEXTHOP,		"Nexthop"			},
   { MTYPE_RIB,			"RIB"				},
   { MTYPE_RIB_QUEUE,		"RIB process work queue"	},
   { MTYPE_STATIC_ROUTE,		"Static route"			},

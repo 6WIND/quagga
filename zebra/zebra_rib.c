@@ -366,7 +366,7 @@ nexthop_active_ipv4 (struct rib *rib, struct nexthop *nexthop, int set,
 		      {
 			SET_FLAG (nexthop->flags, NEXTHOP_FLAG_RECURSIVE);
 
-			resolved_hop = XCALLOC(MTYPE_NEXTHOP, sizeof (struct nexthop));
+			resolved_hop = XCALLOC(MTYPE_LIB_NEXTHOP, sizeof (struct nexthop));
 			SET_FLAG (resolved_hop->flags, NEXTHOP_FLAG_ACTIVE);
 			/* If the resolving route specifies a gateway, use it */
 			if (newhop->type == NEXTHOP_TYPE_IPV4
@@ -501,7 +501,7 @@ nexthop_active_ipv6 (struct rib *rib, struct nexthop *nexthop, int set,
 		      {
 			SET_FLAG (nexthop->flags, NEXTHOP_FLAG_RECURSIVE);
 
-			resolved_hop = XCALLOC(MTYPE_NEXTHOP, sizeof (struct nexthop));
+			resolved_hop = XCALLOC(MTYPE_LIB_NEXTHOP, sizeof (struct nexthop));
 			SET_FLAG (resolved_hop->flags, NEXTHOP_FLAG_ACTIVE);
 			/* See nexthop_active_ipv4 for a description how the
 			 * resolved nexthop is constructed. */
