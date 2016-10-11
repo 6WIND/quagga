@@ -102,7 +102,7 @@ nexthop_type_to_str (enum nexthop_types_t nh_type)
 struct nexthop *
 nexthop_new (void)
 {
-  return XCALLOC (MTYPE_NEXTHOP, sizeof (struct nexthop));
+  return XCALLOC (MTYPE_LIB_NEXTHOP, sizeof (struct nexthop));
 }
 
 /* Add nexthop to the end of a nexthop list.  */
@@ -151,7 +151,7 @@ nexthop_free (struct nexthop *nexthop)
     XFREE (0, nexthop->ifname);
   if (nexthop->resolved)
     nexthops_free(nexthop->resolved);
-  XFREE (MTYPE_NEXTHOP, nexthop);
+  XFREE (MTYPE_LIB_NEXTHOP, nexthop);
 }
 
 /* Frees a list of nexthops */

@@ -68,7 +68,7 @@ bnc_nexthop_free (struct bgp_nexthop_cache *bnc)
   for (nexthop = bnc->nexthop; nexthop; nexthop = next)
     {
       next = nexthop->next;
-      XFREE (MTYPE_NEXTHOP, nexthop);
+      XFREE (MTYPE_LIB_NEXTHOP, nexthop);
     }
 }
 
