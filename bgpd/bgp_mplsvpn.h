@@ -47,5 +47,6 @@ extern int str2prefix_rd (const char *, struct prefix_rd *);
 extern int str2labels (const char *str, uint32_t *labels, size_t *nlabels);
 extern char *labels2str (char *str, size_t size, uint32_t *labels, size_t nlabels);
 extern char *prefix_rd2str (struct prefix_rd *, char *, size_t);
+extern int prefix_rd_cmp(struct prefix_rd *p1, struct prefix_rd *p2);
 
 #endif /* _QUAGGA_BGP_MPLSVPN_H */
