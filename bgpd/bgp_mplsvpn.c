@@ -348,6 +348,17 @@ str2labels (const char *str, uint32_t*labels, size_t *nlabels)
   return *endptr == '\0';
 }
 
+int prefix_rd_cmp(struct prefix_rd *p1, struct prefix_rd *p2)
+{
+  if(p1->family != p2->family)
+    return 1;
+  if(p1->prefixlen != p2->prefixlen)
+    return 1;
+  if(memcmp((char *)p1->val, (char *)p2->val, 8))
+    return 1;
+  return 0;
+}
+
 char *
 prefix_rd2str (struct prefix_rd *prd, char *buf, size_t size)
 {
