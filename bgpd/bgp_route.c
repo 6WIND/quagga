@@ -7752,9 +7752,9 @@ route_vty_out_overlay (struct vty *vty, struct prefix *p,
   if(attr->extra)
     {
       struct eth_segment_id *id = &(attr->extra->evpn_overlay.eth_s_id);
-      vty_out (vty, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-               id->val[0], id->val[1], id->val[2], id->val[3], id->val[4],
-               id->val[5], id->val[6], id->val[7], id->val[8], id->val[9]);
+      char *str = esi2str(id);
+      vty_out (vty, "%s", str);
+      free(str);
       if (p->family == AF_INET)
 	{
           vty_out (vty, "/%s", inet_ntoa (attr->extra->evpn_overlay.gw_ip.ipv4));
