@@ -483,8 +483,8 @@ typedef enum {
   AFI_IP  = 1,
   AFI_IP6 = 2,
   AFI_ETHER = 3,  /* RFC 1700 has "6" for 802.* */
-  AFI_INTERNAL_L2VPN = 4   /* temp */
-#define AFI_L2VPN 25
+  AFI_INTERNAL_L2VPN = 4,   /* temp */
+  AFI_L2VPN = 25   /* temp */
 #define AFI_MAX 5
 } afi_t;
 
