@@ -281,5 +281,8 @@ extern void bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi);
 extern void
 bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                 struct bgp_info *selected, uint8_t announce);
+extern int
+show_adj_route_vrf (struct vty *vty, struct peer *peer, struct bgp_vrf *vrf, int in);
+extern void bgp_vrf_clear_adj_in (struct peer *, struct bgp_vrf *, afi_t);
 
 #endif /* _QUAGGA_BGP_ROUTE_H */

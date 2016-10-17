@@ -2136,9 +2136,9 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
             {
               if (CHECK_FLAG (iter->peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG)
                   && iter->peer != iter->peer->bgp->peer_self)
-                if (!bgp_adj_in_unset (rn, iter->peer))
+                if (!bgp_adj_in_unset (vrf_rn, iter->peer))
                   {
-                    prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+                    prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
                     if (BGP_DEBUG (update, UPDATE_IN))
                       zlog (iter->peer->log, LOG_DEBUG, "%s withdrawing route %s "
                             "not in adj-in", iter->peer->host, pfx_str);
@@ -2271,7 +2271,7 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
           /* soft_reconfig is set to 0 so, it should work XXX */
           if ( CHECK_FLAG (iter->peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG)
                && iter->peer != iter->peer->bgp->peer_self)
-            bgp_adj_in_set (rn, iter->peer, attr);
+            bgp_adj_in_set (vrf_rn, iter->peer, iter->attr);
         }
       bgp_process (iter->peer->bgp, vrf_rn, afi_int, SAFI_UNICAST);
     }
@@ -4598,6 +4598,25 @@ bgp_clear_adj_in (struct peer *peer, afi_t afi, safi_t safi)
   struct bgp_adj_in *ain;
 
   table = peer->bgp->rib[afi][safi];
+
+  for (rn = bgp_table_top (table); rn; rn = bgp_route_next (rn))
+    for (ain = rn->adj_in; ain ; ain = ain->next)
+      if (ain->peer == peer)
+	{
+          bgp_adj_in_remove (rn, ain);
+          bgp_unlock_node (rn);
+          break;
+	}
+}
+
+void
+bgp_vrf_clear_adj_in (struct peer *peer, struct bgp_vrf *vrf, afi_t afi)
+{
+  struct bgp_table *table;
+  struct bgp_node *rn;
+  struct bgp_adj_in *ain;
+
+  table = vrf->rib[afi];
 
   for (rn = bgp_table_top (table); rn; rn = bgp_route_next (rn))
     for (ain = rn->adj_in; ain ; ain = ain->next)
@@ -8345,6 +8364,121 @@ bgp_show_table (struct vty *vty, struct bgp_table *table, struct in_addr *router
   return CMD_SUCCESS;
 }
 
+#define BGP_SHOW_SCODE_HEADER "Status codes: s suppressed, d damped, "\
+			      "h history, * valid, > best, = multipath,%s"\
+		"              i internal, r RIB-failure, S Stale, R Removed%s"
+#define BGP_SHOW_OCODE_HEADER "Origin codes: i - IGP, e - EGP, ? - incomplete%s%s"
+#define BGP_SHOW_HEADER "   Network          Next Hop            Metric LocPrf Weight Path%s"
+int
+show_adj_route_vrf (struct vty *vty, struct peer *peer, struct bgp_vrf *vrf, int in)
+{
+  struct bgp_table *table;
+  struct bgp *bgp;
+  char buf[RD_ADDRSTRLEN];
+  char *ptr;
+  struct bgp_node *rn;
+  unsigned long output_count;
+  safi_t safi;
+  int rd_header = 1;
+  int header1 = 1;
+  int header2 = 1;
+  struct bgp_adj_in *ain;
+  struct bgp_adj_out *adj;
+
+  /* This is first entry point, so reset total line. */
+  output_count = 0;
+
+  bgp = bgp_get_default ();
+  if (bgp == NULL)
+    {
+      vty_out (vty, "No BGP process is configured%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  table = vrf->rib[AFI_IP];
+
+  safi = table->type == BGP_TABLE_VRF ? SAFI_INTERNAL_EVPN : SAFI_UNICAST;
+  /* Start processing of routes. */
+  for (rn = bgp_table_top (table); rn; rn = bgp_route_next (rn))
+    if (rn->info != NULL)
+      {
+        if (in)
+          {
+            for (ain = rn->adj_in; ain; ain = ain->next)
+              if (ain->peer == peer)
+                {
+                  if (header1)
+                    {
+                      vty_out (vty, "BGP table version is 0, local router ID is %s%s", inet_ntoa (bgp->router_id), VTY_NEWLINE);
+                      vty_out (vty, BGP_SHOW_SCODE_HEADER, VTY_NEWLINE, VTY_NEWLINE);
+                      vty_out (vty, BGP_SHOW_OCODE_HEADER, VTY_NEWLINE, VTY_NEWLINE);
+                      header1 = 0;
+                    }
+                  if (header2)
+                    {
+                      vty_out (vty, BGP_SHOW_HEADER, VTY_NEWLINE);
+                      header2 = 0;
+                    }
+                  if (rd_header)
+                    {
+                      ptr = prefix_rd2str (&(vrf->outbound_rd), buf, RD_ADDRSTRLEN);
+                      vty_out (vty, "Route Distinguisher: ");
+                      if(ptr)
+                        vty_out (vty, "%s", buf);
+                      else
+                        vty_out (vty, "<unknown>");
+                      vty_out (vty, "%s", VTY_NEWLINE);
+                      rd_header = 0;
+                    }
+                  if (ain->attr)
+                    {
+                      route_vty_out_tmp (vty, &rn->p, ain->attr, safi);
+                      output_count++;
+                    }
+                }
+          }
+        else
+          {
+            for (adj = rn->adj_out; adj; adj = adj->next)
+              if (adj->peer == peer)
+                {
+                  if (header1)
+                    {
+                      vty_out (vty, "BGP table version is 0, local router ID is %s%s", inet_ntoa (bgp->router_id), VTY_NEWLINE);
+                      vty_out (vty, BGP_SHOW_SCODE_HEADER, VTY_NEWLINE, VTY_NEWLINE);
+                      vty_out (vty, BGP_SHOW_OCODE_HEADER, VTY_NEWLINE, VTY_NEWLINE);
+                      header1 = 0;
+                    }
+                  if (rd_header)
+                    {
+                      ptr = prefix_rd2str ((struct prefix_rd *)rn->p.u.val, buf, RD_ADDRSTRLEN);
+                      vty_out (vty, "Route Distinguisher: ");
+                      if(ptr)
+                        vty_out (vty, "%s", buf);
+                      else
+                        vty_out (vty, "<unknown>");
+                      vty_out (vty, "%s", VTY_NEWLINE);
+                      rd_header = 0;
+                    }
+                  if (header2)
+                    {
+                      vty_out (vty, BGP_SHOW_HEADER, VTY_NEWLINE);
+                      header2 = 0;
+                    }
+                  if (adj->attr)
+                    {
+                      route_vty_out_tmp (vty, &rn->p, adj->attr, safi);
+                      output_count++;
+                    }
+                }
+          }
+      }
+  if (output_count != 0)
+    vty_out (vty, "%sTotal number of prefixes %ld%s",
+	     VTY_NEWLINE, output_count, VTY_NEWLINE);
+
+  return CMD_SUCCESS;
+}
+
 static int
 bgp_show (struct vty *vty, struct bgp *bgp, afi_t afi, safi_t safi,
          enum bgp_show_type type, void *output_arg)
@@ -8365,6 +8499,51 @@ bgp_show (struct vty *vty, struct bgp *bgp, afi_t afi, safi_t safi,
   table = bgp->rib[afi][safi];
 
   return bgp_show_table (vty, table, &bgp->router_id, type, output_arg, 0);
+}
+
+static int
+bgp_show_vrf_neigh (struct vty *vty, const char *vrf_name, afi_t afi,
+                    const char *peername, int type)
+{
+  struct bgp *bgp = bgp_get_default();
+  struct bgp_vrf *vrf;
+  struct prefix_rd prd;
+  struct peer *peer;
+  union sockunion su;
+  int ret;
+
+  if (! bgp)
+    {
+      vty_out (vty, "%% No default BGP instance%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  if (! prefix_str2rd (vrf_name, &prd))
+    {
+      vty_out (vty, "%% Invalid RD '%s'%s", vrf_name, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  vrf = bgp_vrf_lookup (bgp, &prd);
+  if (! vrf)
+    {
+      vty_out (vty, "%% No VRF with RD '%s'%s", vrf_name, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  ret = str2sockunion (peername, &su);
+  if (ret < 0)
+    {
+      vty_out (vty, "%% Malformed address: %s%s", peername, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  peer = peer_lookup (NULL, &su);
+  if (! peer)
+    {
+      vty_out (vty, "%% No such neighbor or address family%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  return show_adj_route_vrf (vty, peer, vrf, 1);
 }
 
 static int
@@ -8667,6 +8846,21 @@ DEFUN (show_ip_bgp_vrf,
        BGP_STR)
 {
   return bgp_show_vrf (vty, argv[0], AFI_IP, bgp_show_type_normal, NULL);
+}
+
+DEFUN (show_ip_bgp_vrf_neighbor_received,
+       show_ip_bgp_vrf_neighbor_received_cmd,
+       "show ip bgp vrf WORD neighbor A.B.C.D received-routes",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "VRF\n"
+       "Route Distinguisher\n"
+       "Detailed information on TCP and BGP neighbor connections\n"
+       "Neighbor to display information about\n"
+       "Display the routes received from a BGP neighbor\n")
+{
+  return bgp_show_vrf_neigh (vty, argv[0], AFI_IP, argv[1], 1);
 }
 
 DEFUN (show_ipv6_bgp_vrf,
@@ -18204,6 +18398,7 @@ bgp_route_init (void)
   /* old style commands */
   install_element (VIEW_NODE, &show_ip_bgp_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vrf_cmd);
+  install_element (VIEW_NODE, &show_ip_bgp_vrf_neighbor_received_cmd);
   install_element (VIEW_NODE, &show_ipv6_bgp_vrf_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_route_cmd);
@@ -18328,6 +18523,7 @@ bgp_route_init (void)
   install_element (RESTRICTED_NODE, &show_ip_bgp_view_rsclient_prefix_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_vrf_cmd);
+  install_element (ENABLE_NODE, &show_ip_bgp_vrf_neighbor_received_cmd);
   install_element (ENABLE_NODE, &show_ipv6_bgp_vrf_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_ipv4_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_route_cmd);
