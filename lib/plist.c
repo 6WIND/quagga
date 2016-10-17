@@ -704,6 +704,11 @@ vty_prefix_list_install (struct vty *vty, afi_t afi, const char *name,
   /* "any" is special token for matching any IPv4 addresses.  */
   switch (afi)
     {
+    case AFI_ETHER:
+    case AFI_L2VPN:
+    case AFI_INTERNAL_L2VPN:
+      vty_out (vty, "%% Unrecognized AFI %d %s", afi, VTY_NEWLINE);
+      return CMD_WARNING;
     case AFI_IP:
       if (strncmp ("any", prefix, strlen (prefix)) == 0)
 	{
