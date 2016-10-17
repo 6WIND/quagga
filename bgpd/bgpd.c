@@ -3175,7 +3175,14 @@ peer_af_flag_modify (struct peer *peer, afi_t afi, safi_t safi, u_int32_t flag,
       && peer->status == Established)
     {
       if (! set && flag == PEER_FLAG_SOFT_RECONFIG)
-	bgp_clear_adj_in (peer, afi, safi);
+        {
+          struct listnode *node;
+          struct bgp_vrf *vrf;
+
+          bgp_clear_adj_in (peer, afi, safi);
+          for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf))
+            bgp_vrf_clear_adj_in (peer, vrf, AF_INET);
+        }
       else
        {
          if (flag == PEER_FLAG_REFLECTOR_CLIENT)
@@ -3216,8 +3223,15 @@ peer_af_flag_modify (struct peer *peer, afi_t afi, safi_t safi, u_int32_t flag,
 	  if (peer->status == Established)
 	    {
 	      if (! set && flag == PEER_FLAG_SOFT_RECONFIG)
-		bgp_clear_adj_in (peer, afi, safi);
-	      else
+                {
+                  struct listnode *node;
+                  struct bgp_vrf *vrf;
+
+                  bgp_clear_adj_in (peer, afi, safi);
+                  for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf))
+                    bgp_vrf_clear_adj_in (peer, vrf, AF_INET);
+                }
+              else
                {
                  if (flag == PEER_FLAG_REFLECTOR_CLIENT)
                    peer->last_reset = PEER_DOWN_RR_CLIENT_CHANGE;

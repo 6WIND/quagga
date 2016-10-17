@@ -324,5 +324,8 @@ overlay_index_dup(struct attr *attr, struct overlay_index *src);
 
 void bgp_vrf_process_entry (struct bgp_info *iter, 
                             int action, afi_t afi, safi_t safi);
+extern int
+show_adj_route_vrf (struct vty *vty, struct peer *peer, struct bgp_vrf *vrf, int in);
+extern void bgp_vrf_clear_adj_in (struct peer *, struct bgp_vrf *, afi_t);
 
 #endif /* _QUAGGA_BGP_ROUTE_H */
