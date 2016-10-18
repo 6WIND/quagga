@@ -3510,6 +3510,11 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
   /* If the update is implicit withdraw. */
   if (ri)
     {
+      char pstr[PREFIX_STRLEN];
+
+      if (BGP_DEBUG (update, UPDATE_IN))
+        prefix2str(p, pstr, PREFIX_STRLEN);
+
       ri->uptime = bgp_clock ();
 
       /* Same attribute comes in. */
@@ -3525,11 +3530,14 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 	      && peer->sort == BGP_PEER_EBGP
 	      && CHECK_FLAG (ri->flags, BGP_INFO_HISTORY))
 	    {
-	      if (BGP_DEBUG (update, UPDATE_IN))  
-		  zlog (peer->log, LOG_DEBUG, "%s rcvd %s/%d",
-		  peer->host,
-		  inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-		  p->prefixlen);
+	      if (BGP_DEBUG (update, UPDATE_IN))
+	        {
+                  zlog (peer->log, LOG_DEBUG, "%s rcvd %s",
+                        peer->host,
+                        pstr);
+                  for (size_t i = 0; i < nlabels; i++)
+                    zlog (peer->log, LOG_DEBUG, "    : label[%lu]=%x", i, labels[i]);
+                }
 
 	      if (bgp_damp_update (ri, rn, afi, safi) != BGP_DAMP_SUPPRESSED)
 	        {
@@ -3539,13 +3547,15 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 	    }
           else /* Duplicate - odd */
 	    {
-	      if (BGP_DEBUG (update, UPDATE_IN))  
-		zlog (peer->log, LOG_DEBUG,
-		"%s rcvd %s/%d...duplicate ignored",
-		peer->host,
-		inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-		p->prefixlen);
-
+              if (BGP_DEBUG (update, UPDATE_IN))
+                {
+                  zlog (peer->log, LOG_DEBUG,
+                        "%s rcvd %s...duplicate ignored",
+                        peer->host,
+                        pstr);
+                  for (size_t i = 0; i < nlabels; i++)
+                    zlog (peer->log, LOG_DEBUG, "    : label[%lu]=%x", i, labels[i]);
+                }
 	      /* graceful restart STALE flag unset. */
 	      if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
 		{
@@ -3565,19 +3575,17 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       if (CHECK_FLAG(ri->flags, BGP_INFO_REMOVED))
         {
           if (BGP_DEBUG (update, UPDATE_IN))
-            zlog (peer->log, LOG_DEBUG, "%s rcvd %s/%d, flapped quicker than processing",
+            zlog (peer->log, LOG_DEBUG, "%s rcvd %s, flapped quicker than processing",
             peer->host,
-            inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-            p->prefixlen);
+            pstr);
           bgp_info_restore (rn, ri);
         }
 
       /* Received Logging. */
-      if (BGP_DEBUG (update, UPDATE_IN))  
-	zlog (peer->log, LOG_DEBUG, "%s rcvd %s/%d",
-	      peer->host,
-	      inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-	      p->prefixlen);
+      if (BGP_DEBUG (update, UPDATE_IN))
+        zlog (peer->log, LOG_DEBUG, "%s rcvd %s",
+              peer->host,
+              pstr);
 
       /* graceful restart STALE flag unset. */
       if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
