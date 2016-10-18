@@ -249,8 +249,8 @@ struct bgp_vrf
   size_t nlabels;
   /* EVPN information */
   uint32_t ethtag;
-  uint8_t *esi;
-  uint8_t *mac_router;
+  char *esi;
+  char *mac_router;
 
   /* maximum multipath entries for the VRF */
   uint32_t max_mpath;
@@ -293,8 +293,8 @@ struct bgp_api_route
   struct in_addr nexthop;
   uint32_t label;
   uint32_t ethtag;
-  uint8_t *esi;
-  uint8_t *mac_router;
+  char *esi;
+  char *mac_router;
 };
 
 /* BGP peer-group support. */

@@ -3891,7 +3891,7 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
           ae->eth_t_id = vrf->ethtag;
           /* overlay index */
           if(vrf->esi)
-            str2esi ((const uint8_t *)vrf->esi, &esi);/* esi2str */
+            str2esi ((const char *)vrf->esi, &esi);/* esi2str */
           else
             memset(&esi, 0, sizeof(struct eth_segment_id));
           memset(&add, 0, sizeof(union gw_addr));
@@ -3906,7 +3906,7 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
               char routermac_int[MAC_LEN+1];
               struct ecommunity_val routermac_ecom;
 
-              str2mac (vrf->mac_router, (uint8_t *)&routermac_int);
+              str2mac (vrf->mac_router, routermac_int);
               memset(&routermac_ecom, 0, sizeof(struct ecommunity_val));
               routermac_ecom.val[0] = ECOMMUNITY_ENCODE_EVPN;
               routermac_ecom.val[1] = ECOMMUNITY_SITE_ORIGIN;
@@ -7612,7 +7612,7 @@ route_vty_out_overlay (struct vty *vty, struct prefix *p,
 
           if(routermac)
             {
-              uint8_t *mac = ecom_mac2str((uint8_t *)routermac->val);
+              char *mac = ecom_mac2str((char *)routermac->val);
               vty_out (vty, "/%s",(char *)mac);
               free(mac);
             }

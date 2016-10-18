@@ -3596,9 +3596,9 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
         {
           found->ethtag = route->ethtag;
           if(route->esi)
-            found->esi = (uint8_t *)strdup((const char *)route->esi);
+            found->esi = strdup((const char *)route->esi);
           if(route->mac_router)
-            found->mac_router = (uint8_t *)strdup((const char *)route->mac_router);
+            found->mac_router = strdup((const char *)route->mac_router);
         }
       listnode_add(list_to_parse, found);
     }

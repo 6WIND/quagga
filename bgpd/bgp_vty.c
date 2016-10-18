@@ -3293,9 +3293,9 @@ peer_default_originate_set_rd_vty (struct vty *vty, const char *peer_str,
       if(safi == SAFI_INTERNAL_EVPN)
         {
           if(esi)
-            route.esi = (uint8_t *)strdup(esi);
+            route.esi = (char*) esi;
           if(routermac)
-            route.mac_router = (uint8_t *)strdup(routermac);
+            route.mac_router = (char*) routermac;
           if(ethtag)
             route.ethtag = atol(ethtag);
         }
