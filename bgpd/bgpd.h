@@ -302,6 +302,7 @@ struct bgp_api_route
   struct in_addr nexthop;
   uint32_t label;
   uint32_t ethtag;
+  uint32_t l2label;
   char *esi;
   char *mac_router;
 };
