@@ -94,6 +94,10 @@ struct bgp_info
 #define BGP_INFO_UPDATE_SENT    (1 << 13)
 #define BGP_INFO_WITHDRAW_SENT  (1 << 14)
 #define BGP_INFO_ORIGIN_EVPN    (1 << 15)
+/* this flag to inform that an entry is created from rx a/d
+ * XXX later: to replace this flag with a list of pointers to nlri
+ */
+#define BGP_INFO_EVPN_AD        (1 << 16)
 
   /* BGP route type.  This can be static, RIP, OSPF, BGP etc.  */
   u_char type;
@@ -152,6 +156,7 @@ struct bgp_route_evpn
   uint32_t eth_t_id;
   struct eth_segment_id eth_s_id;
   union gw_addr gw_ip;
+  uint8_t auto_discovery_type;
 };
 
 /* Flags which indicate a route is unuseable in some form */

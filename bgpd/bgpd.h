@@ -230,6 +230,24 @@ typedef enum
   BGP_LAYER_TYPE_3 = 2,
 } bgp_layer_type_t;
 
+struct bgp_evpn_ad
+{
+  struct bgp *bgp;
+  struct peer *peer;
+
+  /* RD used by A/D */
+  struct prefix_rd prd;
+  uint32_t eth_t_id;
+  uint32_t label;
+  struct eth_segment_id eth_s_id;
+
+  /* if withdraw message, then type is set to BGP_EVPN_AD_TYPE_MP_UNREACH */
+  struct attr *attr;
+#define BGP_EVPN_AD_TYPE_MP_REACH 0
+#define BGP_EVPN_AD_TYPE_MP_UNREACH 1
+  u_int16_t type;
+};
+
 struct bgp_vrf
 {
   struct bgp *bgp;
@@ -263,6 +281,12 @@ struct bgp_vrf
 
   /* maximum multipath entries for the VRF */
   uint32_t max_mpath;
+
+  /* incoming rx a/d */
+  struct list *rx_evpn_ad;
+
+  /* for import processing */
+  struct list *import_processing_evpn_ad;
 
   QZC_NODE
 };

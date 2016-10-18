@@ -2165,6 +2165,8 @@ bgp_vrf_create (struct bgp *bgp, bgp_layer_type_t ltype, struct prefix_rd *outbo
       vrf->rib[afi] = bgp_table_init (afi, SAFI_UNICAST);
       vrf->rib[afi]->type = BGP_TABLE_VRF;
     }
+  vrf->rx_evpn_ad = list_new ();
+  vrf->import_processing_evpn_ad = list_new();
 
   QZC_NODE_REG(vrf, bgp_vrf)
   listnode_add (bgp->vrfs, vrf);
@@ -2244,6 +2246,8 @@ bgp_vrf_delete_int (void *arg)
 
   prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
   zlog_info ("deleting vrf %s", vrf_rd_str);
+
+  list_delete(vrf->rx_evpn_ad);
 
   QZC_NODE_UNREG(vrf)
 

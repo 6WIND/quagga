@@ -35,4 +35,18 @@ extern int bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
 #define EVPN_ETHERNET_SEGMENT 4
 #define EVPN_IP_PREFIX 5
 
+#define EVPN_ETHERNET_AD_PER_ESI 1
+#define EVPN_ETHERNET_AD_PER_EVI 2
+#define EVPN_ETHERNET_MP_UNREACH 4
+#define EVPN_MAX_ET 0xffffffff
+
+extern void
+bgp_evpn_process_imports2 (struct bgp *bgp, struct bgp_evpn_ad *old, struct bgp_evpn_ad *new);
+
+struct bgp_evpn_ad * bgp_evpn_process_auto_discovery(struct peer *peer,
+                                     struct prefix_rd *prd,
+                                     struct bgp_route_evpn *evpn,
+                                     struct prefix *p,
+                                     u_int32_t label,
+                                     struct attr *attr);
 #endif /* _QUAGGA_BGP_EVPN_H */
