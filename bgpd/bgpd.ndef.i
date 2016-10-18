@@ -595,6 +595,10 @@ _qzc_get_bgp_vrf_2(struct bgp_vrf *p,
         qcapn_BGPVRFInfoIter_write((unsigned long) next,
                                    rep->data, CAPN_BGPVRF_ROUTE_DEF_SIZE);
 
+        free(outptr->esi);
+        outptr->esi = NULL;
+        free(outptr->mac_router);
+        outptr->mac_router = NULL;
     }
 }
 

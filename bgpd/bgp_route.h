@@ -139,7 +139,7 @@ struct bgp_static
   /* EVPN */
   uint32_t eth_t_id;
   struct eth_segment_id *eth_s_id;
-  uint8_t *router_mac;
+  char *router_mac;
 };
 
 struct bgp_route_evpn

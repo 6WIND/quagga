@@ -277,8 +277,8 @@ struct bgp_event_vrf
   struct in_addr nexthop; /* alias peer */
   uint32_t label; /* alias type */
   uint32_t ethtag;
-  uint8_t *esi;
-  uint8_t *mac_router;
+  char *esi;
+  char *mac_router;
 };
 
 struct bgp_event_shut

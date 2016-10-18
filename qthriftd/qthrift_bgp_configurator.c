@@ -858,18 +858,18 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
   if(p_type == PROTOCOL_TYPE_PROTOCOL_EVPN)
     {
       inst.ethtag = ethtag;
-      if( !esi || str2esi ((uint8_t *)esi, NULL) == 0)
+      if( !esi || str2esi (esi, NULL) == 0)
         {
           *_return = BGP_ERR_PARAM;
           return FALSE;
         }
-      if( !routermac || str2mac ((uint8_t *)routermac, NULL) == 0)
+      if( !routermac || str2mac (routermac, NULL) == 0)
         {
           *_return = BGP_ERR_PARAM;
           return FALSE;
         }
-      inst.esi = (uint8_t *) strdup(esi);
-      inst.mac_router = (uint8_t *) strdup(routermac);
+      inst.esi = strdup(esi);
+      inst.mac_router = strdup(routermac);
       afi = AFI_INTERNAL_L2VPN;
     }
   else
@@ -949,12 +949,12 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
   str2prefix_ipv4(prefix,&inst.prefix);
   if(p_type == PROTOCOL_TYPE_PROTOCOL_EVPN)
     {
-      if( !esi || str2esi ((uint8_t *)esi,NULL) == 0)
+      if( !esi || str2esi (esi,NULL) == 0)
         {
           *_return = BGP_ERR_PARAM;
           return FALSE;
         }
-      inst.esi = (uint8_t *) strdup(esi);
+      inst.esi = strdup(esi);
       inst.ethtag = ethtag;
       afi = AFI_INTERNAL_L2VPN;
     }

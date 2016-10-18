@@ -1603,7 +1603,7 @@ bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn,
 
           if(routermac)
             {
-              out->mac_router = ecom_mac2str((uint8_t *)routermac->val);
+              out->mac_router = ecom_mac2str(routermac->val);
             }
         }
     }
@@ -1771,7 +1771,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
               struct ecommunity_val *routermac = ecommunity_lookup (selected->attr->extra->ecommunity, ECOMMUNITY_ENCODE_EVPN);
 
               if(routermac)
-                event.mac_router = ecom_mac2str((uint8_t *)routermac->val);
+                event.mac_router = ecom_mac2str(routermac->val);
               else
                 event.mac_router = NULL;
             }
@@ -1892,13 +1892,13 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
       if(route->esi)
         {
           bgp_static->eth_s_id = XCALLOC (MTYPE_ATTR, sizeof(struct eth_segment_id));
-          str2esi (route->esi, bgp_static->eth_s_id);
+          str2esi ((const char *)route->esi, bgp_static->eth_s_id);
         }
       bgp_static->eth_t_id = route->ethtag;
       if(route->mac_router)
         {
           bgp_static->router_mac = XCALLOC (MTYPE_ATTR, MAC_LEN+1);
-          str2mac (route->mac_router, bgp_static->router_mac);
+          str2mac ((const char *)route->mac_router, bgp_static->router_mac);
         }
     }
   if (bgp_static->ecomm)
