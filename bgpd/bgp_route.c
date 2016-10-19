@@ -2070,6 +2070,58 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   return 0;
 }
 
+/* when exporting bgp_info structure to out VRF RIB,
+ * some information are copied :
+ * other info is filtered : labels
+ */
+static void bgp_vrf_copy_bgp_info(struct bgp_vrf *vrf, struct bgp_node *rn,
+                                  safi_t safi, struct bgp_info *select, struct bgp_info *target)
+{
+  if(!target->extra)
+    target->extra = bgp_info_extra_new();
+  if(select->attr)
+    {
+      if(target->attr)
+        bgp_attr_unintern(&target->attr);
+      target->attr = bgp_attr_intern (select->attr);
+      if(select->attr->extra)
+        {
+          if(select->attr->extra->ecommunity)
+            {
+              if(!target->attr->extra)
+                bgp_attr_extra_get(target->attr);
+              /* MAC-VRF does not export RouterMac
+               * however, because ecom is shared among all bgp infos
+               * this option is not stripped;
+               * This should be the place to strip the ecomm
+               */
+              overlay_index_dup(target->attr, &(select->attr->extra->evpn_overlay));
+            }
+        }
+    }
+  /* copy label information */
+  if(select->extra)
+    {
+      uint32_t l3label = 0, l2label = 0;
+
+      bgp_vrf_update_labels (vrf, rn, select, &l3label, &l2label);
+      if(safi == SAFI_EVPN)
+        {
+          target->extra->nlabels = 1;
+          if(vrf->ltype == BGP_LAYER_TYPE_3)
+            target->extra->labels[0] = (l3label << 4) | 1;
+          else
+            target->extra->labels[0] = (l2label << 4) | 1;
+        }
+      else
+        {
+          target->extra->nlabels = select->extra->nlabels;
+          memcpy (target->extra->labels, select->extra->labels,
+                  select->extra->nlabels * sizeof(select->extra->labels[0]));
+        }
+    }
+}
+
 /* updates selected bgp_info structure to bgp vrf rib table
  * most of the cases, processing consists in adding or removing entries in RIB tables
  * on some cases, there is an update request. then it is necessary to have both old and new ri
@@ -2131,7 +2183,6 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
       /* check entry not already present */
       for (iter = vrf_rn->info; iter; iter = iter->next)
         {
-          /* coming from same peer */
           if(iter->peer->remote_id.s_addr == select->peer->remote_id.s_addr)
             {
               bgp_info_delete(vrf_rn, iter);
@@ -2177,26 +2228,7 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
                   bgp_vrf_update (vrf, afi, vrf_rn, iter, false);
                   /* update labels labels */
                   /* update attr part / containing next hop */
-                  if(select->extra)
-                    {
-                      iter->extra->nlabels = select->extra->nlabels;
-                      memcpy (iter->extra->labels, select->extra->labels,
-                              select->extra->nlabels * sizeof(select->extra->labels[0]));
-                    }
-                  if(select->attr)
-                    {
-                      if(iter->attr)
-                        bgp_attr_unintern(&iter->attr);
-                      iter->attr = bgp_attr_intern (select->attr);
-                      if(select->attr->extra && select->attr->extra->ecommunity)
-                        {
-                          bgp_attr_extra_get(iter->attr);
-                          iter->attr->extra->ecommunity = 
-                            ecommunity_dup(select->attr->extra->ecommunity);
-                        }
-                    }
-                  /* if changes, update, and permit resending
-                     information */
+                  bgp_vrf_copy_bgp_info (vrf, rn, safi, select, iter);
                   bgp_info_set_flag (rn, iter, BGP_INFO_ATTR_CHANGED);
                   UNSET_FLAG (iter->flags, BGP_INFO_UPDATE_SENT);
                 }
@@ -2211,12 +2243,7 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
                             vrf_rn);
           iter->extra = bgp_info_extra_new();
           iter->extra->vrf_rd = *prd;
-          if (select->extra)
-            {
-              iter->extra->nlabels = select->extra->nlabels;
-              memcpy (iter->extra->labels, select->extra->labels,
-                      select->extra->nlabels * sizeof(select->extra->labels[0]));
-            }
+          bgp_vrf_copy_bgp_info (vrf, rn, safi, select, iter);
 	  if (select->attr->extra)
 	    overlay_index_dup(iter->attr, &(select->attr->extra->evpn_overlay));
           if(safi == SAFI_EVPN)
