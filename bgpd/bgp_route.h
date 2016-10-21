@@ -52,6 +52,9 @@ struct bgp_info
   struct bgp_info *next;
   struct bgp_info *prev;
   
+  /* Back pointer to the prefix node */
+  struct bgp_node *net;
+
   /* Peer structure.  */
   struct peer *peer;
 
