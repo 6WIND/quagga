@@ -612,7 +612,8 @@ _qzc_get_bgp_vrf_4(struct bgp_vrf *p,
         struct capn_segment *seg)
 {
     unsigned long mpath_iter_ptr = 0;
-    struct bgp_node dummy;
+    struct bgp_info *binfo;
+    struct bgp_node *rn, dummy;
     void *next = NULL;
     struct bgp_api_route *outptr;
     struct bgp_api_route tmpval;
@@ -626,9 +627,13 @@ _qzc_get_bgp_vrf_4(struct bgp_vrf *p,
         return;
     }
 
-    memset(&dummy, 0, sizeof(dummy));
-    dummy.p.family = AF_INET;
-    dummy.info = (struct bgp_info*) mpath_iter_ptr;
+    binfo = (struct bgp_info*) mpath_iter_ptr;
+    memset(&dummy, 0, sizeof(struct bgp_node));
+    rn = &dummy;
+    if(binfo)
+      prefix_copy (&rn->p, &binfo->net->p);
+    rn->info = (struct bgp_info *)mpath_iter_ptr;
+
     rep->datatype = 0;
     rep->itertype = 0; /* by default, no need to iterate more */
 
@@ -640,7 +645,7 @@ _qzc_get_bgp_vrf_4(struct bgp_vrf *p,
     qcapn_BGPVRFRoute_write(outptr, rep->data);
 
     /* do this way to look for multipath entries instead of selected */
-    if (!bgp_api_route_get(p, &tmpval, &dummy, 1, &next))
+    if (!bgp_api_route_get(p, &tmpval, rn, 1, &next))
         return;
 
     qcapn_BGPVRFRoute_write(outptr, rep->data);
