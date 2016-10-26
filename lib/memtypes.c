@@ -162,6 +162,8 @@ struct memory_list memory_list_bgp[] =
   { MTYPE_BGP_VRF,		"BGP VRF",			},
   { MTYPE_BGP_RT_SUB,		"BGP RT SUB",			},
   { MTYPE_ZMQ_NOTIFY,		"ZMQ notify",			},
+  { MTYPE_BGP_ESI,		"BGP ESI",			},
+  { MTYPE_BGP_MAC,		"BGP MAC",			},
   { -1, NULL }
 };
 
