@@ -2615,6 +2615,34 @@ bgp_packet_mpattr_route_type_2 (struct stream *s,
         stream_put3 (s, labels[i]);
 }
 
+static void
+bgp_packet_mpattr_route_type_1 (struct stream *s,
+                                struct prefix *p, struct prefix_rd *prd,
+                                uint32_t label, struct attr *attr)
+{
+      char temp[16];
+
+      memset(&temp, 0, 16);
+
+      stream_putc (s, EVPN_ETHERNET_AUTO_DISCOVERY);
+      stream_putc (s, 8 /* RD */ + 10 /* ESI */  + 4 /* EthTag */
+                    + 3 /* MPLS label */ + 1 /* len from TLV */);
+      /* route distinguisher */
+      stream_put (s, prd->val, 8);
+
+      /* Ethernet Segment Identifier */
+      if(attr && attr->extra)
+        stream_put (s, &(attr->extra->evpn_overlay.eth_s_id), 10);
+      else
+        stream_put (s, &temp, 10);
+
+      /* Ethernet Tag Id (VNI), MSB must be null */
+      stream_putl (s, p->u.prefix_macip.eth_tag_id);
+
+      /*  MPLS label */
+      stream_put3 (s, label);
+}
+
 void
 bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
 			  struct prefix *p, struct prefix_rd *prd,
@@ -2641,7 +2669,13 @@ bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
   else if ((safi == SAFI_INTERNAL_EVPN))
     {
       if (p->family == AF_L2VPN)
-        bgp_packet_mpattr_route_type_2(s, p, prd, labels, nlabels, attr);
+        {
+	  /* no mac len, this is A/D route */
+          if (p->u.prefix_macip.mac_len)
+            bgp_packet_mpattr_route_type_2(s, p, prd, labels, nlabels, attr);
+          else
+            bgp_packet_mpattr_route_type_1(s, p, prd, labels[0], attr);
+        }
       else
         bgp_packet_mpattr_route_type_5(s, p, prd, labels, nlabels, attr);
     }
