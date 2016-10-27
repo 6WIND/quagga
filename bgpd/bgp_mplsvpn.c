@@ -417,7 +417,7 @@ DEFUN (vpnv4_network,
        "BGP tag\n"
        "tag value\n")
 {
-  return bgp_static_set_safi (SAFI_MPLS_VPN, vty, argv[0], argv[1], argv[2], NULL);
+  return bgp_static_set_safi (SAFI_MPLS_VPN, vty, argv[0], argv[1], argv[2], NULL, NULL, NULL, NULL, NULL);
 }
 
 DEFUN (vpnv4_network_route_map,
@@ -432,7 +432,7 @@ DEFUN (vpnv4_network_route_map,
        "route map\n"
        "route map name\n")
 {
-  return bgp_static_set_safi (SAFI_MPLS_VPN, vty, argv[0], argv[1], argv[2], argv[3]);
+  return bgp_static_set_safi (SAFI_MPLS_VPN, vty, argv[0], argv[1], argv[2], argv[3], NULL, NULL, NULL, NULL);
 }
 
 /* For testing purpose, static route of MPLS-VPN. */
@@ -447,7 +447,7 @@ DEFUN (no_vpnv4_network,
        "BGP tag\n"
        "tag value\n")
 {
-  return bgp_static_unset_safi (SAFI_MPLS_VPN, vty, argv[0], argv[1], argv[2]);
+  return bgp_static_unset_safi (SAFI_MPLS_VPN, vty, argv[0], argv[1], argv[2], NULL, NULL, NULL);
 }
 
 static int

@@ -5431,7 +5431,8 @@ bgp_static_delete (struct bgp *bgp)
 int
 bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
                      const char *rd_str, const char *tag_str,
-                     const char *rmap_str)
+                     const char *rmap_str, const char *esi, const char *gwip, 
+                     const char *ethtag, const char *routermac)
 {
   int ret;
   struct prefix p;
@@ -5444,6 +5445,12 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
   struct bgp_vrf *vrf;
   uint32_t labels[BGP_MAX_LABELS];
   size_t nlabels;
+  afi_t afi;
+
+  if(safi == SAFI_EVPN)
+    afi = AFI_L2VPN;
+  else
+    afi = AFI_IP;
 
   bgp = vty->index;
 
@@ -5467,11 +5474,28 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
       vty_out (vty, "%% Malformed tag%s", VTY_NEWLINE);
       return CMD_WARNING;
     }
-
-  prn = bgp_node_get (bgp->route[AFI_IP][safi],
+  if (safi == SAFI_EVPN)
+    {
+      if( esi && str2esi (esi, NULL) == 0)
+        {
+          vty_out (vty, "%% Malformed ESI%s", VTY_NEWLINE);
+          return CMD_WARNING;
+        }
+      if( routermac && str2mac (routermac, NULL) == 0)
+        {
+          vty_out (vty, "%% Malformed Router MAC%s", VTY_NEWLINE);
+          return CMD_WARNING;
+        }
+      if(!ethtag)
+        {
+          vty_out (vty, "%% Eth Tag Compulsory%s", VTY_NEWLINE);
+          return CMD_WARNING;
+        }
+    }
+  prn = bgp_node_get (bgp->route[afi][safi],
 			(struct prefix *)&prd);
   if (prn->info == NULL)
-    prn->info = bgp_table_init (AFI_IP, safi);
+    prn->info = bgp_table_init (afi, safi);
   else
     bgp_unlock_node (prn);
   table = prn->info;
@@ -5507,10 +5531,27 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
 	  bgp_static->rmap.name = strdup (rmap_str);
 	  bgp_static->rmap.map = route_map_lookup_by_name (rmap_str);
 	}
+
+      if (safi == SAFI_EVPN)
+        {
+          if(esi)
+            {
+              bgp_static->eth_s_id = XCALLOC (MTYPE_ATTR, sizeof(struct eth_segment_id));
+              str2esi (esi, bgp_static->eth_s_id);
+            }
+          if( routermac)
+            {
+              bgp_static->router_mac = XCALLOC (MTYPE_ATTR, MAC_LEN+1);
+              str2mac (routermac, bgp_static->router_mac);
+            }
+          bgp_static->eth_t_id = atol(ethtag);
+          if (gwip)
+            inet_aton (gwip, &bgp_static->igpnexthop);
+        }
       rn->info = bgp_static;
 
       bgp_static->valid = 1;
-      bgp_static_update_safi (bgp, &p, bgp_static, AFI_IP, safi);
+      bgp_static_update_safi (bgp, &p, bgp_static, afi, safi);
     }
 
   return CMD_SUCCESS;
@@ -5519,7 +5560,8 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
 /* Configure static BGP network. */
 int
 bgp_static_unset_safi(safi_t safi, struct vty *vty, const char *ip_str,
-                      const char *rd_str, const char *tag_str)
+                      const char *rd_str, const char *tag_str,
+                      const char *esi, const char *gwip, const char *ethtag)
 {
   int ret;
   struct bgp *bgp;
@@ -5568,7 +5610,10 @@ bgp_static_unset_safi(safi_t safi, struct vty *vty, const char *ip_str,
 
   if (rn)
     {
-      bgp_static_withdraw_safi (bgp, &p, AFI_IP, safi, &prd, labels, nlabels);
+      if(safi == SAFI_EVPN)
+        bgp_static_withdraw_safi (bgp, &p, AFI_L2VPN, safi, &prd, labels, nlabels);
+      else
+        bgp_static_withdraw_safi (bgp, &p, AFI_IP, safi, &prd, labels, nlabels);
 
       bgp_static = rn->info;
       bgp_static_free (bgp_static);
@@ -17632,6 +17677,59 @@ bgp_config_write_network_vpnv4 (struct vty *vty, struct bgp *bgp,
   return 0;
 }
 
+static int
+bgp_config_write_network_evpn (struct vty *vty, struct bgp *bgp,
+                               afi_t afi, safi_t safi, int *write)
+{
+  struct bgp_node *prn;
+  struct bgp_node *rn;
+  struct bgp_table *table;
+  struct prefix *p;
+  struct prefix_rd *prd;
+  struct bgp_static *bgp_static;
+  char buf[SU_ADDRSTRLEN];
+  char buf2[SU_ADDRSTRLEN];
+  char rdbuf[RD_ADDRSTRLEN];
+  char lblbuf[BUFSIZ];
+
+  /* Network configuration. */
+  for (prn = bgp_table_top (bgp->route[afi][safi]); prn; prn = bgp_route_next (prn))
+    if ((table = prn->info) != NULL)
+      for (rn = bgp_table_top (table); rn; rn = bgp_route_next (rn)) 
+	if ((bgp_static = rn->info) != NULL)
+	  {
+            char *macrouter = NULL;
+            char *esi = NULL;
+
+            if(bgp_static->router_mac)
+              macrouter = mac2str(bgp_static->router_mac);
+            if(bgp_static->eth_s_id)
+              esi = esi2str(bgp_static->eth_s_id);
+	    p = &rn->p;
+	    prd = (struct prefix_rd *) &prn->p;
+
+	    /* "address-family" display.  */
+	    bgp_config_write_family_header (vty, afi, safi, write);
+
+	    /* "network" configuration display.  */
+	    prefix_rd2str (prd, rdbuf, RD_ADDRSTRLEN);
+            labels2str (lblbuf, sizeof(lblbuf),
+                          bgp_static->labels, bgp_static->nlabels);
+            inet_ntop (AF_INET, &bgp_static->igpnexthop, buf2, SU_ADDRSTRLEN);
+
+	    vty_out (vty, " network %s/%d rd %s ethtag %u tag %s esi %s gwip %s routermac %s",
+		     inet_ntop (p->family, &p->u.prefix, buf, SU_ADDRSTRLEN), 
+		     p->prefixlen,
+		     rdbuf, bgp_static->eth_t_id, lblbuf, esi, buf2 , macrouter);
+	    vty_out (vty, "%s", VTY_NEWLINE);
+            if (macrouter)
+              XFREE (MTYPE_BGP_MAC, macrouter);
+            if (esi)
+              XFREE (MTYPE_BGP_ESI, esi);
+	  }
+  return 0;
+}
+
 /* Configuration of static route announcement and aggregate
    information. */
 int
@@ -17643,9 +17741,12 @@ bgp_config_write_network (struct vty *vty, struct bgp *bgp,
   struct bgp_static *bgp_static;
   struct bgp_aggregate *bgp_aggregate;
   char buf[SU_ADDRSTRLEN];
-  
+
   if (afi == AFI_IP && ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP)))
     return bgp_config_write_network_vpnv4 (vty, bgp, afi, safi, write);
+
+  if (afi == AFI_L2VPN && safi == SAFI_EVPN)
+    return bgp_config_write_network_evpn (vty, bgp, afi, safi, write);
 
   /* Network configuration. */
   for (rn = bgp_table_top (bgp->route[afi][safi]); rn; rn = bgp_route_next (rn)) 
