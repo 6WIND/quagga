@@ -1150,8 +1150,16 @@ bgp_open_capability (struct stream *s, struct peer *peer)
 
           if (peer->afc[afi][safi])
             {
-              stream_putw (s, afi);
-              stream_putc (s, (safi == SAFI_MPLS_VPN) ? SAFI_MPLS_LABELED_VPN : safi);
+              if(afi == AFI_L2VPN)
+                stream_putw (s, AFI_IANA_L2VPN);
+              else
+                stream_putw (s, afi);
+              if(safi == SAFI_MPLS_VPN)
+                stream_putc (s, SAFI_MPLS_LABELED_VPN);
+              else if(safi == SAFI_EVPN)
+                stream_putc (s, SAFI_IANA_EVPN );
+              else
+                stream_putc (s, safi);
               if (bgp_flag_check(peer->bgp, BGP_FLAG_GR_PRESERVE_FWD))
                 stream_putc (s, RESTART_F_BIT);
               else
