@@ -2786,7 +2786,9 @@ bgp_packet_attribute (struct bgp *bgp, struct peer *peer,
   cp = stream_get_endp (s);
 
 #if 0
-  if (p && !(afi == AFI_IP && safi == SAFI_UNICAST))
+  if (p && !(afi == AFI_IP && safi == SAFI_UNICAST) &&
+      !(afi == AFI_IP && safi == SAFI_MPLS_VPN) &&
+      !(afi == AFI_L2VPN && safi == SAFI_EVPN))
     {
       size_t mpattrlen_pos = 0;
       mpattrlen_pos = bgp_packet_mpattr_start(s, afi, safi, attr);
@@ -2865,8 +2867,7 @@ bgp_packet_attribute (struct bgp *bgp, struct peer *peer,
   /* Nexthop attribute. */
   if (attr->flag & ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP) && 
       ((afi == AFI_IP && safi ==  SAFI_UNICAST) ||  /* only write NH attr for unicast safi */
-       (safi ==  SAFI_MPLS_VPN) ||  /* only write NH attr for unicast safi */
-       (afi == AFI_L2VPN && safi == SAFI_EVPN)))
+       (afi == AFI_L2VPN && safi == SAFI_EVPN && p->family == AF_L2VPN)))
     {
       stream_putc (s, BGP_ATTR_FLAG_TRANS);
       stream_putc (s, BGP_ATTR_NEXT_HOP);
