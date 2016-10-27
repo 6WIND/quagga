@@ -161,6 +161,7 @@ GType routes_get_type (void);
 #define BGP_ERR_INACTIVE 11
 #define BGP_ERR_NOT_ITER 15
 #define BGP_ERR_PARAM 100
+#define BGP_ETHTAG_MAX_ET 4294967295
 
 /* struct BgpConfiguratorStartBgpArgs */
 struct _BgpConfiguratorStartBgpArgs
