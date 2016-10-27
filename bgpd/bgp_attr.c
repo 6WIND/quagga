@@ -2863,13 +2863,15 @@ bgp_packet_attribute (struct bgp *bgp, struct peer *peer,
       send_as4_path = 1; /* we'll do this later, at the correct place */
   
   /* Nexthop attribute. */
-  if (attr->flag & ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP) && afi == AFI_IP &&
-    safi ==  SAFI_UNICAST)   /* only write NH attr for unicast safi */
+  if (attr->flag & ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP) && 
+      ((afi == AFI_IP && safi ==  SAFI_UNICAST) ||  /* only write NH attr for unicast safi */
+       (safi ==  SAFI_MPLS_VPN) ||  /* only write NH attr for unicast safi */
+       (afi == AFI_L2VPN && safi == SAFI_EVPN)))
     {
       stream_putc (s, BGP_ATTR_FLAG_TRANS);
       stream_putc (s, BGP_ATTR_NEXT_HOP);
       stream_putc (s, 4);
-      if (safi == SAFI_MPLS_VPN)
+      if ( (safi == SAFI_MPLS_VPN)  || ( safi == SAFI_EVPN))
 	{
 	  if (attr->nexthop.s_addr == 0)
 	    stream_put_ipv4 (s, peer->nexthop.v4.s_addr);
