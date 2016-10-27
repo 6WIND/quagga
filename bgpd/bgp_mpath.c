@@ -441,10 +441,22 @@ bgp_info_mpath_sprint_nh(afi_t afi, struct bgp_node *rn, struct bgp_info *mpath,
 {
   if(mpath->attr && mpath->attr->extra)
     {
+      if ( afi == AFI_L2VPN)
+        {
+          struct prefix *p = &rn->p;
+          if (p->family == AF_INET)
+            strcpy (nh_str, inet_ntoa (mpath->attr->extra->mp_nexthop_global_in));
+          else if (p->family == AF_INET6)
+            inet_ntop (AF_INET6, &mpath->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+          else if (rn->p.family == AF_L2VPN)
+            strcpy (nh_str, inet_ntoa (mpath->attr->extra->mp_nexthop_global_in));
+        }
       if (afi == AFI_IP)
         strcpy (nh_str, inet_ntoa (mpath->attr->extra->mp_nexthop_global_in));
       else if (afi == AFI_IP6)
         inet_ntop (AF_INET6, &mpath->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+      else if (rn->p.family == AF_L2VPN)
+        strcpy (nh_str, inet_ntoa (mpath->attr->extra->mp_nexthop_global_in));
     }
   else if(mpath->attr)
     {
@@ -474,7 +486,7 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
   struct listnode *mp_node, *mp_next_node;
   struct bgp_info *cur_mpath, *new_mpath, *next_mpath, *prev_mpath;
   int mpath_changed, debug;
-  char pfx_buf[INET6_ADDRSTRLEN], nh_buf[2][INET6_ADDRSTRLEN];
+  char pfx_buf[PREFIX_STRLEN], nh_buf[2][INET_ADDRSTRLEN];
   struct bgp_maxpaths_cfg *mpath_cfg = NULL;
   struct prefix_rd *prd = NULL;
   struct bgp_vrf *vrf = NULL;
