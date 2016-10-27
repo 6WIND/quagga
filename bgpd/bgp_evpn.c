@@ -879,7 +879,7 @@ DEFUN (evpnrt5_network,
        "Router Mac address Value ( aa:bb:cc:dd:ee:ff format)\n")
 {
   return bgp_static_set_safi (SAFI_EVPN, vty, argv[0], argv[1], argv[3], NULL, 
-                              argv[4], argv[5], argv[2], argv[6]);
+                              argv[4], argv[5], argv[2], argv[6], NULL, NULL);
 }
 
 /* For testing purpose, static route of MPLS-VPN. */
@@ -900,10 +900,54 @@ DEFUN (no_evpnrt5_network,
        "Gateway IP\n"
        "Gateway IP ( A.B.C.D )\n")
 {
-  return bgp_static_unset_safi (SAFI_EVPN, vty, argv[0], argv[1], argv[3], 
-                                argv[4], argv[5], argv[2]);
+  return bgp_static_unset_safi (SAFI_EVPN, vty, argv[0], argv[1], 
+                                argv[3], argv[4], argv[5], argv[2], NULL);
 }
 
+/* For testing purpose, static route of MPLS-VPN. */
+DEFUN (evpnrt2_network,
+       evpnrt2_network_cmd,
+       "network A.B.C.D rd ASN:nn_or_IP-address:nn ethtag WORD mac WORD esi WORD l2label WORD l3label WORD  routermac WORD",
+       "Specify a host address to announce via BGP\n"
+       "IP host 32 bits, e.g., 10.1.2.32\n"
+       "Specify Route Distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "Ethernet Tag\n"
+       "Ethernet Tag Value\n"
+       "Mac Address Associated\n"
+       "Mac address Value ( aa:bb:cc:dd:ee:ff format)\n"
+       "Ethernet Segment Identifier\n"
+       "ESI value ( 00:11:22:33:44:55:66:77:88:99 format) \n"
+       "BGP Layer 2 label\n"
+       "label Layer 2 value\n"
+       "BGP Layer 3 label\n"
+       "label Layer 3 value\n"
+       "Router Mac Ext Comm\n"
+       "Router Mac address Value ( aa:bb:cc:dd:ee:ff format)\n")
+{
+  return bgp_static_set_safi (SAFI_EVPN, vty, argv[0], argv[1], argv[6], NULL, 
+                              argv[4], NULL, argv[2], argv[7], argv[3], argv[5]);
+}
+
+/* For testing purpose, static route of MPLS-VPN. */
+DEFUN (no_evpnrt2_network,
+       no_evpnrt2_network_cmd,
+       "no network A.B.C.D rd ASN:nn_or_IP-address:nn ethtag WORD mac WORD esi WORD",
+       NO_STR
+       "Specify a host address to announce via BGP\n"
+       "IP host 32 bits, e.g., 10.1.2.32\n"
+       "Specify Route Distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "Ethernet Tag\n"
+       "Ethernet Tag Value\n"
+       "Mac Address Associated\n"
+       "Mac address Value ( aa:bb:cc:dd:ee:ff format)\n"
+       "Ethernet Segment Identifier\n"
+       "ESI value ( 00:11:22:33:44:55:66:77:88:99 format) \n")
+{
+  return bgp_static_unset_safi (SAFI_EVPN, vty, argv[0], argv[1], 
+                                NULL, argv[4], NULL, argv[2], argv[3]);
+}
 
 void
 bgp_ethernetvpn_init (void)
@@ -924,4 +968,6 @@ bgp_ethernetvpn_init (void)
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_neighbor_received_routes_cmd);
   install_element (BGP_EVPN_NODE, &no_evpnrt5_network_cmd);
   install_element (BGP_EVPN_NODE, &evpnrt5_network_cmd);
+  install_element (BGP_EVPN_NODE, &no_evpnrt2_network_cmd);
+  install_element (BGP_EVPN_NODE, &evpnrt2_network_cmd);
 }

@@ -5467,7 +5467,8 @@ int
 bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
                      const char *rd_str, const char *tag_str,
                      const char *rmap_str, const char *esi, const char *gwip, 
-                     const char *ethtag, const char *routermac)
+                     const char *ethtag, const char *routermac,
+                     const char *macaddress, const char *l2label)
 {
   int ret;
   struct prefix p;
@@ -5511,6 +5512,32 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
     }
   if (safi == SAFI_EVPN)
     {
+      if( macaddress && str2mac (macaddress, NULL) != 0)
+        {
+          struct macipaddr *m = &p.u.prefix_macip;
+          struct prefix_ipv4 dummy;
+
+          p.family = AF_L2VPN;
+          p.prefixlen = L2VPN_IPV4_PREFIX_LEN;
+
+          str2mac(macaddress, (char*) &m->mac);
+          if (strncmp(ip_str, "0.0.0.0", 8))
+            {
+              str2prefix_ipv4(ip_str,&dummy);
+
+              if (dummy.prefixlen != 0 && dummy.prefixlen != 32)
+                {
+                  vty_out (vty, "%% Malformed Network%s", VTY_NEWLINE);
+                  return CMD_WARNING;
+                }
+              memcpy(&m->ip.in4, &dummy.prefix, sizeof(struct in_addr));
+              m->eth_tag_id = atol(ethtag);
+              m->ip_len = 32;
+            }
+          else
+            m->ip_len = 0;
+          m->mac_len = ETHER_ADDR_LEN * 8;
+        }
       if( esi && str2esi (esi, NULL) == 0)
         {
           vty_out (vty, "%% Malformed ESI%s", VTY_NEWLINE);
@@ -5525,6 +5552,27 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
         {
           vty_out (vty, "%% Eth Tag Compulsory%s", VTY_NEWLINE);
           return CMD_WARNING;
+        }
+      if(nlabels != 1)
+        {
+          vty_out (vty, "%% L3 Label Format not valid%s", VTY_NEWLINE);
+          return CMD_WARNING;
+        }
+      if(l2label)
+        {
+         labels[nlabels - 1] &= ~1;
+         labels[nlabels] = atol(l2label) << 4;
+         labels[nlabels] |= 1;
+         nlabels++;
+        }
+      else
+        {
+          if(macaddress) /* required to have a second label */
+            {
+              labels[nlabels] &= ~1;
+              labels[nlabels] = 0;
+              labels[nlabels] |= 1;
+            }
         }
     }
   prn = bgp_node_get (bgp->route[afi][safi],
@@ -5596,7 +5644,8 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
 int
 bgp_static_unset_safi(safi_t safi, struct vty *vty, const char *ip_str,
                       const char *rd_str, const char *tag_str,
-                      const char *esi, const char *gwip, const char *ethtag)
+                      const char *esi, const char *gwip, const char *ethtag,
+                      const char *mac)
 {
   int ret;
   struct bgp *bgp;
@@ -17786,10 +17835,22 @@ bgp_config_write_network_evpn (struct vty *vty, struct bgp *bgp,
                           bgp_static->labels, bgp_static->nlabels);
             inet_ntop (AF_INET, &bgp_static->igpnexthop, buf2, SU_ADDRSTRLEN);
 
-	    vty_out (vty, " network %s/%d rd %s ethtag %u tag %s esi %s gwip %s routermac %s",
-		     inet_ntop (p->family, &p->u.prefix, buf, SU_ADDRSTRLEN), 
-		     p->prefixlen,
-		     rdbuf, bgp_static->eth_t_id, lblbuf, esi, buf2 , macrouter);
+            if(p->family == AF_L2VPN)
+              {
+                char *mac = mac2str((char *)&p->u.prefix_macip);
+                vty_out (vty, " network %s rd %s ethtag %u mac %s esi %s l2label %u l3label %u routermac %s",
+                         inet_ntop (AF_INET, &(p->u.prefix_macip.ip.in4), buf2, SU_ADDRSTRLEN),
+                         rdbuf, bgp_static->eth_t_id, mac, esi, 
+                         bgp_static->labels[0] >> 4 , bgp_static->labels[1] >> 4 ,
+                         macrouter);
+                if (mac)
+                  XFREE (MTYPE_BGP_MAC, mac);
+              } 
+            else
+              vty_out (vty, " network %s/%d rd %s ethtag %u tag %s esi %s gwip %s routermac %s",
+                       inet_ntop (p->family, &p->u.prefix, buf, SU_ADDRSTRLEN), 
+                       p->prefixlen,
+                       rdbuf, bgp_static->eth_t_id, lblbuf, esi, buf2 , macrouter);
 	    vty_out (vty, "%s", VTY_NEWLINE);
             if (macrouter)
               XFREE (MTYPE_BGP_MAC, macrouter);
