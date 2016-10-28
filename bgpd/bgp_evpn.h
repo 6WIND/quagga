@@ -25,6 +25,14 @@ extern void bgp_ethernetvpn_init (void);
 extern int bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
                                 struct bgp_nlri *packet, int withdraw);
 
+extern int peer_evpn_auto_discovery_set (struct peer *peer, struct bgp_vrf *vrf,
+                                         struct attr * attr, struct eth_segment_id *esi,
+                                         u_int32_t ethtag, struct in_addr *nexthop,
+                                         u_int32_t label);
+extern int peer_evpn_auto_discovery_unset (struct peer *peer, struct bgp_vrf *vrf,
+                                           struct attr * attr, struct eth_segment_id *esi,
+                                           u_int32_t ethtag, u_int32_t label);
+
 /* EVPN route types as per RFC7432 and
  * as per draft-ietf-bess-evpn-prefix-advertisement-02
  */

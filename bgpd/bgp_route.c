@@ -1978,6 +1978,91 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   else
     safi = SAFI_MPLS_VPN;
 
+  /* detect Auto Discovery message */
+  if ((safi == SAFI_EVPN) && PREFIX_IS_L2VPN_AD(p))
+    {
+      struct bgp *bgp;
+      struct listnode *iter;
+      struct listnode *node;
+      int ret = -1;
+      struct peer *peer;
+
+      bgp = vrf->bgp;
+
+      /* We should find peer list linked to this RD
+       * Notify any issue related to peer list before emitting A/D
+       */
+      for (ALL_LIST_ELEMENTS_RO(bgp->peer, iter, peer))
+        {
+          if (peer && peer->status != Established && peer->afc_nego[afi][safi])
+            {
+              zlog_err("Can't send EVPN Auto-Discovery to Idle host %s",
+                       peer->host);
+              return -1;
+            }
+        }
+
+      for (ALL_LIST_ELEMENTS_RO(bgp->peer, iter, peer))
+        {
+          /* Only send UPDATE messages to EVPN peers within same ESI */
+          if (peer && peer->status == Established && peer->afc_nego[afi][safi])
+            {
+              struct bgp_evpn_ad *ad, *ad_found = NULL;
+              u_int32_t ethtag = p->u.prefix_macip.eth_tag_id;
+              struct eth_segment_id esi;
+              uint32_t ret2 = 1;
+
+              str2esi(route->esi, &esi);
+              /* As soon as we enter that loop we consider it's a success unless
+               * there is no more memory left for creating new ad */
+              ret = 0;
+
+              /* Store A/D message before sending */
+
+              /* lookup for A/D in list matching same parameters */
+              /* can't use listnode_lookup since it checks for exact pointer
+                 within list which is not possible here */
+              for (ALL_LIST_ELEMENTS_RO(vrf->static_evpn_ad, node, ad))
+                {
+                  if (0 == bgp_evpn_ad_cmp(ad, peer, &vrf->outbound_rd,
+                                           &esi, ethtag))
+                    {
+                      ad_found = ad;
+                      ret2 = bgp_evpn_ad_update (ad, (struct in_addr*) &route->nexthop,
+                                                 route->l2label);
+
+                      break;
+                    }
+                }
+              /* update data in recorded ad
+               * if no change, then no need to send a/d again.
+               * goto next peer
+               */
+              if (!ret2)
+                continue;
+
+              /* the A/D was not found, then record it in list */
+              if (!ad_found)
+                {
+                  ad_found = bgp_evpn_ad_new(peer, vrf,
+                                       &esi, ethtag, route->l2label);
+                  if (!ad_found)
+                    {
+                      zlog_err("Not enough memory to store AD message for ESI %s!", route->esi);
+                      return -1;
+                    }
+
+                  listnode_add(vrf->static_evpn_ad, ad_found);
+                }
+
+              peer_evpn_auto_discovery_set (peer, vrf, ad_found->attr,
+                                            &esi, ethtag, (struct in_addr*) &route->nexthop,
+                                            route->l2label);
+            }
+        }
+      return ret;
+    }
+
   str2prefix ("0.0.0.0/0", &def_route);
 
   /* if we try to install a default route, set flag accordingly */
@@ -2096,6 +2181,84 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   else
     safi = SAFI_MPLS_VPN;
 
+  /* detect Auto Discovery message */
+  if ((safi == SAFI_EVPN) && PREFIX_IS_L2VPN_AD(p))
+    {
+      struct bgp *bgp;
+      struct listnode *iter;
+      struct listnode *node;
+      int ret = -1;
+      struct peer *peer;
+
+      bgp = vrf->bgp;
+
+      /* We should find peer list linked to this RD */
+      for (ALL_LIST_ELEMENTS_RO(bgp->peer, iter, peer))
+        {
+          if (peer && peer->status != Established && peer->afc_nego[afi][safi])
+            {
+              zlog_err("Can't send EVPN Auto-Discovery to Idle host %s",
+                       peer->host);
+              return -1;
+            }
+        }
+
+      for (ALL_LIST_ELEMENTS_RO(bgp->peer, iter, peer))
+        {
+          if (peer && peer->status == Established && peer->afc_nego[afi][safi])
+            {
+              struct bgp_evpn_ad *ad, *ad_found = NULL;
+              u_int32_t ethtag = p->u.prefix_macip.eth_tag_id;
+              struct eth_segment_id esi;
+
+              str2esi(route->esi, &esi);
+
+              /* Remove A/D message before sending */
+
+              /* lookup for A/D in list matching same parameters */
+              /* can't use listnode_lookup since it checks for exact pointer
+                 within list which is not possible here */
+              for (ALL_LIST_ELEMENTS_RO(vrf->static_evpn_ad, node, ad))
+                {
+                  if (0 == bgp_evpn_ad_cmp(ad, peer, &vrf->outbound_rd,
+                                           &esi, ethtag))
+                    {
+                      ad_found = ad;
+                      break;
+                    }
+                }
+
+              /* the A/D was not found, then it's an error */
+              if (!ad_found)
+                {
+                  struct eth_segment_id esi;
+                  u_int32_t ethtag;
+
+                  ethtag = p->u.prefix_macip.eth_tag_id;
+                  str2esi(route->esi, &esi);
+                  zlog_err("No Auto Discovery message for ESI %s ethtag %d. Sending withdraw however !",
+                            route->esi, ethtag);
+                  ad_found = bgp_evpn_ad_new(peer, vrf,
+                                       &esi, ethtag, route->l2label);
+                  if (!ad_found)
+                    {
+                      zlog_err("Not enough memory to store AD message for ESI %s!", route->esi);
+                      return -1;
+                    }
+                  ad_found->type = BGP_EVPN_AD_TYPE_MP_UNREACH;
+                }
+              else
+                listnode_delete (vrf->static_evpn_ad, ad_found);
+
+              peer_evpn_auto_discovery_unset (peer, vrf, ad_found->attr,
+                                              &esi, ethtag, ad_found->label);
+              bgp_evpn_ad_free (ad_found);
+              ret = 0;
+            }
+        }
+
+      return ret;
+    }
   str2prefix ("0.0.0.0/0", &def_route);
 
   /* if we try to withdraw a default route, unset flag accordingly */
@@ -4180,6 +4343,48 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
         bgp_default_update_evpn_send(peer, rd, &attr, AFI_IP, vrf->nlabels, vrf->labels);
       bgp_attr_extra_free (&attr);
       aspath_unintern (&aspath);
+    }
+}
+
+void
+bgp_auto_discovery_evpn (struct peer *peer, struct bgp_vrf *vrf, struct attr * attr,
+                         struct eth_segment_id *esi, u_int32_t ethtag,
+                         struct in_addr *nexthop, u_int32_t label, int withdraw)
+{
+  if (withdraw)
+    {
+      /* all extented communities are already set by a previous push */
+      bgp_auto_discovery_withdraw_send (peer, &vrf->outbound_rd, attr, ethtag, label);
+    }
+  else
+    {
+      struct attr_extra *extra;
+      extra = bgp_attr_extra_get(attr);
+      /* set nexthop */
+      attr->nexthop = *nexthop;
+      attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
+      extra->mp_nexthop_global_in = *nexthop;
+
+      /* routermac if present */
+      if(vrf->mac_router)
+        {
+          char routermac_int[MAC_LEN+1];
+
+          str2mac (vrf->mac_router, routermac_int);
+          bgp_add_routermac_ecom (attr, routermac_int);
+        }
+
+      /* VXLAN type if present */
+      if(ethtag)
+        {
+          struct bgp_encap_type_vxlan bet;
+
+          memset(&bet, 0, sizeof(struct bgp_encap_type_vxlan));
+          bet.vnid = ethtag;
+          bgp_encap_type_vxlan_to_tlv(&bet, attr);
+        }
+
+      bgp_auto_discovery_update_send(peer, &vrf->outbound_rd, attr, ethtag, label);
     }
 }
 

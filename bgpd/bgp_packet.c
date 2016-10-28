@@ -910,6 +910,158 @@ bgp_default_withdraw_evpn_send (struct peer *peer, afi_t afi, struct prefix_rd *
   BGP_WRITE_ON (peer->t_write, bgp_write, peer->fd);
 }
 
+void
+bgp_auto_discovery_update_send(struct peer *peer, struct prefix_rd *rd,
+                               struct attr *attr, u_int32_t ethtag, uint32_t label)
+{
+  struct bgp *bgp;
+  struct stream *s;
+  struct prefix p;
+  unsigned long pos_total_path_attr_len;
+  bgp_size_t total_attr_len;
+  size_t mpattrlen_pos = 0;
+  size_t pos_end = 0;
+
+  if (DISABLE_BGP_ANNOUNCE)
+    return;
+
+  /* Logging the attribute. */
+  if (BGP_DEBUG (update, UPDATE_OUT))
+  {
+    char rd_str[RD_ADDRSTRLEN];
+    char attrstr[BUFSIZ];
+    char *esi_str;
+    attrstr[0] = '\0';
+
+    esi_str = esi2str(&bgp_attr_extra_get (attr)->evpn_overlay.eth_s_id);
+    prefix_rd2str(rd, rd_str, sizeof(rd_str));
+    bgp_dump_attr (peer, attr, attrstr, BUFSIZ);
+    zlog (peer->log, LOG_DEBUG,
+          "%s send EVPN UPDATE with Auto Discovery for RD %s ESI %s attr:%s",
+          peer->host, rd_str, esi_str, attrstr);
+  }
+
+  bgp = peer->bgp;
+
+  s = stream_new (BGP_MAX_PACKET_SIZE);
+
+  /* Make BGP update packet. */
+  bgp_packet_set_marker (s, BGP_MSG_UPDATE);
+
+  /* Unfeasible Routes Length. */
+  stream_putw (s, 0);
+
+  /* Make place for total attribute length.  */
+  pos_total_path_attr_len = stream_get_endp (s);
+  stream_putw (s, 0);
+
+  /* Fill these prefix field to help bgp_packet_mpattr_prefix guessing it's a RT1 */
+  p.family = AF_L2VPN;
+  p.prefixlen = L2VPN_PREFIX_ETHTAGLEN + ESI_LEN * sizeof(char);
+  p.u.prefix_macip.eth_tag_id = ethtag;
+  p.u.prefix_macip.mac_len = 0;
+
+  total_attr_len = bgp_packet_attribute (NULL, peer, s,
+                                         attr, &p, AFI_L2VPN, SAFI_EVPN,
+                                         bgp->peer_self, NULL, NULL, 0);
+  pos_end = stream_get_endp (s);
+
+  /* Encode the prefix in MP_REACH_NLRI attribute */
+  mpattrlen_pos = bgp_packet_mpattr_start(s, AFI_L2VPN, SAFI_EVPN, attr);
+
+  bgp_packet_mpattr_prefix(s, AFI_L2VPN, SAFI_EVPN, &p, rd, &label, 1, attr);
+
+  /* set size of mp attributes at good position in UPDATE message */
+  bgp_packet_mpattr_end(s, mpattrlen_pos);
+
+  /* update total attribute length */
+  total_attr_len += (stream_get_endp (s) - pos_end);
+
+  /* Set Total Path Attribute Length. */
+  stream_putw_at (s, pos_total_path_attr_len, total_attr_len);
+
+  /* Set size. */
+  bgp_packet_set_size (s);
+
+  /* Add packet to the peer. */
+  bgp_packet_add (peer, s);
+
+  BGP_WRITE_ON (peer->t_write, bgp_write, peer->fd);
+}
+
+void
+bgp_auto_discovery_withdraw_send (struct peer *peer, struct prefix_rd *rd,
+                                  struct attr *attr, u_int32_t ethtag, uint32_t label)
+{
+  struct stream *s;
+  struct prefix p;
+  unsigned long attrlen_pos = 0;
+  bgp_size_t total_attr_len;
+  size_t mpattrlen_pos = 0;
+  size_t pos_end = 0;
+
+  if (DISABLE_BGP_ANNOUNCE)
+    return;
+
+  total_attr_len = 0;
+
+  if (BGP_DEBUG (update, UPDATE_OUT))
+    {
+      char rd_str[RD_ADDRSTRLEN];
+      char *esi_str;
+
+      esi_str = esi2str(&bgp_attr_extra_get (attr)->evpn_overlay.eth_s_id);
+      prefix_rd2str(rd, rd_str, sizeof(rd_str));
+      zlog (peer->log, LOG_DEBUG,
+            "%s send EVPN UPDATE with Auto Discovery for RD %s ESI %s -- unreachable",
+            peer->host, rd_str, esi_str);
+    }
+
+  /* Withdrawn Routes. */
+  /* Create UPDATE message needed based on the Route Distinguisher */
+  s = stream_new (BGP_MAX_PACKET_SIZE);
+
+  /* Make BGP update packet. */
+  bgp_packet_set_marker (s, BGP_MSG_UPDATE);
+
+  /* Unfeasible Routes Length. */
+  stream_putw (s, 0);
+
+  /* Make place for total attribute length.  */
+  attrlen_pos = stream_get_endp (s);
+  stream_putw (s, 0);
+  pos_end = stream_get_endp (s);
+
+  /* start to build MP_REACH_NLRI attribute */
+  mpattrlen_pos = bgp_packet_mpunreach_start(s, AFI_L2VPN, SAFI_EVPN);
+
+  /* Fill these prefix field to help bgp_packet_mpattr_prefix guessing it's a RT1 */
+  p.family = AF_L2VPN;
+  p.prefixlen = L2VPN_PREFIX_ETHTAGLEN + ESI_LEN * sizeof(char);
+  p.u.prefix_macip.eth_tag_id = ethtag;
+  p.u.prefix_macip.mac_len = 0;
+
+  /* Encode the prefix in MP_UNREACH_NLRI attribute */
+  bgp_packet_mpunreach_prefix(s, &p, AFI_L2VPN, SAFI_EVPN, rd, &label, 1, attr);
+
+  /* set size of mp attributes at good position in UPDATE message */
+  bgp_packet_mpunreach_end(s, mpattrlen_pos);
+
+  /* update total attribute length */
+  total_attr_len = (stream_get_endp (s) - pos_end);
+
+  /* Set Total Path Attribute Length. */
+  stream_putw_at (s, attrlen_pos, total_attr_len);
+
+  /* Set size. */
+  bgp_packet_set_size (s);
+
+  /* Add packet to the peer. */
+  bgp_packet_add (peer, s);
+
+  BGP_WRITE_ON (peer->t_write, bgp_write, peer->fd);
+}
+
 /* Get next packet to be written.  */
 static struct stream *
 bgp_write_packet (struct peer *peer)

@@ -276,6 +276,9 @@ struct bgp_vrf
 #define BGP_VRF_RD_UNSET 1
   uint16_t flag;
 
+  /* List of auto discovery statically set */
+  struct list *static_evpn_ad;
+
   QZC_NODE
 };
 

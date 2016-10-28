@@ -64,5 +64,10 @@ extern void bgp_default_update_evpn_send (struct peer *peer, struct prefix_rd *r
                                            size_t nlabels, uint32_t *labels);
 
 extern int bgp_nlri_parse (struct peer *, struct attr *, struct bgp_nlri *);
-
+extern void bgp_auto_discovery_update_send(struct peer *peer, struct prefix_rd *rd,
+                                           struct attr *attr,
+                                           u_int32_t ethtag, uint32_t label);
+extern void bgp_auto_discovery_withdraw_send (struct peer *peer, struct prefix_rd *rd,
+                                              struct attr *attr, u_int32_t ethtag,
+                                              uint32_t label);
 #endif /* _QUAGGA_BGP_PACKET_H */

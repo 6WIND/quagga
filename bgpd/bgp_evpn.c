@@ -990,3 +990,31 @@ bgp_ethernetvpn_init (void)
   install_element (BGP_EVPN_NODE, &no_evpnrt2_network_cmd);
   install_element (BGP_EVPN_NODE, &evpnrt2_network_cmd);
 }
+
+int
+peer_evpn_auto_discovery_set (struct peer *peer, struct bgp_vrf *vrf, struct attr * attr,
+                              struct eth_segment_id *esi, u_int32_t ethtag,
+                              struct in_addr *nexthop, u_int32_t label)
+{
+  /* Adress family must be activated.  */
+  if (! peer->afc[AFI_L2VPN][SAFI_EVPN])
+    return BGP_ERR_PEER_INACTIVE;
+
+  bgp_auto_discovery_evpn (peer, vrf, attr, esi, ethtag, nexthop, (label << 4) | 1, 0);
+
+  return 0;
+}
+
+int
+peer_evpn_auto_discovery_unset (struct peer *peer, struct bgp_vrf *vrf, struct attr * attr,
+                                struct eth_segment_id *esi, u_int32_t ethtag,
+                                u_int32_t label)
+{
+  /* Adress family must be activated.  */
+  if (! peer->afc[AFI_L2VPN][SAFI_EVPN])
+    return BGP_ERR_PEER_INACTIVE;
+
+  bgp_auto_discovery_evpn (peer, vrf, attr, esi, ethtag, NULL, (label << 4) | 1, 1);
+
+  return 0;
+}

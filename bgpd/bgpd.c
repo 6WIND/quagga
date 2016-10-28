@@ -2204,6 +2204,7 @@ bgp_vrf_lookup_per_name (struct bgp *bgp, const char *name, int create)
       vrf->rib[afi] = bgp_table_init (afi, SAFI_UNICAST);
       vrf->rib[afi]->type = BGP_TABLE_VRF;
     }
+  vrf->static_evpn_ad = list_new();
 
   QZC_NODE_REG(vrf, bgp_vrf)
   listnode_add (bgp->vrfs, vrf);
@@ -2362,6 +2363,8 @@ bgp_vrf_delete_rd (struct bgp_vrf *vrf)
   bgp_vrf_rt_import_unset (vrf);
   if (vrf->rt_export)
     ecommunity_unintern (&vrf->rt_export);
+
+  list_delete (vrf->static_evpn_ad);
   return;
 }
 
