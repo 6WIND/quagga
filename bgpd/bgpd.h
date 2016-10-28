@@ -288,6 +288,9 @@ struct bgp_vrf
   /* for import processing */
   struct list *import_processing_evpn_ad;
 
+  /* List of auto discovery statically set */
+  struct list *static_evpn_ad;
+
   QZC_NODE
 };
 
@@ -1094,7 +1097,13 @@ extern int peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *r
                                           const struct bgp_api_route *route);
 extern int peer_default_originate_unset_rd (struct peer *peer, afi_t afi,
                                             safi_t safi, struct prefix_rd *rd);
-
+extern int peer_evpn_auto_discovery_set (struct peer *peer, struct bgp_vrf *vrf,
+                                         struct attr * attr, struct eth_segment_id *esi,
+                                         u_int32_t ethtag, struct in_addr *nexthop,
+                                         u_int32_t label);
+extern int peer_evpn_auto_discovery_unset (struct peer *peer, struct bgp_vrf *vrf,
+                                           struct attr * attr, struct eth_segment_id *esi,
+                                           u_int32_t ethtag, u_int32_t label);
 
 extern int peer_port_set (struct peer *, u_int16_t);
 extern int peer_port_unset (struct peer *);

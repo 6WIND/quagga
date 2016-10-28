@@ -218,6 +218,10 @@ extern void bgp_default_originate (struct peer *, afi_t, safi_t, int);
 extern void bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi,
                                       struct prefix_rd *rd, struct bgp_vrf *vrf,
                                       int withdraw);
+extern void bgp_auto_discovery_evpn (struct peer *peer, struct bgp_vrf *vrf,
+                                     struct attr * attr, struct eth_segment_id *esi,
+                                     u_int32_t ethtag, struct in_addr *nexthop,
+                                     u_int32_t label, int withdraw);
 extern void bgp_soft_reconfig_in (struct peer *, afi_t, safi_t);
 extern void bgp_soft_reconfig_rsclient (struct peer *, afi_t, safi_t);
 extern void bgp_check_local_routes_rsclient (struct peer *rsclient, afi_t afi, safi_t safi);

@@ -2168,6 +2168,8 @@ bgp_vrf_create (struct bgp *bgp, bgp_layer_type_t ltype, struct prefix_rd *outbo
   vrf->rx_evpn_ad = list_new ();
   vrf->import_processing_evpn_ad = list_new();
 
+  vrf->static_evpn_ad = list_new();
+
   QZC_NODE_REG(vrf, bgp_vrf)
   listnode_add (bgp->vrfs, vrf);
   return vrf;
@@ -2248,6 +2250,7 @@ bgp_vrf_delete_int (void *arg)
   zlog_info ("deleting vrf %s", vrf_rd_str);
 
   list_delete(vrf->rx_evpn_ad);
+  list_delete(vrf->static_evpn_ad);
 
   QZC_NODE_UNREG(vrf)
 
@@ -3703,6 +3706,34 @@ peer_default_originate_unset_rd (struct peer *peer, afi_t afi, safi_t safi, stru
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
     if (peer->status == Established && peer->afc_nego[afi][safi])
       bgp_default_originate_rd (peer, afi, safi, rd, found, 1);
+
+  return 0;
+}
+
+int
+peer_evpn_auto_discovery_set (struct peer *peer, struct bgp_vrf *vrf, struct attr * attr,
+                              struct eth_segment_id *esi, u_int32_t ethtag,
+                              struct in_addr *nexthop, u_int32_t label)
+{
+  /* Adress family must be activated.  */
+  if (! peer->afc[AFI_INTERNAL_L2VPN][SAFI_INTERNAL_EVPN])
+    return BGP_ERR_PEER_INACTIVE;
+
+  bgp_auto_discovery_evpn (peer, vrf, attr, esi, ethtag, nexthop, (label << 4) | 1, 0);
+
+  return 0;
+}
+
+int
+peer_evpn_auto_discovery_unset (struct peer *peer, struct bgp_vrf *vrf, struct attr * attr,
+                                struct eth_segment_id *esi, u_int32_t ethtag,
+                                u_int32_t label)
+{
+  /* Adress family must be activated.  */
+  if (! peer->afc[AFI_INTERNAL_L2VPN][SAFI_INTERNAL_EVPN])
+    return BGP_ERR_PEER_INACTIVE;
+
+  bgp_auto_discovery_evpn (peer, vrf, attr, esi, ethtag, NULL, (label << 4) | 1, 1);
 
   return 0;
 }
