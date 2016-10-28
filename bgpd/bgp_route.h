@@ -28,6 +28,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 struct bgp_nexthop_cache;
 struct bgp_route_evpn;
+struct overlay_index;
 
 /* Ancillary information to struct bgp_info, 
  * used for uncommonly used data (aggregation, MPLS, etc.)
@@ -306,5 +307,11 @@ extern void bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi);
 extern void
 bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                 struct bgp_info *selected, uint8_t announce);
+extern struct bgp_info *
+info_make (int type, int sub_type, struct peer *peer, struct attr *attr,
+	   struct bgp_node *rn);
+struct bgp_info_extra *bgp_info_extra_new (void);
+void
+overlay_index_dup(struct attr *attr, struct overlay_index *src);
 
 #endif /* _QUAGGA_BGP_ROUTE_H */

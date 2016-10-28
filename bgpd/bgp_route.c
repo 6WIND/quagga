@@ -86,11 +86,7 @@ bgp_static_free (struct bgp_static *bgp_static);
 static void
 bgp_vrf_apply_new_imports_internal (struct bgp_vrf *vrf, afi_t afi, safi_t safi);
 
-static struct bgp_info *
-info_make (int type, int sub_type, struct peer *peer, struct attr *attr,
-	   struct bgp_node *rn);
-
-static void
+void
 overlay_index_dup(struct attr *attr, struct overlay_index *src)
 {
   if(!src)
@@ -138,7 +134,7 @@ bgp_afi_node_get (struct bgp_table *table, afi_t afi, safi_t safi, struct prefix
 }
 
 /* Allocate bgp_info_extra */
-static struct bgp_info_extra *
+struct bgp_info_extra *
 bgp_info_extra_new (void)
 {
   struct bgp_info_extra *new;
@@ -3104,7 +3100,7 @@ bgp_rib_withdraw (struct bgp_node *rn, struct bgp_info *ri, struct peer *peer,
   bgp_rib_remove (rn, ri, peer, afi, safi);
 }
 
-static struct bgp_info *
+struct bgp_info *
 info_make (int type, int sub_type, struct peer *peer, struct attr *attr,
 	   struct bgp_node *rn)
 {
