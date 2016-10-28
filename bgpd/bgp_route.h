@@ -23,6 +23,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 #include "bgp_table.h"
 
+struct overlay_index;
+
 /* Ancillary information to struct bgp_info, 
  * used for uncommonly used data (aggregation, MPLS, etc.)
  * and lazily allocated to save memory.
@@ -291,5 +293,11 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
 extern int
 show_adj_route_vrf (struct vty *vty, struct peer *peer, struct bgp_vrf *vrf, int in);
 extern void bgp_vrf_clear_adj_in (struct peer *, struct bgp_vrf *, afi_t);
+extern struct bgp_info *
+info_make (int type, int sub_type, struct peer *peer, struct attr *attr,
+	   struct bgp_node *rn);
+struct bgp_info_extra *bgp_info_extra_new (void);
+void
+overlay_index_dup(struct attr *attr, struct overlay_index *src);
 
 #endif /* _QUAGGA_BGP_ROUTE_H */

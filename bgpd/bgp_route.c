@@ -65,11 +65,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 extern const char *bgp_origin_str[];
 extern const char *bgp_origin_long_str[];
 
-static struct bgp_info *
-info_make (int type, int sub_type, struct peer *peer, struct attr *attr,
-	   struct bgp_node *rn);
-
-static void
+void
 overlay_index_dup(struct attr *attr, struct overlay_index *src)
 {
   if(!src)
@@ -117,7 +113,7 @@ bgp_afi_node_get (struct bgp_table *table, afi_t afi, safi_t safi, struct prefix
 }
 
 /* Allocate bgp_info_extra */
-static struct bgp_info_extra *
+struct bgp_info_extra *
 bgp_info_extra_new (void)
 {
   struct bgp_info_extra *new;
@@ -3124,7 +3120,7 @@ labels_equal(struct bgp_info *info, uint32_t *labels, size_t nlabels)
 	return !memcmp(labels, info_labels, nlabels * sizeof(labels[0]));
 }
 
-static struct bgp_info *
+struct bgp_info *
 info_make (int type, int sub_type, struct peer *peer, struct attr *attr,
 	   struct bgp_node *rn)
 {
