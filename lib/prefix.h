@@ -312,6 +312,7 @@ union gw_addr {
 #define L2VPN_PREFIX_MACADDRLEN (8 * sizeof (u_int8_t) + 8 * sizeof(struct ethaddr))
 #define L2VPN_PREFIX_IPV4LEN (8 * sizeof (u_int8_t) + IPV4_MAX_BITLEN)
 #define L2VPN_PREFIX_IPV6LEN (8 * sizeof (u_int8_t) + IPV6_MAX_BITLEN)
+#define L2VPN_PREFIX_AD (8 * sizeof (struct eth_segment_id) + L2VPN_PREFIX_ETHTAGLEN)
 #define L2VPN_MAX_BYTELEN    28
 #define L2VPN_MAX_BITLEN    (   L2VPN_PREFIX_ETHTAGLEN \
                               + L2VPN_PREFIX_MACADDRLEN \
@@ -328,6 +329,7 @@ union gw_addr {
 /* Prefix's family member. */
 #define PREFIX_FAMILY(p)  ((p)->family)
 #define PREFIX_IS_L2VPN(p)  ((p)->family == AF_L2VPN)
+#define PREFIX_IS_L2VPN_AD(p)  ((p)->family == AF_L2VPN && !(p)->u.prefix_macip.mac_len)
 
 /* glibc defines s6_addr32 to __in6_u.__u6_addr32 if __USE_{MISC || GNU} */
 #ifndef s6_addr32
