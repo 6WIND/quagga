@@ -40,6 +40,16 @@ DEFINE_MTYPE_STATIC(BGPD, BGP_EVPN,         "BGP EVPN")
 #define ENTRIES_TO_ADD 2
 #define ENTRIES_TO_REMOVE 1
 
+static
+struct bgp_evpn_ad* bgp_evpn_ad_new_from_update(struct peer *peer,
+                                                struct prefix_rd *prd,
+                                                struct bgp_route_evpn *evpn,
+                                                struct prefix *p,
+                                                u_int32_t label,
+                                                struct attr *attr);
+static
+void bgp_evpn_ad_display (struct bgp_evpn_ad *ad, char *buf, int size);
+
 int
 bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
                      struct bgp_nlri *packet, int withdraw)
@@ -1238,3 +1248,134 @@ struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
   return evpn_ad;
 }
 
+static
+struct bgp_evpn_ad* bgp_evpn_ad_new_from_update(struct peer *peer,
+                                                struct prefix_rd *prd,
+                                                struct bgp_route_evpn *evpn,
+                                                struct prefix *p,
+                                                u_int32_t label,
+                                                struct attr *attr)
+{
+  struct attr new_attr;
+  struct attr *attr_new;
+  struct attr_extra new_extra;
+  struct bgp_evpn_ad *evpn_ad = XCALLOC(MTYPE_BGP_EVPN, sizeof(struct bgp_evpn_ad));
+
+  if (!evpn_ad)
+    return NULL;
+  memset( &new_attr, 0, sizeof(struct attr));
+  evpn_ad->peer = peer;
+  if (prd)
+    evpn_ad->prd = *prd;
+
+  evpn_ad->eth_t_id = p->u.prefix_macip.eth_tag_id;
+  memcpy(&evpn_ad->eth_s_id, &evpn->eth_s_id, sizeof(struct eth_segment_id));
+
+  if (attr)
+    {
+      new_attr.extra = &new_extra;
+      bgp_attr_dup (&new_attr, attr);
+      attr_new = bgp_attr_intern (&new_attr);
+      evpn_ad->attr = attr_new;
+    }
+  else
+    evpn_ad->attr = NULL;
+
+  evpn_ad->label = label;
+
+  return evpn_ad;
+}
+
+struct bgp_evpn_ad* bgp_evpn_ad_new(struct peer *peer,
+                                    struct bgp_vrf *vrf,
+                                    struct eth_segment_id *esi,
+                                    u_int32_t ethtag,
+                                    u_int32_t label)
+{
+  struct attr attr;
+  struct attr_extra *extra;
+  struct bgp_evpn_ad *evpn_ad = XCALLOC(MTYPE_BGP_EVPN, sizeof(struct bgp_evpn_ad));
+
+  if (!evpn_ad)
+    return NULL;
+
+  evpn_ad->peer = peer;
+  memcpy (&evpn_ad->prd,&vrf->outbound_rd, sizeof(struct prefix_rd));
+
+  evpn_ad->eth_t_id = ethtag;
+  evpn_ad->eth_s_id = *esi;
+
+  bgp_attr_default_set (&attr, BGP_ORIGIN_IGP);
+  extra = bgp_attr_extra_get(&attr);
+  if (!extra)
+    return NULL;
+  if (vrf->rt_export)
+    {
+      extra->ecommunity = ecommunity_dup (vrf->rt_export);
+      attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
+    }
+  extra->evpn_overlay.eth_s_id = *esi;
+  evpn_ad->attr = bgp_attr_intern (&attr);
+  evpn_ad->label = label;
+
+  return evpn_ad;
+}
+
+void bgp_evpn_ad_free(struct bgp_evpn_ad* ad)
+{
+  bgp_attr_unintern (&ad->attr);
+  XFREE (MTYPE_BGP_EVPN, ad);
+}
+
+int bgp_evpn_ad_cmp(struct bgp_evpn_ad *ad1,
+                    struct peer *peer,
+                    struct prefix_rd *prd,
+                    struct eth_segment_id *esi,
+                    u_int32_t ethtag)
+{
+  if (memcmp(&ad1->eth_s_id, esi, sizeof(struct eth_segment_id)))
+    return 1;
+
+  if (prd && prefix_rd_cmp(&ad1->prd, prd))
+    return 1;
+
+  if (ad1->eth_t_id != ethtag)
+    return 1;
+
+  if (ad1->peer != peer)
+    return 1;
+
+  return 0;
+}
+
+/* returns 1 if a change has been observed */
+int bgp_evpn_ad_update(struct bgp_evpn_ad *ad, struct in_addr *nexthop, u_int32_t label)
+{
+  struct attr_extra *extra;
+  int ret = 0;
+
+  if (ad->label != label)
+    ret = 1;
+  extra = bgp_attr_extra_get(ad->attr);
+  extra->mp_nexthop_global_in = *nexthop;
+  if ((nexthop->s_addr != extra->mp_nexthop_global_in.s_addr) ||
+      (nexthop->s_addr != ad->attr->nexthop.s_addr))
+    ret = 1;
+
+  ad->attr->nexthop = *nexthop;
+  ad->label = label;
+  return ret;
+}
+
+void bgp_evpn_ad_display (struct bgp_evpn_ad *ad, char *buf, int size)
+{
+  char vrf_rd_str[RD_ADDRSTRLEN];
+  char *esi;
+
+  prefix_rd2str(&ad->prd, vrf_rd_str, sizeof(vrf_rd_str));
+  esi = esi2str(&(ad->eth_s_id));
+  snprintf(buf, size, "RD[%s] %s Ethtag %08x/ ESI %s/ Label %u: A/D ",
+           vrf_rd_str, ad->type == BGP_EVPN_AD_TYPE_MP_UNREACH?"MP_UNREACH":"MP_REACH",
+           ad->eth_t_id, esi, ad->label >> 4);
+  free (esi);
+}

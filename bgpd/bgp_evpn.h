@@ -21,6 +21,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #ifndef _QUAGGA_BGP_EVPN_H
 #define _QUAGGA_BGP_EVPN_H
 
+#include "lib/prefix.h"
 
 extern void bgp_ethernetvpn_init (void);
 extern int bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
@@ -49,4 +50,18 @@ struct bgp_evpn_ad * bgp_evpn_process_auto_discovery(struct peer *peer,
                                      struct prefix *p,
                                      u_int32_t label,
                                      struct attr *attr);
+
+struct bgp_evpn_ad* bgp_evpn_ad_new(struct peer *peer,
+                                    struct bgp_vrf *vrf,
+                                    struct eth_segment_id *esi,
+                                    u_int32_t ethtag,
+                                    u_int32_t label);
+void bgp_evpn_ad_free(struct bgp_evpn_ad* ad);
+int bgp_evpn_ad_cmp(struct bgp_evpn_ad *ad1,
+                    struct peer *peer,
+                    struct prefix_rd *prd,
+                    struct eth_segment_id *esi,
+                    u_int32_t ethtag);
+
+int bgp_evpn_ad_update(struct bgp_evpn_ad *ad, struct in_addr *nexthop, u_int32_t label);
 #endif /* _QUAGGA_BGP_EVPN_H */
