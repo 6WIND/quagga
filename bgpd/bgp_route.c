@@ -1751,6 +1751,40 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
   if(!vrf || (rn && bgp_node_table (rn)->type != BGP_TABLE_VRF))
     return;
 
+  if(selected->extra)
+    bgp_vrf_update_labels (vrf, rn, selected, &(event.label), &(event.l2label));
+
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[PREFIX_STRLEN];
+      char label_str[BUFSIZ] = "<?>", nh_str[BUFSIZ] = "<?>";
+
+      prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+      prefix_rd2str(&selected->extra->vrf_rd, rd_str, sizeof(rd_str));
+      prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+      labels2str(label_str, sizeof(label_str),
+                      selected->extra->labels, selected->extra->nlabels);
+
+      if (selected->attr && selected->attr->extra)
+        {
+          if (afi == AFI_IP)
+            strcpy (nh_str, inet_ntoa (selected->attr->extra->mp_nexthop_global_in));
+          else if (afi == AFI_IP6)
+            inet_ntop (AF_INET6, &selected->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+        }
+
+      if (announce)
+        zlog_debug ("vrf[%s] %s: prefix updated, best RD %s labels %s nexthop %s",
+                   vrf_rd_str, pfx_str, rd_str, label_str, nh_str);
+      else
+        zlog_debug ("vrf[%s] %s: prefix withdrawn nh %s label %d",
+                    vrf_rd_str, pfx_str, nh_str, event.label);
+    }
+
+  if(selected->type == ZEBRA_ROUTE_BGP
+     && selected->sub_type == BGP_ROUTE_STATIC)
+    return;
+
   event.announce = announce;
   event.outbound_rd = vrf->outbound_rd;
 
@@ -1796,9 +1830,6 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
         }
       if (announce)
         {
-          if(selected->extra)
-            bgp_vrf_update_labels (vrf, rn, selected, &(event.label), &(event.l2label));
-
           if(selected->attr && selected->attr->extra && selected->attr->extra->ecommunity)
             {
               /* only router mac is filled in for VRF RIB layer 3 */
@@ -1835,38 +1866,10 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
             {
               event.ethtag = rn->p.u.prefix_macip.eth_tag_id;
             }
-          if (selected->extra)
-            bgp_vrf_update_labels (vrf, rn, selected,  &(event.label), &(event.l2label));
         }
       bgp_notify_route (vrf->bgp, &event);
     }
 
-  if (BGP_DEBUG (events, EVENTS))
-    {
-      char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[PREFIX_STRLEN];
-      char label_str[BUFSIZ] = "<?>", nh_str[BUFSIZ] = "<?>";
-
-      prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
-      prefix_rd2str(&selected->extra->vrf_rd, rd_str, sizeof(rd_str));
-      prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
-      labels2str(label_str, sizeof(label_str),
-                      selected->extra->labels, selected->extra->nlabels);
-
-      if (selected->attr && selected->attr->extra)
-        {
-          if (afi == AFI_IP)
-            strcpy (nh_str, inet_ntoa (selected->attr->extra->mp_nexthop_global_in));
-          else if (afi == AFI_IP6)
-            inet_ntop (AF_INET6, &selected->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
-        }
-
-      if (announce)
-        zlog_debug ("vrf[%s] %s: prefix updated, best RD %s labels %s nexthop %s",
-                   vrf_rd_str, pfx_str, rd_str, label_str, nh_str);
-      else
-        zlog_debug ("vrf[%s] %s: prefix withdrawn nh %s label %d",
-                    vrf_rd_str, pfx_str, nh_str, event.label);
-    }
   free(event.mac_router);
   free(event.esi);
 }
