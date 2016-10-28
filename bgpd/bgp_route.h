@@ -305,6 +305,8 @@ extern void bgp_vrf_clear_adj_in (struct peer *, struct bgp_vrf *, afi_t);
 extern struct bgp_info *
 info_make (int type, int sub_type, struct peer *peer, struct attr *attr,
 	   struct bgp_node *rn);
+extern void bgp_vrf_process_entry(struct bgp_info *iter,
+                                  int action, afi_t afi, safi_t safi);
 struct bgp_info_extra *bgp_info_extra_new (void);
 void
 overlay_index_dup(struct attr *attr, struct overlay_index *src);

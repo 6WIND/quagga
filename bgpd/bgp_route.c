@@ -2273,6 +2273,83 @@ static void bgp_vrf_copy_bgp_info(struct bgp_vrf *vrf, struct bgp_node *rn,
     }
 }
 
+void bgp_vrf_process_entry(struct bgp_info *iter,
+                           int action, afi_t afi, safi_t safi)
+{
+  char pfx_str[PREFIX_STRLEN];
+  char nh_str[BUFSIZ] = "<?>";
+  afi_t afi_int;
+  struct bgp_node *vrf_rn = iter->net;
+
+  if(afi == AFI_INTERNAL_L2VPN)
+    afi_int = AFI_IP;
+  else
+    afi_int = afi;
+  prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
+  if(action == ROUTE_INFO_TO_REMOVE)
+    {
+      if (CHECK_FLAG (iter->peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG)
+          && iter->peer != iter->peer->bgp->peer_self)
+        if (!bgp_adj_in_unset (vrf_rn, iter->peer))
+          {
+            prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
+            if (BGP_DEBUG (update, UPDATE_IN))
+              zlog (iter->peer->log, LOG_DEBUG, "%s withdrawing route %s "
+                    "not in adj-in", iter->peer->host, pfx_str);
+          }
+      bgp_info_delete(vrf_rn, iter);
+      prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
+      if (BGP_DEBUG (events, EVENTS))
+        {
+          char nh_str[BUFSIZ] = "<?>";
+          if(iter->attr && iter->attr->extra)
+            {
+              if (afi_int == AFI_IP)
+                strcpy (nh_str, inet_ntoa (iter->attr->extra->mp_nexthop_global_in));
+              else if (afi_int == AFI_IP6)
+                inet_ntop (AF_INET6, &iter->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+            }
+          else
+            {
+              inet_ntop (AF_INET, &iter->attr->nexthop,
+                         nh_str, sizeof (nh_str));
+            }
+          zlog_debug ("%s: processing entry (for removal) from %s [ nh %s]", 
+                      pfx_str, iter->peer->host, nh_str);
+        }
+    }
+  else
+    {
+      if (BGP_DEBUG (events, EVENTS))
+        {
+          if(iter->attr && iter->attr->extra)
+            {
+              if (afi_int == AFI_IP)
+                strcpy (nh_str, inet_ntoa (iter->attr->extra->mp_nexthop_global_in));
+              else if (afi_int == AFI_IP6)
+                inet_ntop (AF_INET6, &iter->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+            }
+          else
+            {
+              inet_ntop (AF_INET, &iter->attr->nexthop,
+                         nh_str, sizeof (nh_str));
+            }
+          zlog_debug ("%s: processing entry (for %s) from %s [ nh %s]",
+                      pfx_str, action == ROUTE_INFO_TO_UPDATE?"upgrading":"adding",
+                      iter->peer->host, nh_str);
+        }
+      /* When peer's soft reconfiguration enabled.  Record input packet in
+         Adj-RIBs-In.  */
+      if( ( action == ROUTE_INFO_TO_UPDATE) || (action == ROUTE_INFO_TO_ADD ))
+        {
+          /* soft_reconfig is set to 0 so, it should work XXX */
+          if ( CHECK_FLAG (iter->peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG)
+               && iter->peer != iter->peer->bgp->peer_self)
+            bgp_adj_in_set (vrf_rn, iter->peer, iter->attr);
+        }
+    }
+}
+
 /* updates selected bgp_info structure to bgp vrf rib table
  * most of the cases, processing consists in adding or removing entries in RIB tables
  * on some cases, there is an update request. then it is necessary to have both old and new ri
@@ -2338,36 +2415,8 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
         {
           if(iter->peer->remote_id.s_addr == select->peer->remote_id.s_addr)
             {
-              if (CHECK_FLAG (iter->peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG)
-                  && iter->peer != iter->peer->bgp->peer_self)
-                if (!bgp_adj_in_unset (vrf_rn, iter->peer))
-                  {
-                    prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
-                    if (BGP_DEBUG (update, UPDATE_IN))
-                      zlog (iter->peer->log, LOG_DEBUG, "%s withdrawing route %s "
-                            "not in adj-in", iter->peer->host, pfx_str);
-                  }
-              bgp_info_delete(vrf_rn, iter);
-              prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
-              if (BGP_DEBUG (events, EVENTS))
-                {
-                  char nh_str[BUFSIZ] = "<?>";
-                  if(iter->attr && iter->attr->extra)
-                    {
-                      if (afi_int == AFI_IP)
-                        strcpy (nh_str, inet_ntoa (iter->attr->extra->mp_nexthop_global_in));
-                      else if (afi_int == AFI_IP6)
-                        inet_ntop (AF_INET6, &iter->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
-                    }
-                  else
-                    {
-                      inet_ntop (AF_INET, &iter->attr->nexthop,
-                                 nh_str, sizeof (nh_str));
-                    }
-                  zlog_debug ("%s: processing entry (for removal) from %s [ nh %s]", 
-                              pfx_str, iter->peer->host, nh_str);
-                }
-              bgp_process (iter->peer->bgp, vrf_rn, afi_int, SAFI_UNICAST);
+              bgp_vrf_process_entry(iter, action, afi,safi);
+              bgp_process (iter->peer->bgp, iter->net, afi == AFI_INTERNAL_L2VPN?AFI_IP:afi, SAFI_UNICAST);
               break;
             }
         }
@@ -2418,38 +2467,8 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
           bgp_info_add (vrf_rn, iter);
           bgp_unlock_node (vrf_rn);
         }
-      if (BGP_DEBUG (events, EVENTS))
-        {
-          char nh_str[BUFSIZ] = "<?>";
-
-          prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
-          if(iter->attr && iter->attr->extra)
-            {
-              if (afi_int == AFI_IP)
-                strcpy (nh_str, inet_ntoa (iter->attr->extra->mp_nexthop_global_in));
-              else if (afi_int == AFI_IP6)
-                inet_ntop (AF_INET6, &iter->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
-            }
-          else
-            {
-              inet_ntop (AF_INET, &iter->attr->nexthop,
-                         nh_str, sizeof (nh_str));
-            }
-          zlog_debug ("%s: processing entry (for %s) from %s [ nh %s]",
-                      pfx_str, action == ROUTE_INFO_TO_UPDATE?"upgrading":"adding",
-                      iter->peer->host, nh_str);
-
-        }
-      /* When peer's soft reconfiguration enabled.  Record input packet in
-         Adj-RIBs-In.  */
-      if( ( action == ROUTE_INFO_TO_UPDATE) || (action == ROUTE_INFO_TO_ADD ))
-        {
-          /* soft_reconfig is set to 0 so, it should work XXX */
-          if ( CHECK_FLAG (iter->peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG)
-               && iter->peer != iter->peer->bgp->peer_self)
-            bgp_adj_in_set (vrf_rn, iter->peer, iter->attr);
-        }
-      bgp_process (iter->peer->bgp, vrf_rn, afi_int, SAFI_UNICAST);
+      bgp_vrf_process_entry(iter, action, afi, safi);
+      bgp_process (iter->peer->bgp, iter->net, afi_int, SAFI_UNICAST);
     }
 }
 

@@ -1002,8 +1002,11 @@ bgp_evpn_process_auto_discovery_propagate (struct bgp_vrf *vrf,
           if (ad->peer == ri->peer)
             {
               if (action == ENTRIES_TO_REMOVE)
-                bgp_vrf_process_entry(ri, ROUTE_INFO_TO_REMOVE,
-                                      AFI_INTERNAL_L2VPN, SAFI_INTERNAL_EVPN);
+                {
+                  bgp_vrf_process_entry(ri, ROUTE_INFO_TO_REMOVE,
+                                        AFI_INTERNAL_L2VPN, SAFI_INTERNAL_EVPN);
+                  bgp_process (ri->peer->bgp, ri->net, AFI_IP, SAFI_UNICAST);
+                }
               entry_found = 1;
               break;
             }
