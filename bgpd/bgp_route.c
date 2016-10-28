@@ -4002,6 +4002,20 @@ bgp_default_originate (struct peer *peer, afi_t afi, safi_t safi, int withdraw)
   aspath_unintern (&aspath);
 }
 
+static void bgp_add_routermac_ecom (struct attr* attr, char * routermac)
+{
+  struct ecommunity_val routermac_ecom;
+
+  if(attr->extra && attr->extra->ecommunity)
+    {
+      memset(&routermac_ecom, 0, sizeof(struct ecommunity_val));
+      routermac_ecom.val[0] = ECOMMUNITY_ENCODE_EVPN;
+      routermac_ecom.val[1] = ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC;
+      memcpy(&routermac_ecom.val[2], routermac, MAC_LEN);
+      ecommunity_add_val(attr->extra->ecommunity, &routermac_ecom);
+    }
+}
+
 void
 bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct prefix_rd *rd,
                           struct bgp_vrf *vrf, int withdraw)
@@ -4070,15 +4084,9 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
           if(vrf->mac_router)
             {
               char routermac_int[MAC_LEN+1];
-              struct ecommunity_val routermac_ecom;
 
               str2mac (vrf->mac_router, routermac_int);
-              memset(&routermac_ecom, 0, sizeof(struct ecommunity_val));
-              routermac_ecom.val[0] = ECOMMUNITY_ENCODE_EVPN;
-              routermac_ecom.val[1] = ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC;
-              memcpy(&routermac_ecom.val[2], routermac_int, MAC_LEN);
-              if(ae->ecommunity)
-                ecommunity_add_val(ae->ecommunity, &routermac_ecom);
+              bgp_add_routermac_ecom (&attr, routermac_int);
             }
         }
       if (! CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_DEFAULT_ORIGINATE))
@@ -5357,22 +5365,16 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   if(afi == AFI_INTERNAL_L2VPN)
     {
       struct bgp_encap_type_vxlan bet;
-      struct attr_extra *extra;
 
       memset(&bet, 0, sizeof(struct bgp_encap_type_vxlan));
       if(bgp_static->eth_t_id)
         bet.vnid = bgp_static->eth_t_id;
       bgp_encap_type_vxlan_to_tlv(&bet, &attr);
-      extra = bgp_attr_extra_get (&attr);
+      bgp_attr_extra_get (&attr);
 
       if(bgp_static->router_mac)
          {
-           struct ecommunity_val routermac;
-           memset (&routermac, 0, sizeof(struct ecommunity_val));
-           routermac.val[0] = ECOMMUNITY_ENCODE_EVPN;
-           routermac.val[1] = ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC;
-           memcpy (&routermac.val[2], bgp_static->router_mac, MAC_LEN);
-           ecommunity_add_val (extra->ecommunity, &routermac);
+           bgp_add_routermac_ecom (&attr, bgp_static->router_mac);
          }
 
       if (bgp_static->igpnexthop.s_addr)
