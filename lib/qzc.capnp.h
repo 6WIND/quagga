@@ -35,6 +35,7 @@ typedef struct {capn_ptr p;} QZCGetRep_ptr;
 typedef struct {capn_ptr p;} QZCCreateReq_ptr;
 typedef struct {capn_ptr p;} QZCCreateRep_ptr;
 typedef struct {capn_ptr p;} QZCSetReq_ptr;
+typedef struct {capn_ptr p;} QZCSetRep_ptr;
 typedef struct {capn_ptr p;} QZCDelReq_ptr;
 typedef struct {capn_ptr p;} QZCRequest_ptr;
 typedef struct {capn_ptr p;} QZCReply_ptr;
@@ -110,6 +111,13 @@ struct QZCSetReq {
 	capn_ptr data;
 };
 
+struct QZCSetRep {
+	uint64_t nid;
+	uint64_t elem;
+	uint64_t datatype;
+	capn_ptr data;
+};
+
 struct QZCDelReq {
 	uint64_t nid;
 };
@@ -154,6 +162,7 @@ struct QZCReply {
 		QZCNodeInfoRep_ptr nodeinforep;
 		QZCWKNResolveRep_ptr wknresolve;
 		QZCGetRep_ptr get;
+		QZCSetRep_ptr set;
 		QZCCreateRep_ptr create;
 	};
 };
@@ -171,6 +180,7 @@ QZCGetRep_ptr new_QZCGetRep(struct capn_segment*);
 QZCCreateReq_ptr new_QZCCreateReq(struct capn_segment*);
 QZCCreateRep_ptr new_QZCCreateRep(struct capn_segment*);
 QZCSetReq_ptr new_QZCSetReq(struct capn_segment*);
+QZCSetRep_ptr new_QZCSetRep(struct capn_segment*);
 QZCDelReq_ptr new_QZCDelReq(struct capn_segment*);
 QZCRequest_ptr new_QZCRequest(struct capn_segment*);
 QZCReply_ptr new_QZCReply(struct capn_segment*);
@@ -189,6 +199,7 @@ QZCDelReq_list new_QZCDelReq_list(struct capn_segment*, int len);
 QZCRequest_list new_QZCRequest_list(struct capn_segment*, int len);
 QZCReply_list new_QZCReply_list(struct capn_segment*, int len);
 QZCNodeList_list new_QZCNodeList_list(struct capn_segment*, int len);
+capn_ptr new_QZCSetRepReturnCode(struct capn_segment*);
 
 void read_QZCNodeInfoReq(struct QZCNodeInfoReq*, QZCNodeInfoReq_ptr);
 void read_QZCNodeInfoRep(struct QZCNodeInfoRep*, QZCNodeInfoRep_ptr);
@@ -199,10 +210,12 @@ void read_QZCGetRep(struct QZCGetRep*, QZCGetRep_ptr);
 void read_QZCCreateReq(struct QZCCreateReq*, QZCCreateReq_ptr);
 void read_QZCCreateRep(struct QZCCreateRep*, QZCCreateRep_ptr);
 void read_QZCSetReq(struct QZCSetReq*, QZCSetReq_ptr);
+void read_QZCSetRep(struct QZCSetRep*, QZCSetRep_ptr);
 void read_QZCDelReq(struct QZCDelReq*, QZCDelReq_ptr);
 void read_QZCRequest(struct QZCRequest*, QZCRequest_ptr);
 void read_QZCReply(struct QZCReply*, QZCReply_ptr);
 void read_QZCNodeList(struct QZCNodeList*, QZCNodeList_ptr);
+void read_QZCSetRepReturnCode(int*, capn_ptr);
 
 void write_QZCNodeInfoReq(const struct QZCNodeInfoReq*, QZCNodeInfoReq_ptr);
 void write_QZCNodeInfoRep(const struct QZCNodeInfoRep*, QZCNodeInfoRep_ptr);
@@ -213,10 +226,12 @@ void write_QZCGetRep(const struct QZCGetRep*, QZCGetRep_ptr);
 void write_QZCCreateReq(const struct QZCCreateReq*, QZCCreateReq_ptr);
 void write_QZCCreateRep(const struct QZCCreateRep*, QZCCreateRep_ptr);
 void write_QZCSetReq(const struct QZCSetReq*, QZCSetReq_ptr);
+void write_QZCSetRep(const struct QZCSetRep*, QZCSetRep_ptr);
 void write_QZCDelReq(const struct QZCDelReq*, QZCDelReq_ptr);
 void write_QZCRequest(const struct QZCRequest*, QZCRequest_ptr);
 void write_QZCReply(const struct QZCReply*, QZCReply_ptr);
 void write_QZCNodeList(const struct QZCNodeList*, QZCNodeList_ptr);
+void write_QZCSetRepReturnCode(int, capn_ptr);
 
 void get_QZCNodeInfoReq(struct QZCNodeInfoReq*, QZCNodeInfoReq_list, int i);
 void get_QZCNodeInfoRep(struct QZCNodeInfoRep*, QZCNodeInfoRep_list, int i);

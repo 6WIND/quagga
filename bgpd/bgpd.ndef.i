@@ -311,10 +311,15 @@ _qzc_createchild_bgp(void *entity,
 static void
 _qzc_set_bgp(void *entity,
 		    struct QZCSetReq *req,
+		    struct QZCSetRep *rep,
 		    struct capn_segment *seg)
 {
     struct bgp *p;
+    int ret = 1;
     p = (struct bgp *)entity;
+    rep->data = new_QZCSetRepReturnCode(seg);
+    write_QZCSetRepReturnCode (ret, rep->data);
+
     switch (req->elem) {
     case 1:
         _qzc_set_bgp_1(p, req, seg);
@@ -467,10 +472,15 @@ _qzc_get_peer(void *entity, struct QZCGetReq *req, struct QZCGetRep *rep,
 static void
 _qzc_set_peer(void *entity,
 		    struct QZCSetReq *req,
+		    struct QZCSetRep *rep,
 		    struct capn_segment *seg)
 {
     struct peer *p;
+    int ret = 1;
+
     p = (struct peer *)entity;
+    rep->data = new_QZCSetRepReturnCode(seg);
+    write_QZCSetRepReturnCode (ret, rep->data);
     switch (req->elem) {
     case 2:
         _qzc_set_peer_2(p, req, seg);
@@ -769,61 +779,80 @@ _qzc_set_bgp_vrf_1(struct bgp_vrf *p,
 
 /* Iterated item SET bgp_vrf:3 <> bgp_vrf-> ()*/
 
-static void
+static int
 _qzc_set_bgp_vrf_3(struct bgp_vrf *p,
         struct QZCSetReq *req,
+        struct QZCSetRep *rep,
         struct capn_segment *seg)
 {
     afi_t afi;
+    int ret = 0;
 
     if (req->ctxtype != 0xac25a73c3ff455c0)
         /* error */
-        return;
+        return 0;
 
     afi = qcapn_AfiKey_get_afi (req->ctxdata);
 
     if (req->datatype != 0x8f217eb4bad6c06f)
         /* error */
-        return;
+        return 0;
 
     struct bgp_api_route data;
 
     memset(&data, 0, sizeof(data));
     qcapn_BGPVRFRoute_read(&data, req->data);
 
-    bgp_vrf_static_set(p, afi, &data);
+    ret = bgp_vrf_static_set(p, afi, &data);
+
+    if (ret)
+      ret = 0;
+    else
+      ret = 1;
+    rep->datatype = req->datatype;
+
     free(data.esi);
     free(data.mac_router);
+    return ret;
 }
 
 
 
 /* Iterated item SET bgp_vrf:3 <> bgp_vrf-> ()*/
 
-static void
+static int
 _qzc_unset_bgp_vrf_3(struct bgp_vrf *p,
         struct QZCSetReq *req,
+        struct QZCSetRep *rep,
         struct capn_segment *seg)
 {
     afi_t afi;
+    int ret = 0;
 
     if (req->ctxtype != 0xac25a73c3ff455c0)
         /* error */
-        return;
+        return 0;
 
     afi = qcapn_AfiKey_get_afi (req->ctxdata);
 
     if (req->datatype != 0x8f217eb4bad6c06f)
         /* error */
-        return;
+        return 0;
 
     struct bgp_api_route data;
     memset(&data, 0, sizeof(data));
     qcapn_BGPVRFRoute_read(&data, req->data);
 
-    bgp_vrf_static_unset(p, afi, &data);
+    ret = bgp_vrf_static_unset(p, afi, &data);
+    if (ret)
+      ret = 0;
+    else
+      ret = 1;
+
+    rep->datatype = req->datatype;
     free(data.esi);
     free(data.mac_router);
+    return ret;
 }
 
 
@@ -855,35 +884,45 @@ _qzc_get_bgp_vrf(void *entity, struct QZCGetReq *req, struct QZCGetRep *rep,
 static void
 _qzc_set_bgp_vrf(void *entity,
 		    struct QZCSetReq *req,
+		    struct QZCSetRep *rep,
 		    struct capn_segment *seg)
 {
     struct bgp_vrf *p;
+    int ret = 1;
+
     p = (struct bgp_vrf *)entity;
     switch (req->elem) {
     case 1:
         _qzc_set_bgp_vrf_1(p, req, seg);
-        return;
+        break;
     case 3:
-        _qzc_set_bgp_vrf_3(p, req, seg);
-        return;
+        ret = _qzc_set_bgp_vrf_3(p, req, rep, seg);
+        break;
     default:
-        return;
+        break;
     }
+    rep->data = new_QZCSetRepReturnCode(seg);
+    write_QZCSetRepReturnCode (ret, rep->data);
 }
 static void
 _qzc_unset_bgp_vrf(void *entity,
 		    struct QZCSetReq *req,
+		    struct QZCSetRep *rep,
 		    struct capn_segment *seg)
 {
     struct bgp_vrf *p;
+    int ret = 1;
+
     p = (struct bgp_vrf *)entity;
     switch (req->elem) {
     case 3:
-        _qzc_unset_bgp_vrf_3(p, req, seg);
-        return;
+        ret = _qzc_unset_bgp_vrf_3(p, req, rep, seg);
+        break;
     default:
-        return;
+        break;
     }
+    rep->data = new_QZCSetRepReturnCode(seg);
+    write_QZCSetRepReturnCode (ret, rep->data);
 }
 static void
 _qzc_destroy_bgp_vrf(void *entity,

@@ -198,7 +198,25 @@ void set_QZCGetRep(const struct QZCGetRep *s, QZCGetRep_list l, int i) {
 	p.p = capn_getp(l.p, i, 0);
 	write_QZCGetRep(s, p);
 }
-
+QZCSetRep_ptr new_QZCSetRep(struct capn_segment *s) {
+	QZCSetRep_ptr p;
+	p.p = capn_new_struct(s, 24, 1);
+	return p;
+}
+void write_QZCSetRep(const struct QZCSetRep *s, QZCSetRep_ptr p) {
+	capn_resolve(&p.p);
+	capn_write64(p.p, 0, s->nid);
+	capn_write64(p.p, 8, s->elem);
+	capn_write64(p.p, 16, s->datatype);
+	capn_setp(p.p, 0, s->data);
+}
+void read_QZCSetRep(struct QZCSetRep *s, QZCSetRep_ptr p) {
+	capn_resolve(&p.p);
+	s->nid = capn_read64(p.p, 0);
+	s->elem = capn_read64(p.p, 8);
+	s->datatype = capn_read64(p.p, 16);
+	s->data = capn_getp(p.p, 0, 0);
+}
 QZCCreateReq_ptr new_QZCCreateReq(struct capn_segment *s) {
 	QZCCreateReq_ptr p;
 	p.p = capn_new_struct(s, 24, 1);
@@ -222,6 +240,17 @@ void write_QZCCreateReq(const struct QZCCreateReq *s, QZCCreateReq_ptr p) {
 	capn_write64(p.p, 8, s->parentelem);
 	capn_write64(p.p, 16, s->datatype);
 	capn_setp(p.p, 0, s->data);
+}
+capn_ptr new_QZCSetRepReturnCode(struct capn_segment *s) {
+  return capn_new_struct(s, 4, 0);
+}
+void write_QZCSetRepReturnCode(int s, capn_ptr p) {
+  capn_resolve(&p);
+  capn_write32(p, 0, s);
+}
+void read_QZCSetRepReturnCode(int *s, capn_ptr p) {
+  capn_resolve(&p);
+  *s = capn_read32(p, 0);
 }
 void get_QZCCreateReq(struct QZCCreateReq *s, QZCCreateReq_list l, int i) {
 	QZCCreateReq_ptr p;
@@ -404,7 +433,9 @@ void read_QZCReply(struct QZCReply *s, QZCReply_ptr p) {
 	case QZCReply_nodeinforep:
 	case QZCReply_wknresolve:
 	case QZCReply_get:
+	case QZCReply_set:
 	case QZCReply_create:
+	case QZCReply_unset:
 		s->create.p = capn_getp(p.p, 0, 0);
 		break;
 	default:
@@ -419,7 +450,9 @@ void write_QZCReply(const struct QZCReply *s, QZCReply_ptr p) {
 	case QZCReply_nodeinforep:
 	case QZCReply_wknresolve:
 	case QZCReply_get:
+	case QZCReply_set:
 	case QZCReply_create:
+	case QZCReply_unset:
 		capn_setp(p.p, 0, s->create.p);
 		break;
 	default:

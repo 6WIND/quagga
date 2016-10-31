@@ -36,9 +36,9 @@ struct qzc_nodetype {
 			struct capn_segment *seg);
 	void (*createchild)(void *parent, struct QZCCreateReq *req,
 			struct QZCCreateRep *rep, struct capn_segment *seg);
-	void (*set)(void *entity, struct QZCSetReq *req,
+	void (*set)(void *entity, struct QZCSetReq *req, struct QZCSetRep *rep,
 			struct capn_segment *seg);
-	void (*unset)(void *entity, struct QZCSetReq *req,
+	void (*unset)(void *entity, struct QZCSetReq *req, struct QZCSetRep *rep,
 			struct capn_segment *seg);
 	void (*destroy)(void *entity, struct QZCDelReq *req,
 			struct capn_segment *seg);
