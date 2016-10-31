@@ -131,7 +131,6 @@ static void qzc_get (struct QZCRequest *req, struct QZCReply *rep,
   struct QZCGetReq greq;
   struct QZCGetRep grep;
   struct qzc_node *node;
-  memset(&grep, 0, sizeof(grep));
 
   read_QZCGetReq(&greq, req->get);
   node = qzc_node_get(greq.nid);
@@ -191,26 +190,35 @@ static void qzc_set (struct QZCRequest *req, struct QZCReply *rep,
                      struct capn_segment *cs, bool unset)
 {
   struct QZCSetReq sreq;
+  struct QZCSetRep srep;
   struct qzc_node *node;
 
   read_QZCSetReq(&sreq, req->set);
   node = qzc_node_get(sreq.nid);
 
   rep->which = QZCReply_set;
+  rep->set = new_QZCSetRep(cs);
+
+  memset(&srep, 0, sizeof(srep));
+  srep.nid = sreq.nid;
+  srep.elem = sreq.elem;
 
   if (!node || !node->type || !(unset ? node->type->unset : node->type->set))
     {
       rep->error = 1;
-      return;
+      goto out;
     }
 
   rep->error = 0;
 
   void *entity = ((char *)node) - node->type->node_member_offset;
   if (unset)
-    node->type->unset(entity, &sreq, cs);
+    node->type->unset(entity, &sreq, &srep, cs);
   else
-    node->type->set(entity, &sreq, cs);
+    node->type->set(entity, &sreq, &srep, cs);
+
+out:
+  write_QZCSetRep(&srep, rep->set);
 }
 
 static void qzc_del (struct QZCRequest *req, struct QZCReply *rep,
@@ -373,3 +381,4 @@ void qzc_close (struct qzc_sock *sock)
   zmq_close (sock->zmq);
   XFREE(MTYPE_QZC_SOCK, sock);
 }
+
