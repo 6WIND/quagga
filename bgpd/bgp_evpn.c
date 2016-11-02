@@ -49,6 +49,8 @@ struct bgp_evpn_ad* bgp_evpn_ad_new_from_update(struct peer *peer,
                                                 struct attr *attr);
 static
 void bgp_evpn_ad_display (struct bgp_evpn_ad *ad, char *buf, int size);
+static
+struct bgp_evpn_ad* bgp_evpn_ad_duplicate_from_ad(struct bgp_evpn_ad *evpn);
 
 int
 bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
@@ -1036,6 +1038,59 @@ bgp_evpn_auto_discovery_new_entry (struct bgp_vrf *vrf,
   /* continue parsing for other ads interested */
 }
 
+static void bgp_evpn_process_auto_discovery_update_from_vrf (struct bgp_vrf *vrf,
+                                                             struct bgp_evpn_ad *ad,
+                                                             int action)
+{
+  struct listnode *node;
+  struct bgp_evpn_ad *ad2;
+  int found = 0;
+
+  for (ALL_LIST_ELEMENTS_RO(vrf->import_processing_evpn_ad, node, ad2))
+    {
+      if (0 == bgp_evpn_ad_cmp(ad2, ad->peer, NULL,
+                               &ad->eth_s_id, ad->eth_t_id))
+        found = 1;
+        break;
+    }
+  /* add */
+  if (!found)
+    {
+      ad2 = bgp_evpn_ad_duplicate_from_ad(ad);
+      if (BGP_DEBUG (events, EVENTS))
+        {
+          char vrf_rd_str[RD_ADDRSTRLEN];
+          char buf[AD_STR_MAX_SIZE];
+          prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+          bgp_evpn_ad_display (ad2, buf, AD_STR_MAX_SIZE);
+          zlog_debug ("vrf[%s]: %s from %s added", vrf_rd_str, buf, ad2->peer->host);
+        }
+      listnode_add (vrf->import_processing_evpn_ad, ad2);
+    }
+  else
+    {
+      /* found - update it */
+      if (action == ENTRIES_TO_ADD)
+        {
+          if(ad2->attr == NULL)
+            {
+              struct attr new_attr;
+              struct attr_extra new_extra;
+
+              memset( &new_attr, 0, sizeof(struct attr));
+              memset( &new_extra, 0, sizeof(struct attr_extra));
+              bgp_attr_dup (&new_attr, ad->attr);
+              ad2->attr = bgp_attr_intern (&new_attr);
+            }
+          ad2->label = ad->label;
+        }
+      else if (action == ENTRIES_TO_REMOVE)
+        {
+          ad2->type = BGP_EVPN_AD_TYPE_MP_UNREACH;
+        }
+    }
+}
+
 /*
  * for all entries in VRF, duplicate or remove entries
  * on VRF RIB, and consequently on ADJRIB IN
@@ -1228,6 +1283,8 @@ bgp_evpn_process_imports2 (struct bgp *bgp, struct bgp_evpn_ad *old, struct bgp_
             /* case ecom not present in new_ecom : remove associated ri
              * case ecom present in new_ecom : just update
              */
+            bgp_evpn_process_auto_discovery_update_from_vrf(vrf, ri,
+                                                            withdraw == false?ENTRIES_TO_ADD:ENTRIES_TO_REMOVE);
             bgp_evpn_process_auto_discovery_propagate(vrf, ri, withdraw == false?
                                                       ENTRIES_TO_ADD:ENTRIES_TO_REMOVE);
           }
@@ -1267,6 +1324,7 @@ bgp_evpn_process_imports2 (struct bgp *bgp, struct bgp_evpn_ad *old, struct bgp_
         if (!found)
           for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
             {
+              bgp_evpn_process_auto_discovery_update_from_vrf(vrf, ri, ENTRIES_TO_ADD);
               bgp_evpn_process_auto_discovery_propagate(vrf, ri, ENTRIES_TO_ADD);
             }
       }
@@ -1329,6 +1387,32 @@ struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
       return NULL;
     }
   listnode_add (vrf->rx_evpn_ad, evpn_ad);
+  return evpn_ad;
+}
+
+static 
+struct bgp_evpn_ad* bgp_evpn_ad_duplicate_from_ad(struct bgp_evpn_ad *evpn)
+{
+  struct bgp_evpn_ad *evpn_ad = XCALLOC(MTYPE_BGP_EVPN, sizeof(struct bgp_evpn_ad));
+  struct attr *attr_new;
+
+  if (!evpn_ad)
+    return NULL;
+  evpn_ad->peer = evpn->peer;
+  evpn_ad->prd = evpn->prd;
+
+  evpn_ad->eth_t_id = evpn->eth_t_id;
+  memcpy(&evpn_ad->eth_s_id, &evpn->eth_s_id, sizeof(struct eth_segment_id));
+
+  if(evpn->attr)
+    {
+      attr_new = bgp_attr_intern (evpn->attr);
+      evpn_ad->attr = attr_new;
+    }
+  else
+    evpn_ad->attr = NULL;
+
+  evpn_ad->label = evpn->label;
   return evpn_ad;
 }
 
