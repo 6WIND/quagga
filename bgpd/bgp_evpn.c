@@ -934,6 +934,108 @@ bgp_evpn_process_auto_discovery_propagate (struct bgp_vrf *vrf,
                                            struct bgp_evpn_ad *ad,
                                            int action);
 
+/* create a new entry in same rn as iter,but with ad attribute */
+static struct bgp_info *bgp_evpn_new_bgp_info_from_ad(struct bgp_info *ri, struct bgp_evpn_ad *ad)
+{
+  struct bgp_node *rn;
+  struct bgp_info *iter;
+  struct attr attr = { 0 };
+  struct attr *attr_new = &attr;
+
+  rn = ri->net;
+
+  /* substitute next hop
+   * with ad->attr->extra->mp_nexthopglobal_in
+   * with ad->attr->nexthop
+   */
+  /* change peer to our ad->peer */
+  iter = info_make(ri->type, ri->sub_type, ad->peer, NULL, rn);
+  bgp_attr_extra_get(&attr);
+  bgp_attr_dup (attr_new, ri->attr);
+
+  /* copy ESI */
+  if (ri->attr->extra)
+    overlay_index_dup(attr_new, &(ri->attr->extra->evpn_overlay));
+
+  /* no duplicate ecom */
+
+  /* duplicate label information */
+  if(!iter->extra)
+    iter->extra = bgp_info_extra_new();
+  iter->extra->vrf_rd = ri->extra->vrf_rd;
+  iter->extra->nlabels = 1;
+  iter->extra->labels[0] = ri->extra->labels[0];
+
+  /* change nexthop attribute */
+  attr_new->nexthop.s_addr = ad->attr->nexthop.s_addr;
+  attr_new->extra->mp_nexthop_global_in.s_addr = ad->attr->extra->mp_nexthop_global_in.s_addr;
+  attr_new->extra->mp_nexthop_len = 4;
+
+  iter->peer = ad->peer;
+  SET_FLAG (iter->flags, BGP_INFO_ORIGIN_EVPN);
+  SET_FLAG (iter->flags, BGP_INFO_VALID);
+
+  iter->attr = bgp_attr_intern (&attr);
+  bgp_info_add (rn, iter);
+  return iter;
+}
+
+/*
+ * for a new entry in VRF RIB, check for previous A/D received
+ * if A/D matches, a new entry will be created for the peer that sent the A/D
+ */
+void
+bgp_evpn_auto_discovery_new_entry (struct bgp_vrf *vrf,
+                                   struct bgp_info *ri)
+{
+  struct listnode *node;
+  struct bgp_evpn_ad *ad;
+  struct bgp_node *rn;
+  struct bgp_info *ri_from_ad;
+
+  rn = ri->net;
+  for (ALL_LIST_ELEMENTS_RO(vrf->import_processing_evpn_ad, node, ad))
+    {
+      if (ri->peer == ad->peer)
+        continue;
+      if (ad->eth_t_id != EVPN_MAX_ET &&
+         rn->p.u.prefix_macip.eth_tag_id != ad->eth_t_id)
+        continue;
+      if (!ri->attr || !ri->attr->extra || !ri->extra)
+        continue;
+      if (memcmp(&(ad->eth_s_id), &(ri->attr->extra->evpn_overlay.eth_s_id),
+                sizeof(struct eth_segment_id)))
+        continue;
+      /* case AD per EVI */
+      if (ad->eth_t_id != EVPN_MAX_ET && ad->label != ri->extra->labels[0])
+        continue;
+      /* an a/d matched. duplicate entry for ad->peer 
+       * if mp_reach a/d */
+      if (!ad->attr)
+        continue;
+      {
+        struct bgp_info temp;
+        temp.attr = ad->attr;
+        if (0 == bgp_info_nexthop_cmp (&temp, ri))
+        {
+          zlog_err("A-D nexthop already has an entry with same NH");
+          continue;
+        }
+      }
+      if (BGP_DEBUG (events, EVENTS))
+        {
+          char buf[AD_STR_MAX_SIZE];
+          bgp_evpn_ad_display (ad, buf, AD_STR_MAX_SIZE);
+          zlog_debug ("%s : duplicating new entry", buf);
+        }
+      ri_from_ad = bgp_evpn_new_bgp_info_from_ad (ri, ad);
+      bgp_vrf_process_entry(ri_from_ad, ROUTE_INFO_TO_ADD,
+                            AFI_INTERNAL_L2VPN, SAFI_INTERNAL_EVPN);
+    }
+  /* no route processing, since called function will do it */
+  /* continue parsing for other ads interested */
+}
+
 /*
  * for all entries in VRF, duplicate or remove entries
  * on VRF RIB, and consequently on ADJRIB IN
@@ -1050,27 +1152,6 @@ bgp_evpn_process_auto_discovery_propagate (struct bgp_vrf *vrf,
                * with ad->attr->nexthop
                */
               /* change peer to our ad->peer */
-              iter = info_make(ri->type, ri->sub_type, ad->peer, NULL, rn);
-              if (ri->attr)
-                iter->attr =  bgp_attr_intern (iter->attr);
-              if(!iter->attr->extra)
-                bgp_attr_extra_get(iter->attr);
-              /* copy ESI */
-              overlay_index_dup(iter->attr, &(ri->attr->extra->evpn_overlay));
-              /* no duplicate ecom */
-              /* duplicate label information */
-              if(!iter->extra)
-                iter->extra = bgp_info_extra_new();
-              iter->extra->nlabels = 1;
-              iter->extra->labels[0] = ri->extra->labels[0];
-              /* change nexthop attribute */
-              iter->attr->nexthop.s_addr = ad->attr->nexthop.s_addr;
-              iter->attr->extra->mp_nexthop_global_in.s_addr = ad->attr->extra->mp_nexthop_global_in.s_addr;
-              /* append it */
-              SET_FLAG (iter->flags, BGP_INFO_ORIGIN_EVPN);
-              SET_FLAG (iter->flags, BGP_INFO_VALID);
-              bgp_info_add (rn, iter);
-              bgp_unlock_node (rn);
               ri_from_ad = bgp_evpn_new_bgp_info_from_ad (ri, ad);
               bgp_vrf_process_entry(ri_from_ad, ROUTE_INFO_TO_ADD,
                                     AFI_INTERNAL_L2VPN, SAFI_INTERNAL_EVPN);

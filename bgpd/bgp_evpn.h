@@ -64,4 +64,8 @@ int bgp_evpn_ad_cmp(struct bgp_evpn_ad *ad1,
                     u_int32_t ethtag);
 
 int bgp_evpn_ad_update(struct bgp_evpn_ad *ad, struct in_addr *nexthop, u_int32_t label);
+
+void
+bgp_evpn_auto_discovery_new_entry (struct bgp_vrf *vrf,
+                                   struct bgp_info *ri);
 #endif /* _QUAGGA_BGP_EVPN_H */
