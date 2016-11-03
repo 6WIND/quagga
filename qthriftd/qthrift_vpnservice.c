@@ -75,6 +75,36 @@ static void qthrift_transport_check_response(struct qthrift_vpnservice *setup, g
   qthrift_monitor_retry_job_in_progress = 1;
 }
 
+/* returns status from recv with MSG_PEEK option
+ * this permits knowing if socket is available or not.
+ * values returned: -1 + EAGAIN => nothing to read, but socket is ok
+ *                  0, no errno => nothing to read, but socket is ok
+ *                 -1, EAGAIN => nothing to read, but socket is still ok
+ *                 -1, ENOTCONN => socket got disconnected
+ */
+static int qthrift_vpnservice_bgp_updater_check_connection (struct qthrift_vpnservice *setup)
+{
+  ThriftTransport *transport = NULL;
+  ThriftSocket *tsocket = NULL;
+  int fd = 0;
+  int ret;
+  char buffer[32];
+
+  if(!setup)
+    return 0;
+  if (setup->bgp_updater_transport)
+    transport = setup->bgp_updater_transport->transport;
+  if (transport)
+    tsocket = THRIFT_SOCKET (transport);
+  if (tsocket)
+    fd = tsocket->sd;
+  if (fd == 0)
+    ret = 0;
+  else
+    ret = recv(fd, buffer, 32, MSG_PEEK | MSG_DONTWAIT);
+  return ret;
+}
+
 static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thread)
 {
   struct qthrift_vpnservice *setup;
@@ -87,8 +117,8 @@ static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thr
     zlog_debug("bgpUpdater try to connect to %s:%u",
                tm->qthrift_notification_address,
                setup->qthrift_notification_port);
-  thrift_transport_close (setup->bgp_updater_transport, &error);
-  response = thrift_transport_open (setup->bgp_updater_transport, &error);
+  thrift_transport_close (setup->bgp_updater_transport->transport, &error);
+  response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
   qthrift_monitor_retry_job_in_progress = 0;
   qthrift_transport_check_response(setup, response);
   return 0;
@@ -102,17 +132,30 @@ static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *t
   struct qthrift_vpnservice *setup;
   GError *error = NULL;
   gboolean response;
+  int ret;
 
   setup = THREAD_ARG (thread);
   assert (setup);
-  thrift_transport_close (setup->bgp_updater_transport, &error);
-  response = thrift_transport_open (setup->bgp_updater_transport, &error);
-  qthrift_monitor_retry_job_in_progress = 0;
+  ret = qthrift_vpnservice_bgp_updater_check_connection (setup);
+  if (ret == 0 ||
+      (ret < 0 && errno != ENOTCONN))
+    {
+        if (IS_QTHRIFT_DEBUG_NOTIFICATION)
+        zlog_debug("bgpUpdater check connection with %s:%u OK",
+                   tm->qthrift_notification_address,
+                   setup->qthrift_notification_port);
+      qthrift_monitor_retry_job_in_progress = 0;
+      qthrift_transport_check_response(setup, 1);
+      return 0;
+    }
+  thrift_transport_close (setup->bgp_updater_transport->transport, &error);
+  response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
   if (IS_QTHRIFT_DEBUG_NOTIFICATION)
     zlog_debug("bgpUpdater check connection with %s:%u %s",
                tm->qthrift_notification_address,
                setup->qthrift_notification_port,
                response==FALSE?"NOK":"OK");
+  qthrift_monitor_retry_job_in_progress = 0;
   qthrift_transport_check_response(setup, response);
   return 0;
 }
@@ -323,7 +366,7 @@ void qthrift_vpnservice_terminate_thrift_bgp_updater_client (struct qthrift_vpns
 
   if(!setup)
     return;
-  thrift_transport_close (setup->bgp_updater_transport, &error);
+  thrift_transport_close (setup->bgp_updater_transport->transport, &error);
   if(setup->bgp_updater_client)
     g_object_unref(setup->bgp_updater_client);
   setup->bgp_updater_client = NULL;
@@ -370,7 +413,7 @@ gboolean qthrift_vpnservice_setup_thrift_bgp_updater_client (struct qthrift_vpns
                     "input_protocol",  setup->bgp_updater_protocol,
                     "output_protocol", setup->bgp_updater_protocol,
                     NULL);
-  response = thrift_transport_open (setup->bgp_updater_transport, &error);
+  response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
   qthrift_transport_check_response(setup, response);
   return response;
 }
