@@ -35,10 +35,12 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_mplsvpn.h"
 #include "bgpd/bgp_evpn.h"
 #include "bgpd/bgp_mpath.h"
+#include "bgpd/bgp_debug.h"
 
 DEFINE_MTYPE_STATIC(BGPD, BGP_EVPN,         "BGP EVPN")
 #define ENTRIES_TO_ADD 2
 #define ENTRIES_TO_REMOVE 1
+#define AD_STR_MAX_SIZE   120
 
 static
 struct bgp_evpn_ad* bgp_evpn_ad_new_from_update(struct peer *peer,
@@ -996,6 +998,7 @@ bgp_evpn_auto_discovery_new_entry (struct bgp_vrf *vrf,
   struct bgp_info *ri_from_ad;
 
   rn = ri->net;
+
   for (ALL_LIST_ELEMENTS_RO(vrf->import_processing_evpn_ad, node, ad))
     {
       if (ri->peer == ad->peer)
@@ -1376,6 +1379,12 @@ struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
           !(evpn->auto_discovery_type | EVPN_ETHERNET_MP_UNREACH))
         ad->label = label;
       /* XXX case list of RT changed */
+      if (BGP_DEBUG (events, EVENTS))
+        {
+          char buf[AD_STR_MAX_SIZE];
+          bgp_evpn_ad_display (ad, buf, AD_STR_MAX_SIZE);
+          zlog_debug ("%s from %s received", buf, ad->peer->host);
+        }
       return ad;
     }
   evpn_ad = bgp_evpn_ad_new_from_update(peer, prd, evpn, p, label, attr);
@@ -1385,6 +1394,12 @@ struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
       zlog_err("Not enough memory to record EVPN Auto-Discovery from peer %s",
                peer->host);
       return NULL;
+    }
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      char buf[AD_STR_MAX_SIZE];
+      bgp_evpn_ad_display (evpn_ad, buf, AD_STR_MAX_SIZE);
+      zlog_debug ("%s from %s received and stored", buf, evpn_ad->peer->host);
     }
   listnode_add (vrf->rx_evpn_ad, evpn_ad);
   return evpn_ad;
