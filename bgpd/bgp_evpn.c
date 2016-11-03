@@ -38,7 +38,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 int
 bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
-                     struct bgp_nlri *packet)
+                     struct bgp_nlri *packet, int withdraw)
 {
   u_char *pnt,*pnt2;
   u_char *lim;
@@ -224,7 +224,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
             }
         }
 
-      if (attr)
+      if (!withdraw)
         {
           bgp_update (peer, &p, attr, AFI_L2VPN, SAFI_EVPN,
                       ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, &prd,

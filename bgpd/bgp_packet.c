@@ -1950,9 +1950,6 @@ bgp_nlri_parse (struct peer *peer, struct attr *attr, struct bgp_nlri *packet)
         return bgp_nlri_parse_vpn (peer, attr, packet);
       case SAFI_ENCAP:
         return bgp_nlri_parse_encap (peer, attr, packet);
-      case SAFI_EVPN:
-      case SAFI_IANA_EVPN:
-        return bgp_nlri_parse_evpn (peer, attr, packet);
     }
   return -1;
 }
@@ -2171,11 +2168,20 @@ bgp_update_receive (struct peer *peer, bgp_size_t size)
         {
           case NLRI_UPDATE:
           case NLRI_MP_UPDATE:
-            nlri_ret = bgp_nlri_parse (peer, NLRI_ATTR_ARG, &nlris[i]);
+            if (nlris[i].afi == AFI_L2VPN &&
+                nlris[i].safi == SAFI_EVPN)
+              nlri_ret = bgp_nlri_parse_evpn (peer, NLRI_ATTR_ARG, &nlris[i], 0);
+            else
+              nlri_ret = bgp_nlri_parse (peer, NLRI_ATTR_ARG, &nlris[i]);
             break;
           case NLRI_WITHDRAW:
           case NLRI_MP_WITHDRAW:
-            nlri_ret = bgp_nlri_parse (peer, NULL, &nlris[i]);
+            if (nlris[i].afi == AFI_L2VPN &&
+                nlris[i].safi == SAFI_EVPN)
+              nlri_ret = bgp_nlri_parse_evpn (peer, &attr, &nlris[i], 1);
+            else
+              nlri_ret = bgp_nlri_parse (peer, NULL, &nlris[i]);
+            break;
         }
       
       if (nlri_ret < 0)
