@@ -914,6 +914,9 @@ bgp_establish (struct peer *peer)
   if (peer->v_keepalive)
     bgp_keepalive_send (peer);
 
+  /* Send A/D messages, if any */
+  bgp_vrf_peer_notification (peer, 0);
+
   /* First update is deferred until ORF or ROUTE-REFRESH is received */
   for (afi = AFI_IP ; afi < AFI_MAX ; afi++)
     for (safi = SAFI_UNICAST ; safi < SAFI_MAX ; safi++)

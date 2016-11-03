@@ -1454,6 +1454,7 @@ peer_delete (struct peer *peer)
     {
       list_delete (peer->def_route_rd_evpn);
     }
+  bgp_vrf_peer_notification (peer, 1);
   peer_unlock (peer); /* initial reference */
 
   return 0;
@@ -2173,6 +2174,53 @@ bgp_vrf_create (struct bgp *bgp, bgp_layer_type_t ltype, struct prefix_rd *outbo
   QZC_NODE_REG(vrf, bgp_vrf)
   listnode_add (bgp->vrfs, vrf);
   return vrf;
+}
+
+void bgp_vrf_peer_notification (struct peer *peer, int down)
+{
+  struct bgp_evpn_ad *ad;
+  struct listnode *node, *node2, *nnode2;
+  struct bgp_vrf *vrf;
+
+  for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf))
+    {
+      for (ALL_LIST_ELEMENTS_RO(vrf->static_evpn_ad, node2, ad))
+        {
+          if (peer != ad->peer)
+            continue;
+          if (down)
+            {
+              ad->status = 1;
+              continue;
+            }
+          if (ad->status != 0)
+            {
+              ad->status = 0;
+              /* force sending XXX */
+              peer_evpn_auto_discovery_set (peer, vrf, ad->attr,
+                                            &ad->eth_s_id, ad->eth_t_id, 
+                                            (struct in_addr*) &ad->attr->extra->mp_nexthop_global_in,
+                                            ad->label);
+            }
+        }
+      /* flush */
+      if(!down)
+        continue;
+      for (ALL_LIST_ELEMENTS(vrf->import_processing_evpn_ad, node2, nnode2, ad))
+        {
+          if (peer != ad->peer)
+            continue;
+          list_delete_node (vrf->import_processing_evpn_ad, node2);
+          bgp_evpn_ad_free (ad);
+        }
+      for (ALL_LIST_ELEMENTS(vrf->rx_evpn_ad, node2, nnode2, ad))
+        {
+          if (peer != ad->peer)
+            continue;
+          list_delete_node (vrf->rx_evpn_ad, node2);
+          bgp_evpn_ad_free (ad);
+        }
+    }
 }
 
 static struct ecommunity * ecommunity_reintern (struct ecommunity *ecom)

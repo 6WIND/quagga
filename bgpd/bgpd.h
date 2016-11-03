@@ -246,6 +246,7 @@ struct bgp_evpn_ad
 #define BGP_EVPN_AD_TYPE_MP_REACH 0
 #define BGP_EVPN_AD_TYPE_MP_UNREACH 1
   u_int16_t type;
+  u_int16_t status;
 };
 
 struct bgp_vrf
@@ -1104,7 +1105,7 @@ extern int peer_evpn_auto_discovery_set (struct peer *peer, struct bgp_vrf *vrf,
 extern int peer_evpn_auto_discovery_unset (struct peer *peer, struct bgp_vrf *vrf,
                                            struct attr * attr, struct eth_segment_id *esi,
                                            u_int32_t ethtag, u_int32_t label);
-
+extern void bgp_vrf_peer_notification (struct peer *peer, int down);
 extern int peer_port_set (struct peer *, u_int16_t);
 extern int peer_port_unset (struct peer *);
 
