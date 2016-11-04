@@ -7967,6 +7967,7 @@ route_vty_out_overlay (struct vty *vty, struct prefix *p,
                        struct bgp_info *binfo, int display)
 {
   struct attr *attr;
+  char buf[BUFSIZ];
 
   if (!binfo->extra)
     return;
@@ -7984,31 +7985,33 @@ route_vty_out_overlay (struct vty *vty, struct prefix *p,
   attr = binfo->attr;
   if (attr)
     {
-      if (p->family == AF_INET)
-	{
-          vty_out (vty, "%-16s",
-                   inet_ntoa (attr->extra->mp_nexthop_global_in));
-	}
-      else if (p->family == AF_INET6)
-	{
-	  assert (attr->extra);
-	  char buf[BUFSIZ];
-	  char buf1[BUFSIZ];
-	  if (attr->extra->mp_nexthop_len == 16)
-	    vty_out (vty, "%s",
-		     inet_ntop (AF_INET6, &attr->extra->mp_nexthop_global,
-                     buf, BUFSIZ));
-	  else if (attr->extra->mp_nexthop_len == 32)
-	    vty_out (vty, "%s(%s)",
-		     inet_ntop (AF_INET6, &attr->extra->mp_nexthop_global,
-		                buf, BUFSIZ),
-		     inet_ntop (AF_INET6, &attr->extra->mp_nexthop_local,
-		                buf1, BUFSIZ));
-	}
+      if (attr->extra) {
+        char	buf1[BUFSIZ];
+        int af = NEXTHOP_FAMILY(attr->extra->mp_nexthop_len);
+
+        switch (af) {
+        case AF_INET:
+          vty_out (vty, "%-16s", inet_ntop(af,
+                                        &attr->extra->mp_nexthop_global_in, buf, BUFSIZ));
+          break;
+        case AF_INET6:
+          vty_out (vty, "%s(%s)",
+                   inet_ntop (af,
+                             &attr->extra->mp_nexthop_global, buf, BUFSIZ),
+                   inet_ntop (af,
+                              &attr->extra->mp_nexthop_local, buf1, BUFSIZ));
+          break;
+        default:
+          vty_out(vty, "?");
+        }
+      } else {
+        vty_out(vty, "?");
+      }
     }
 
-  char buf[BUFSIZ];
-  vty_out (vty, "%u/", attr->extra->eth_t_id);
+  if (p->family != AF_L2VPN)
+    vty_out (vty, "%u/", attr->extra->eth_t_id);
+
   if(attr->extra)
     {
       struct eth_segment_id *id = &(attr->extra->evpn_overlay.eth_s_id);
@@ -8043,7 +8046,6 @@ route_vty_out_overlay (struct vty *vty, struct prefix *p,
             }
           if(mac)
             {
-              char *mac = ecom_mac2str(routermac->val);
               vty_out (vty, "/%s",(char *)mac);
               XFREE(MTYPE_BGP_MAC, mac);
             }
