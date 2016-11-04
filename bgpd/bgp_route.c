@@ -2288,23 +2288,26 @@ void bgp_vrf_process_entry(struct bgp_info *iter,
     afi_int = AFI_IP;
   else
     afi_int = afi;
-  prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
   if(action == ROUTE_INFO_TO_REMOVE)
     {
       if (CHECK_FLAG (iter->peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG)
           && iter->peer != iter->peer->bgp->peer_self)
         if (!bgp_adj_in_unset (vrf_rn, iter->peer))
           {
-            prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
             if (BGP_DEBUG (update, UPDATE_IN))
-              zlog (iter->peer->log, LOG_DEBUG, "%s withdrawing route %s "
-                    "not in adj-in", iter->peer->host, pfx_str);
+              {
+                prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
+                zlog (iter->peer->log, LOG_DEBUG, "%s withdrawing route %s "
+                      "not in adj-in", iter->peer->host, pfx_str);
+              }
           }
+
       bgp_info_delete(vrf_rn, iter);
-      prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
+
       if (BGP_DEBUG (events, EVENTS))
         {
           char nh_str[BUFSIZ] = "<?>";
+
           if(iter->attr && iter->attr->extra)
             {
               if (afi_int == AFI_IP)
@@ -2317,6 +2320,8 @@ void bgp_vrf_process_entry(struct bgp_info *iter,
               inet_ntop (AF_INET, &iter->attr->nexthop,
                          nh_str, sizeof (nh_str));
             }
+
+          prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
           zlog_debug ("%s: processing entry (for removal) from %s [ nh %s]", 
                       pfx_str, iter->peer->host, nh_str);
         }
@@ -2337,6 +2342,8 @@ void bgp_vrf_process_entry(struct bgp_info *iter,
               inet_ntop (AF_INET, &iter->attr->nexthop,
                          nh_str, sizeof (nh_str));
             }
+
+          prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
           zlog_debug ("%s: processing entry (for %s) from %s [ nh %s]",
                       pfx_str, action == ROUTE_INFO_TO_UPDATE?"upgrading":"adding",
                       iter->peer->host, nh_str);
