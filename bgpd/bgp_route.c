@@ -7725,6 +7725,7 @@ route_vty_out_overlay (struct vty *vty, struct prefix *p,
                        struct bgp_info *binfo, int display)
 {
   struct attr *attr;
+  char buf[BUFSIZ];
 
   if (!binfo->extra)
     return;
@@ -7750,7 +7751,6 @@ route_vty_out_overlay (struct vty *vty, struct prefix *p,
       else if (p->family == AF_INET6)
 	{
 	  assert (attr->extra);
-	  char buf[BUFSIZ];
 	  char buf1[BUFSIZ];
 	  if (attr->extra->mp_nexthop_len == 16)
 	    vty_out (vty, "%s",
@@ -7763,10 +7763,16 @@ route_vty_out_overlay (struct vty *vty, struct prefix *p,
 		     inet_ntop (AF_INET6, &attr->extra->mp_nexthop_local,
 		                buf1, BUFSIZ));
 	}
+      else if (p->family == AF_L2VPN)
+	{
+          vty_out (vty, "%-16s",
+                   inet_ntoa (attr->extra->mp_nexthop_global_in));
+	}
     }
 
-  char buf[BUFSIZ];
-  vty_out (vty, "%u/", attr->extra->eth_t_id);
+  if (p->family != AF_L2VPN)
+    vty_out (vty, "%u/", attr->extra->eth_t_id);
+
   if(attr->extra)
     {
       struct eth_segment_id *id = &(attr->extra->evpn_overlay.eth_s_id);
