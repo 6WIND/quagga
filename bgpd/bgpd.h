@@ -901,6 +901,7 @@ enum bgp_clear_type
 #define BGP_ERR_CANNOT_HAVE_LOCAL_AS_SAME_AS_REMOTE_AS    -33
 
 extern struct bgp_master *bm;
+extern int bgp_exit_procedure;
 
 /* Prototypes. */
 extern void bgp_terminate (void);
