@@ -234,6 +234,7 @@ bgp_exit (int status)
   struct interface *ifp;
   extern struct zclient *zlookup;
 
+  bgp_exit_procedure = 1;
   /* it only makes sense for this to be called on a clean exit */
   assert (status == 0);
 
