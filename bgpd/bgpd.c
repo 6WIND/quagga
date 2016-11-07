@@ -83,6 +83,9 @@ extern struct in_addr router_id_zebra;
 /* BGP process wide configuration pointer to export.  */
 struct bgp_master *bm;
 
+/* BGP exit procedure variable */
+int bgp_exit_procedure = 0;
+
 /* BGP community-list.  */
 struct community_list_handler *bgp_clist;
 
@@ -2537,7 +2540,9 @@ bgp_delete (struct bgp *bgp)
       if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status))
 	{
 	  /* Send notify to remote peer. */
-	  bgp_notify_send (peer, BGP_NOTIFY_CEASE, BGP_NOTIFY_CEASE_ADMIN_SHUTDOWN);
+	  if (!bgp_exit_procedure ||
+              !bgp_flag_check (bgp, BGP_FLAG_GR_PRESERVE_FWD))
+            bgp_notify_send (peer, BGP_NOTIFY_CEASE, BGP_NOTIFY_CEASE_ADMIN_SHUTDOWN);
 	}
     }
 
@@ -2548,7 +2553,9 @@ bgp_delete (struct bgp *bgp)
 	  if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status))
 	    {
 	      /* Send notify to remote peer. */
-	      bgp_notify_send (peer, BGP_NOTIFY_CEASE, BGP_NOTIFY_CEASE_ADMIN_SHUTDOWN);
+              if (!bgp_exit_procedure ||
+                  !bgp_flag_check (bgp, BGP_FLAG_GR_PRESERVE_FWD))
+                bgp_notify_send (peer, BGP_NOTIFY_CEASE, BGP_NOTIFY_CEASE_ADMIN_SHUTDOWN);
 	    }
 	}
     }
@@ -6297,6 +6304,7 @@ bgp_terminate (void)
   for (ALL_LIST_ELEMENTS (bm->bgp, mnode, mnnode, bgp))
     for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
       if (peer->status == Established)
+        if (!bgp_flag_check (bgp, BGP_FLAG_GR_PRESERVE_FWD))
           bgp_notify_send (peer, BGP_NOTIFY_CEASE,
                            BGP_NOTIFY_CEASE_PEER_UNCONFIG);
   

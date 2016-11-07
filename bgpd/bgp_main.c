@@ -237,9 +237,14 @@ bgp_exit (int status)
   /* it only makes sense for this to be called on a clean exit */
   assert (status == 0);
 
+  /* this variable will be used in case gr restart preservation bit is set */
+  bgp_exit_procedure = 1;
+
   /* reverse bgp_master_init */
   for (ALL_LIST_ELEMENTS (bm->bgp, node, nnode, bgp))
-    bgp_delete (bgp);
+    {
+      bgp_delete (bgp);
+    }
   list_free (bm->bgp);
   bm->bgp = NULL;
   
