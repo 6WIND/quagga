@@ -883,7 +883,7 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
   if(p_type == PROTOCOL_TYPE_PROTOCOL_EVPN)
     {
       afi = AFI_INTERNAL_L2VPN;
-      inst.ethtag = ethtag;
+      inst.ethtag = (uint32_t ) ethtag;
       if( !esi || str2esi (esi, NULL) == 0)
         {
           *_return = BGP_ERR_PARAM;
@@ -918,7 +918,7 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
             }
           inst.prefix.family = AF_L2VPN;
           inst.prefix.prefixlen = L2VPN_PREFIX_AD;
-          m->eth_tag_id = ethtag;
+          m->eth_tag_id = (uint32_t) ethtag;
           goto inst_filled;
         }
 
@@ -927,7 +927,7 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
           struct macipaddr *m = &inst.prefix.u.prefix_macip;
           inst.prefix.family = AF_L2VPN;
           inst.prefix.prefixlen = L2VPN_IPV4_PREFIX_LEN;
-          m->eth_tag_id = ethtag;
+          m->eth_tag_id = (uint32_t) ethtag;
           str2mac(macaddress, (char*) &m->mac);
           if (strncmp(prefix, "0.0.0.0/0", 9))
             {
@@ -1060,7 +1060,7 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
           return FALSE;
         }
       inst.esi = strdup(esi);
-      inst.ethtag = ethtag;
+      inst.ethtag = (uint32_t) ethtag;
       /* detect Auto Discovery and then check parameters coherency */
       if (is_auto_discovery)
         {
@@ -1077,7 +1077,7 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
             }
           inst.prefix.family = AF_L2VPN;
           inst.prefix.prefixlen = L2VPN_PREFIX_AD;
-          m->eth_tag_id = ethtag;
+          m->eth_tag_id = (uint32_t)ethtag;
           goto inst_filled;
         }
 
@@ -1086,7 +1086,7 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
           struct macipaddr *m = &inst.prefix.u.prefix_macip;
           inst.prefix.family = AF_L2VPN;
           inst.prefix.prefixlen = L2VPN_IPV4_PREFIX_LEN;
-          m->eth_tag_id = ethtag;
+          m->eth_tag_id = (uint32_t)ethtag;
           str2mac(macaddress, (char*) &m->mac);
           if (strncmp(prefix, "0.0.0.0/0", 9))
             {
