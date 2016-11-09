@@ -197,6 +197,10 @@ enum bgp_clear_route_type
   BGP_CLEAR_ROUTE_MY_RSCLIENT
 };
 
+#define ROUTE_INFO_TO_UPDATE 2
+#define ROUTE_INFO_TO_REMOVE 1
+#define ROUTE_INFO_TO_ADD    0
+
 /* Prototypes. */
 extern void bgp_route_init (void);
 extern void bgp_route_finish (void);

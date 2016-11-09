@@ -2114,9 +2114,6 @@ static void bgp_vrf_copy_bgp_info(struct bgp_vrf *vrf, struct bgp_node *rn,
     }
 }
 
-#define ROUTE_INFO_TO_UPDATE 2
-#define ROUTE_INFO_TO_REMOVE 1
-#define ROUTE_INFO_TO_ADD    0
 /* updates selected bgp_info structure to bgp vrf rib table
  * most of the cases, processing consists in adding or removing entries in RIB tables
  * on some cases, there is an update request. then it is necessary to have both old and new ri
