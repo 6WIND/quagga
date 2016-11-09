@@ -73,7 +73,8 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
       pnt2 = pnt;
       route_length = *pnt++;
       /* simply ignore. goto next route type if any */
-      if(route_type != EVPN_IP_PREFIX && route_type != EVPN_MACIP_ADVERTISEMENT)
+      if(route_type != EVPN_IP_PREFIX && route_type != EVPN_MACIP_ADVERTISEMENT
+         && route_type != EVPN_ETHERNET_AUTO_DISCOVERY)
 	{
 	  if (pnt + route_length > lim)
 	    {
@@ -111,14 +112,17 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           return -1;
         }
 
-      if (route_type == EVPN_MACIP_ADVERTISEMENT)
+      if (route_type == EVPN_MACIP_ADVERTISEMENT ||
+          route_type == EVPN_ETHERNET_AUTO_DISCOVERY)
         {
+          p.family = AF_L2VPN;
           memcpy(&p.u.prefix_macip.eth_tag_id, pnt, 4);
           p.u.prefix_macip.eth_tag_id = ntohl(p.u.prefix_macip.eth_tag_id);
           pnt += 4;
-
+        }
+      if (route_type == EVPN_MACIP_ADVERTISEMENT)
+        {
           /* MAC address len in bits */
-          p.family = AF_L2VPN;
           p.u.prefix_macip.mac_len = *pnt++;
 
           if (p.u.prefix_macip.mac_len != 8*ETHER_ADDR_LEN)
@@ -217,8 +221,23 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
             {
               plog_err (peer->log,
                         "%s [Error] Update packet error / EVPN?"
-                        " (NLRI length mismatch %d observed %d)",
+                        " (NLRI length mismatch %d observed %ld)",
                         peer->host, route_length, pnt - pnt2);
+              return -1;
+            }
+        }
+      else if (route_type == EVPN_ETHERNET_AUTO_DISCOVERY)
+        {
+          if (p.u.prefix_macip.eth_tag_id == EVPN_MAX_ET && (labels[0] >> 4) == 0)
+            evpn.auto_discovery_type = EVPN_ETHERNET_AD_PER_ESI;
+          else if (p.u.prefix_macip.eth_tag_id == 0)
+            evpn.auto_discovery_type = EVPN_ETHERNET_AD_PER_EVI;
+          else
+            {
+              plog_err (peer->log,
+                        "%s [Error] Update packet error / EVPN"
+                        " (Auto Discovery with eth tag %08x and MPLS label %d not supported)",
+                        peer->host, p.u.prefix_macip.eth_tag_id, (labels[0] >> 4));
               return -1;
             }
         }
