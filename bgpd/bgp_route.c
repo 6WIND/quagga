@@ -66,10 +66,6 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 extern const char *bgp_origin_str[];
 extern const char *bgp_origin_long_str[];
 
-#define ROUTE_INFO_TO_UPDATE 2
-#define ROUTE_INFO_TO_REMOVE 1
-#define ROUTE_INFO_TO_ADD    0
-
 static struct bgp_static * bgp_static_new (void);
 static void bgp_static_free (struct bgp_static *bgp_static);
 static void
