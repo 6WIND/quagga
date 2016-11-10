@@ -4762,9 +4762,9 @@ bgp_configurator_push_route_args_read (ThriftStruct *object, ThriftProtocol *pro
         }
         break;
       case 5:
-        if (ftype == T_I32)
+        if (ftype == T_I64)
         {
-          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->ethtag, error)) < 0)
+          if ((ret = thrift_protocol_read_i64 (protocol, &this_object->ethtag, error)) < 0)
             return -1;
           xfer += ret;
           this_object->__isset_ethtag = TRUE;
@@ -4941,10 +4941,10 @@ bgp_configurator_push_route_args_write (ThriftStruct *object, ThriftProtocol *pr
   if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I32, 5, error)) < 0)
+  if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I64, 5, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_i32 (protocol, this_object->ethtag, error)) < 0)
+  if ((ret = thrift_protocol_write_i64 (protocol, this_object->ethtag, error)) < 0)
     return -1;
   xfer += ret;
 
@@ -5058,7 +5058,7 @@ bgp_configurator_push_route_args_set_property (GObject *object,
       break;
 
     case PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_ETHTAG:
-      self->ethtag = g_value_get_int (value);
+      self->ethtag = g_value_get_int64 (value);
       self->__isset_ethtag = TRUE;
       break;
 
@@ -5131,7 +5131,7 @@ bgp_configurator_push_route_args_get_property (GObject *object,
       break;
 
     case PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_ETHTAG:
-      g_value_set_int (value, self->ethtag);
+      g_value_set_int64 (value, self->ethtag);
       break;
 
     case PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_ESI:
@@ -5284,13 +5284,13 @@ bgp_configurator_push_route_args_class_init (BgpConfiguratorPushRouteArgsClass *
   g_object_class_install_property
     (gobject_class,
      PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_ETHTAG,
-     g_param_spec_int ("ethtag",
-                       NULL,
-                       NULL,
-                       G_MININT32,
-                       G_MAXINT32,
-                       0,
-                       G_PARAM_READWRITE));
+     g_param_spec_int64 ("ethtag",
+                         NULL,
+                         NULL,
+                         G_MININT64,
+                         G_MAXINT64,
+                         0,
+                         G_PARAM_READWRITE));
 
   g_object_class_install_property
     (gobject_class,
@@ -5728,9 +5728,9 @@ bgp_configurator_withdraw_route_args_read (ThriftStruct *object, ThriftProtocol 
         }
         break;
       case 4:
-        if (ftype == T_I32)
+        if (ftype == T_I64)
         {
-          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->ethtag, error)) < 0)
+          if ((ret = thrift_protocol_read_i64 (protocol, &this_object->ethtag, error)) < 0)
             return -1;
           xfer += ret;
           this_object->__isset_ethtag = TRUE;
@@ -5837,10 +5837,10 @@ bgp_configurator_withdraw_route_args_write (ThriftStruct *object, ThriftProtocol
   if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I32, 4, error)) < 0)
+  if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I64, 4, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_i32 (protocol, this_object->ethtag, error)) < 0)
+  if ((ret = thrift_protocol_write_i64 (protocol, this_object->ethtag, error)) < 0)
     return -1;
   xfer += ret;
 
@@ -5907,7 +5907,7 @@ bgp_configurator_withdraw_route_args_set_property (GObject *object,
       break;
 
     case PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_ETHTAG:
-      self->ethtag = g_value_get_int (value);
+      self->ethtag = g_value_get_int64 (value);
       self->__isset_ethtag = TRUE;
       break;
 
@@ -5954,7 +5954,7 @@ bgp_configurator_withdraw_route_args_get_property (GObject *object,
       break;
 
     case PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_ETHTAG:
-      g_value_set_int (value, self->ethtag);
+      g_value_set_int64 (value, self->ethtag);
       break;
 
     case PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_ESI:
@@ -6063,13 +6063,13 @@ bgp_configurator_withdraw_route_args_class_init (BgpConfiguratorWithdrawRouteArg
   g_object_class_install_property
     (gobject_class,
      PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_ETHTAG,
-     g_param_spec_int ("ethtag",
-                       NULL,
-                       NULL,
-                       G_MININT32,
-                       G_MAXINT32,
-                       0,
-                       G_PARAM_READWRITE));
+     g_param_spec_int64 ("ethtag",
+                         NULL,
+                         NULL,
+                         G_MININT64,
+                         G_MAXINT64,
+                         0,
+                         G_PARAM_READWRITE));
 
   g_object_class_install_property
     (gobject_class,
@@ -13101,9 +13101,9 @@ bgp_updater_on_update_push_route_args_read (ThriftStruct *object, ThriftProtocol
         }
         break;
       case 6:
-        if (ftype == T_I32)
+        if (ftype == T_I64)
         {
-          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->ethtag, error)) < 0)
+          if ((ret = thrift_protocol_read_i64 (protocol, &this_object->ethtag, error)) < 0)
             return -1;
           xfer += ret;
           this_object->__isset_ethtag = TRUE;
@@ -13275,10 +13275,10 @@ bgp_updater_on_update_push_route_args_write (ThriftStruct *object, ThriftProtoco
   if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I32, 6, error)) < 0)
+  if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I64, 6, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_i32 (protocol, this_object->ethtag, error)) < 0)
+  if ((ret = thrift_protocol_write_i64 (protocol, this_object->ethtag, error)) < 0)
     return -1;
   xfer += ret;
 
@@ -13387,7 +13387,7 @@ bgp_updater_on_update_push_route_args_set_property (GObject *object,
       break;
 
     case PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_ETHTAG:
-      self->ethtag = g_value_get_int (value);
+      self->ethtag = g_value_get_int64 (value);
       self->__isset_ethtag = TRUE;
       break;
 
@@ -13459,7 +13459,7 @@ bgp_updater_on_update_push_route_args_get_property (GObject *object,
       break;
 
     case PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_ETHTAG:
-      g_value_set_int (value, self->ethtag);
+      g_value_set_int64 (value, self->ethtag);
       break;
 
     case PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_ESI:
@@ -13620,13 +13620,13 @@ bgp_updater_on_update_push_route_args_class_init (BgpUpdaterOnUpdatePushRouteArg
   g_object_class_install_property
     (gobject_class,
      PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_ETHTAG,
-     g_param_spec_int ("ethtag",
-                       NULL,
-                       NULL,
-                       G_MININT32,
-                       G_MAXINT32,
-                       0,
-                       G_PARAM_READWRITE));
+     g_param_spec_int64 ("ethtag",
+                         NULL,
+                         NULL,
+                         G_MININT64,
+                         G_MAXINT64,
+                         0,
+                         G_PARAM_READWRITE));
 
   g_object_class_install_property
     (gobject_class,
@@ -13857,9 +13857,9 @@ bgp_updater_on_update_withdraw_route_args_read (ThriftStruct *object, ThriftProt
         }
         break;
       case 6:
-        if (ftype == T_I32)
+        if (ftype == T_I64)
         {
-          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->ethtag, error)) < 0)
+          if ((ret = thrift_protocol_read_i64 (protocol, &this_object->ethtag, error)) < 0)
             return -1;
           xfer += ret;
           this_object->__isset_ethtag = TRUE;
@@ -14012,10 +14012,10 @@ bgp_updater_on_update_withdraw_route_args_write (ThriftStruct *object, ThriftPro
   if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I32, 6, error)) < 0)
+  if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I64, 6, error)) < 0)
     return -1;
   xfer += ret;
-  if ((ret = thrift_protocol_write_i32 (protocol, this_object->ethtag, error)) < 0)
+  if ((ret = thrift_protocol_write_i64 (protocol, this_object->ethtag, error)) < 0)
     return -1;
   xfer += ret;
 
@@ -14114,7 +14114,7 @@ bgp_updater_on_update_withdraw_route_args_set_property (GObject *object,
       break;
 
     case PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_ETHTAG:
-      self->ethtag = g_value_get_int (value);
+      self->ethtag = g_value_get_int64 (value);
       self->__isset_ethtag = TRUE;
       break;
 
@@ -14179,7 +14179,7 @@ bgp_updater_on_update_withdraw_route_args_get_property (GObject *object,
       break;
 
     case PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_ETHTAG:
-      g_value_set_int (value, self->ethtag);
+      g_value_set_int64 (value, self->ethtag);
       break;
 
     case PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_ESI:
@@ -14329,13 +14329,13 @@ bgp_updater_on_update_withdraw_route_args_class_init (BgpUpdaterOnUpdateWithdraw
   g_object_class_install_property
     (gobject_class,
      PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_ETHTAG,
-     g_param_spec_int ("ethtag",
-                       NULL,
-                       NULL,
-                       G_MININT32,
-                       G_MAXINT32,
-                       0,
-                       G_PARAM_READWRITE));
+     g_param_spec_int64 ("ethtag",
+                         NULL,
+                         NULL,
+                         G_MININT64,
+                         G_MAXINT64,
+                         0,
+                         G_PARAM_READWRITE));
 
   g_object_class_install_property
     (gobject_class,

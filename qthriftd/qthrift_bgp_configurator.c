@@ -59,12 +59,12 @@ instance_bgp_configurator_handler_unset_ebgp_multihop(BgpConfiguratorIf *iface, 
                                                       const gchar * peerIp, GError **error);
 gboolean
 instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
-                                             const gchar * nexthop, const gchar * rd, const gint32 ethtag, const gchar * esi,
+                                             const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi,
                                              const gchar * macaddress, const gint32 l3label, const gint32 l2label,
                                              const encap_type enc_type, const gchar * routermac, GError **error);
 gboolean
 instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
-                                                 const gchar * rd,  const gint32 ethtag, const gchar * esi, const gchar * macaddress, GError **error);
+                                                 const gchar * rd,  const gint64 ethtag, const gchar * esi, const gchar * macaddress, GError **error);
 gboolean
 instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, GError **error);
 gboolean
@@ -814,7 +814,7 @@ instance_bgp_configurator_handler_unset_ebgp_multihop(BgpConfiguratorIf *iface, 
  */
 gboolean
 instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
-                                             const gchar * nexthop, const gchar * rd, const gint32 ethtag, const gchar * esi,
+                                             const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi,
                                              const gchar * macaddress, const gint32 l3label, const gint32 l2label, 
                                              const encap_type enc_type, const gchar * routermac, GError **error)
 {
@@ -1002,7 +1002,7 @@ error:
  */
 gboolean
 instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
-                                                 const gchar * rd,  const gint32 ethtag, const gchar * esi, const gchar * macaddress, GError **error)
+                                                 const gchar * rd,  const gint64 ethtag, const gchar * esi, const gchar * macaddress, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
   struct bgp_api_route inst;

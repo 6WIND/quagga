@@ -497,7 +497,7 @@ struct _BgpConfiguratorPushRouteArgs
   gboolean __isset_nexthop;
   gchar * rd;
   gboolean __isset_rd;
-  gint32 ethtag;
+  gint64 ethtag;
   gboolean __isset_ethtag;
   gchar * esi;
   gboolean __isset_esi;
@@ -565,7 +565,7 @@ struct _BgpConfiguratorWithdrawRouteArgs
   gboolean __isset_prefix;
   gchar * rd;
   gboolean __isset_rd;
-  gint32 ethtag;
+  gint64 ethtag;
   gboolean __isset_ethtag;
   gchar * esi;
   gboolean __isset_esi;
@@ -1301,7 +1301,7 @@ struct _BgpUpdaterOnUpdatePushRouteArgs
   gboolean __isset_prefixlen;
   gchar * nexthop;
   gboolean __isset_nexthop;
-  gint32 ethtag;
+  gint64 ethtag;
   gboolean __isset_ethtag;
   gchar * esi;
   gboolean __isset_esi;
@@ -1346,7 +1346,7 @@ struct _BgpUpdaterOnUpdateWithdrawRouteArgs
   gboolean __isset_prefixlen;
   gchar * nexthop;
   gboolean __isset_nexthop;
-  gint32 ethtag;
+  gint64 ethtag;
   gboolean __isset_ethtag;
   gchar * esi;
   gboolean __isset_esi;

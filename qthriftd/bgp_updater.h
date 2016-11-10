@@ -18,8 +18,8 @@ struct _BgpUpdaterIfInterface
 {
   GTypeInterface parent;
 
-  gboolean (*on_update_push_route) (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError **error);
-  gboolean (*on_update_withdraw_route) (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError **error);
+  gboolean (*on_update_push_route) (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError **error);
+  gboolean (*on_update_withdraw_route) (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError **error);
   gboolean (*on_start_config_resync_notification) (BgpUpdaterIf *iface, GError **error);
   gboolean (*on_notification_send_event) (BgpUpdaterIf *iface, const gchar * prefix, const gint8 errCode, const gint8 errSubcode, GError **error);
 };
@@ -31,8 +31,8 @@ GType bgp_updater_if_get_type (void);
 #define IS_BGP_UPDATER_IF(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_UPDATER_IF))
 #define BGP_UPDATER_IF_GET_INTERFACE(inst) (G_TYPE_INSTANCE_GET_INTERFACE ((inst), TYPE_BGP_UPDATER_IF, BgpUpdaterIfInterface))
 
-gboolean bgp_updater_if_on_update_push_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError **error);
-gboolean bgp_updater_if_on_update_withdraw_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError **error);
+gboolean bgp_updater_if_on_update_push_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError **error);
+gboolean bgp_updater_if_on_update_withdraw_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError **error);
 gboolean bgp_updater_if_on_start_config_resync_notification (BgpUpdaterIf *iface, GError **error);
 gboolean bgp_updater_if_on_notification_send_event (BgpUpdaterIf *iface, const gchar * prefix, const gint8 errCode, const gint8 errSubcode, GError **error);
 
@@ -60,10 +60,10 @@ GType bgp_updater_client_get_type (void);
 #define BGP_UPDATER_IS_CLIENT_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_UPDATER_CLIENT))
 #define BGP_UPDATER_CLIENT_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_UPDATER_CLIENT, BgpUpdaterClientClass))
 
-gboolean bgp_updater_client_on_update_push_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError ** error);
-gboolean bgp_updater_client_send_on_update_push_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError ** error);
-gboolean bgp_updater_client_on_update_withdraw_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError ** error);
-gboolean bgp_updater_client_send_on_update_withdraw_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError ** error);
+gboolean bgp_updater_client_on_update_push_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError ** error);
+gboolean bgp_updater_client_send_on_update_push_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError ** error);
+gboolean bgp_updater_client_on_update_withdraw_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError ** error);
+gboolean bgp_updater_client_send_on_update_withdraw_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError ** error);
 gboolean bgp_updater_client_on_start_config_resync_notification (BgpUpdaterIf * iface, GError ** error);
 gboolean bgp_updater_client_send_on_start_config_resync_notification (BgpUpdaterIf * iface, GError ** error);
 gboolean bgp_updater_client_on_notification_send_event (BgpUpdaterIf * iface, const gchar * prefix, const gint8 errCode, const gint8 errSubcode, GError ** error);
@@ -82,8 +82,8 @@ struct _BgpUpdaterHandlerClass
 {
   GObjectClass parent;
 
-  gboolean (*on_update_push_route) (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError **error);
-  gboolean (*on_update_withdraw_route) (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError **error);
+  gboolean (*on_update_push_route) (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError **error);
+  gboolean (*on_update_withdraw_route) (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError **error);
   gboolean (*on_start_config_resync_notification) (BgpUpdaterIf *iface, GError **error);
   gboolean (*on_notification_send_event) (BgpUpdaterIf *iface, const gchar * prefix, const gint8 errCode, const gint8 errSubcode, GError **error);
 };
@@ -97,8 +97,8 @@ GType bgp_updater_handler_get_type (void);
 #define IS_BGP_UPDATER_HANDLER_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_UPDATER_HANDLER))
 #define BGP_UPDATER_HANDLER_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_UPDATER_HANDLER, BgpUpdaterHandlerClass))
 
-gboolean bgp_updater_handler_on_update_push_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError **error);
-gboolean bgp_updater_handler_on_update_withdraw_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError **error);
+gboolean bgp_updater_handler_on_update_push_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError **error);
+gboolean bgp_updater_handler_on_update_withdraw_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError **error);
 gboolean bgp_updater_handler_on_start_config_resync_notification (BgpUpdaterIf *iface, GError **error);
 gboolean bgp_updater_handler_on_notification_send_event (BgpUpdaterIf *iface, const gchar * prefix, const gint8 errCode, const gint8 errSubcode, GError **error);
 

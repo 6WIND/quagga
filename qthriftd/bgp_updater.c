@@ -10,13 +10,13 @@
 #include "bgp_updater.h"
 
 gboolean
-bgp_updater_if_on_update_push_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError **error)
+bgp_updater_if_on_update_push_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError **error)
 {
   return BGP_UPDATER_IF_GET_INTERFACE (iface)->on_update_push_route (iface, p_type, rd, prefix, prefixlen, nexthop, ethtag, esi, macaddress, l3label, l2label, routermac, error);
 }
 
 gboolean
-bgp_updater_if_on_update_withdraw_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError **error)
+bgp_updater_if_on_update_withdraw_route (BgpUpdaterIf *iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError **error)
 {
   return BGP_UPDATER_IF_GET_INTERFACE (iface)->on_update_withdraw_route (iface, p_type, rd, prefix, prefixlen, nexthop, ethtag, esi, macaddress, l3label, l2label, error);
 }
@@ -110,7 +110,7 @@ bgp_updater_client_get_property (GObject *object, guint property_id, GValue *val
   }
 }
 
-gboolean bgp_updater_client_send_on_update_push_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError ** error)
+gboolean bgp_updater_client_send_on_update_push_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError ** error)
 {
   gint32 cseqid = 0;
   ThriftProtocol * protocol = BGP_UPDATER_CLIENT (iface)->output_protocol;
@@ -176,10 +176,10 @@ gboolean bgp_updater_client_send_on_update_push_route (BgpUpdaterIf * iface, con
     if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
       return 0;
     xfer += ret;
-    if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I32, 6, error)) < 0)
+    if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I64, 6, error)) < 0)
       return 0;
     xfer += ret;
-    if ((ret = thrift_protocol_write_i32 (protocol, ethtag, error)) < 0)
+    if ((ret = thrift_protocol_write_i64 (protocol, ethtag, error)) < 0)
       return 0;
     xfer += ret;
 
@@ -255,14 +255,14 @@ gboolean bgp_updater_client_send_on_update_push_route (BgpUpdaterIf * iface, con
   return TRUE;
 }
 
-gboolean bgp_updater_client_on_update_push_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError ** error)
+gboolean bgp_updater_client_on_update_push_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError ** error)
 {
   if (!bgp_updater_client_send_on_update_push_route (iface, p_type, rd, prefix, prefixlen, nexthop, ethtag, esi, macaddress, l3label, l2label, routermac, error))
     return FALSE;
   return TRUE;
 }
 
-gboolean bgp_updater_client_send_on_update_withdraw_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError ** error)
+gboolean bgp_updater_client_send_on_update_withdraw_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError ** error)
 {
   gint32 cseqid = 0;
   ThriftProtocol * protocol = BGP_UPDATER_CLIENT (iface)->output_protocol;
@@ -328,10 +328,10 @@ gboolean bgp_updater_client_send_on_update_withdraw_route (BgpUpdaterIf * iface,
     if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
       return 0;
     xfer += ret;
-    if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I32, 6, error)) < 0)
+    if ((ret = thrift_protocol_write_field_begin (protocol, "ethtag", T_I64, 6, error)) < 0)
       return 0;
     xfer += ret;
-    if ((ret = thrift_protocol_write_i32 (protocol, ethtag, error)) < 0)
+    if ((ret = thrift_protocol_write_i64 (protocol, ethtag, error)) < 0)
       return 0;
     xfer += ret;
 
@@ -397,7 +397,7 @@ gboolean bgp_updater_client_send_on_update_withdraw_route (BgpUpdaterIf * iface,
   return TRUE;
 }
 
-gboolean bgp_updater_client_on_update_withdraw_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError ** error)
+gboolean bgp_updater_client_on_update_withdraw_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError ** error)
 {
   if (!bgp_updater_client_send_on_update_withdraw_route (iface, p_type, rd, prefix, prefixlen, nexthop, ethtag, esi, macaddress, l3label, l2label, error))
     return FALSE;
@@ -569,14 +569,14 @@ G_DEFINE_TYPE_WITH_CODE (BgpUpdaterHandler,
                          G_IMPLEMENT_INTERFACE (TYPE_BGP_UPDATER_IF,
                                                 bgp_updater_handler_bgp_updater_if_interface_init))
 
-gboolean bgp_updater_handler_on_update_push_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError ** error)
+gboolean bgp_updater_handler_on_update_push_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const gchar * routermac, GError ** error)
 {
   g_return_val_if_fail (IS_BGP_UPDATER_HANDLER (iface), FALSE);
 
   return BGP_UPDATER_HANDLER_GET_CLASS (iface)->on_update_push_route (iface, p_type, rd, prefix, prefixlen, nexthop, ethtag, esi, macaddress, l3label, l2label, routermac, error);
 }
 
-gboolean bgp_updater_handler_on_update_withdraw_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint32 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError ** error)
+gboolean bgp_updater_handler_on_update_withdraw_route (BgpUpdaterIf * iface, const protocol_type p_type, const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, GError ** error)
 {
   g_return_val_if_fail (IS_BGP_UPDATER_HANDLER (iface), FALSE);
 
@@ -715,7 +715,7 @@ bgp_updater_processor_process_on_update_push_route (BgpUpdaterProcessor *self,
     gchar * prefix;
     gint prefixlen;
     gchar * nexthop;
-    gint ethtag;
+    gint64 ethtag;
     gchar * esi;
     gchar * macaddress;
     gint l3label;
@@ -827,7 +827,7 @@ bgp_updater_processor_process_on_update_withdraw_route (BgpUpdaterProcessor *sel
     gchar * prefix;
     gint prefixlen;
     gchar * nexthop;
-    gint ethtag;
+    gint64 ethtag;
     gchar * esi;
     gchar * macaddress;
     gint l3label;
