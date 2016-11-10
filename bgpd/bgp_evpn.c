@@ -54,6 +54,9 @@ void bgp_evpn_ad_display (struct bgp_evpn_ad *ad, char *buf, int size);
 static
 struct bgp_evpn_ad* bgp_evpn_ad_duplicate_from_ad(struct bgp_evpn_ad *evpn);
 
+static void bgp_evpn_process_auto_discovery_delete_from_vrf (struct bgp_vrf *vrf,
+                                                             struct bgp_evpn_ad *ad);
+
 int
 bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
                      struct bgp_nlri *packet, int withdraw)
@@ -1041,6 +1044,33 @@ bgp_evpn_auto_discovery_new_entry (struct bgp_vrf *vrf,
   /* continue parsing for other ads interested */
 }
 
+static void bgp_evpn_process_auto_discovery_delete_from_vrf (struct bgp_vrf *vrf,
+                                                             struct bgp_evpn_ad *ad)
+{
+  struct listnode *node;
+  struct bgp_evpn_ad *ad2;
+
+  for (ALL_LIST_ELEMENTS_RO(vrf->import_processing_evpn_ad, node, ad2))
+    {
+      if (0 == bgp_evpn_ad_cmp(ad2, ad->peer, NULL,
+                               &ad->eth_s_id, ad->eth_t_id))
+        break;
+
+    }
+  if (!ad2)
+    return;
+  listnode_delete (vrf->import_processing_evpn_ad, ad2);
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN];
+      char buf[AD_STR_MAX_SIZE];
+      prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+      bgp_evpn_ad_display (ad2, buf, AD_STR_MAX_SIZE);
+      zlog_debug ("vrf[%s]: %s from %s deleted", vrf_rd_str, buf, ad2->peer->host);
+    }
+  bgp_evpn_ad_free (ad2);
+}
+
 static void bgp_evpn_process_auto_discovery_update_from_vrf (struct bgp_vrf *vrf,
                                                              struct bgp_evpn_ad *ad,
                                                              int action)
@@ -1290,6 +1320,10 @@ bgp_evpn_process_imports2 (struct bgp *bgp, struct bgp_evpn_ad *old, struct bgp_
                                                             withdraw == false?ENTRIES_TO_ADD:ENTRIES_TO_REMOVE);
             bgp_evpn_process_auto_discovery_propagate(vrf, ri, withdraw == false?
                                                       ENTRIES_TO_ADD:ENTRIES_TO_REMOVE);
+            if (withdraw != false)
+              {
+                bgp_evpn_process_auto_discovery_delete_from_vrf (vrf, ri);
+              }
           }
       }
     }
