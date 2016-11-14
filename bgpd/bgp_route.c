@@ -1679,6 +1679,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
     {
       char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
       char label_str[BUFSIZ] = "<?>", nh_str[BUFSIZ] = "<?>";
+      char pre_str[20], post_str[20];
 
       prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
       prefix_rd2str(&selected->extra->vrf_rd, rd_str, sizeof(rd_str));
@@ -1694,12 +1695,26 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
             inet_ntop (AF_INET6, &selected->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
         }
 
-      if (announce)
-        zlog_debug ("vrf[%s] %s: prefix updated, best RD %s labels %s nexthop %s",
-                   vrf_rd_str, pfx_str, rd_str, label_str, nh_str);
+      if(selected->type == ZEBRA_ROUTE_BGP
+         && selected->sub_type == BGP_ROUTE_STATIC)
+        {
+          sprintf (post_str, "by config");
+          sprintf (pre_str, "mngr->bgp");
+        }
       else
-        zlog_debug ("vrf[%s] %s: prefix withdrawn nh %s label %s",
-                    vrf_rd_str, pfx_str, nh_str, label_str);
+        {
+          if (announce)
+            sprintf (post_str, "to capnp manager");
+          else
+            sprintf (post_str, "from capnp manager");
+          sprintf(pre_str, "bgp->mngr");
+        }
+      if (announce)
+        zlog_info ("%s vrf[%s] Route %s : advertised %s (RD %s label %s nh %s)",
+                    pre_str, vrf_rd_str, pfx_str, post_str, rd_str, label_str, nh_str);
+      else
+        zlog_info ("%s vrf[%s] Route %s : withdrawn %s (RD %s label %d nh %s)",
+                    pre_str, vrf_rd_str, pfx_str, post_str, rd_str, event.label, nh_str);
     }
 
   if(selected->type == ZEBRA_ROUTE_BGP
