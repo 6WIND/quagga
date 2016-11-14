@@ -189,6 +189,8 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
       qthrift_transport_check_response(ctxt, client_ready);
       if(client_ready == FALSE)
         {
+          if(IS_QTHRIFT_DEBUG_NOTIFICATION)
+            zlog_debug ("bgp->sdnc message failed to be sent");
           ctxt->bgp_update_lost_msgs++;
           return;
         }
