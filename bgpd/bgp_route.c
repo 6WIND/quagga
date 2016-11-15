@@ -1656,6 +1656,11 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
   if(!vrf || (rn && bgp_node_table (rn)->type != BGP_TABLE_VRF))
     return;
 
+  if (selected->extra->nlabels)
+    event.label = selected->extra->labels[0] >> 4;
+  else
+    event.label = 0;
+
   if (BGP_DEBUG (events, EVENTS))
     {
       char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ];
@@ -1723,18 +1728,6 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
     {
       if (selected->attr && selected->attr->extra)
         event.nexthop = selected->attr->extra->mp_nexthop_global_in;
-      if (announce)
-        {
-          if (selected->extra->nlabels)
-            event.label = selected->extra->labels[0] >> 4;
-        }
-      else
-        {
-          if (selected->extra)
-            event.label = selected->extra->labels[0] >> 4;
-          else
-            event.label = 0;
-        }
       bgp_notify_route (vrf->bgp, &event);
     }
 
