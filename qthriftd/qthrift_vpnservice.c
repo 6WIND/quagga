@@ -52,9 +52,17 @@ static gboolean qthrift_transport_current_status = FALSE;
 
 static void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response)
 {
-  qthrift_transport_current_status = response;
   if(qthrift_monitor_retry_job_in_progress)
     return;
+  if (qthrift_transport_current_status != response)
+    {
+      if (IS_QTHRIFT_DEBUG_NOTIFICATION)
+        zlog_debug("bgpUpdater check connection with %s:%u %s",
+                   tm->qthrift_notification_address,
+                   setup->qthrift_notification_port,
+                   response == TRUE?"OK":"NOK");
+    }
+  qthrift_transport_current_status = response;
   if(response == FALSE)
     {
       setup->bgp_update_retries++;
@@ -113,10 +121,6 @@ static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thr
 
   setup = THREAD_ARG (thread);
   assert (setup);
-  if (IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_debug("bgpUpdater try to connect to %s:%u",
-               tm->qthrift_notification_address,
-               setup->qthrift_notification_port);
   thrift_transport_close (setup->bgp_updater_transport->transport, &error);
   response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
   qthrift_monitor_retry_job_in_progress = 0;
@@ -140,21 +144,12 @@ static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *t
   if (ret == 0 ||
       (ret < 0 && errno != ENOTCONN))
     {
-        if (IS_QTHRIFT_DEBUG_NOTIFICATION)
-        zlog_debug("bgpUpdater check connection with %s:%u OK",
-                   tm->qthrift_notification_address,
-                   setup->qthrift_notification_port);
       qthrift_monitor_retry_job_in_progress = 0;
       qthrift_transport_check_response(setup, 1);
       return 0;
     }
   thrift_transport_close (setup->bgp_updater_transport->transport, &error);
   response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
-  if (IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_debug("bgpUpdater check connection with %s:%u %s",
-               tm->qthrift_notification_address,
-               setup->qthrift_notification_port,
-               response==FALSE?"NOK":"OK");
   qthrift_monitor_retry_job_in_progress = 0;
   qthrift_transport_check_response(setup, response);
   return 0;
