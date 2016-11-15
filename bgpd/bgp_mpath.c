@@ -519,12 +519,6 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
   if (vrf)
     {
       maxpaths = vrf->max_mpath;
-      if(debug && vrf)
-        {
-          char vrf_rd_str[RD_ADDRSTRLEN];
-          prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
-          zlog_debug ("vrf[%s] : mpath. max detected : %d", vrf_rd_str, maxpaths);
-        }
     }
 
   if (old_best)
