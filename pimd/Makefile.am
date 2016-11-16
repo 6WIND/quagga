@@ -39,7 +39,7 @@ DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\" $(PIM_DEFS)
 INSTALL_SDATA=@INSTALL@ -m 600
 LIBS = @LIBS@
 
-AM_CFLAGS = $(WERROR)
+AM_CFLAGS = $(WERROR) -Wl,-unresolved-symbols=ignore-in-shared-libs
 
 noinst_LIBRARIES = libpim.a
 sbin_PROGRAMS = pimd 

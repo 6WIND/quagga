@@ -71,7 +71,7 @@ my $cli_stomp = 0;
 foreach (@ARGV) {
     $file = $_;
 
-    open (FH, "@CPP@ -DHAVE_CONFIG_H -DVTYSH_EXTRACT_PL -DHAVE_IPV6 -I@top_builddir@ -I@srcdir@/ -I@srcdir@/.. -I@top_srcdir@/lib -I@top_builddir@/lib -I@top_srcdir@/isisd/topology @CPPFLAGS@ $file |");
+    open (FH, "@CPP@ -DHAVE_CONFIG_H -DVTYSH_EXTRACT_PL -DHAVE_IPV6 -I@top_builddir@ -I@srcdir@/ -I@srcdir@/.. -I@top_srcdir@/lib -I@top_builddir@/lib -I@top_srcdir@/isisd/topology @CPPFLAGS@ @ZEROMQ_CFLAGS@ @CAPN_C_CFLAGS@ $file |");
     local $/; undef $/;
     $line = <FH>;
     close (FH);
