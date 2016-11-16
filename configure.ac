@@ -7,7 +7,7 @@
 ##
 AC_PREREQ(2.60)
 
-AC_INIT(Quagga, 1.1.0, [https://bugzilla.quagga.net])
+AC_INIT(Quagga, 1.1.0-dev, [https://bugzilla.quagga.net])
 CONFIG_ARGS="$*"
 AC_SUBST(CONFIG_ARGS)
 AC_CONFIG_SRCDIR(lib/zebra.h)
@@ -1496,6 +1496,41 @@ AC_CHECK_HEADER([malloc.h],
        AC_MSG_RESULT(no)
   )
  ], [], QUAGGA_INCLUDES)
+
+dnl ------
+dnl ZeroMQ
+dnl ------
+if test "$with_zeromq" != "no"; then
+   AC_SEARCH_LIBS([zmq_msg_init], [zmq], [
+   AC_DEFINE(HAVE_ZEROMQ, 1, [Enable ZeroMQ support])
+   AC_DEFINE(ZEROMQ_CFLAGS, $(ZEROMQ_CFLAGS), [cflags for zeromq])
+   AC_DEFINE(ZEROMQ_LIBS, $(ZEROMQ_LIBS), [ldflags for zeromq])
+   ZEROMQ=true
+   AC_SUBST(ZEROMQ_CFLAGS)
+   AC_SUBST(ZEROMQ_LIBS)
+   ], [
+   AC_MSG_ERROR([configuration specifies --with-zeromq but libzmq was not found])
+   ])
+fi
+
+dnl ------
+dnl capnproto
+dnl ------
+if test "$with_ccapnproto" != "no"; then
+  AC_SEARCH_LIBS([capn_init_malloc], [capn_c], [
+    AC_DEFINE(HAVE_CCAPNPROTO, 1, [Enable c-capnproto support])
+    AC_DEFINE(CAPN_C_CFLAGS, $(CAPN_C_CFLAGS), [cflags for c-capnproto])
+    AC_DEFINE(CAPN_C_LIBS, $(CAPN_C_LIBS), [ldflags for c-capnproto])
+    CCAPNPROTO=true
+    AC_SUBST(CAPN_C_CFLAGS)
+    AC_SUBST(CAPN_C_LIBS)
+  ], [
+   AC_MSG_ERROR([ccapnproto needed but libcapn_c was not found])
+  ])
+fi
+
+AM_CONDITIONAL([HAVE_ZEROMQ], test "x$ZEROMQ" = "xtrue")
+AM_CONDITIONAL([HAVE_CCAPNPROTO], test "x$CCAPNPROTO" = "xtrue")
 
 dnl ----------
 dnl configure date
