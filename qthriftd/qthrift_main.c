@@ -63,7 +63,6 @@ static const struct option longopts[] =
 void sighup (void);
 void sigint (void);
 void sigusr1 (void);
-void sigchild (void);
 
 static void qthrift_exit (int);
 
@@ -84,10 +83,6 @@ static struct quagga_signal_t qthrift_signals[] =
   {
     .signal = SIGTERM,
     .handler = &sigint,
-  },
-  {
-    .signal = SIGCHLD,
-    .handler = &sigchild,
   }
 };
 
@@ -160,42 +155,6 @@ sighup (void)
 
   /* Try to return to normal operation. */
 }
-
-/* SIGCHLD handler. */
-void
-sigchild (void)
-{
-  pid_t p;
-  int status;
-  struct qthrift_vpnservice *ctxt = NULL;
-  as_t asNumber;
-
-  while ((p=waitpid(-1, &status, WNOHANG)) != -1)
-    {
-      /* Handle the death of pid p */
-      zlog_err("BGPD terminated (%u)",p);
-      qthrift_vpnservice_get_context (&ctxt);
-      /* kill BGP Daemon */
-      if(ctxt == NULL)
-        {
-          sigint();
-        }
-      if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL)
-        /* nothing to be done - BGP config already flushed */
-        return;
-      asNumber = qthrift_vpnservice_get_bgp_context(ctxt)->asNumber;
-      /* reset Thrift Context */
-      qthrift_vpnservice_terminate_bgp_context(ctxt);
-      qthrift_vpnservice_terminate_thrift_bgp_cache(ctxt);
-      qthrift_vpnservice_terminate_qzc(ctxt);
-      /* creation of capnproto context */
-      qthrift_vpnservice_setup_thrift_bgp_cache(ctxt);
-      qthrift_vpnservice_setup_qzc(ctxt);
-      if(asNumber)
-        zlog_err ("stopBgp(AS %u) OK", (as_t)asNumber);
-    }
-}
-
 
 /* SIGINT handler. */
 void
