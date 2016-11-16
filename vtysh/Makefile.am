@@ -5,7 +5,7 @@ DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\"
 
 LIBS = @LIBS@ @CURSES@ @LIBPAM@
 
-AM_CFLAGS = $(WERROR)
+AM_CFLAGS = $(WERROR) -Wl,-unresolved-symbols=ignore-in-shared-libs
 
 bin_PROGRAMS = vtysh
 

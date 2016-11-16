@@ -6,7 +6,7 @@ DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\"
 INSTALL_SDATA=@INSTALL@ -m 600
 LIBS = @LIBS@ 
 
-AM_CFLAGS = $(WERROR)
+AM_CFLAGS = $(WERROR) -Wl,-unresolved-symbols=ignore-in-shared-libs
 
 noinst_LIBRARIES = libisis.a
 sbin_PROGRAMS = isisd 

@@ -4,7 +4,7 @@ AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib
 DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\"
 INSTALL_SDATA=@INSTALL@ -m 600
 
-AM_CFLAGS = $(WERROR)
+AM_CFLAGS = $(WERROR) -Wl,-unresolved-symbols=ignore-in-shared-libs
 
 noinst_LIBRARIES = libripng.a
 sbin_PROGRAMS = ripngd

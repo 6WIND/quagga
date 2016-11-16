@@ -3,7 +3,7 @@
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib
 DEFS = @DEFS@ -DSTATEDIR=\"$(localstatedir)/\"
 
-AM_CFLAGS = $(WERROR)
+AM_CFLAGS = $(WERROR) -Wl,-unresolved-symbols=ignore-in-shared-libs
 
 sbin_PROGRAMS = watchquagga
 

@@ -30,7 +30,7 @@ if DEV_BUILD
 dev_srcs = zebra_fpm_dt.c
 endif
 
-AM_CFLAGS = $(WERROR)
+AM_CFLAGS = $(WERROR) -Wl,-unresolved-symbols=ignore-in-shared-libs
 
 sbin_PROGRAMS = zebra
 
