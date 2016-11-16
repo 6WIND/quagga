@@ -375,7 +375,7 @@ rib_copy_nexthop (struct rib *state, struct nexthop *nh)
   nexthop->type = nh->type;
   nexthop->ifindex = nh->ifindex;
   if (nh->ifname)
-    nexthop->ifname = XSTRDUP(0, nh->ifname);
+    nexthop->ifname = XSTRDUP(MTYPE_TMP, nh->ifname);
   memcpy(&(nexthop->gate), &(nh->gate), sizeof(union g_addr));
   memcpy(&(nexthop->src), &(nh->src), sizeof(union g_addr));
 
