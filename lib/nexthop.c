@@ -133,7 +133,7 @@ copy_nexthops (struct nexthop **tnh, struct nexthop *nh)
       nexthop->type = nh->type;
       nexthop->ifindex = nh->ifindex;
       if (nh->ifname)
-	nexthop->ifname = XSTRDUP(0, nh->ifname);
+	nexthop->ifname = XSTRDUP(MTYPE_TMP, nh->ifname);
       memcpy(&(nexthop->gate), &(nh->gate), sizeof(union g_addr));
       memcpy(&(nexthop->src), &(nh->src), sizeof(union g_addr));
       nexthop_add(tnh, nexthop);
@@ -148,7 +148,7 @@ void
 nexthop_free (struct nexthop *nexthop)
 {
   if (nexthop->ifname)
-    XFREE (0, nexthop->ifname);
+    XFREE (MTYPE_TMP, nexthop->ifname);
   if (nexthop->resolved)
     nexthops_free(nexthop->resolved);
   XFREE (MTYPE_LIB_NEXTHOP, nexthop);
