@@ -929,8 +929,11 @@ capn_ptr qcapn_new_BGPPeerAfiSafi(struct capn_segment *s)
 
 void qcapn_BGPVRF_read(struct bgp_vrf *s, capn_ptr p)
 {
+    uint64_t tmp;
+
     capn_resolve(&p);
-    *(uint64_t *)s->outbound_rd.val = capn_read64(p, 0);
+    tmp = capn_read64(p, 0);
+    memcpy(&s->outbound_rd.val, &tmp, 8);
     s->outbound_rd.family = AF_UNSPEC;
     s->outbound_rd.prefixlen = 64;
     
@@ -961,8 +964,11 @@ void qcapn_BGPVRF_read(struct bgp_vrf *s, capn_ptr p)
 
 void qcapn_BGPVRF_write(const struct bgp_vrf *s, capn_ptr p)
 {
+    uint64_t tmp;
+
+    memcpy(&tmp,&(s->outbound_rd.val), 8);
     capn_resolve(&p);
-    capn_write64(p, 0, *(uint64_t *)s->outbound_rd.val);
+    capn_write64(p, 0, tmp);
     
     {
         capn_ptr tempptr = capn_new_struct(p.seg, 0, 1);
@@ -1029,10 +1035,14 @@ void qcapn_BGPVRF_set(struct bgp_vrf *s, capn_ptr p)
 struct prefix_rd qcapn_BGPVRF_get_outbound_rd(capn_ptr p)
 {
     capn_resolve(&p);
+    uint64_t tmp;
     struct prefix_rd tp;
+
     tp.family = AF_UNSPEC;
     tp.prefixlen = 64;
-    *(uint64_t *)tp.val = capn_read64(p, 0); return tp;
+    tmp = capn_read64(p, 0);
+    memcpy(&tp.val, &tmp, 8);
+    return tp;
 }
 
 
@@ -1108,9 +1118,12 @@ capn_ptr qcapn_new_BGPVRFRoute(struct capn_segment *s)
 
 void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
 {
+    uint64_t tmp;
+
     capn_resolve(&p);
     s->announce = capn_read8(p, 0);
-    *(uint64_t *)s->outbound_rd.val = capn_read64(p, 8);
+    tmp = capn_read64(p, 8);
+    memcpy(&s->outbound_rd.val, &tmp, 8);
     s->outbound_rd.family = AF_UNSPEC;
     s->outbound_rd.prefixlen = 64;
     
@@ -1132,9 +1145,12 @@ void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
 
 void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
 {
+    uint64_t tmp;
+
+    memcpy(&tmp,&(s->outbound_rd.val), 8);
     capn_resolve(&p);
     capn_write8(p, 0, s->announce);
-    capn_write64(p, 8, *(uint64_t *)s->outbound_rd.val);
+    capn_write64(p, 8, tmp);
     
     {
         capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
