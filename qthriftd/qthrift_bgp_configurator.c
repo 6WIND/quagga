@@ -645,8 +645,8 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
   bgp_bm_nid = qzcclient_wkn(ctxt->qzc_sock, &bgp_bm_wkn);
   qthrift_vpnservice_get_bgp_context(ctxt)->asNumber = (as_t) asNumber;
   if(IS_QTHRIFT_DEBUG)
-    zlog_debug ("startBgp. bgpd called (AS %u, proc %d)", \
-                (as_t)asNumber, pid);
+    zlog_debug ("startBgp. bgpd called (AS %u, proc %d, announceFbit %s)", \
+                (as_t)asNumber, pid, announceFbit == true?"true":"false");
   /* from bgp_master, create bgp and retrieve bgp as node identifier */
   {
     struct capn_ptr bgp;
@@ -707,10 +707,14 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
   if(IS_QTHRIFT_DEBUG)
     {
       if(ret)
-        zlog_debug ("startBgp(%u, %s) OK",(as_t)asNumber, routerId);
+        zlog_debug ("startBgp(%u, %s, .., %s) OK",
+                    (as_t)asNumber, routerId,
+                    announceFbit == true?"true":"false");
       else
-        zlog_err ("startBgp(%u, %s) NOK",(as_t)asNumber, routerId);
+        zlog_err ("startBgp(%u, %s, ..., %s) NOK",(as_t)asNumber, routerId,
+                  announceFbit == true?"true":"false");
     }
+
  return ret;
 }
 
