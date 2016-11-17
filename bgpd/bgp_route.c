@@ -1596,6 +1596,23 @@ bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn,
   return true;
 }
 
+bool bgp_api_static_get (struct bgp_api_route *out, struct bgp_node *bn)
+{
+  struct bgp_static *bgp_static;
+
+  memset(out, 0, sizeof (*out));
+  if (bn->p.family != AF_INET)
+    return false;
+  if (!bn->info)
+    return false;
+  bgp_static = bn->info;
+
+  prefix_copy ((struct prefix *)&out->prefix, &bn->p);
+  out->nexthop = bgp_static->igpnexthop;
+  out->label = bgp_static->nlabels ? (bgp_static->labels[0] >> 4) : 0;
+  return true;
+}
+
 static bool rd_same (const struct prefix_rd *a, const struct prefix_rd *b)
 {
   return !memcmp(&a->val, &b->val, sizeof(a->val));
