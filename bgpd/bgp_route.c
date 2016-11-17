@@ -66,10 +66,16 @@ extern const char *bgp_origin_long_str[];
 #define ROUTE_INFO_TO_REMOVE 1
 #define ROUTE_INFO_TO_ADD    0
 
+static struct bgp_static * bgp_static_new (void);
+static void bgp_static_free (struct bgp_static *bgp_static);
 static void
 bgp_static_withdraw_safi (struct bgp *bgp, struct prefix *p, afi_t afi,
                           safi_t safi, struct prefix_rd *prd,
                           uint32_t *labels, size_t nlabels);
+static void
+bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
+                        struct bgp_static *bgp_static, afi_t afi, safi_t safi);
+
 static void
 bgp_static_free (struct bgp_static *bgp_static);
 
@@ -1628,6 +1634,154 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
         zlog_debug ("vrf[%s] %s: prefix withdrawn nh %s label %s",
                     vrf_rd_str, pfx_str, nh_str, label_str);
     }
+}
+
+int
+bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route)
+{
+  struct bgp_static *bgp_static;
+  struct prefix *p = (struct prefix *)&route->prefix;
+  struct bgp_node *rn;
+  struct prefix def_route;
+
+  if (afi != AFI_IP)
+    return -1;
+
+  str2prefix ("0.0.0.0/0", &def_route);
+
+  /* if we try to install a default route, set flag accordingly */
+  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p))
+    {
+      struct bgp_vrf *v;
+      struct bgp *bgp;
+      struct listnode *iter;
+      struct bgp_nexthop nh;
+      size_t nlabels = route->label ? 1 : 0;
+      uint32_t labels[1];
+      int ret = -1;
+
+      labels[0] = (route->label << 4) | 1;
+      nh.v4  = route->nexthop;
+
+      /* list all peers that have VPNv4 family enabled */
+      bgp = vrf->bgp;
+
+      /* Lookup in list of configured VRF with Route Distinguisher given as parameter */
+      v = (struct bgp_vrf*) listnode_lookup(bgp->vrfs, vrf);
+      if (v)
+        {
+          /* We should find peer list linked to this RD */
+          for (iter = listhead(bgp->peer); iter; iter = listnextnode(iter))
+            {
+              struct peer *peer;
+
+              /* Retrieve peer and set DEFAULT_ORIGINATE flag */
+              peer = listgetdata(iter);
+              /* Only send UPDATE messages to VPNv4 peers */
+              if (peer && peer->status == Established && peer->afc_nego[afi][SAFI_MPLS_VPN])
+                {
+                  SET_FLAG (peer->af_flags[afi][SAFI_MPLS_VPN], PEER_FLAG_DEFAULT_ORIGINATE);
+                  peer_default_originate_set_rd (peer, &vrf->outbound_rd, afi,
+                                                 &nh, nlabels, labels);
+                  ret = 0;
+                }
+            }
+        }
+      return ret;
+    }
+
+
+  bgp_static = bgp_static_new ();
+  bgp_static->backdoor = 0;
+  bgp_static->valid = 1;
+  bgp_static->igpmetric = 0;
+  bgp_static->igpnexthop = route->nexthop;
+  bgp_static->labels[0] = (route->label << 4) | 1;
+  bgp_static->nlabels = route->label ? 1 : 0;
+  bgp_static->prd = vrf->outbound_rd;
+  bgp_static->ecomm = vrf->rt_export;
+  if (bgp_static->ecomm)
+    {
+      assert(bgp_static->ecomm->refcnt > 0);
+      bgp_static->ecomm->refcnt++;
+    }
+
+  rn = bgp_node_get (vrf->route[afi], p);
+  if (rn->info)
+    {
+      struct bgp_static *old = rn->info;
+      if (old->ecomm)
+        ecommunity_unintern (&old->ecomm);
+      bgp_static_free (rn->info);
+      /* reference only dropped if we're replacing a route */
+      bgp_unlock_node (rn);
+    }
+  rn->info = bgp_static;
+
+  bgp_static_update_safi (vrf->bgp, p, bgp_static, afi, SAFI_MPLS_VPN);
+  return 0;
+}
+
+int
+bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route)
+{
+  struct prefix *p = (struct prefix *)&route->prefix;
+  struct bgp_static *old;
+  struct bgp_node *rn;
+  struct prefix def_route;
+
+  if (afi != AFI_IP)
+    return -1;
+
+  str2prefix ("0.0.0.0/0", &def_route);
+
+  /* if we try to withdraw a default route, unset flag accordingly */
+  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p))
+    {
+      int ret = -1;
+      struct bgp_vrf *v;
+      struct bgp *bgp;
+      struct listnode *iter;
+
+      /* list all peers that have VPNv4 family enabled */
+      bgp = vrf->bgp;
+
+      /* Lookup in list of configured VRF with Route Distinguisher given as parameter */
+      v = (struct bgp_vrf*) listnode_lookup(bgp->vrfs, vrf);
+      if (v)
+        {
+          /* We should find peer list linked to this RD */
+          for (iter = listhead(bgp->peer); iter; iter = listnextnode(iter))
+            {
+              struct peer *peer;
+
+              /* Retrieve peer and set DEFAULT_ORIGINATE flag */
+              peer = listgetdata(iter);
+              /* Only send UPDATE messages to VPNv4 peers */
+              if (peer && peer->status == Established && peer->afc_nego[afi][SAFI_MPLS_VPN])
+                {
+                  peer_default_originate_unset_rd (peer, afi, &vrf->outbound_rd);
+                  ret = 0;
+                }
+            }
+        }
+      return ret;
+    }
+
+  rn = bgp_node_lookup (vrf->route[afi], p);
+  if (!rn || !rn->info)
+    return -1;
+
+  bgp_static_withdraw_safi (vrf->bgp, p, afi, SAFI_MPLS_VPN,
+                            &vrf->outbound_rd, NULL, 0);
+
+  old = rn->info;
+  if (old->ecomm)
+    ecommunity_unintern (&old->ecomm);
+  bgp_static_free (old);
+  rn->info = NULL;
+  bgp_unlock_node (rn);
+  return 0;
 }
 
 /* updates selected bgp_info structure to bgp vrf rib table
@@ -4651,6 +4805,11 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
       bgp_attr_extra_get (&attr)->ecommunity = ecommunity_dup (bgp_static->ecomm);
       attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
     }
+  if (bgp_static->igpnexthop.s_addr)
+    {
+    bgp_attr_extra_get (&attr)->mp_nexthop_global_in = bgp_static->igpnexthop;
+    bgp_attr_extra_get (&attr)->mp_nexthop_len = IPV4_MAX_BYTELEN;
+    }
   /* Apply route-map. */
   if (bgp_static->rmap.name)
     {
@@ -4695,6 +4854,7 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   if (ri)
     {
       if (attrhash_cmp (ri->attr, attr_new) &&
+          labels_equal (ri, bgp_static->labels, bgp_static->nlabels) &&
           !CHECK_FLAG(ri->flags, BGP_INFO_REMOVED))
         {
           bgp_unlock_node (rn);

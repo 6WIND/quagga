@@ -250,6 +250,13 @@ struct bgp_vrf
   uint16_t flag;
 };
 
+struct bgp_api_route
+{
+  struct prefix_ipv4 prefix;
+  struct in_addr nexthop;
+  uint32_t label;
+};
+
 /* BGP peer-group support. */
 struct peer_group
 {
@@ -1070,5 +1077,7 @@ extern void bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_im
 extern void bgp_vrf_clean_tables (struct bgp_vrf *vrf);
 extern void bgp_vrf_rt_import_unset (struct bgp_vrf *vrf);
 extern void bgp_vrf_rt_export_unset (struct bgp_vrf *vrf);
+extern int bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
+extern int bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
 
 #endif /* _QUAGGA_BGPD_H */
