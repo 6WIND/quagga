@@ -26,6 +26,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgp_ecommunity.h"
 #include "prefix.h"
 #include "filter.h"
+#include "vty.h"
 #include "qzc.h"
 
 /* Typedef BGP specific types.  */
