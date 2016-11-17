@@ -415,6 +415,16 @@ void qcapn_BGPAfiSafi_read(struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
       if (tmp) s->af_flags[afi][safi] |=  BGP_CONFIG_DAMPENING;
       else     s->af_flags[afi][safi] &= ~BGP_CONFIG_DAMPENING;
     }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 1));
+      if (tmp) s->af_flags[afi][safi] |=  BGP_CONFIG_ASPATH_MULTIPATH_RELAX;
+      else     s->af_flags[afi][safi] &= ~BGP_CONFIG_ASPATH_MULTIPATH_RELAX;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 0) & (1 << 2));
+      if (tmp) s->af_flags[afi][safi] |=  BGP_CONFIG_MULTIPATH;
+      else     s->af_flags[afi][safi] &= ~BGP_CONFIG_MULTIPATH;
+    }
 }
 
 
@@ -423,6 +433,8 @@ void qcapn_BGPAfiSafi_write(const struct bgp *s, capn_ptr p, afi_t afi, safi_t s
 {
     capn_resolve(&p);
     capn_write1(p, 0, !!(s->af_flags[afi][safi] & BGP_CONFIG_DAMPENING));
+    capn_write1(p, 1, !!(s->af_flags[afi][safi] & BGP_CONFIG_ASPATH_MULTIPATH_RELAX));
+    capn_write1(p, 2, !!(s->af_flags[afi][safi] & BGP_CONFIG_MULTIPATH));
 }
 
 
@@ -435,13 +447,51 @@ void qcapn_BGPAfiSafi_set(struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
       flags = !!(capn_read8(p, 0) & (1 << 0));
       if (flags) bgp_af_flag_set(s, BGP_CONFIG_DAMPENING, afi, safi);
         else bgp_af_flag_unset(s, BGP_CONFIG_DAMPENING, afi, safi);
+      flags = !!(capn_read8(p, 0) & (1 << 1));
+      if (flags)
+      {
+        bgp_af_flag_set(s, BGP_CONFIG_ASPATH_MULTIPATH_RELAX, afi, safi);
+      }
+      else
+      {
+        bgp_af_flag_unset(s, BGP_CONFIG_ASPATH_MULTIPATH_RELAX, afi, safi);
+      }
+    }
+    {
+      u_int16_t flags;
+      flags = !!(capn_read8(p, 0) & (1 << 2));
+      if (flags)
+      {
+        uint8_t max = capn_read8(p, 3);
+        bgp_af_flag_set(s, BGP_CONFIG_MULTIPATH, afi, safi);
+        bgp_maximum_paths_set (s, AFI_IP, SAFI_MPLS_VPN,
+                               BGP_PEER_EBGP, max);
+        bgp_maximum_paths_set (s, AFI_IP, SAFI_MPLS_VPN,
+                               BGP_PEER_IBGP, max);
+        bgp_maximum_paths_set (s, AFI_IP, SAFI_UNICAST,
+                               BGP_PEER_EBGP, max);
+        bgp_maximum_paths_set (s, AFI_IP, SAFI_UNICAST,
+                               BGP_PEER_IBGP, max);
+      }
+      else
+      {
+        bgp_af_flag_unset(s, BGP_CONFIG_MULTIPATH, afi, safi);
+        bgp_maximum_paths_unset (s, AFI_IP, SAFI_MPLS_VPN,
+                                 BGP_PEER_EBGP);
+        bgp_maximum_paths_unset (s, AFI_IP, SAFI_MPLS_VPN,
+                                 BGP_PEER_IBGP);
+        bgp_maximum_paths_unset (s, AFI_IP, SAFI_UNICAST,
+                                 BGP_PEER_EBGP);
+        bgp_maximum_paths_unset (s, AFI_IP, SAFI_UNICAST,
+                                 BGP_PEER_IBGP);
+      }
     }
 }
 
 
 capn_ptr qcapn_new_BGPAfiSafi(struct capn_segment *s)
 {
-    return capn_new_struct(s, 8, 0);
+    return capn_new_struct(s, 16, 0);
 }
 
 
@@ -936,7 +986,7 @@ void qcapn_BGPVRF_read(struct bgp_vrf *s, capn_ptr p)
     memcpy(&s->outbound_rd.val, &tmp, 8);
     s->outbound_rd.family = AF_UNSPEC;
     s->outbound_rd.prefixlen = 64;
-    
+    s->max_mpath = capn_read32(p, 8);
     {
         capn_ptr tmp_p = capn_getp(p, 0, 1);
         capn_list64 listptr = { .p = capn_getp(tmp_p, 0, 1) };
@@ -969,7 +1019,7 @@ void qcapn_BGPVRF_write(const struct bgp_vrf *s, capn_ptr p)
     memcpy(&tmp,&(s->outbound_rd.val), 8);
     capn_resolve(&p);
     capn_write64(p, 0, tmp);
-    
+    capn_write32(p, 8, s->max_mpath);
     {
         capn_ptr tempptr = capn_new_struct(p.seg, 0, 1);
         size_t size = s->rt_import ? s->rt_import->size : 0;
@@ -996,6 +1046,9 @@ void qcapn_BGPVRF_write(const struct bgp_vrf *s, capn_ptr p)
 void qcapn_BGPVRF_set(struct bgp_vrf *s, capn_ptr p)
 {
     capn_resolve(&p);
+    {
+      s->max_mpath = capn_read32(p, 8);
+    }
     {
       /* MISSING: outbound_rd */
     }
@@ -1048,7 +1101,7 @@ struct prefix_rd qcapn_BGPVRF_get_outbound_rd(capn_ptr p)
 
 capn_ptr qcapn_new_BGPVRF(struct capn_segment *s)
 {
-    return capn_new_struct(s, 8, 2);
+    return capn_new_struct(s, 12, 2);
 }
 
 

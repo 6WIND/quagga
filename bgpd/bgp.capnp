@@ -163,6 +163,7 @@ struct BGPVRF $ctype("struct bgp_vrf") $cgen
 	outboundRd		 @0 :UInt64 $cgetfield;
 	rtImport		 @1 :ExtCommunityList;
 	rtExport		 @2 :ExtCommunityList;
+	max_mpath		 @3 :UInt32 $cgetfield;
 }
 
 struct BGPVRFRoute $ctype("struct bgp_api_route") $cgen
