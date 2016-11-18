@@ -88,7 +88,7 @@ struct BGP $ctype("struct bgp") $cgen
 	defaultHoldtime		@23 :UInt32 $caltname("holdtime");
 	defaultKeepalive	@24 :UInt32 $caltname("keepalive");
 
-	restartTime		@25 :UInt32;  # XXX: can't be set in CLI?
+	restartTime		@25 :UInt32;
 	stalepathTime		@26 :UInt32 $csetwrite;
 
 	notifyZMQUrl		@27 :Text;
