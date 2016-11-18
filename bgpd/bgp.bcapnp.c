@@ -186,7 +186,7 @@ void qcapn_BGP_set(struct bgp *s, capn_ptr p)
       
     }
     {
-      /* MISSING: restart_time */
+      s->restart_time = capn_read32(p, 28);
     }
     {
       const char * notify_zmq_url;
@@ -198,6 +198,7 @@ void qcapn_BGP_set(struct bgp *s, capn_ptr p)
     s->distance_ibgp = capn_read8(p, 7);
     s->distance_local = capn_read8(p, 8);
     s->stalepath_time = capn_read32(p, 28);
+    s->restart_time = capn_read32(p, 24);
 }
 
 
