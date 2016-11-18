@@ -684,6 +684,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     inst.default_holdtime = holdTime;
     inst.default_keepalive= keepAliveTime;
     inst.stalepath_time = stalepathTime;
+    inst.restart_time = 900;
     if(stalepathTime)
       bgp_flag_set(&inst, BGP_FLAG_GRACEFUL_RESTART);
     else
