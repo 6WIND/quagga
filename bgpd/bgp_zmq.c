@@ -102,4 +102,13 @@ bgp_notify_route (struct bgp *bgp, struct bgp_event_vrf *update)
 void
 bgp_notify_shut (struct bgp *bgp, struct bgp_event_shut *shut)
 {
+  struct bgp_event_vrf msg;
+
+  /* encapsulate message in bgp_event_vrf structure */
+  memset(&msg, 0, sizeof(struct bgp_event_vrf));
+  msg.announce = BGP_EVENT_SHUT;
+  msg.nexthop.s_addr = shut->peer.s_addr;
+  msg.label = shut->type;
+  msg.prefix.prefix.s_addr = shut->subtype;
+  bgp_notify_send (bgp, &msg);
 }
