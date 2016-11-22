@@ -4228,8 +4228,6 @@ cmd_init (int terminal)
       install_element (VIEW_NODE, &echo_cmd);
 
       install_element (RESTRICTED_NODE, &config_enable_cmd);
-      install_element (RESTRICTED_NODE, &config_terminal_length_cmd);
-      install_element (RESTRICTED_NODE, &config_terminal_no_length_cmd);
       install_element (RESTRICTED_NODE, &show_commandtree_cmd);
       install_element (RESTRICTED_NODE, &echo_cmd);
     }

@@ -5526,5 +5526,4 @@ zebra_vty_init (void)
   install_element (VIEW_NODE, &show_ipv6_mroute_vrf_cmd);
 
   install_element (VIEW_NODE, &show_ipv6_mroute_vrf_all_cmd);
-  install_element (ENABLE_NODE, &show_ipv6_mroute_vrf_all_cmd);
 }
