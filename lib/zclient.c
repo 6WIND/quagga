@@ -181,7 +181,8 @@ zclient_socket(void)
   ret = connect (sock, (struct sockaddr *) &serv, sizeof (serv));
   if (ret < 0)
     {
-      zlog_warn ("%s connect failure: %d", __PRETTY_FUNCTION__, errno);
+      if (zclient_debug)
+        zlog_debug ("%s connect failure: %d", __PRETTY_FUNCTION__, errno);
       close (sock);
       return -1;
     }
@@ -217,7 +218,8 @@ zclient_socket_un (const char *path)
   ret = connect (sock, (struct sockaddr *) &addr, len);
   if (ret < 0)
     {
-      zlog_warn ("%s connect failure: %d", __PRETTY_FUNCTION__, errno);
+      if (zclient_debug)
+        zlog_debug ("%s connect failure: %d", __PRETTY_FUNCTION__, errno);
       close (sock);
       return -1;
     }
