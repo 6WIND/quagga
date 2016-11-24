@@ -105,7 +105,7 @@ qthrift_accept (struct thread *thread)
   socket = THRIFT_SOCKET (transport);
   peer->fd = socket->sd;
   qthrift_update_sock_send_buffer_size (socket->sd);
-  if(IS_QTHRIFT_DEBUG)
+  if(IS_QTHRIFT_DEBUG_NETWORK)
     zlog_info("qthriftd accept : new connection (fd %d)", socket->sd);
   //set_nonblocking (socket->sd);
   peer->peer = XCALLOC(MTYPE_QTHRIFT, \
@@ -133,7 +133,7 @@ qthrift_read_packet (struct thread *thread)
                                      &error);
   if (error != NULL)
     {
-      if(IS_QTHRIFT_DEBUG)
+      if(IS_QTHRIFT_DEBUG_NETWORK)
         zlog_info("qthriftd_read_packet: close connection (fd %d)", peer->fd);
       g_clear_error (&error);
       qthrift_vpnservice_terminate_client(peer->peer); 
