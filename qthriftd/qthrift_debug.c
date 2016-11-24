@@ -179,6 +179,8 @@ void
 qthrift_debug_init (void)
 {
   qthrift_debug = 0;
+  qthrift_debug |=QTHRIFT_DEBUG;
+  qthrift_debug |=QTHRIFT_DEBUG_NOTIFICATION;
 
   install_node (&debug_node, config_write_debug);
   install_element (ENABLE_NODE, &show_debugging_qthrift_cmd);
