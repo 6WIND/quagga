@@ -39,6 +39,8 @@ DEFUN (show_debugging_qthrift,
     vty_out (vty, "  QTHRIFT debugging is on%s", VTY_NEWLINE);
   if (IS_QTHRIFT_DEBUG_NOTIFICATION)
     vty_out (vty, "  QTHRIFT debugging notification is on%s", VTY_NEWLINE);
+  if (IS_QTHRIFT_DEBUG_NETWORK)
+    vty_out (vty, "  QTHRIFT debugging network is on%s", VTY_NEWLINE);
   if (IS_QTHRIFT_DEBUG_CACHE)
     vty_out (vty, "  THRIFT debugging cache is on%s", VTY_NEWLINE);
   return CMD_SUCCESS;
@@ -87,6 +89,29 @@ DEFUN (no_debug_qthrift_notification,
        "THRIFT\n")
 {
   qthrift_debug &= ~QTHRIFT_DEBUG_NOTIFICATION;
+  return CMD_SUCCESS;
+}
+
+DEFUN (debug_qthrift_network,
+       debug_qthrift_network_cmd,
+       "debug qthrift network",
+       DEBUG_STR
+       QTHRIFT_STR
+       "THRIFT\n")
+{
+  qthrift_debug |= QTHRIFT_DEBUG_NETWORK;
+  return CMD_WARNING;
+}
+
+DEFUN (no_debug_qthrift_network,
+       no_debug_qthrift_network_cmd,
+       "no debug qthrift network",
+       NO_STR
+       DEBUG_STR
+       QTHRIFT_STR
+       "THRIFT\n")
+{
+  qthrift_debug &= ~QTHRIFT_DEBUG_NETWORK;
   return CMD_SUCCESS;
 }
 
