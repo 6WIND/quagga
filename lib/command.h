@@ -25,7 +25,7 @@
 
 #include "vector.h"
 #include "vty.h"
-#include "lib/route_types.h"
+#include "route_types.h"
 #include "hash.h"
 
 /* Host configuration variable */
