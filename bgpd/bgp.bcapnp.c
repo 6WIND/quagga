@@ -530,10 +530,22 @@ void qcapn_BGPPeer_set(struct peer *s, capn_ptr p)
       /* MISSING: host */
     }
     {
-      const char * desc;
-      { capn_text tp = capn_get_text(p, 1, capn_val0); desc = tp.str; }
-      if (desc) { peer_description_set(s, desc); } else { peer_description_unset(s); }
-      
+      const char * desc = NULL;
+      {
+        capn_text tp = capn_get_text(p, 1, capn_val0);
+        if (tp.len)
+          {
+            desc = tp.str;
+          }
+        if (desc)
+          {
+            peer_description_set(s, desc);
+          }
+        else
+          {
+            peer_description_unset(s);
+          }
+      }
     }
     {
       unsigned port;
