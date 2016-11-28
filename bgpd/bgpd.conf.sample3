@@ -1,0 +1,7 @@
+hostname bgpd
+password zebra
+log stdout
+service advanced-vty
+
+line vty
+ exec-timeout 0 0
