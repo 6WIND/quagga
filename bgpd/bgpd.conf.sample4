@@ -1,0 +1,9 @@
+hostname bgpd
+password zebra
+service advanced-vty
+log stdout
+line vty
+ exec-timeout 0 0
+debug bgp
+debug bgp updates
+debug bgp events
