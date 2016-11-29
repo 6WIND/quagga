@@ -186,7 +186,7 @@ void qcapn_BGP_set(struct bgp *s, capn_ptr p)
       
     }
     {
-      s->restart_time = capn_read32(p, 28);
+      s->restart_time = capn_read32(p, 24);
     }
     {
       const char * notify_zmq_url;
