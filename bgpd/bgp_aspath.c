@@ -350,7 +350,7 @@ aspath_unintern (struct aspath **aspath)
     {
       /* This aspath must exist in aspath hash table. */
       ret = hash_release (ashash, asp);
-      assert (ret != NULL);
+      //assert (ret != NULL);
       aspath_free (asp);
       *aspath = NULL;
     }
