@@ -433,23 +433,11 @@ zclient_start (struct zclient *zclient)
   if (zclient->t_connect)
     return 0;
 
-  /*
-   * If we fail to connect to the socket on initialization,
-   * Let's wait a second and see if we can reconnect.
-   * Cause if we don't connect, we never attempt to
-   * reconnect.  On startup if zebra is slow we
-   * can get into this situation.
-   */
-  while (zclient_socket_connect(zclient) < 0 && zclient->fail < 5)
+  if (zclient_socket_connect(zclient) < 0)
     {
       if (zclient_debug)
 	zlog_debug ("zclient connection fail");
       zclient->fail++;
-      sleep (1);
-    }
-
-  if (zclient->sock < 0)
-    {
       zclient_event (ZCLIENT_CONNECT, zclient);
       return -1;
     }
