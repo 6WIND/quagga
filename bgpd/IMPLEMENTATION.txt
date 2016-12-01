@@ -135,6 +135,9 @@ bgpd.h
   struct bgp_filter: distribute, prefix, aslist, route_maps
   struct peer: neighbor structure (very rich/complex)
   struct bgp_nlri: reference to wire format
+  struct bgp_vrf
+  struct bgp_event_shut, struct bgp_event_vrf
+  struct tbliter_v4, bgp_api_route : shared structures to handle route entries with capnprotox
   #define of protocol constants
     attribute type codes
   fsm states/events
@@ -144,6 +147,21 @@ bgpd.c
   instance/peer allocation
   configuration
   initialization/termination
+
+bgp_zmq.c
+  handle emission of notifications via capnproto interface
+
+bgp.capnp
+  capnproto schema language file for bgp API.
+  Currently not used to generate c files
+
+bgp.bcapnp.[ch]
+  Handler routines to read/write capnproto structures.
+  Handler routines to set bgp structures.
+
+bgp.ndef.[hi,i]
+  Quagga BGP zeromessagequeues to handle actions on capnproto structures.
+  The actions can be set/get/delete
 
 * DATA STRUCTURE SIZES
 
