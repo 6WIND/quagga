@@ -1528,6 +1528,9 @@ bgp_process_announce_selected (struct peer *peer, struct bgp_info *selected,
 void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
 {
   afi_t afi;
+
+  if (vrf->rib == NULL || vrf->route == NULL)
+    return;
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     {
       struct bgp_info *ri, *ri_next;

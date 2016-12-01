@@ -31,6 +31,8 @@ typedef u_int32_t as_t;
 typedef u_int16_t as16_t; /* we may still encounter 16 Bit asnums */
 typedef u_int16_t bgp_size_t;
 
+struct bgp_node;
+
 /* BGP router distinguisher value.  */
 #define BGP_RD_SIZE                8
 
@@ -208,6 +210,7 @@ struct bgp_vrf
 {
   struct bgp *bgp;
 
+  char *name;
   /* RD used for route advertisements */
   struct prefix_rd outbound_rd;
 
@@ -220,6 +223,10 @@ struct bgp_vrf
 
   /* Static route configuration.  */
   struct bgp_table *route[AFI_MAX];
+
+  /* internal flag */
+#define BGP_VRF_RD_UNSET 1
+  uint16_t flag;
 
 };
 
@@ -1033,11 +1040,16 @@ extern int peer_ttl_security_hops_set (struct peer *, int);
 extern int peer_ttl_security_hops_unset (struct peer *);
 
 extern void bgp_scan_finish (void);
-extern struct bgp_vrf *bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd);
+extern void bgp_vrf_delete_rd (struct bgp_vrf *vrf);
+extern struct bgp_vrf *bgp_vrf_update_rd (struct bgp *bgp, struct bgp_vrf *vrf, struct prefix_rd *outbound_rd);
 extern struct bgp_vrf *bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd);
+extern struct bgp_vrf *bgp_vrf_lookup_per_name (struct bgp *bgp, const char *name, int create);
+extern struct bgp_vrf *bgp_vrf_lookup_per_rn (struct bgp *bgp, int afi, struct bgp_node *vrf_rn);
 extern void bgp_vrf_delete (struct bgp_vrf *vrf);
 extern void bgp_vrf_rt_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export);
 extern void bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import);
 extern void bgp_vrf_clean_tables (struct bgp_vrf *vrf);
+extern void bgp_vrf_rt_import_unset (struct bgp_vrf *vrf);
+extern void bgp_vrf_rt_export_unset (struct bgp_vrf *vrf);
 
 #endif /* _QUAGGA_BGPD_H */

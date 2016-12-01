@@ -9893,14 +9893,60 @@ bgp_config_write_redistribute (struct vty *vty, struct bgp *bgp, afi_t afi,
 
 DEFUN (bgp_vrf,
        bgp_vrf_cmd,
-       "vrf rd WORD",
-       "BGP VPN VRF\n"
-       "Route Distinguisher\n"
-       "Route Distinguisher\n"
+       "vrf WORD",
+       "BGP VRF\n"
+       "VRF Name\n"
 )
 {
   struct bgp *bgp = vty->index;
   struct bgp_vrf *vrf;
+  if ( (vrf = bgp_vrf_lookup_per_name (bgp, argv[0], 1)) == NULL)
+    return CMD_ERR_NO_MATCH;
+  vty->index_sub = vrf;
+  vty->node = BGP_VRF_NODE;
+
+  return CMD_SUCCESS;
+}
+DEFUN (no_bgp_vrf,
+       no_bgp_vrf_cmd,
+       "no vrf WORD",
+       NO_STR
+       "BGP VRF\n"
+       "VRF Name\n"
+)
+{
+  struct bgp *bgp = vty->index;
+  struct bgp_vrf *vrf;
+
+  vrf = bgp_vrf_lookup_per_name (bgp, argv[0], 0);
+  if (! vrf)
+    {
+      vty_out (vty, "%% No VRF with name '%s'%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  bgp_vrf_delete (vrf);
+  return CMD_SUCCESS;
+}
+
+DEFUN (exit_bgp_vrf,
+       exit_bgp_vrf_cmd,
+       "exit-bgp-vrf",
+       "Exit from BGP vrf configuration mode\n")
+{
+  if (vty->node == BGP_VRF_NODE)
+    vty->node = BGP_NODE;
+  return CMD_SUCCESS;
+}
+
+DEFUN (bgp_vrf_rd,
+       bgp_vrf_rd_cmd,
+       "rd WORD",
+       "Route Distinguisher\n"
+       "Route Distinguisher Name\n"
+)
+{
+  struct bgp *bgp = vty->index;
+  struct bgp_vrf *vrf = vty->index_sub;
   struct prefix_rd prd;
 
   if (! str2prefix_rd (argv[0], &prd))
@@ -9908,42 +9954,25 @@ DEFUN (bgp_vrf,
       vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
       return CMD_WARNING;
     }
-
-  vrf = bgp_vrf_lookup (bgp, &prd);
-  if (vrf)
-    {
-      vty_out (vty, "%% VRF with RD '%s' already exists%s", argv[0], VTY_NEWLINE);
-      return CMD_WARNING;
-    }
-
-  bgp_vrf_create (bgp, &prd);
+  bgp_vrf_update_rd (bgp, vrf, &prd);
   return CMD_SUCCESS;
 }
 
-DEFUN (bgp_vrf_exports,
-       bgp_vrf_exports_cmd,
-       "vrf rd WORD exports .LINE",
-       "BGP VPN VRF\n"
-       "Route Distinguisher\n"
-       "Route Distinguisher\n"
+DEFUN (bgp_vrf_rt_export,
+       bgp_vrf_rt_export_cmd,
+       "rt export .LINE",
+       "Route Target\n"
        "Export RT values\n"
        "Export RT values\n"
 )
 {
-  struct bgp *bgp = vty->index;
-  struct bgp_vrf *vrf;
-  struct prefix_rd prd;
+  struct bgp_vrf *vrf = vty->index_sub;
   struct ecommunity *ecom = NULL;
   int fail = 0, i;
   char *rts = NULL, *rts_ptr;
 
-  if (! str2prefix_rd (argv[0], &prd))
-    {
-      vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
-      fail++;
-    }
   /* forge export list */
-  i = 1;
+  i = 0;
   rts = XCALLOC(MTYPE_TMP,2048);
   rts_ptr = rts;
   while(i < argc)
@@ -9962,14 +9991,6 @@ DEFUN (bgp_vrf_exports,
     XFREE (MTYPE_TMP, rts);
   if (fail)
     return CMD_WARNING;
-
-  vrf = bgp_vrf_lookup (bgp, &prd);
-  if (! vrf)
-    {
-      ecommunity_free (&ecom);
-      vty_out (vty, "%% No VRF with RD '%s'%s", argv[0], VTY_NEWLINE);
-      return CMD_WARNING;
-    }
 
   ecom = ecommunity_intern (ecom);
   bgp_vrf_rt_export_set (vrf, ecom);
@@ -9977,30 +9998,21 @@ DEFUN (bgp_vrf_exports,
   return CMD_SUCCESS;
 }
 
-DEFUN (bgp_vrf_imports,
-       bgp_vrf_imports_cmd,
-       "vrf rd WORD imports .LINE",
-       "BGP VPN VRF\n"
-       "Route Distinguisher\n"
-       "Route Distinguisher\n"
+DEFUN (bgp_vrf_rt_import,
+       bgp_vrf_rt_import_cmd,
+       "rt import .LINE",
+       "Route Target\n"
        "Import RT values\n"
        "Import RT values\n"
 )
 {
-  struct bgp *bgp = vty->index;
-  struct bgp_vrf *vrf;
-  struct prefix_rd prd;
+  struct bgp_vrf *vrf = vty->index_sub;
   struct ecommunity *ecom = NULL;
   int fail = 0, i;
   char *rts = NULL, *rts_ptr;
 
-  if (! str2prefix_rd (argv[0], &prd))
-    {
-      vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
-      fail++;
-    }
   /* forge export list */
-  i = 1;
+  i = 0;
   rts = XCALLOC(MTYPE_TMP,2048);
   rts_ptr = rts;
   while(i < argc)
@@ -10020,46 +10032,111 @@ DEFUN (bgp_vrf_imports,
   if (fail)
     return CMD_WARNING;
 
-  vrf = bgp_vrf_lookup (bgp, &prd);
-  if (! vrf)
-    {
-      ecommunity_free (&ecom);
-      vty_out (vty, "%% No VRF with RD '%s'%s", argv[0], VTY_NEWLINE);
-      return CMD_WARNING;
-    }
-
   ecom = ecommunity_intern (ecom);
   bgp_vrf_rt_import_set (vrf, ecom);
   ecommunity_unintern (&ecom);
   return CMD_SUCCESS;
 }
 
-DEFUN (no_bgp_vrf,
-       no_bgp_vrf_cmd,
-       "no vrf rd WORD",
+DEFUN (bgp_vrf_rt_both,
+       bgp_vrf_rt_both_cmd,
+       "rt both .LINE",
+       "Route Target\n"
+       "Import and Export RT values\n"
+       "Import and Export RT values\n"
+)
+{
+  struct bgp_vrf *vrf = vty->index_sub;
+  struct ecommunity *ecom = NULL, *ecom1;
+  int fail = 0, i;
+  char *rts = NULL, *rts_ptr;
+
+  /* forge export list */
+  i = 0;
+  rts = XCALLOC(MTYPE_TMP,2048);
+  rts_ptr = rts;
+  while(i < argc)
+    {
+      rts_ptr += sprintf(rts_ptr, "rt %s ",argv[i]);
+      i++;
+    }
+  /* convert list of ecoms string into ecom struct */
+  ecom = ecommunity_str2com (rts, ECOMMUNITY_ROUTE_TARGET, 1);
+  if (! ecom)
+    {
+      vty_out (vty, "%% Invalid RT '%s'%s", argv[1], VTY_NEWLINE);
+      fail++;
+    }
+  if (rts)
+    XFREE (MTYPE_TMP, rts);
+  if (fail)
+    return CMD_WARNING;
+
+  ecom1 = ecommunity_intern (ecom);
+  bgp_vrf_rt_import_set (vrf, ecom1);
+  ecommunity_unintern (&ecom1);
+
+  ecom1 = ecommunity_intern (ecom);
+  bgp_vrf_rt_export_set (vrf, ecom1);
+  ecommunity_unintern (&ecom1);
+
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_vrf_rt_import,
+       no_bgp_vrf_rt_import_cmd,
+       "no rt import",
        NO_STR
-       "BGP VPN VRF\n"
-       "Route Distinguisher\n"
+       "Route Target\n"
+       "Import values\n"
+)
+{
+  struct bgp_vrf *vrf = vty->index_sub;
+
+  bgp_vrf_rt_import_unset (vrf);
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_vrf_rt_export,
+       no_bgp_vrf_rt_export_cmd,
+       "no rt export",
+       NO_STR
+       "Route Target\n"
+       "Export RT values\n"
+)
+{
+  struct bgp_vrf *vrf = vty->index_sub;
+
+  bgp_vrf_rt_export_unset (vrf);
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_vrf_rt_both,
+       no_bgp_vrf_rt_both_cmd,
+       "no rt both",
+       NO_STR
+       "Route Target\n"
+       "Import and Export RT values\n"
+)
+{
+  struct bgp_vrf *vrf = vty->index_sub;
+
+  bgp_vrf_rt_export_unset (vrf);
+  bgp_vrf_rt_import_unset (vrf);
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_vrf_rd,
+       no_bgp_vrf_rd_cmd,
+       "no rd WORD",
+       NO_STR
+       "BGP Route Distinguisher\n"
        "Route Distinguisher\n"
 )
 {
-  struct bgp *bgp = vty->index;
-  struct bgp_vrf *vrf;
-  struct prefix_rd prd;
+  struct bgp_vrf *vrf = vty->index_sub;
 
-  if (! str2prefix_rd (argv[0], &prd))
-    {
-      vty_out (vty, "%% Invalid RD '%s'%s", argv[0], VTY_NEWLINE);
-      return CMD_WARNING;
-    }
-
-  vrf = bgp_vrf_lookup (bgp, &prd);
-  if (! vrf)
-    {
-      vty_out (vty, "%% No VRF with RD '%s'%s", argv[0], VTY_NEWLINE);
-      return CMD_WARNING;
-    }
-  bgp_vrf_delete (vrf);
+  bgp_vrf_delete_rd (vrf);
   return CMD_SUCCESS;
 }
 
@@ -10127,6 +10204,14 @@ static struct cmd_node bgp_encapv6_node =
   1
 };
 
+/* VRF node. */
+static struct cmd_node bgp_vrf_node =
+{
+  BGP_VRF_NODE,
+  "%s(bgp-vrf)# ",
+  1
+};
+
 static void community_list_vty (void);
 
 void
@@ -10142,6 +10227,7 @@ bgp_vty_init (void)
   install_node (&bgp_vpnv6_node, NULL);
   install_node (&bgp_encap_node, NULL);
   install_node (&bgp_encapv6_node, NULL);
+  install_node (&bgp_vrf_node, NULL);
 
   /* Install default VTY commands to new nodes.  */
   install_default (BGP_NODE);
@@ -10153,11 +10239,19 @@ bgp_vty_init (void)
   install_default (BGP_VPNV6_NODE);
   install_default (BGP_ENCAP_NODE);
   install_default (BGP_ENCAPV6_NODE);
+  install_default (BGP_VRF_NODE);
   
   install_element (BGP_NODE, &bgp_vrf_cmd);
-  install_element (BGP_NODE, &bgp_vrf_exports_cmd);
-  install_element (BGP_NODE, &bgp_vrf_imports_cmd);
   install_element (BGP_NODE, &no_bgp_vrf_cmd);
+  install_element (BGP_VRF_NODE, &bgp_vrf_rd_cmd);
+  install_element (BGP_VRF_NODE, &no_bgp_vrf_rd_cmd);
+  install_element (BGP_VRF_NODE, &bgp_vrf_rt_export_cmd);
+  install_element (BGP_VRF_NODE, &bgp_vrf_rt_import_cmd);
+  install_element (BGP_VRF_NODE, &bgp_vrf_rt_both_cmd);
+  install_element (BGP_VRF_NODE, &no_bgp_vrf_rt_import_cmd);
+  install_element (BGP_VRF_NODE, &no_bgp_vrf_rt_export_cmd);
+  install_element (BGP_VRF_NODE, &no_bgp_vrf_rt_both_cmd);
+  install_element (BGP_VRF_NODE, &exit_bgp_vrf_cmd);
 
   /* "bgp multiple-instance" commands. */
   install_element (CONFIG_NODE, &bgp_multiple_instance_cmd);
