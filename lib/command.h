@@ -90,6 +90,7 @@ enum node_type
   BGP_IPV6M_NODE,		/* BGP IPv6 multicast address family. */
   BGP_ENCAP_NODE,		/* BGP ENCAP SAFI */
   BGP_ENCAPV6_NODE,		/* BGP ENCAP SAFI */
+  BGP_VRF_NODE,			/* BGP VRF node. */
   OSPF_NODE,			/* OSPF protocol mode */
   OSPF6_NODE,			/* OSPF protocol for IPv6 mode */
   ISIS_NODE,			/* ISIS protocol mode */
