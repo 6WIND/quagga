@@ -2091,28 +2091,30 @@ bgp_rt_hash_dealloc (struct bgp_rt_sub *rt_sub)
 }
 
 struct bgp_vrf *
-bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd)
+bgp_vrf_lookup_per_name (struct bgp *bgp, const char *name, int create)
 {
+  afi_t afi;
   struct listnode *node;
   struct bgp_vrf *vrf;
+  unsigned int len;
 
-  for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
-    if (!memcmp (outbound_rd->val, vrf->outbound_rd.val, 8))
-      return vrf;
-  return NULL;
-}
-
-struct bgp_vrf *
-bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
-{
-  struct bgp_vrf *vrf;
-  afi_t afi;
-
-  if ( (vrf = XCALLOC (MTYPE_BGP_VRF, sizeof (struct bgp_vrf))) == NULL)
+  if (!name)
     return NULL;
-
+  len = strlen(name);
+  for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+    {
+      if (strlen (vrf->name) != len)
+        continue;
+      if (0 == strcmp (vrf->name, name))
+        break;
+    }
+  if (vrf || create == 0)
+    return vrf;
+  if ((vrf = XCALLOC (MTYPE_BGP_VRF, sizeof (struct bgp_vrf))) == NULL)
+    return NULL;
   vrf->bgp = bgp;
-  vrf->outbound_rd = *outbound_rd;
+  vrf->name = strdup (name);
+  vrf->flag |= BGP_VRF_RD_UNSET;
 
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     {
@@ -2126,11 +2128,61 @@ bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
   return vrf;
 }
 
+struct bgp_vrf *
+bgp_vrf_lookup_per_rn (struct bgp *bgp, int afi, struct bgp_node *vrf_rn)
+{
+  struct listnode *node;
+  struct bgp_vrf *vrf;
+
+  if(bgp_node_table (vrf_rn)->type != BGP_TABLE_VRF)
+    return NULL;
+  for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+    if(vrf->rib[afi] == bgp_node_table (vrf_rn))
+      {
+        return vrf;
+      }
+  return NULL;
+}
+
+struct bgp_vrf *
+bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd)
+{
+  struct listnode *node;
+  struct bgp_vrf *vrf;
+
+  for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+    if (!memcmp (outbound_rd->val, vrf->outbound_rd.val, 8))
+      return vrf;
+  return NULL;
+}
+
+struct bgp_vrf *
+bgp_vrf_update_rd (struct bgp *bgp, struct bgp_vrf *vrf, struct prefix_rd *outbound_rd)
+{
+  if (!vrf)
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN];
+      prefix_rd2str (outbound_rd, vrf_rd_str, sizeof (vrf_rd_str));
+      if ( (vrf = bgp_vrf_lookup_per_name (bgp, vrf_rd_str, 1)) == NULL)
+        return NULL;
+    }
+  vrf->flag &= ~BGP_VRF_RD_UNSET;
+  vrf->outbound_rd = *outbound_rd;
+  return vrf;
+}
+
 static struct ecommunity * ecommunity_reintern (struct ecommunity *ecom)
 {
   assert (ecom->refcnt > 0);
   ecom->refcnt++;
   return ecom;
+}
+
+void
+bgp_vrf_rt_export_unset (struct bgp_vrf *vrf)
+{
+  if (vrf->rt_export)
+    ecommunity_unintern (&vrf->rt_export);
 }
 
 void
@@ -2142,7 +2194,7 @@ bgp_vrf_rt_export_set (struct bgp_vrf *vrf, struct ecommunity *rt_export)
   vrf->rt_export = ecommunity_reintern (rt_export);
 }
 
-static void
+void
 bgp_vrf_rt_import_unset (struct bgp_vrf *vrf)
 {
   size_t i;
@@ -2191,6 +2243,28 @@ bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import)
     bgp_vrf_apply_new_imports (vrf, afi);
 }
 
+/* delete RD <> command as well as RD export/import 
+ * and RIB table associated
+ */
+void
+bgp_vrf_delete_rd (struct bgp_vrf *vrf)
+{
+  char vrf_rd_str[RD_ADDRSTRLEN];
+
+  if (!vrf)
+    return;
+
+  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+  zlog_info ("deleting rd %s", vrf_rd_str);
+
+  bgp_vrf_clean_tables (vrf);
+
+  bgp_vrf_rt_import_unset (vrf);
+  if (vrf->rt_export)
+    ecommunity_unintern (&vrf->rt_export);
+  return;
+}
+
 static void
 bgp_vrf_delete_int (void *arg)
 {
@@ -2200,12 +2274,10 @@ bgp_vrf_delete_int (void *arg)
   prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
   zlog_info ("deleting vrf %s", vrf_rd_str);
 
-  bgp_vrf_clean_tables (vrf);
+  bgp_vrf_delete_rd (vrf);
 
-  bgp_vrf_rt_import_unset (vrf);
-  if (vrf->rt_export)
-    ecommunity_unintern (&vrf->rt_export);
-
+  if (vrf->name)
+    free (vrf->name);
   XFREE (MTYPE_BGP_VRF, vrf);
 }
 
@@ -5790,14 +5862,19 @@ bgp_config_write (struct vty *vty)
         char *str_p, *str2_p;
         for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
           {
-            str_p = prefix_rd2str(&(vrf->outbound_rd), rdstr, RD_ADDRSTRLEN);
-            vty_out(vty, " vrf rd %s%s", str_p == NULL?"<err>":str_p, VTY_NEWLINE);
+            vty_out(vty, " vrf %s%s", vrf->name, VTY_NEWLINE);
+            /* an RD has been configured */
+            if (!(vrf->flag & BGP_VRF_RD_UNSET))
+              {
+                str_p = prefix_rd2str(&(vrf->outbound_rd), rdstr, RD_ADDRSTRLEN);
+                vty_out(vty, "  rd %s%s", str_p == NULL?"<err>":str_p, VTY_NEWLINE);
+              }
             if(vrf->rt_import)
               {
                 str2_p = ecommunity_ecom2str (vrf->rt_import, ECOMMUNITY_FORMAT_ROUTE_MAP);
                 if(str2_p)
                   {
-                    vty_out(vty, " vrf rd %s import %s%s", str_p == NULL?"<err>":str_p, str2_p, VTY_NEWLINE);
+                    vty_out(vty, "  rt import %s%s", str2_p, VTY_NEWLINE);
                     XFREE (MTYPE_ECOMMUNITY_STR, str2_p);
                   }
               }
@@ -5806,10 +5883,11 @@ bgp_config_write (struct vty *vty)
                 str2_p = ecommunity_ecom2str (vrf->rt_export, ECOMMUNITY_FORMAT_ROUTE_MAP);
                 if(str2_p)
                   {
-                    vty_out(vty, " vrf rd %s export %s%s", str_p == NULL?"<err>":str_p, str2_p, VTY_NEWLINE);
+                    vty_out(vty, "  rt export %s%s", str2_p, VTY_NEWLINE);
                     XFREE (MTYPE_ECOMMUNITY_STR, str2_p);
                   }
               }
+            vty_out (vty, " exit%s", VTY_NEWLINE);
           }
       }
       /* maximum-paths */
