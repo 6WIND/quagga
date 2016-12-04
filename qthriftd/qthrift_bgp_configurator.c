@@ -1693,6 +1693,59 @@ gboolean
 instance_bgp_configurator_handler_set_log_config (BgpConfiguratorIf *iface, gint32* _return, const gchar * logFileName,
                                                   const gchar * logLevel, GError **error)
 {
+  struct capn rc;
+  struct capn_segment *cs;
+  struct bgp inst;
+  struct qthrift_vpnservice *ctxt = NULL;
+  struct QZCGetRep *grep;
+  struct capn_ptr bgp;
+
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+  /* get bgp_master configuration */
+  grep = qzcclient_getelem (ctxt->qzc_sock, &bgp_inst_nid, 1, NULL, NULL, NULL, NULL);
+  if(grep == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  memset(&inst, 0, sizeof(struct bgp));
+  qcapn_BGP_read(&inst, grep->data);
+  qzcclient_qzcgetrep_free( grep);
+  /* update bgp configuration with logLevel and logText */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  bgp = qcapn_new_BGP(cs);
+  /* set default stalepath time */
+  if (logFileName == NULL)
+    {
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  if (inst.logLevel)
+    free ( inst.logLevel);
+  if (inst.logFile)
+    free ( inst.logFile);
+  if(logLevel)
+    inst.logLevel = strdup (logLevel);
+  else
+    inst.logLevel = NULL;
+  if(logFileName)
+    inst.logFile = strdup (logFileName);
+  qcapn_BGP_write(&inst, bgp);
+  qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 1, \
+                     &bgp, &bgp_datatype_bgp, NULL, NULL);
+  if(IS_QTHRIFT_DEBUG)
+    zlog_debug ("setLogConfig(%s, %s) OK", logFileName, logLevel==NULL?logLevel:"none");
+  capn_free(&rc);
+  if (inst.logLevel)
+    free ( inst.logLevel);
+  if (inst.logFile)
+    free ( inst.logFile);
   return TRUE;
 }
 
@@ -1750,6 +1803,10 @@ instance_bgp_configurator_handler_enable_graceful_restart (BgpConfiguratorIf *if
   qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 1, \
                      &bgp, &bgp_datatype_bgp, NULL, NULL);
   capn_free(&rc);
+  if (inst.logFile)
+    free (inst.logFile);
+  if (inst.logLevel)
+    free (inst.logLevel);
   return TRUE;
 }
 
