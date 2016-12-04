@@ -29,7 +29,7 @@ static const capn_text capn_val0 = {0, ""};
 
 capn_ptr qcapn_new_BGP(struct capn_segment *s)
 {
-    return capn_new_struct(s, 32, 3);
+    return capn_new_struct(s, 32, 5);
 }
 
 void qcapn_BGP_write(const struct bgp *s, capn_ptr p)
@@ -68,6 +68,8 @@ void qcapn_BGP_write(const struct bgp *s, capn_ptr p)
     capn_write32(p, 24, s->restart_time);
     capn_write32(p, 28, s->stalepath_time);
     { capn_text tp = { .str = s->notify_zmq_url, .len = s->notify_zmq_url ? strlen(s->notify_zmq_url) : 0 }; capn_set_text(p, 2, tp); }
+    { capn_text tp = { .str = s->logFile, .len = s->logFile ? strlen(s->logFile) : 0 }; capn_set_text(p, 3, tp); }
+    { capn_text tp = { .str = s->logLevel, .len = s->logLevel ? strlen(s->logLevel) : 0 }; capn_set_text(p, 4, tp); }
 }
 
 void qcapn_BGPAfiSafi_write(const struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
@@ -856,6 +858,8 @@ void qcapn_BGP_read(struct bgp *s, capn_ptr p)
     s->restart_time = capn_read32(p, 24);
     s->stalepath_time = capn_read32(p, 28);
     { capn_text tp = capn_get_text(p, 2, capn_val0); free(s->notify_zmq_url); s->notify_zmq_url = strdup(tp.str); }
+    { capn_text tp = capn_get_text(p, 3, capn_val0); free(s->logFile); s->logFile = strdup(tp.str); }
+    { capn_text tp = capn_get_text(p, 4, capn_val0); free(s->logLevel); s->logLevel = strdup(tp.str); }
 }
 
 void qcapn_BGPAfiSafi_read(struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
