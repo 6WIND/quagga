@@ -194,6 +194,14 @@ void qcapn_BGP_set(struct bgp *s, capn_ptr p)
       bgp_notify_zmq_url_set(s, notify_zmq_url);
       
     }
+    {
+      const char * logFile, *logLevel;
+      { capn_text tp = capn_get_text(p, 3, capn_val0); logFile = tp.str; }
+      { capn_text tp = capn_get_text(p, 4, capn_val0); logLevel = tp.str; }
+      if (strlen(logFile) > 0 && strlen(logLevel) > 0) {
+          set_log_file_with_level(logFile, logLevel);
+      }
+    }
     s->distance_ebgp = capn_read8(p, 6);
     s->distance_ibgp = capn_read8(p, 7);
     s->distance_local = capn_read8(p, 8);
