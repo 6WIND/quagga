@@ -1696,10 +1696,10 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
           sprintf(pre_str, "bgp->sdnc");
         }
       if (announce)
-        zlog_debug ("%s vrf[%s] Route %s : advertised %s (RD %s label %s nh %s)",
+        zlog_info ("%s vrf[%s] Route %s : advertised %s (RD %s label %s nh %s)",
                     pre_str, vrf_rd_str, pfx_str, post_str, rd_str, label_str, nh_str);
       else
-        zlog_debug ("%s vrf[%s] Route %s : withdrawn %s (RD %s label %d nh %s)",
+        zlog_info ("%s vrf[%s] Route %s : withdrawn %s (RD %s label %d nh %s)",
                     pre_str, vrf_rd_str, pfx_str, post_str, rd_str, event.label, nh_str);
     }
 
