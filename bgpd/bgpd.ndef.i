@@ -588,7 +588,7 @@ _qzc_get_bgp_vrf_2(struct bgp_vrf *p,
         rep->data = qcapn_new_BGPVRFRoute(seg, sizeof(next));
         rep->datatype = 0x8f217eb4bad6c06f;
         qcapn_BGPVRFRoute_write(outptr, rep->data);
-        if (!bgp_api_route_get(&tmpval, val, 0, &next))
+        if (!bgp_api_route_get(p, &tmpval, val, 0, &next))
             return;
 
         qcapn_BGPVRFRoute_write(outptr, rep->data);
@@ -596,7 +596,11 @@ _qzc_get_bgp_vrf_2(struct bgp_vrf *p,
            sending 0 means there is no next element */
         qcapn_BGPVRFInfoIter_write((unsigned long) next,
                                    rep->data, CAPN_BGPVRF_ROUTE_DEF_SIZE);
-
+        if (outptr->esi)
+          free (outptr->esi);
+        if (outptr->mac_router)
+          free (outptr->mac_router);
+        outptr->mac_router = outptr->esi = NULL;
     }
 }
 
@@ -636,7 +640,7 @@ _qzc_get_bgp_vrf_4(struct bgp_vrf *p,
     qcapn_BGPVRFRoute_write(outptr, rep->data);
 
     /* do this way to look for multipath entries instead of selected */
-    if (!bgp_api_route_get(&tmpval, &dummy, 1, &next))
+    if (!bgp_api_route_get(p, &tmpval, &dummy, 1, &next))
         return;
 
     qcapn_BGPVRFRoute_write(outptr, rep->data);

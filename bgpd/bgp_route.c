@@ -1563,7 +1563,7 @@ bgp_process_announce_selected (struct peer *peer, struct bgp_info *selected,
   return 0;
 }
 
-bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn,
+bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct bgp_node *bn,
                         int iter_on_multipath, void **next)
 {
   struct bgp_info *sel, *iter;
@@ -1603,8 +1603,53 @@ bool bgp_api_route_get (struct bgp_api_route *out, struct bgp_node *bn,
   if (sel->attr && sel->attr->extra)
     out->nexthop = sel->attr->extra->mp_nexthop_global_in;
   if (sel->extra && sel->extra->nlabels)
-    out->label = sel->extra->labels[0] >> 4;
+    {
+      int idx = 0;
+      /* VRF RIB have one label only */
+      if(CHECK_FLAG (sel->flags, BGP_INFO_ORIGIN_EVPN))
+        {
+          if(vrf->ltype == BGP_LAYER_TYPE_3)
+            out->label = sel->extra->labels[idx] >> 4;
+          else
+            out->l2label = sel->extra->labels[idx] >> 4;
+        }
+      else
+        {
+          if (sel->extra->nlabels > 1)
+            out->l2label = sel->extra->labels[idx++] >> 4;
+          out->label = sel->extra->labels[idx] >> 4;
+        }
+    }
+  if(sel->attr && sel->attr->extra && CHECK_FLAG (sel->flags, BGP_INFO_ORIGIN_EVPN))
+    {
+      out->esi = esi2str(&(sel->attr->extra->evpn_overlay.eth_s_id));
+      out->ethtag = sel->attr->extra->eth_t_id;
+      /* only router mac is filled in for VRF RIB layer 3 */
+      if(sel->attr->extra->ecommunity)
+        {
+          struct ecommunity_val *routermac = ecommunity_lookup (sel->attr->extra->ecommunity, 
+                                                                ECOMMUNITY_ENCODE_EVPN,
+                                                                ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC);
 
+          out->mac_router = NULL;
+          /* if routermac not present, try to replace it by def gw, if present */
+          if(vrf->ltype == BGP_LAYER_TYPE_3)
+            {
+              if(routermac)
+                  out->mac_router = ecom_mac2str(routermac->val);
+              else
+                {
+                  if(ecommunity_lookup (sel->attr->extra->ecommunity,
+                                        ECOMMUNITY_ENCODE_EVPN,
+                                        ECOMMUNITY_EVPN_SUBTYPE_DEF_GW))
+                    if ((bn->p).u.prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
+                  {
+                    out->mac_router = ecom_mac2str((char *)(&(bn->p).u.prefix_macip.mac));
+                  }
+                }
+            }
+        }
+    }
   /* now that an entry with SELECTED flag was found, check for possibly MULTIPATH entries
      in next items */
   for (iter = sel->next; iter; iter = iter->next)
