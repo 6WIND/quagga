@@ -57,5 +57,5 @@ capn_ptr qcapn_new_BGPVRFInfoIter(struct capn_segment *s);
 void qcapn_BGPVRFInfoIter_write(const unsigned long s, capn_ptr p, int offset);
 void qcapn_BGPVRFInfoIter_read(unsigned long *s, capn_ptr p, int offset);
 
-#define  CAPN_BGPVRF_ROUTE_DEF_SIZE  8
+#define  CAPN_BGPVRF_ROUTE_DEF_SIZE  12
 #endif /* CAPN_C4C948A17D3B2250 */

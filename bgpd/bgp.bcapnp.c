@@ -1171,6 +1171,38 @@ void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p)
         s->nexthop.s_addr = htonl(capn_read32(tmp_p, 0));
     }
     s->label = capn_read32(p, 0);
+    s->ethtag = capn_read32(p, 4);
+    s->l2label = capn_read32(p, 8);
+    {
+      char * esi = NULL;
+      int len;
+      capn_text tp = capn_get_text(p, 2, capn_val0);
+      esi = (char *)tp.str;
+      len = tp.len;
+      if (esi && len != 0)
+        {
+          s->esi = (char *)strdup(esi);
+        }
+      else
+        {
+          s->esi = NULL;
+        }
+    }
+    {
+      char * mac_router = NULL;
+      int len;
+      capn_text tp = capn_get_text(p, 3, capn_val0);
+      mac_router = (char *) tp.str;
+      len = tp.len;
+      if (mac_router && len != 0)
+        {
+          s->mac_router  = (char *)strdup(mac_router);
+        }
+      else
+        {
+          s->mac_router = NULL;
+        }
+    }
 }
 
 
@@ -1192,6 +1224,10 @@ void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p)
         capn_setp(p, 1, tempptr);
     }
     capn_write32(p, 0, s->label);
+    capn_write32(p, 4, s->ethtag);
+    capn_write32(p, 8, s->l2label);
+    { capn_text tp = { .str = s->esi, .len = s->esi ? strlen((const char *)s->esi) : 0 }; capn_set_text(p, 2, tp); }
+    { capn_text tp = { .str = s->mac_router, .len = s->mac_router ? strlen((const char *)s->mac_router) : 0 }; capn_set_text(p, 3, tp); }
 }
 
 
@@ -1213,7 +1249,7 @@ void qcapn_BGPVRFRoute_set(struct bgp_api_route *s, capn_ptr p)
 
 capn_ptr qcapn_new_BGPVRFRoute(struct capn_segment *s, uint8_t extend_by)
 {
-    return capn_new_struct(s, CAPN_BGPVRF_ROUTE_DEF_SIZE + extend_by, 2);
+    return capn_new_struct(s, CAPN_BGPVRF_ROUTE_DEF_SIZE + extend_by, 4);
 }
 
 void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)

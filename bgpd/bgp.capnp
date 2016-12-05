@@ -171,6 +171,10 @@ struct BGPVRFRoute $ctype("struct bgp_api_route") $cgen
 	prefix			 @0 :PrefixV4;
 	nexthop			 @1 :IPv4;
 	label			 @2 :UInt32;
+        ethtag                   @3 :Uint32;
+        esi                      @4 :Text;
+        routermac                @5 :Text;
+        l2label	                 @6 :UInt32;
 }
 
 struct BGPEventVRFRoute $ctype("struct bgp_event_vrf") $cgen

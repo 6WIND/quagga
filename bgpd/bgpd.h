@@ -306,6 +306,10 @@ struct bgp_api_route
   struct prefix_ipv4 prefix;
   struct in_addr nexthop;
   uint32_t label;
+  uint32_t l2label;
+  uint32_t ethtag;
+  char *esi;
+  char *mac_router;
 };
 
 /* BGP peer-group support. */
