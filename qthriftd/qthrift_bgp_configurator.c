@@ -734,7 +734,10 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     inst.notify_zmq_url = XSTRDUP(MTYPE_QTHRIFT, ctxt->zmq_subscribe_sock);
     inst.default_holdtime = holdTime;
     inst.default_keepalive= keepAliveTime;
-    inst.stalepath_time = stalepathTime;
+    if (stalepathTime)
+      inst.stalepath_time = stalepathTime;
+    else
+      inst.stalepath_time = BGP_DEFAULT_STALEPATH_TIME;
     inst.restart_time = 900;
     bgp_flag_set(&inst, BGP_FLAG_GRACEFUL_RESTART);
     if (announceFbit == TRUE)
