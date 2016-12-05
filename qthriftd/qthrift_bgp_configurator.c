@@ -1742,6 +1742,8 @@ instance_bgp_configurator_handler_set_log_config (BgpConfiguratorIf *iface, gint
   if(IS_QTHRIFT_DEBUG)
     zlog_debug ("setLogConfig(%s, %s) OK", logFileName, logLevel==NULL?logLevel:"none");
   capn_free(&rc);
+  if (inst.notify_zmq_url)
+    free (inst.notify_zmq_url);
   if (inst.logLevel)
     free ( inst.logLevel);
   if (inst.logFile)
@@ -1803,6 +1805,8 @@ instance_bgp_configurator_handler_enable_graceful_restart (BgpConfiguratorIf *if
   qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 1, \
                      &bgp, &bgp_datatype_bgp, NULL, NULL);
   capn_free(&rc);
+  if (inst.notify_zmq_url)
+    free (inst.notify_zmq_url);
   if (inst.logFile)
     free (inst.logFile);
   if (inst.logLevel)
