@@ -497,7 +497,9 @@ typedef enum {
   AFI_IP  = 1,
   AFI_IP6 = 2,
   AFI_ETHER = 3,                /* RFC 1700 has "6" for 802.* */
-#define AFI_MAX 4
+  AFI_L2VPN = 4,
+  AFI_IANA_L2VPN = 25
+#define AFI_MAX 5
 } afi_t;
 
 /* Subsequent Address Family Identifier. */
@@ -505,8 +507,10 @@ typedef enum {
 #define SAFI_MULTICAST            2
 #define SAFI_RESERVED_3           3
 #define SAFI_MPLS_VPN             4
+#define SAFI_EVPN                 5
 #define SAFI_ENCAP		  7 /* per IANA */
 #define SAFI_RESERVED_5           5
+#define SAFI_IANA_EVPN            70 /* per IANA */
 #define SAFI_MAX                  8
 
 /* Default Administrative Distance of each protocol. */

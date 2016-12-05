@@ -238,6 +238,9 @@ afi2str(afi_t afi)
 	return "IPv6";
     case AFI_ETHER:
 	return "ethernet";
+    case AFI_L2VPN:
+    case AFI_IANA_L2VPN:
+	return "l2vpn";
   }
   return NULL;
 }
