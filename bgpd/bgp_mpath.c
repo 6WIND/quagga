@@ -501,7 +501,7 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
       maxpaths = (new_best->peer->sort == BGP_PEER_IBGP) ?
         mpath_cfg->maxpaths_ibgp : mpath_cfg->maxpaths_ebgp;
     }
-  if (safi == SAFI_MPLS_VPN)
+  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN))
     {
       prd = &bgp_node_table (rn)->prd;
       if (new_best)
