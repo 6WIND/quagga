@@ -8940,7 +8940,9 @@ DEFUN (show_ip_bgp_vrf,
        "show ip bgp vrf WORD",
        SHOW_STR
        IP_STR
-       BGP_STR)
+       BGP_STR
+       "VRF\n"
+       "Route Distinguisher\n")
 {
   return bgp_show_vrf (vty, argv[0], AFI_IP, bgp_show_type_normal, NULL);
 }
@@ -8950,7 +8952,9 @@ DEFUN (show_ipv6_bgp_vrf,
        "show ipv6 bgp vrf WORD",
        SHOW_STR
        IPV6_STR
-       BGP_STR)
+       BGP_STR
+       "VRF\n"
+       "Route Distinguisher\n")
 {
   return bgp_show_vrf (vty, argv[0], AFI_IP6, bgp_show_type_normal, NULL);
 }
