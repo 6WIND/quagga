@@ -3757,7 +3757,7 @@ DEFUN (no_config_log_monitor,
   return CMD_SUCCESS;
 }
 
-static int
+int
 set_log_file(struct vty *vty, const char *fname, int loglevel)
 {
   int ret;
@@ -3795,7 +3795,10 @@ set_log_file(struct vty *vty, const char *fname, int loglevel)
 
   if (!ret)
     {
-      vty_out (vty, "can't open logfile %s\n", fname);
+      if (vty)
+        vty_out (vty, "can't open logfile %s\n", fname);
+      else
+        zlog_err("can't open logfile %s\n", fname);
       return CMD_WARNING;
     }
 
@@ -3805,6 +3808,17 @@ set_log_file(struct vty *vty, const char *fname, int loglevel)
   host.logfile = XSTRDUP (MTYPE_HOST, fname);
 
   return CMD_SUCCESS;
+}
+
+int set_log_file_with_level(const char *logname, const char *loglevel)
+{
+  int level;
+
+  if (!logname || !loglevel)
+    return CMD_ERR_NO_MATCH;
+  if ((level = level_match(loglevel)) == ZLOG_DISABLED)
+    return CMD_ERR_NO_MATCH;
+  return set_log_file(NULL, logname, level);
 }
 
 DEFUN (config_log_file,
