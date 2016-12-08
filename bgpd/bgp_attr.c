@@ -1271,6 +1271,16 @@ bgp_attr_nexthop (struct bgp_attr_parser_args *args)
                                  BGP_NOTIFY_UPDATE_INVAL_NEXT_HOP,
                                  args->total);
     }
+#if 0
+  /* condition : zebra must be launched */
+  Implementation Choice 1:
+    1. get the list of local IP addresses within the VRF context of the BGP daemon
+     if_lookup_exact_address_vrf
+    or if the BGP daemon is not VRF, get the total list of local addresses 
+      if_lookup_exact_address_vrf
+    if ( nexthop IP address  is one of the addresses)
+      then return attr malformed
+#endif
 
   attr->nexthop.s_addr = nexthop_n;
   attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
