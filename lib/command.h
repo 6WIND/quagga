@@ -570,6 +570,8 @@ extern void host_config_set (char *);
 extern void print_version (const char *);
 
 extern int cmd_get_path_prefix_dir(char *path, unsigned int size);
+extern int set_log_file(struct vty *vty, const char *fname, int loglevel);
+extern int set_log_file_with_level(const char *logname, const char *loglevel);
 
 /* struct host global, ick */
 extern struct host host; 
