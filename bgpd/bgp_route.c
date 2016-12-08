@@ -9029,15 +9029,15 @@ DEFUN (show_bgp_ipv4_safi_route_pathtype,
 
 DEFUN (show_ip_bgp_vrf_route,
        show_ip_bgp_vrf_route_cmd,
-       "show ip bgp vrf WORD (ipv4|ipv6) (A.B.C.D|X:X::X:X)",
+       "show ip bgp vrf WORD A.B.C.D",
        SHOW_STR
        IP_STR
        BGP_STR
        "VRF\n"
-       "Route Distinguisher\n")
+       "Route Distinguisher\n"
+       "IPv4 Address\n")
 {
-  afi_t afi = (strncmp (argv[1], "ipv6", 4) == 0) ? AFI_IP6 : AFI_IP;
-  return bgp_show_vrf_route (vty, argv[0], argv[2], afi, 0);
+  return bgp_show_vrf_route (vty, argv[0], argv[2], AFI_IP, 0);
 }
 
 DEFUN (show_ipv6_bgp_vrf_route,
