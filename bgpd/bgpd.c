@@ -2452,6 +2452,7 @@ bgp_delete (struct bgp *bgp)
   QZC_NODE_UNREG(bgp)
 
   list_delete (bgp->vrfs);
+  bgp->vrfs = NULL;
   hash_clean (bgp->rt_subscribers, NULL);
   hash_free (bgp->rt_subscribers);
 
