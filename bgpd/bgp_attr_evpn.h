@@ -23,6 +23,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 #include "prefix.h"
 
+struct bgp_vrf;
+
 /* value of first byte of ESI */
 #define ESI_TYPE_ARBITRARY 0 /* */
 #define ESI_TYPE_LACP      1 /* <> */
@@ -59,12 +61,47 @@ struct bgp_route_evpn
   uint32_t eth_t_id;
   struct eth_segment_id eth_s_id;
   union gw_addr gw_ip;
+#define EVPN_ETHERNET_AD_PER_ESI 1
+#define EVPN_ETHERNET_AD_PER_EVI 2
+#define EVPN_ETHERNET_MP_UNREACH 4
+  uint8_t auto_discovery_type;
 };
+
+struct bgp_evpn_ad
+{
+  struct bgp *bgp;
+  struct peer *peer;
+
+  /* RD used by A/D */
+  struct prefix_rd prd;
+  uint32_t eth_t_id;
+  uint32_t label;
+  struct eth_segment_id eth_s_id;
+
+  /* if withdraw message, then type is set to BGP_EVPN_AD_TYPE_MP_UNREACH */
+  struct attr *attr;
+#define BGP_EVPN_AD_TYPE_MP_REACH 0
+#define BGP_EVPN_AD_TYPE_MP_UNREACH 1
+  u_int16_t type;
+  u_int16_t status;
+};  
 
 extern int str2esi (const char *str, struct eth_segment_id *id);
 extern int str2mac (const char *str, char *mac);
 extern char *esi2str (struct eth_segment_id *id);
 extern char *mac2str (char *mac);
 extern char *ecom_mac2str(char *ecom_mac);
+extern int bgp_evpn_ad_update(struct bgp_evpn_ad *ad, struct in_addr *nexthop, u_int32_t label);
+extern int bgp_evpn_ad_cmp(struct bgp_evpn_ad *ad1,
+                    struct peer *peer,
+                    struct prefix_rd *prd,
+                    struct eth_segment_id *esi,
+                    u_int32_t ethtag);
+extern void bgp_evpn_ad_free(struct bgp_evpn_ad* ad);
+extern struct bgp_evpn_ad* bgp_evpn_ad_new(struct peer *peer,
+                                           struct bgp_vrf *vrf,
+                                           struct eth_segment_id *esi,
+                                           u_int32_t ethtag,
+                                           u_int32_t label);
 
 #endif /* _QUAGGA_BGP_ATTR_EVPN_H */

@@ -27,7 +27,10 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "memory.h"
 #include "stream.h"
 
+#include "bgpd/bgpd.h"
+#include "bgpd/bgp_attr.h"
 #include "bgpd/bgp_attr_evpn.h"
+#include "bgpd/bgp_mplsvpn.h"
 
 static uint8_t convertchartohexa (uint8_t *hexa, int *error)
 {
@@ -261,3 +264,85 @@ char *ecom_mac2str(char *ecom_mac)
   en+=2;
   return mac2str(en);
 }
+
+/* returns 1 if a change has been observed */
+int bgp_evpn_ad_update(struct bgp_evpn_ad *ad, struct in_addr *nexthop, u_int32_t label)
+{
+  struct attr_extra *extra;
+  int ret = 0;
+
+  if (ad->label != label)
+    ret = 1;
+  extra = bgp_attr_extra_get(ad->attr);
+  extra->mp_nexthop_global_in = *nexthop;
+  if ((nexthop->s_addr != extra->mp_nexthop_global_in.s_addr) ||
+      (nexthop->s_addr != ad->attr->nexthop.s_addr))
+    ret = 1;
+
+  ad->attr->nexthop = *nexthop;
+  ad->label = label;
+  return ret;
+}
+
+
+struct bgp_evpn_ad* bgp_evpn_ad_new(struct peer *peer,
+                                    struct bgp_vrf *vrf,
+                                    struct eth_segment_id *esi,
+                                    u_int32_t ethtag,
+                                    u_int32_t label)
+{
+  struct attr attr;
+  struct attr_extra *extra;
+  struct bgp_evpn_ad *evpn_ad = XCALLOC(MTYPE_BGP_EVPN_AD, sizeof(struct bgp_evpn_ad));
+
+  if (!evpn_ad)
+    return NULL;
+
+  evpn_ad->peer = peer;
+  memcpy (&evpn_ad->prd,&vrf->outbound_rd, sizeof(struct prefix_rd));
+
+  evpn_ad->eth_t_id = ethtag;
+  evpn_ad->eth_s_id = *esi;
+
+  bgp_attr_default_set (&attr, BGP_ORIGIN_IGP);
+  extra = bgp_attr_extra_get(&attr);
+  if (!extra)
+    return NULL;
+  if (vrf->rt_export)
+    {
+      extra->ecommunity = ecommunity_dup (vrf->rt_export);
+      attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
+    }
+  extra->evpn_overlay.eth_s_id = *esi;
+  evpn_ad->attr = bgp_attr_intern (&attr);
+  evpn_ad->label = label;
+
+  return evpn_ad;
+}
+
+void bgp_evpn_ad_free(struct bgp_evpn_ad* ad)
+{
+  bgp_attr_unintern (&ad->attr);
+  XFREE (MTYPE_BGP_EVPN_AD, ad);
+}
+int bgp_evpn_ad_cmp(struct bgp_evpn_ad *ad1,
+                    struct peer *peer,
+                    struct prefix_rd *prd,
+                    struct eth_segment_id *esi,
+                    u_int32_t ethtag)
+{
+  if (memcmp(&ad1->eth_s_id, esi, sizeof(struct eth_segment_id)))
+    return 1;
+
+  if (prd && prefix_rd_cmp(&ad1->prd, prd))
+    return 1;
+
+  if (ad1->eth_t_id != ethtag)
+    return 1;
+
+  if (ad1->peer != peer)
+    return 1;
+
+  return 0;
+}
+
