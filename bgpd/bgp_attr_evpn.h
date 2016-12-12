@@ -103,5 +103,19 @@ extern struct bgp_evpn_ad* bgp_evpn_ad_new(struct peer *peer,
                                            struct eth_segment_id *esi,
                                            u_int32_t ethtag,
                                            u_int32_t label);
+extern int bgp_evpn_ad_update(struct bgp_evpn_ad *ad, struct in_addr *nexthop, u_int32_t label);
+
+extern void bgp_evpn_ad_display (struct bgp_evpn_ad *ad, char *buf, int size);
+
+struct bgp_evpn_ad* bgp_evpn_ad_new_from_update(struct peer *peer,
+                                                struct prefix_rd *prd,
+                                                struct bgp_route_evpn *evpn,
+                                                struct prefix *p,
+                                                u_int32_t label,
+                                                struct attr *attr);
+
+struct bgp_info *bgp_evpn_new_bgp_info_from_ad(struct bgp_info *ri, struct bgp_evpn_ad *ad);
+
+struct bgp_evpn_ad* bgp_evpn_ad_duplicate_from_ad(struct bgp_evpn_ad *evpn);
 
 #endif /* _QUAGGA_BGP_ATTR_EVPN_H */

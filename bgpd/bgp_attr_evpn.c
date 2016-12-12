@@ -31,6 +31,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_attr.h"
 #include "bgpd/bgp_attr_evpn.h"
 #include "bgpd/bgp_mplsvpn.h"
+#include "bgpd/bgp_route.h"
 
 static uint8_t convertchartohexa (uint8_t *hexa, int *error)
 {
@@ -346,3 +347,124 @@ int bgp_evpn_ad_cmp(struct bgp_evpn_ad *ad1,
   return 0;
 }
 
+void bgp_evpn_ad_display (struct bgp_evpn_ad *ad, char *buf, int size)
+{
+  char vrf_rd_str[RD_ADDRSTRLEN];
+  char *esi;
+
+  prefix_rd2str(&ad->prd, vrf_rd_str, sizeof(vrf_rd_str));
+  esi = esi2str(&(ad->eth_s_id));
+  snprintf(buf, size, "RD[%s] %s Ethtag %08x/ ESI %s/ Label %u: A/D ",
+           vrf_rd_str, ad->type == BGP_EVPN_AD_TYPE_MP_UNREACH?"MP_UNREACH":"MP_REACH",
+           ad->eth_t_id, esi, ad->label >> 4);
+  free (esi);
+}
+
+
+struct bgp_evpn_ad* bgp_evpn_ad_new_from_update(struct peer *peer,
+                                                struct prefix_rd *prd,
+                                                struct bgp_route_evpn *evpn,
+                                                struct prefix *p,
+                                                u_int32_t label,
+                                                struct attr *attr)
+{
+  struct attr new_attr;
+  struct attr *attr_new;
+  struct attr_extra new_extra;
+  struct bgp_evpn_ad *evpn_ad = XCALLOC(MTYPE_BGP_EVPN_AD, sizeof(struct bgp_evpn_ad));
+
+  if (!evpn_ad)
+    return NULL;
+  memset( &new_attr, 0, sizeof(struct attr));
+  evpn_ad->peer = peer;
+  if (prd)
+    evpn_ad->prd = *prd;
+
+  evpn_ad->eth_t_id = p->u.prefix_macip.eth_tag_id;
+  memcpy(&evpn_ad->eth_s_id, &evpn->eth_s_id, sizeof(struct eth_segment_id));
+
+  if (attr)
+    {
+      new_attr.extra = &new_extra;
+      bgp_attr_dup (&new_attr, attr);
+      attr_new = bgp_attr_intern (&new_attr);
+      evpn_ad->attr = attr_new;
+    }
+  else
+    evpn_ad->attr = NULL;
+
+  evpn_ad->label = label;
+
+  return evpn_ad;
+}
+
+/* create a new entry in same rn as iter,but with ad attribute */
+struct bgp_info *bgp_evpn_new_bgp_info_from_ad(struct bgp_info *ri, struct bgp_evpn_ad *ad)
+{
+  struct bgp_node *rn;
+  struct bgp_info *iter;
+  struct attr attr = { 0 };
+  struct attr *attr_new = &attr;
+
+  rn = ri->net;
+
+  /* substitute next hop
+   * with ad->attr->extra->mp_nexthopglobal_in
+   * with ad->attr->nexthop
+   */
+  /* change peer to our ad->peer */
+  iter = info_make(ri->type, ri->sub_type, ad->peer, NULL, rn);
+  bgp_attr_extra_get(&attr);
+  bgp_attr_dup (attr_new, ri->attr);
+
+  /* copy ESI */
+  if (ri->attr->extra)
+    overlay_index_dup(attr_new, &(ri->attr->extra->evpn_overlay));
+
+  /* no duplicate ecom */
+
+  /* duplicate label information */
+  if(!iter->extra)
+    iter->extra = bgp_info_extra_new();
+  iter->extra->vrf_rd = ri->extra->vrf_rd;
+  iter->extra->nlabels = 1;
+  iter->extra->labels[0] = ri->extra->labels[0];
+
+  /* change nexthop attribute */
+  attr_new->nexthop.s_addr = ad->attr->nexthop.s_addr;
+  attr_new->extra->mp_nexthop_global_in.s_addr = ad->attr->extra->mp_nexthop_global_in.s_addr;
+  attr_new->extra->mp_nexthop_len = 4;
+
+  iter->peer = ad->peer;
+  SET_FLAG (iter->flags, BGP_INFO_ORIGIN_EVPN);
+  SET_FLAG (iter->flags, BGP_INFO_VALID);
+
+  iter->attr = bgp_attr_intern (&attr);
+  bgp_info_add (rn, iter);
+  return iter;
+}
+
+struct bgp_evpn_ad* bgp_evpn_ad_duplicate_from_ad(struct bgp_evpn_ad *evpn)
+{
+  struct bgp_evpn_ad *evpn_ad = XCALLOC(MTYPE_BGP_EVPN_AD, sizeof(struct bgp_evpn_ad));
+  struct attr *attr_new;
+
+  if (!evpn_ad)
+    return NULL;
+  evpn_ad->peer = evpn->peer;
+  evpn_ad->prd = evpn->prd;
+
+  evpn_ad->eth_t_id = evpn->eth_t_id;
+  memcpy(&evpn_ad->eth_s_id, &evpn->eth_s_id, sizeof(struct eth_segment_id));
+
+  if(evpn->attr)
+    {
+      attr_new = bgp_attr_intern (evpn->attr);
+      evpn_ad->attr = attr_new;
+    }
+  else
+    evpn_ad->attr = NULL;
+
+  evpn_ad->label = evpn->label;
+  return evpn_ad;
+}
