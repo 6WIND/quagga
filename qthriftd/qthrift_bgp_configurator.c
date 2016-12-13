@@ -1504,11 +1504,11 @@ instance_bgp_configurator_handler_set_log_config (BgpConfiguratorIf *iface, gint
     {
       qthrift_vpnservice_get_bgp_context(ctxt)->logLevel = strdup ( BGP_DEFAULT_LOG_LEVEL);
     }
+  /* configure log settings to qthrift daemon too */
+  set_log_file_with_level (logFileName, logLevel);
   /* config stored, but not sent to BGP. silently return */
   if (qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
     {
-      /* configure log settings to qthrift daemon too */
-      set_log_file_with_level (logFileName, logLevel);
       return TRUE;
     }
   return qthrift_bgp_set_log_config (ctxt, qthrift_vpnservice_get_bgp_context(ctxt), _return, error);
