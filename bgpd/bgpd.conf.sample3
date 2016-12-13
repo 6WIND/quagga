@@ -1,6 +1,6 @@
 hostname bgpd
 password zebra
-log stdout
+no log stdout
 service advanced-vty
 
 line vty
