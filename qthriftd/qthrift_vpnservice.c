@@ -476,6 +476,10 @@ void qthrift_vpnservice_terminate_bgp_context(struct qthrift_vpnservice *setup)
 void qthrift_vpnservice_setup_bgp_context(struct qthrift_vpnservice *setup)
 {
   setup->bgp_context=XCALLOC(MTYPE_QTHRIFT, sizeof(struct qthrift_vpnservice_bgp_context));
+  setup->bgp_context->logFile = strdup (BGP_DEFAULT_LOG_FILE);
+  setup->bgp_context->logLevel = strdup (BGP_DEFAULT_LOG_LEVEL);
+  /* configure log settings to qthrift daemon too */
+  set_log_file_with_level(setup->bgp_context->logFile, setup->bgp_context->logLevel);
 }
 
 struct qthrift_vpnservice_bgp_context *qthrift_vpnservice_get_bgp_context(struct qthrift_vpnservice *setup)

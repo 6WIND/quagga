@@ -35,6 +35,8 @@
 #include "bgp.bcapnp.h"
 #include "bgp_mpath.h"
 
+#include "command.h"
+
 #ifndef MAX
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
@@ -736,13 +738,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
         return FALSE;
       }
   }
-  if (qthrift_vpnservice_get_bgp_context(ctxt)->logFile == NULL &&
-      qthrift_vpnservice_get_bgp_context(ctxt)->logLevel == NULL)
-    {
-      qthrift_vpnservice_get_bgp_context(ctxt)->logFile = strdup (BGP_DEFAULT_LOG_FILE);
-      qthrift_vpnservice_get_bgp_context(ctxt)->logLevel = strdup (BGP_DEFAULT_LOG_LEVEL);
-    }
-    qthrift_bgp_set_log_config (ctxt, qthrift_vpnservice_get_bgp_context(ctxt), _return, error);
+  qthrift_bgp_set_log_config (ctxt, qthrift_vpnservice_get_bgp_context(ctxt), _return, error);
 
   /* from bgp_master, inject configuration, and send zmq message to BGP */
   {
@@ -1511,6 +1507,8 @@ instance_bgp_configurator_handler_set_log_config (BgpConfiguratorIf *iface, gint
   /* config stored, but not sent to BGP. silently return */
   if (qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
     {
+      /* configure log settings to qthrift daemon too */
+      set_log_file_with_level (logFileName, logLevel);
       return TRUE;
     }
   return qthrift_bgp_set_log_config (ctxt, qthrift_vpnservice_get_bgp_context(ctxt), _return, error);
