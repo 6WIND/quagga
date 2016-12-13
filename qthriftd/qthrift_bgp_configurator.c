@@ -141,6 +141,12 @@ qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _retur
                                 const af_safi safi, gint16 value, gboolean update,
                                 GError **error);
 
+static gboolean
+qthrift_bgp_set_log_config(struct qthrift_vpnservice *ctxt, 
+                           struct qthrift_vpnservice_bgp_context *bgp_ctxt,
+                           gint32* _return,  GError **error);
+
+
 /* The implementation of InstanceBgpConfiguratorHandler follows. */
 
 G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
@@ -539,6 +545,66 @@ qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _retur
   return TRUE;
 }
 
+static gboolean
+qthrift_bgp_set_log_config(struct qthrift_vpnservice *ctxt,
+                           struct qthrift_vpnservice_bgp_context*bgp_ctxt,  
+                           gint32* _return,  GError **error)
+{
+  struct capn rc;
+  struct capn_segment *cs;
+  struct bgp inst;
+  struct QZCGetRep *grep;
+  struct capn_ptr bgp;
+
+  /* get bgp_master configuration */
+  grep = qzcclient_getelem (ctxt->qzc_sock, &bgp_inst_nid, 1, NULL, NULL, NULL, NULL);
+  if(grep == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  memset(&inst, 0, sizeof(struct bgp));
+  qcapn_BGP_read(&inst, grep->data);
+  qzcclient_qzcgetrep_free( grep);
+  /* update bgp configuration with logLevel and logText */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  bgp = qcapn_new_BGP(cs);
+  /* set default stalepath time */
+  if (bgp_ctxt->logFile == NULL)
+    {
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  if (inst.logLevel)
+    free ( inst.logLevel);
+  if (inst.logFile)
+    free ( inst.logFile);
+  if(bgp_ctxt->logLevel)
+    inst.logLevel = strdup (bgp_ctxt->logLevel);
+  else
+    inst.logLevel = NULL;
+  if(bgp_ctxt->logFile)
+    inst.logFile = strdup (bgp_ctxt->logFile);
+  qcapn_BGP_write(&inst, bgp);
+  qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 1,          \
+                     &bgp, &bgp_datatype_bgp, NULL, NULL);
+  if(IS_QTHRIFT_DEBUG)
+    zlog_debug ("setLogConfig(%s, %s) OK", 
+                bgp_ctxt->logFile,
+                bgp_ctxt->logLevel==NULL?"none":
+                bgp_ctxt->logLevel);
+  capn_free(&rc);
+  if (inst.notify_zmq_url)
+    free (inst.notify_zmq_url);
+  if (inst.logLevel)
+    free ( inst.logLevel);
+  if (inst.logFile)
+    free ( inst.logFile);
+  return TRUE;
+}
+
+
 /* 
  * Enable and change EBGP maximum number of hops for a given bgp neighbor 
  * If Peer is not configured, it returns an error
@@ -721,6 +787,13 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
         return FALSE;
       }
   }
+  if (qthrift_vpnservice_get_bgp_context(ctxt)->logFile == NULL &&
+      qthrift_vpnservice_get_bgp_context(ctxt)->logLevel == NULL)
+    {
+      qthrift_vpnservice_get_bgp_context(ctxt)->logFile = strdup (BGP_DEFAULT_LOG_FILE);
+      qthrift_vpnservice_get_bgp_context(ctxt)->logLevel = strdup (BGP_DEFAULT_LOG_LEVEL);
+    }
+    qthrift_bgp_set_log_config (ctxt, qthrift_vpnservice_get_bgp_context(ctxt), _return, error);
 
   /* from bgp_master, inject configuration, and send zmq message to BGP */
   {
@@ -1693,62 +1766,50 @@ gboolean
 instance_bgp_configurator_handler_set_log_config (BgpConfiguratorIf *iface, gint32* _return, const gchar * logFileName,
                                                   const gchar * logLevel, GError **error)
 {
-  struct capn rc;
-  struct capn_segment *cs;
-  struct bgp inst;
   struct qthrift_vpnservice *ctxt = NULL;
-  struct QZCGetRep *grep;
-  struct capn_ptr bgp;
 
-  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
-    {
-      *_return = BGP_ERR_FAILED;
-      *error = ERROR_BGP_AS_NOT_STARTED;
-      return FALSE;
-    }
-  /* get bgp_master configuration */
-  grep = qzcclient_getelem (ctxt->qzc_sock, &bgp_inst_nid, 1, NULL, NULL, NULL, NULL);
-  if(grep == NULL)
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
     {
       *_return = BGP_ERR_FAILED;
       return FALSE;
     }
-  memset(&inst, 0, sizeof(struct bgp));
-  qcapn_BGP_read(&inst, grep->data);
-  qzcclient_qzcgetrep_free( grep);
-  /* update bgp configuration with logLevel and logText */
-  capn_init_malloc(&rc);
-  cs = capn_root(&rc).seg;
-  bgp = qcapn_new_BGP(cs);
-  /* set default stalepath time */
-  if (logFileName == NULL)
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL)
     {
-      *_return = BGP_ERR_PARAM;
-      return FALSE;
+      qthrift_vpnservice_setup_bgp_context(ctxt);
     }
-  if (inst.logLevel)
-    free ( inst.logLevel);
-  if (inst.logFile)
-    free ( inst.logFile);
-  if(logLevel)
-    inst.logLevel = strdup (logLevel);
+  if (qthrift_vpnservice_get_bgp_context(ctxt)->logFile)
+    {
+      free (qthrift_vpnservice_get_bgp_context(ctxt)->logFile);
+      qthrift_vpnservice_get_bgp_context(ctxt)->logFile = NULL;
+    }
+  if (qthrift_vpnservice_get_bgp_context(ctxt)->logLevel)
+    {
+      free (qthrift_vpnservice_get_bgp_context(ctxt)->logLevel);
+      qthrift_vpnservice_get_bgp_context(ctxt)->logLevel = NULL;
+    }
+  if (logFileName)
+    {
+      qthrift_vpnservice_get_bgp_context(ctxt)->logFile = strdup ( logFileName);
+    }
   else
-    inst.logLevel = NULL;
-  if(logFileName)
-    inst.logFile = strdup (logFileName);
-  qcapn_BGP_write(&inst, bgp);
-  qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 1, \
-                     &bgp, &bgp_datatype_bgp, NULL, NULL);
-  if(IS_QTHRIFT_DEBUG)
-    zlog_debug ("setLogConfig(%s, %s) OK", logFileName, logLevel==NULL?logLevel:"none");
-  capn_free(&rc);
-  if (inst.notify_zmq_url)
-    free (inst.notify_zmq_url);
-  if (inst.logLevel)
-    free ( inst.logLevel);
-  if (inst.logFile)
-    free ( inst.logFile);
-  return TRUE;
+    {
+      qthrift_vpnservice_get_bgp_context(ctxt)->logFile = strdup ( BGP_DEFAULT_LOG_FILE);
+    }
+  if (logLevel)
+    {
+      qthrift_vpnservice_get_bgp_context(ctxt)->logLevel = strdup ( logLevel);
+    }
+  else
+    {
+      qthrift_vpnservice_get_bgp_context(ctxt)->logLevel = strdup ( BGP_DEFAULT_LOG_LEVEL);
+    }
+  /* config stored, but not sent to BGP. silently return */
+  if (qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      return TRUE;
+    }
+  return qthrift_bgp_set_log_config (ctxt, qthrift_vpnservice_get_bgp_context(ctxt), _return, error);
 }
 
 /*
