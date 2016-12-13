@@ -2205,6 +2205,7 @@ bgp_vrf_lookup_per_name (struct bgp *bgp, const char *name, int create)
       vrf->rib[afi]->type = BGP_TABLE_VRF;
     }
   vrf->static_evpn_ad = list_new();
+  vrf->rx_evpn_ad = list_new();
 
   QZC_NODE_REG(vrf, bgp_vrf)
   listnode_add (bgp->vrfs, vrf);

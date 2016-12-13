@@ -33,6 +33,12 @@ extern int peer_evpn_auto_discovery_unset (struct peer *peer, struct bgp_vrf *vr
                                            struct attr * attr, struct eth_segment_id *esi,
                                            u_int32_t ethtag, u_int32_t label);
 
+extern struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
+                                                           struct prefix_rd *prd,
+                                                           struct bgp_route_evpn *evpn,
+                                                           struct prefix *p,
+                                                           u_int32_t label,
+                                                           struct attr *attr);
 /* EVPN route types as per RFC7432 and
  * as per draft-ietf-bess-evpn-prefix-advertisement-02
  */

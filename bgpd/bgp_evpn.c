@@ -34,7 +34,10 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_route.h"
 #include "bgpd/bgp_attr.h"
 #include "bgpd/bgp_mplsvpn.h"
+#include "bgpd/bgp_debug.h"
 #include "bgpd/bgp_evpn.h"
+
+#define AD_STR_MAX_SIZE   120
 
 int
 bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
@@ -1017,4 +1020,71 @@ peer_evpn_auto_discovery_unset (struct peer *peer, struct bgp_vrf *vrf, struct a
   bgp_auto_discovery_evpn (peer, vrf, attr, esi, ethtag, NULL, (label << 4) | 1, 1);
 
   return 0;
+}
+
+/* called when receiving BGP A/D from peer or setting locally A/D */
+struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
+                                     struct prefix_rd *prd,
+                                     struct bgp_route_evpn *evpn,
+                                     struct prefix *p,
+                                     u_int32_t label,
+                                     struct attr *attr)
+{
+  struct bgp_evpn_ad *evpn_ad, *ad;
+  struct bgp_vrf *vrf = NULL;
+  struct listnode *node;
+  /* lookup current AD matching RD and ESI
+   * if found, reuse it:
+   *      o if previous was withdraw and current is append
+   *          -> update && directly call (current)
+   *      o if previous was append and current is withdraw
+   *          -> update && directly call (current)
+   *      o if both withdraw or append, the two rt lists must be investigated
+   * if not found, create new entry
+   */
+  /* check vrf configured */
+  for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf))
+    {
+      if (0 == prefix_rd_cmp(prd, &vrf->outbound_rd))
+        {
+          break;
+        }
+    }
+  /* Check if previous AD received */
+  for (ALL_LIST_ELEMENTS_RO(vrf->rx_evpn_ad, node, ad))
+    {
+      if (0 == bgp_evpn_ad_cmp(ad, peer, &vrf->outbound_rd,
+                               &evpn->eth_s_id, p->u.prefix_macip.eth_tag_id))
+        break;
+    }
+  if (ad)
+    {
+      if ((ad->label != label) &&
+          !(evpn->auto_discovery_type | EVPN_ETHERNET_MP_UNREACH))
+        ad->label = label;
+      /* XXX case list of RT changed */
+      if (BGP_DEBUG (events, EVENTS))
+        {
+          char buf[AD_STR_MAX_SIZE];
+          bgp_evpn_ad_display (ad, buf, AD_STR_MAX_SIZE);
+          zlog_debug ("%s from %s received", buf, ad->peer->host);
+        }
+      return ad;
+    }
+  evpn_ad = bgp_evpn_ad_new_from_update(peer, prd, evpn, p, label, attr);
+
+  if (!evpn_ad)
+    {
+      zlog_err("Not enough memory to record EVPN Auto-Discovery from peer %s",
+               peer->host);
+      return NULL;
+    }
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      char buf[AD_STR_MAX_SIZE];
+      bgp_evpn_ad_display (evpn_ad, buf, AD_STR_MAX_SIZE);
+      zlog_debug ("%s from %s received and stored", buf, evpn_ad->peer->host);
+    }
+  listnode_add (vrf->rx_evpn_ad, evpn_ad);
+  return evpn_ad;
 }

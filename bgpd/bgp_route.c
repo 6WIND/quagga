@@ -3677,6 +3677,13 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
   memset (&new_extra, 0, sizeof(struct attr_extra));
 
   bgp = peer->bgp;
+  if (evpn && ((evpn->auto_discovery_type & EVPN_ETHERNET_AD_PER_ESI)
+               ||(evpn->auto_discovery_type & EVPN_ETHERNET_AD_PER_EVI)))
+    {
+      struct bgp_evpn_ad *ad;
+      ad = bgp_evpn_process_auto_discovery(peer, prd, evpn, p, labels[0], attr);
+      return 0;
+    }
   rn = bgp_afi_node_get (bgp->rib[afi][safi], afi, safi, p, prd);
   
   /* When peer's soft reconfiguration enabled.  Record input packet in
@@ -4090,6 +4097,14 @@ bgp_withdraw (struct peer *peer, struct prefix *p, struct attr *attr,
   struct listnode *node, *nnode;
 
   bgp = peer->bgp;
+
+  if(evpn && evpn->auto_discovery_type & (EVPN_ETHERNET_AD_PER_ESI|EVPN_ETHERNET_AD_PER_EVI))
+    {
+      struct bgp_evpn_ad *ad;
+      ad = bgp_evpn_process_auto_discovery(peer, prd, evpn, p, labels[0], attr);
+      ad->type = BGP_EVPN_AD_TYPE_MP_UNREACH;
+      return 0;
+    }
 
   /* Lookup node. */
   rn = bgp_afi_node_get (bgp->rib[afi][safi], afi, safi, p, prd);
