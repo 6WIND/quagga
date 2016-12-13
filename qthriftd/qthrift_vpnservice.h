@@ -45,10 +45,14 @@ struct qthrift_vpnservice_client
   ThriftSimpleServer *simple_server;
 };
 
+#define BGP_DEFAULT_LOG_FILE "/opt/quagga/var/log/quagga/qthriftd.init.log"
+#define BGP_DEFAULT_LOG_LEVEL "debugging"
 struct qthrift_vpnservice_bgp_context
 {
   as_t asNumber;
   gint32 proc;
+  char *logFile;
+  char *logLevel;
 };
 
 /* qthrift cache contexts */
