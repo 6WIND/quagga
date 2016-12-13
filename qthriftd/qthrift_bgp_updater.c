@@ -72,7 +72,7 @@ qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * pr
                                                          rd, prefix, prefixlen, nexthop,
                                                          label, &error);
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_debug ("onUpdateWithdrawRoute(rd %s, pfx %s/%d, nh %s, label %d)", \
+    zlog_info ("onUpdateWithdrawRoute(rd %s, pfx %s/%d, nh %s, label %d)", \
                 rd, prefix, prefixlen, nexthop, label);
   return response;
 }
@@ -94,7 +94,7 @@ qthrift_bgp_updater_on_start_config_resync_notification (void)
       return FALSE;
   response = bgp_updater_client_on_start_config_resync_notification(ctxt->bgp_updater_client, &error);
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_debug ("onStartConfigResyncNotification()");
+    zlog_info ("onStartConfigResyncNotification()");
   return response;
 }
 
@@ -114,7 +114,7 @@ qthrift_bgp_updater_on_notification_send_event (const gchar * prefix, const gint
   response = bgp_updater_client_on_notification_send_event(ctxt->bgp_updater_client, \
                                                            prefix, errCode, errSubcode, &error); 
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_debug ("onNotificationSendEvent(%s, errCode %d, errSubCode %d)", \
+    zlog_info ("onNotificationSendEvent(%s, errCode %d, errSubCode %d)", \
                 prefix, errCode, errSubcode);
   return response;
 }

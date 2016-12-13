@@ -387,9 +387,9 @@ qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const 
   if(IS_QTHRIFT_DEBUG)
     {
       if(TRUE == value)
-        zlog_debug ("enableAddressFamily( %s, afi %d, safi %d) OK", peerIp, afi, safi);
+        zlog_info ("enableAddressFamily( %s, afi %d, safi %d) OK", peerIp, afi, safi);
       else
-        zlog_debug ("disableAddressFamily( %s, afi %d, safi %d) OK", peerIp, afi, safi);
+        zlog_info ("disableAddressFamily( %s, afi %d, safi %d) OK", peerIp, afi, safi);
     }
   *_return = 0;
   capn_free(&rc);
@@ -543,7 +543,7 @@ qthrift_bgp_set_log_config(struct qthrift_vpnservice *ctxt,
   qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 1,          \
                      &bgp, &bgp_datatype_bgp, NULL, NULL);
   if(IS_QTHRIFT_DEBUG)
-    zlog_debug ("setLogConfig(%s, %s) OK", 
+    zlog_info ("setLogConfig(%s, %s) OK", 
                 bgp_ctxt->logFile,
                 bgp_ctxt->logLevel==NULL?"none":
                 bgp_ctxt->logLevel);
@@ -615,9 +615,9 @@ qthrift_bgp_set_multihops(struct qthrift_vpnservice *ctxt,  gint32* _return, con
       if(IS_QTHRIFT_DEBUG)
         {
           if(nHops == 0)
-            zlog_debug ("unsetEbgpMultiHop(%s) OK", peerIp);
+            zlog_info ("unsetEbgpMultiHop(%s) OK", peerIp);
           else
-            zlog_debug ("setEbgpMultiHop(%s, %d) OK", peerIp, nHops);
+            zlog_info ("setEbgpMultiHop(%s, %d) OK", peerIp, nHops);
         }
     }
   capn_free(&rc);
@@ -713,7 +713,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
   bgp_bm_nid = qzcclient_wkn(ctxt->qzc_sock, &bgp_bm_wkn);
   qthrift_vpnservice_get_bgp_context(ctxt)->asNumber = (as_t) asNumber;
   if(IS_QTHRIFT_DEBUG)
-    zlog_debug ("startBgp. bgpd called (AS %u, proc %d, .., stalepath %u, announceFbit %s)", \
+    zlog_info ("startBgp. bgpd called (AS %u, proc %d, .., stalepath %u, announceFbit %s)", \
                 (as_t)asNumber, pid, stalepathTime, announceFbit == true?"true":"false");
   /* from bgp_master, create bgp and retrieve bgp as node identifier */
   {
@@ -777,7 +777,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
   if(IS_QTHRIFT_DEBUG)
     {
       if(ret)
-        zlog_debug ("startBgp(%u, %s, .., %u, %s) OK",
+        zlog_info ("startBgp(%u, %s, .., %u, %s) OK",
                     (as_t)asNumber, routerId,
                     stalepathTime,
                     announceFbit == true?"true":"false");
@@ -898,7 +898,7 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
   else
     {
       if(IS_QTHRIFT_DEBUG)
-        zlog_debug ("pushRoute(prefix %s, nexthop %s, rd %s, label %d) OK", prefix, nexthop, rd, label);
+        zlog_info ("pushRoute(prefix %s, nexthop %s, rd %s, label %d) OK", prefix, nexthop, rd, label);
     }
   capn_free(&rc);
   return ret;
@@ -965,7 +965,7 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
   else
     {
       if(IS_QTHRIFT_DEBUG)
-        zlog_debug ("withdrawRoute(prefix %s, rd %s) OK", prefix, rd);
+        zlog_info ("withdrawRoute(prefix %s, rd %s) OK", prefix, rd);
     }
   capn_free(&rc);
   return ret;
@@ -1012,7 +1012,7 @@ instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _re
   qthrift_vpnservice_setup_thrift_bgp_cache(ctxt);
   qthrift_vpnservice_setup_qzc(ctxt);
   if(IS_QTHRIFT_DEBUG)
-    zlog_debug ("stopBgp(AS %u) OK", (as_t)asNumber);
+    zlog_info ("stopBgp(AS %u) OK", (as_t)asNumber);
   return TRUE;
 }
 
@@ -1072,14 +1072,14 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
       return FALSE;
     }
   if(IS_QTHRIFT_DEBUG)
-    zlog_debug ("createPeer(%s,%u) OK", routerId, (as_t)asNumber);
+    zlog_info ("createPeer(%s,%u) OK", routerId, (as_t)asNumber);
   /* add peer entry in cache */
   entry = XCALLOC(MTYPE_QTHRIFT, sizeof(struct qthrift_cache_peer));
   entry->peerIp = XSTRDUP(MTYPE_QTHRIFT, routerId);
   entry->peer_nid = peer_nid;
   entry->asNumber = (as_t)asNumber;
   if(IS_QTHRIFT_DEBUG_CACHE)
-    zlog_debug ("CACHE_PEER : add entry %llx", (long long unsigned int)peer_nid);
+    zlog_info ("CACHE_PEER : add entry %llx", (long long unsigned int)peer_nid);
   listnode_add(ctxt->bgp_peer_list, entry);
   /* set aficfg */
   ret = qthrift_bgp_afi_config(ctxt, _return, routerId, \
@@ -1140,7 +1140,7 @@ instance_bgp_configurator_handler_delete_peer(BgpConfiguratorIf *iface, gint32* 
           break;
         }
       if(IS_QTHRIFT_DEBUG)
-        zlog_debug ("deletePeer(%s) OK", peerIp);
+        zlog_info ("deletePeer(%s) OK", peerIp);
       return TRUE;
     }
   return FALSE;
@@ -1211,7 +1211,7 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
         zlog_debug ("CACHE_VRF: add entry %llx", (long long unsigned int)bgpvrf_nid);
       listnode_add(ctxt->bgp_vrf_list, entry);
       if(IS_QTHRIFT_DEBUG)
-        zlog_debug ("addVrf(%s) OK", rd);
+        zlog_info ("addVrf(%s) OK", rd);
       /* max_mpath has been set in bgpd with a default value owned by bgpd itself
        * must get back this value before going further else max_mpath will be overwritten
        * by first bgpvrf read */
@@ -1317,7 +1317,7 @@ gboolean instance_bgp_configurator_handler_del_vrf(BgpConfiguratorIf *iface, gin
           XFREE (MTYPE_QTHRIFT, entry);
           if(IS_QTHRIFT_DEBUG)
             {
-              zlog_debug ("delVrf(%s) OK", rd);
+              zlog_info ("delVrf(%s) OK", rd);
             }
           return TRUE;
         }
@@ -1403,9 +1403,9 @@ instance_bgp_configurator_handler_set_update_source (BgpConfiguratorIf *iface, g
       if(IS_QTHRIFT_DEBUG)
         {
           if(srcIp == 0)
-            zlog_debug ("unsetUpdateSource(%s) OK", peerIp);
+            zlog_info ("unsetUpdateSource(%s) OK", peerIp);
           else
-            zlog_debug ("setUpdateSource(%s, %s) OK", peerIp, srcIp);
+            zlog_info ("setUpdateSource(%s, %s) OK", peerIp, srcIp);
         }
     }
   capn_free(&rc);
@@ -1908,9 +1908,9 @@ qthrift_bgp_set_multipath(struct qthrift_vpnservice *ctxt,  gint32* _return, con
     if(IS_QTHRIFT_DEBUG)
       {
         if(enable)
-          zlog_debug ("enableMultipath for afi:%d safi:%d OK", af, saf);
+          zlog_info ("enableMultipath for afi:%d safi:%d OK", af, saf);
         else
-          zlog_debug ("disableMultipath for afi:%d safi:%d OK", af, saf);
+          zlog_info ("disableMultipath for afi:%d safi:%d OK", af, saf);
       }
   }
 
@@ -2031,7 +2031,7 @@ instance_bgp_configurator_handler_multipaths(BgpConfiguratorIf *iface, gint32* _
   {
     if(IS_QTHRIFT_DEBUG)
       {
-        zlog_debug ("maximum path for VRF %s set to %d", rd, maxPath);
+        zlog_info ("maximum path for VRF %s set to %d", rd, maxPath);
       }
   }
 
