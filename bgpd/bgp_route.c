@@ -4847,12 +4847,13 @@ bgp_clear_route (struct peer *peer, afi_t afi, safi_t safi,
       break;
 
     case BGP_CLEAR_ROUTE_MY_RSCLIENT:
-      /*
-       * gpz 091009: TBD why don't we have special handling for
-       * SAFI_MPLS_VPN here in the original quagga code?
-       * (and, by extension, for SAFI_ENCAP)
-       */
-      bgp_clear_route_table (peer, afi, safi, NULL, peer, purpose);
+      if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP))
+        bgp_clear_route_table (peer, afi, safi, NULL, peer, purpose);
+      else
+        for (rn = bgp_table_top (peer->bgp->rib[afi][safi]); rn;
+             rn = bgp_route_next (rn))
+          if ((table = rn->info) != NULL)
+            bgp_clear_route_table (peer, afi, safi, table, peer, purpose);
       break;
 
     default:
