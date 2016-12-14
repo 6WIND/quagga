@@ -3572,8 +3572,8 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
   /* Update MPLS tag. */
   if (nlabels)
     {
-      bgp_info_extra_get (ri)->nlabels = nlabels;
-      memcpy (ri->extra->labels, labels, sizeof(*labels) * nlabels);
+      bgp_info_extra_get (new)->nlabels = nlabels;
+      memcpy (new->extra->labels, labels, sizeof(*labels) * nlabels);
     }
 
   /* Update Overlay Index */
