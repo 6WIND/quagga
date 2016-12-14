@@ -4493,7 +4493,15 @@ bgp_announce_route (struct peer *peer, afi_t afi, safi_t safi)
        bgp_announce_table (peer, afi, safi, table, 0);
 
   if (CHECK_FLAG(peer->af_flags[afi][safi], PEER_FLAG_RSERVER_CLIENT))
-    bgp_announce_table (peer, afi, safi, NULL, 1);
+    {
+      if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP))
+        bgp_announce_table (peer, afi, safi, NULL, 1);
+      else
+        for (rn = bgp_table_top (peer->rib[afi][safi]); rn;
+             rn = bgp_route_next(rn))
+          if ((table = (rn->info)) != NULL)
+            bgp_announce_table (peer, afi, safi, table, 1);
+    }
 }
 
 void
@@ -4825,7 +4833,15 @@ bgp_clear_route (struct peer *peer, afi_t afi, safi_t safi,
       for (ALL_LIST_ELEMENTS (peer->bgp->rsclient, node, nnode, rsclient))
         if (CHECK_FLAG(rsclient->af_flags[afi][safi],
                        PEER_FLAG_RSERVER_CLIENT))
-          bgp_clear_route_table (peer, afi, safi, NULL, rsclient, purpose);
+          {
+            if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP))
+              bgp_clear_route_table (peer, afi, safi, NULL, rsclient, purpose);
+            else
+              for (rn = bgp_table_top (peer->bgp->rib[afi][safi]); rn;
+                   rn = bgp_route_next (rn))
+                if ((table = rn->info) != NULL)
+                  bgp_clear_route_table (peer, afi, safi, table, rsclient, purpose);
+          }
       break;
 
     case BGP_CLEAR_ROUTE_MY_RSCLIENT:
