@@ -4410,7 +4410,9 @@ bgp_announce_table (struct peer *peer, afi_t afi, safi_t safi,
     else
       {
         /* Create as many UPDATE message needed for each Route Distinguisher */
-        for (rn = bgp_table_top (peer->bgp->rib[afi][safi]); rn; rn = bgp_route_next (rn))
+        for (rn = rsclient ?
+               bgp_table_top(peer->rib[afi][safi]):bgp_table_top(peer->bgp->rib[afi][safi]);
+             rn; rn = bgp_route_next (rn))
           {
             struct bgp_node *rm;
             struct bgp_info *ri;
