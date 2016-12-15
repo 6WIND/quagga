@@ -1088,3 +1088,33 @@ struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
   listnode_add (vrf->rx_evpn_ad, evpn_ad);
   return evpn_ad;
 }
+
+void bgp_vrf_peer_notification (struct peer *peer, int down)
+{
+  struct bgp_evpn_ad *ad;
+  struct listnode *node, *node2, *nnode2;
+  struct bgp_vrf *vrf;
+
+  for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf))
+    {
+      for (ALL_LIST_ELEMENTS_RO(vrf->static_evpn_ad, node2, ad))
+        {
+          if (peer != ad->peer)
+            continue;
+          if (down)
+            {
+              ad->status = 1;
+              continue;
+            }
+          if (ad->status != 0)
+            {
+              ad->status = 0;
+              /* force sending XXX */
+              peer_evpn_auto_discovery_set (peer, vrf, ad->attr,
+                                            &ad->eth_s_id, ad->eth_t_id, 
+                                            (struct in_addr*) &ad->attr->extra->mp_nexthop_global_in,
+                                            ad->label);
+            }
+        }
+    }
+}

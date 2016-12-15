@@ -1510,6 +1510,7 @@ peer_delete (struct peer *peer)
     {
       list_delete (peer->def_route_rd_evpn);
     }
+  bgp_vrf_peer_notification (peer, 1);
   peer_unlock (peer); /* initial reference */
 
   return 0;

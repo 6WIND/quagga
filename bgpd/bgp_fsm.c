@@ -46,6 +46,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #ifdef HAVE_SNMP
 #include "bgpd/bgp_snmp.h"
 #endif /* HAVE_SNMP */
+#include "bgpd/bgp_evpn.h"
 
 /* BGP FSM (finite state machine) has three types of functions.  Type
    one is thread functions.  Type two is event functions.  Type three
@@ -913,6 +914,9 @@ bgp_establish (struct peer *peer)
 
   if (peer->v_keepalive)
     bgp_keepalive_send (peer);
+
+  /* Send A/D messages, if any */
+  bgp_vrf_peer_notification (peer, 0);
 
   /* First update is deferred until ORF or ROUTE-REFRESH is received */
   for (afi = AFI_IP ; afi < AFI_MAX ; afi++)
