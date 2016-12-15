@@ -2365,8 +2365,8 @@ static void bgp_vrf_copy_bgp_info(struct bgp_vrf *vrf, struct bgp_node *rn,
     }
 }
 
-static void bgp_vrf_process_entry (struct bgp_info *iter, 
-                                   int action, afi_t afi, safi_t safi)
+void bgp_vrf_process_entry (struct bgp_info *iter, 
+                            int action, afi_t afi, safi_t safi)
 {
   afi_t afi_int;
   struct bgp_node *vrf_rn = iter->net;
