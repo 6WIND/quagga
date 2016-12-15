@@ -2019,7 +2019,7 @@ bgp_update_receive (struct peer *peer, bgp_size_t size)
       /* otherwise MP AFI/SAFI is an empty update, other than an empty
        * MP_UNREACH_NLRI attr (with an AFI/SAFI we recognise).
        */
-      else if (attr.flag == BGP_ATTR_MP_UNREACH_NLRI
+      else if (CHECK_FLAG(attr.flag, ATTR_FLAG_BIT (BGP_ATTR_MP_UNREACH_NLRI))
                && nlris[NLRI_MP_WITHDRAW].length == 0
                && bgp_afi_safi_valid_indices (nlris[NLRI_MP_WITHDRAW].afi,
                                               &nlris[NLRI_MP_WITHDRAW].safi))
