@@ -2556,6 +2556,9 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
             SET_FLAG (iter->flags, BGP_INFO_ORIGIN_EVPN);
           SET_FLAG (iter->flags, BGP_INFO_VALID);
           bgp_info_add (vrf_rn, iter);
+
+          if (iter->sub_type != BGP_ROUTE_STATIC || iter->type != ZEBRA_ROUTE_BGP)
+            bgp_evpn_auto_discovery_new_entry (vrf, iter);
         }
       bgp_vrf_process_entry(iter, action, afi, safi);
       bgp_process (iter->peer->bgp, iter->net, afi_int, SAFI_UNICAST);
@@ -3682,6 +3685,7 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
     {
       struct bgp_evpn_ad *ad;
       ad = bgp_evpn_process_auto_discovery(peer, prd, evpn, p, labels[0], attr);
+      bgp_evpn_process_imports(bgp, NULL, ad);
       return 0;
     }
   rn = bgp_afi_node_get (bgp->rib[afi][safi], afi, safi, p, prd);
@@ -4103,6 +4107,7 @@ bgp_withdraw (struct peer *peer, struct prefix *p, struct attr *attr,
       struct bgp_evpn_ad *ad;
       ad = bgp_evpn_process_auto_discovery(peer, prd, evpn, p, labels[0], attr);
       ad->type = BGP_EVPN_AD_TYPE_MP_UNREACH;
+      bgp_evpn_process_imports(bgp, ad, NULL);
       return 0;
     }
 

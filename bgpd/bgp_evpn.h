@@ -42,6 +42,15 @@ extern struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
 
 extern void bgp_vrf_peer_notification (struct peer *peer, int down);
 
+/* propagates a change in the RT configured for each RD
+ */
+void
+bgp_evpn_process_imports (struct bgp *bgp, struct bgp_evpn_ad *old, struct bgp_evpn_ad *new);
+
+void
+bgp_evpn_auto_discovery_new_entry (struct bgp_vrf *vrf,
+                                   struct bgp_info *ri);
+
 /* EVPN route types as per RFC7432 and
  * as per draft-ietf-bess-evpn-prefix-advertisement-02
  */

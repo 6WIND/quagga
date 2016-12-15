@@ -36,8 +36,232 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_mplsvpn.h"
 #include "bgpd/bgp_debug.h"
 #include "bgpd/bgp_evpn.h"
+#include "bgpd/bgp_mpath.h"
 
 #define AD_STR_MAX_SIZE   120
+
+#define ENTRIES_TO_ADD 2
+#define ENTRIES_TO_REMOVE 1
+
+static void bgp_evpn_process_auto_discovery_update_from_vrf (struct bgp_vrf *vrf,
+                                                             struct bgp_evpn_ad *ad,
+                                                             int action);
+
+static void bgp_evpn_process_auto_discovery_delete_from_vrf (struct bgp_vrf *vrf,
+                                                             struct bgp_evpn_ad *ad);
+
+static void
+bgp_evpn_process_auto_discovery_propagate (struct bgp_vrf *vrf,
+                                           struct bgp_evpn_ad *ad,
+                                           int action);
+
+static void bgp_evpn_process_auto_discovery_update_from_vrf (struct bgp_vrf *vrf,
+                                                             struct bgp_evpn_ad *ad,
+                                                             int action)
+{
+  struct listnode *node;
+  struct bgp_evpn_ad *ad2;
+  int found = 0;
+
+  for (ALL_LIST_ELEMENTS_RO(vrf->import_processing_evpn_ad, node, ad2))
+    {
+      if (0 == bgp_evpn_ad_cmp(ad2, ad->peer, NULL,
+                               &ad->eth_s_id, ad->eth_t_id))
+        found = 1;
+        break;
+    }
+  /* add */
+  if (!found)
+    {
+      ad2 = bgp_evpn_ad_duplicate_from_ad(ad);
+      if (BGP_DEBUG (events, EVENTS))
+        {
+          char vrf_rd_str[RD_ADDRSTRLEN];
+          char buf[AD_STR_MAX_SIZE];
+          prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+          bgp_evpn_ad_display (ad2, buf, AD_STR_MAX_SIZE);
+          zlog_debug ("vrf[%s]: %s from %s added", vrf_rd_str, buf, ad2->peer->host);
+        }
+      listnode_add (vrf->import_processing_evpn_ad, ad2);
+    }
+  else
+    {
+      /* found - update it */
+      if (action == ENTRIES_TO_ADD)
+        {
+          if(ad2->attr == NULL)
+            {
+              struct attr new_attr;
+              struct attr_extra new_extra;
+
+              memset( &new_attr, 0, sizeof(struct attr));
+              memset( &new_extra, 0, sizeof(struct attr_extra));
+              bgp_attr_dup (&new_attr, ad->attr);
+              ad2->attr = bgp_attr_intern (&new_attr);
+            }
+          ad2->label = ad->label;
+        }
+      else if (action == ENTRIES_TO_REMOVE)
+        {
+          ad2->type = BGP_EVPN_AD_TYPE_MP_UNREACH;
+        }
+    }
+}
+
+static void bgp_evpn_process_auto_discovery_delete_from_vrf (struct bgp_vrf *vrf,
+                                                             struct bgp_evpn_ad *ad)
+{
+  struct listnode *node;
+  struct bgp_evpn_ad *ad2;
+
+  for (ALL_LIST_ELEMENTS_RO(vrf->import_processing_evpn_ad, node, ad2))
+    {
+      if (0 == bgp_evpn_ad_cmp(ad2, ad->peer, NULL,
+                               &ad->eth_s_id, ad->eth_t_id))
+        break;
+
+    }
+  if (!ad2)
+    return;
+  listnode_delete (vrf->import_processing_evpn_ad, ad2);
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN];
+      char buf[AD_STR_MAX_SIZE];
+      prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+      bgp_evpn_ad_display (ad2, buf, AD_STR_MAX_SIZE);
+      zlog_debug ("vrf[%s]: %s from %s deleted", vrf_rd_str, buf, ad2->peer->host);
+    }
+  bgp_evpn_ad_free (ad2);
+}
+
+/*
+ * for all entries in VRF, duplicate or remove entries
+ * on VRF RIB, and consequently on ADJRIB IN
+ */
+static void
+bgp_evpn_process_auto_discovery_propagate (struct bgp_vrf *vrf,
+                                           struct bgp_evpn_ad *ad,
+                                           int action)
+{
+  afi_t afi = AFI_IP;
+  struct bgp_info *ri, *ri_next;
+  struct bgp_node *rn;
+  int entry_found;
+
+  if (!vrf)
+    return;
+
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN];
+      char nh_str[BUFSIZ] = "<?>";
+      char *esi;
+
+      prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+
+      esi = esi2str(&(ad->eth_s_id));
+      if (ad->attr && ad->attr->extra)
+        {
+          if (afi == AFI_IP)
+            strcpy (nh_str, inet_ntoa (ad->attr->extra->mp_nexthop_global_in));
+          else if (afi == AFI_IP6)
+            inet_ntop (AF_INET6, &ad->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+        }
+        zlog_debug ("vrf[%s] %s Ethtag %08x/ ESI %s/ Label %u: A/D from %s applied ( nexthop %s)",
+                    vrf_rd_str, ad->type == BGP_EVPN_AD_TYPE_MP_UNREACH?"MP_UNREACH":"MP_REACH",
+                    ad->eth_t_id, esi, ad->label >> 4, ad->peer->host, nh_str);
+        free (esi);
+    }
+
+  for (rn = bgp_table_top (vrf->rib[afi]); rn; rn = bgp_route_next (rn))
+    {
+      if(rn->p.family != AF_L2VPN)
+        continue;
+
+      entry_found = 0;
+      /* check for eth tag if incoming eth tag is not set to 0 */
+      if(ad->eth_t_id != MAX_ET && rn->p.u.prefix_macip.eth_tag_id != ad->eth_t_id)
+            continue;
+
+      /* first loop to look for already present entries */
+      for (ri = rn->info; ri; ri = ri_next)
+        {
+          ri_next = ri->next;
+
+          /* static routes can't be impacted by received AD, don't process it */
+          if (ri->type == ZEBRA_ROUTE_BGP && ri->sub_type == BGP_ROUTE_STATIC)
+            continue;
+
+          if(memcmp(&(ad->eth_s_id), &(ri->attr->extra->evpn_overlay.eth_s_id),
+                    sizeof(struct eth_segment_id)))
+            continue;
+          /* case AD per EVI */
+          if (ad->eth_t_id != MAX_ET && ad->label != ri->extra->labels[0])
+            continue;
+          /* match entry */
+          if (ad->peer == ri->peer)
+            {
+              if (action == ENTRIES_TO_REMOVE)
+                {
+                  bgp_vrf_process_entry(ri, ROUTE_INFO_TO_REMOVE,
+                                        AFI_L2VPN, SAFI_EVPN);
+                  bgp_process (ri->peer->bgp, ri->net, AFI_IP, SAFI_UNICAST);
+                }
+              entry_found = 1;
+              break;
+            }
+        }
+
+      /* entry already found */
+      if (entry_found == 1)
+        continue;
+
+      /* second loop to look for duplicating entry */
+      for (ri = rn->info; ri; ri = ri_next)
+        {
+          ri_next = ri->next;
+
+          /* static routes can't be impacted by received AD, don't process it */
+          if (ri->type == ZEBRA_ROUTE_BGP && ri->sub_type == BGP_ROUTE_STATIC)
+            continue;
+
+          if(memcmp(&(ad->eth_s_id), &(ri->attr->extra->evpn_overlay.eth_s_id),
+                    sizeof(struct eth_segment_id)))
+            continue;
+          /* case AD per EVI */
+          if (ad->eth_t_id != MAX_ET && ad->label != ri->extra->labels[0])
+            continue;
+
+          {
+            struct bgp_info temp;
+            temp.attr = ad->attr;
+            if (0 == bgp_info_nexthop_cmp (&temp, ri))
+              {
+                zlog_err("A-D nexthop already has an entry with same NH");
+                continue;
+              }
+          }
+          /* match entry */
+          if (ad->peer != ri->peer)
+            {
+              struct bgp_info *ri_from_ad;
+              /* substitute next hop
+               * with ad->attr->extra->mp_nexthopglobal_in
+               * with ad->attr->nexthop
+               */
+              /* change peer to our ad->peer */
+              ri_from_ad = bgp_evpn_new_bgp_info_from_ad (ri, ad);
+              bgp_vrf_process_entry(ri_from_ad, ROUTE_INFO_TO_ADD,
+                                    AFI_L2VPN, SAFI_EVPN);
+              entry_found = 1;
+            }
+        }
+      if (entry_found)
+        bgp_process (vrf->bgp, rn, AFI_IP, SAFI_UNICAST);
+      /* lookup rt export list from ad->attr */
+    }
+}
 
 int
 bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
@@ -1127,4 +1351,178 @@ void bgp_vrf_peer_notification (struct peer *peer, int down)
           bgp_evpn_ad_free (ad);
         }
     }
+}
+
+/* propagates a change in the RT configured for each RD
+ */
+void
+bgp_evpn_process_imports (struct bgp *bgp, struct bgp_evpn_ad *old, struct bgp_evpn_ad *new)
+{
+  struct ecommunity *old_ecom = NULL, *new_ecom = NULL;
+  struct bgp_vrf *vrf;
+  struct listnode *node;
+  size_t i, j;
+  struct bgp_evpn_ad *ri = NULL;
+
+
+  if (old && old->attr && old->attr->extra)
+    old_ecom = old->attr->extra->ecommunity;
+  if (new && new->attr && new->attr->extra)
+    new_ecom = new->attr->extra->ecommunity;
+
+  if(new && !old)
+    {
+      ri = new;
+    }
+  else if(!new && old)
+    {
+      ri = old;
+    }
+
+  /*
+   * if old present, for each export target
+   * get the list of route target subscribers
+   * if no new, then withdraw entries in all mentioned export rt
+   * if new present, and new contains at least one previous export rt,
+   * then export entries in all mentioned export rt
+   */
+  if (old_ecom)
+    {
+    for (i = 0; i < (size_t)old_ecom->size; i++)
+      {
+        struct bgp_rt_sub dummy, *rt_sub;
+        uint8_t *val = old_ecom->val + 8 * i;
+        uint8_t type = val[1];
+        bool withdraw = true;
+
+        if (type != ECOMMUNITY_ROUTE_TARGET)
+          continue;
+
+        memcpy(&dummy.rt, val, 8);
+        rt_sub = hash_lookup (bgp->rt_subscribers, &dummy);
+        if (!rt_sub)
+          continue;
+
+        if (new_ecom)
+          {
+            for (j = 0; j < (size_t)new_ecom->size; j++)
+              if (!memcmp(new_ecom->val + j * 8, val, 8))
+                {
+                  withdraw = false;
+                  break;
+                }
+          }
+        for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
+          {
+            /* case ecom not present in new_ecom : remove associated ri
+             * case ecom present in new_ecom : just update
+             */
+            bgp_evpn_process_auto_discovery_update_from_vrf(vrf, ri,
+                                                            withdraw == false?ENTRIES_TO_ADD:ENTRIES_TO_REMOVE);
+            bgp_evpn_process_auto_discovery_propagate(vrf, ri, withdraw == false?
+                                                      ENTRIES_TO_ADD:ENTRIES_TO_REMOVE);
+            if (withdraw != false)
+              {
+                bgp_evpn_process_auto_discovery_delete_from_vrf (vrf, ri);
+              }
+          }
+      }
+    }
+  /* for each new export target,
+   * get the list of route target subscribers
+   * if old export target, and there is at least match
+   * between old rt and new rt, then do nothing
+   * if there is no match, or if this is a new RT with no old RT,
+   * then the route target subscribers are feeded
+   */
+  if (new_ecom)
+    for (i = 0; i < (size_t)new_ecom->size; i++)
+      {
+        struct bgp_rt_sub dummy, *rt_sub;
+        uint8_t *val = new_ecom->val + 8 * i;
+        uint8_t type = val[1];
+        bool found = false;
+
+        if (type != ECOMMUNITY_ROUTE_TARGET)
+          continue;
+
+        memcpy(&dummy.rt, val, 8);
+        rt_sub = hash_lookup (bgp->rt_subscribers, &dummy);
+        if (!rt_sub)
+          continue;
+
+        if (old_ecom)
+          for (j = 0; j < (size_t)old_ecom->size; j++)
+            if (!memcmp(old_ecom->val + j * 8, val, 8))
+              {
+                found = true;
+                break;
+              }
+
+        if (!found)
+          for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
+            {
+              bgp_evpn_process_auto_discovery_update_from_vrf(vrf, ri, ENTRIES_TO_ADD);
+              bgp_evpn_process_auto_discovery_propagate(vrf, ri, ENTRIES_TO_ADD);
+            }
+      }
+
+  return;
+}
+
+/*
+ * for a new entry in VRF RIB, check for previous A/D received
+ * if A/D matches, a new entry will be created for the peer that sent the A/D
+ */
+void
+bgp_evpn_auto_discovery_new_entry (struct bgp_vrf *vrf,
+                                   struct bgp_info *ri)
+{
+  struct listnode *node;
+  struct bgp_evpn_ad *ad;
+  struct bgp_node *rn;
+  struct bgp_info *ri_from_ad;
+
+  rn = ri->net;
+
+  for (ALL_LIST_ELEMENTS_RO(vrf->import_processing_evpn_ad, node, ad))
+    {
+      if (ri->peer == ad->peer)
+        continue;
+      if (ad->eth_t_id != MAX_ET &&
+         rn->p.u.prefix_macip.eth_tag_id != ad->eth_t_id)
+        continue;
+      if (!ri->attr || !ri->attr->extra || !ri->extra)
+        continue;
+      if (memcmp(&(ad->eth_s_id), &(ri->attr->extra->evpn_overlay.eth_s_id),
+                sizeof(struct eth_segment_id)))
+        continue;
+      /* case AD per EVI */
+      if (ad->eth_t_id != MAX_ET && ad->label != ri->extra->labels[0])
+        continue;
+      /* an a/d matched. duplicate entry for ad->peer 
+       * if mp_reach a/d */
+      if (!ad->attr)
+        continue;
+      {
+        struct bgp_info temp;
+        temp.attr = ad->attr;
+        if (0 == bgp_info_nexthop_cmp (&temp, ri))
+        {
+          zlog_err("A-D nexthop already has an entry with same NH");
+          continue;
+        }
+      }
+      if (BGP_DEBUG (events, EVENTS))
+        {
+          char buf[AD_STR_MAX_SIZE];
+          bgp_evpn_ad_display (ad, buf, AD_STR_MAX_SIZE);
+          zlog_debug ("%s : duplicating new entry", buf);
+        }
+      ri_from_ad = bgp_evpn_new_bgp_info_from_ad (ri, ad);
+      bgp_vrf_process_entry(ri_from_ad, ROUTE_INFO_TO_ADD,
+                            AFI_L2VPN, SAFI_EVPN);
+    }
+  /* no route processing, since called function will do it */
+  /* continue parsing for other ads interested */
 }

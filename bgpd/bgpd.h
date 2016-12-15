@@ -279,6 +279,8 @@ struct bgp_vrf
   /* List of auto discovery statically set */
   struct list *static_evpn_ad;
   struct list *rx_evpn_ad;
+  /* for import processing */
+  struct list *import_processing_evpn_ad;
 
   QZC_NODE
 };
