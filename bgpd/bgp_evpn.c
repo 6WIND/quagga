@@ -1116,5 +1116,15 @@ void bgp_vrf_peer_notification (struct peer *peer, int down)
                                             ad->label);
             }
         }
+      /* flush */
+      if(!down)
+        continue;
+      for (ALL_LIST_ELEMENTS(vrf->rx_evpn_ad, node2, nnode2, ad))
+        {
+          if (peer != ad->peer)
+            continue;
+          list_delete_node (vrf->rx_evpn_ad, node2);
+          bgp_evpn_ad_free (ad);
+        }
     }
 }
