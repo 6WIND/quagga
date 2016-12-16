@@ -174,8 +174,12 @@ bgp_nlri_parse_vpn (struct peer *peer, struct attr *attr,
               return -1;
             }
           labels[nlabels++] = label;
+#if 0
           if (label == 0 || label == 0x800000 || label & 0x000001)
               break;
+#else
+          break; /* ignore if BOT is set or not */
+#endif
         }
 
       /* sanity check against storage for the IP address portion */
