@@ -319,6 +319,7 @@ struct bgp_api_route
   uint32_t ethtag;
   char *esi;
   char *mac_router;
+  struct in_addr gatewayIp;
 };
 
 /* BGP peer-group support. */
