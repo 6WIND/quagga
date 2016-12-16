@@ -2107,6 +2107,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   bgp_static->valid = 1;
   bgp_static->igpmetric = 0;
   bgp_static->igpnexthop = route->nexthop;
+  bgp_static->gatewayIp = route->gatewayIp;
   if (route->label != 0xFFFFFFFF)
     {
       bgp_static->labels[0] = (route->label << 4) | 1;
@@ -5758,6 +5759,7 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   struct attr *attr_new;
   struct attr attr = { 0 };
   struct bgp_info *ri;
+  union gw_addr add;
 
   assert (bgp_static);
 
@@ -5773,6 +5775,8 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
       bgp_attr_extra_get (&attr)->ecommunity = ecommunity_dup (bgp_static->ecomm);
       attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
     }
+  memset(&add, 0, sizeof(union gw_addr));
+  add.ipv4.s_addr = bgp_static->gatewayIp.s_addr;
   if(afi == AFI_L2VPN)
     {
       struct bgp_encap_type_vxlan bet;
@@ -5789,15 +5793,11 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
         }
       if (bgp_static->igpnexthop.s_addr)
         {
-          union gw_addr add;
-
-          memset(&add, 0, sizeof(union gw_addr));
-          add.ipv4.s_addr = bgp_static->igpnexthop.s_addr;
           overlay_index_update(&attr, bgp_static->eth_s_id, &add);
         }
       else
         {
-          overlay_index_update(&attr, bgp_static->eth_s_id, NULL);
+          overlay_index_update(&attr, bgp_static->eth_s_id, &add);
         }
       if((&attr)->extra)
         (&attr)->extra->eth_t_id = bgp_static->eth_t_id;
@@ -5850,9 +5850,6 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
 
   if (ri)
     {
-      union gw_addr add;
-      memset(&add, 0, sizeof(union gw_addr));
-      add.ipv4.s_addr = bgp_static->igpnexthop.s_addr;
       if (attrhash_cmp (ri->attr, attr_new) &&
           labels_equal (ri, bgp_static->labels, bgp_static->nlabels) &&
           eth_tag_id_equal(afi, ri, &bgp_static->eth_t_id) &&
