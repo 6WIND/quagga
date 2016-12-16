@@ -3755,6 +3755,8 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
   if (!d)
     {
       memcpy (&found->nh, &nh, sizeof(nh));
+      if (route)
+        found->ipv4_gatewayIp.s_addr = route->gatewayIp.s_addr;
       if (route && route->label)
         {
           found->labels[0] = route->label << 4 | 1;

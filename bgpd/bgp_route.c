@@ -4342,8 +4342,8 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
           else
             memset(&esi, 0, sizeof(struct eth_segment_id));
           memset(&add, 0, sizeof(union gw_addr));
-          if (vrf->nh.v4.s_addr)
-            add.ipv4.s_addr = vrf->nh.v4.s_addr;
+          if (vrf->ipv4_gatewayIp.s_addr)
+            add.ipv4.s_addr = vrf->ipv4_gatewayIp.s_addr;
           else
             add.ipv4 = bgp->router_id;
           overlay_index_update(&attr, &esi, &add);

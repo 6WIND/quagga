@@ -271,6 +271,7 @@ struct bgp_vrf
   uint32_t ethtag;
   char *esi;
   char *mac_router;
+  struct in_addr ipv4_gatewayIp;
 
   /* internal flag */
 #define BGP_VRF_RD_UNSET 1
