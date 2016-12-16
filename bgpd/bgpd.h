@@ -282,6 +282,7 @@ struct bgp_vrf
   uint32_t ethtag;
   char *esi;
   char *mac_router;
+  struct in_addr ipv4_gatewayIp;
 
   /* maximum multipath entries for the VRF */
   uint32_t max_mpath;
