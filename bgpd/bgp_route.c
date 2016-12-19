@@ -3497,12 +3497,6 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
       if(afi == AFI_INTERNAL_L2VPN)
         {
           overlay_index_update(ri->attr, &evpn_p->eth_s_id, &evpn_p->gw_ip);
-          /* overwrite nexthop ip addrep-> */
-          if(evpn_p->gw_ip.ipv4.s_addr && ri->attr && p->family == AF_INET)
-            {
-              ri->attr->nexthop.s_addr = evpn_p->gw_ip.ipv4.s_addr;
-              ri->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
-            }
           if(ri->attr && ri->attr->extra)
             {
               ri->attr->extra->eth_t_id = evpn_p->eth_t_id;
@@ -3539,12 +3533,6 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
   if(afi == AFI_INTERNAL_L2VPN)
     {
       overlay_index_update(new->attr, &evpn_p->eth_s_id, &evpn_p->gw_ip);
-      /* overwrite nexthop ip addrep-> */
-      if(evpn_p->gw_ip.ipv4.s_addr && new->attr && p->family == AF_INET)
-        {
-          new->attr->nexthop.s_addr = evpn_p->gw_ip.ipv4.s_addr;
-          new->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
-        }
       if(new->attr && new->attr->extra)
         {
           new->attr->extra->eth_t_id = evpn_p->eth_t_id;
@@ -3867,12 +3855,6 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       if(afi == AFI_INTERNAL_L2VPN)
         {
           overlay_index_update(ri->attr, &evpn_p->eth_s_id, &evpn_p->gw_ip);
-          /* overwrite nexthop ip address */
-          if(evpn_p->gw_ip.ipv4.s_addr && ri->attr && p->family == AF_INET)
-            {
-              ri->attr->nexthop.s_addr = evpn_p->gw_ip.ipv4.s_addr;
-              ri->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
-            }
           if(ri->attr && ri->attr->extra)
             {
               ri->attr->extra->eth_t_id = evpn_p->eth_t_id;
@@ -3946,12 +3928,6 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
   if(afi == AFI_INTERNAL_L2VPN)
     {
       overlay_index_update(new->attr, &evpn_p->eth_s_id, &evpn_p->gw_ip);
-      /* overwrite nexthop ip address */
-      if(evpn_p->gw_ip.ipv4.s_addr && new->attr && p->family == AF_INET)
-        {
-          new->attr->nexthop.s_addr = evpn_p->gw_ip.ipv4.s_addr;
-          new->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
-        }
       if(new->attr && new->attr->extra)
         {
           new->attr->extra->eth_t_id = evpn_p->eth_t_id;
@@ -5654,20 +5630,7 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
            bgp_add_routermac_ecom (&attr, bgp_static->router_mac);
          }
 
-      if (bgp_static->igpnexthop.s_addr)
-        {
-          overlay_index_update(&attr, bgp_static->eth_s_id, &add);
-          /* overwrite nexthop ip address */
-          if(p->family == AF_INET || p->family == AF_L2VPN)
-            {
-              (&attr)->nexthop.s_addr = (&add)->ipv4.s_addr;
-              (&attr)->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
-            }
-        }
-      else
-        {
-          overlay_index_update(&attr, bgp_static->eth_s_id, &add);
-        }
+      overlay_index_update(&attr, bgp_static->eth_s_id, &add);
       if((&attr)->extra)
         (&attr)->extra->eth_t_id = bgp_static->eth_t_id;
     }
