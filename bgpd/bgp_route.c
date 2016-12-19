@@ -7755,7 +7755,7 @@ route_vty_out(
        * neccessarily the same as the prefix address family.
        * Both SAFI_MPLS_VPN and SAFI_ENCAP use the MP nexthop field
        */
-      if ((safi == SAFI_ENCAP) || (safi == SAFI_MPLS_VPN)) {
+      if ((safi == SAFI_ENCAP) || (safi == SAFI_MPLS_VPN) || (safi == SAFI_INTERNAL_EVPN)) {
 	if (attr->extra) {
 	    char	buf[BUFSIZ];
 	    int		af = NEXTHOP_FAMILY(attr->extra->mp_nexthop_len);
@@ -7774,21 +7774,6 @@ route_vty_out(
 	    }
 	} else {
 	    vty_out(vty, "?");
-	}
-      } else if (safi == SAFI_INTERNAL_EVPN) {
-	if (attr->extra) {
-          char	buf[BUFSIZ];
-          if (p->family == AF_INET)
-            vty_out (vty, "%s", inet_ntop(AF_INET,
-                                          &(attr->extra->evpn_overlay.gw_ip.ipv4), buf, BUFSIZ));
-          else if (p->family == AF_INET6)
-            vty_out (vty, "%s", inet_ntop(AF_INET6,
-                                          &(attr->extra->evpn_overlay.gw_ip.ipv6), buf, BUFSIZ));
-          else if (p->family == AF_L2VPN)
-            vty_out (vty, "%s", inet_ntop(AF_INET,
-                                          &(attr->nexthop), buf, BUFSIZ));
-	} else {
-          vty_out(vty, "?");
 	}
       } else {
 
