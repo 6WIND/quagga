@@ -457,6 +457,52 @@ DEFUN (no_vpnv4_network,
                                 NULL, NULL, NULL, NULL);
 }
 
+DEFUN (vpnv6_network,
+       vpnv6_network_cmd,
+       "network X:X::X:X/M rd ASN:nn_or_IP-address:nn tag WORD",
+       "Specify a network to announce via BGP\n"
+       "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n"
+       "Specify Route Distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "BGP tag\n"
+       "tag value\n")
+{
+  return bgp_static_set_safi (SAFI_MPLS_VPN, vty, argv[0], argv[1], argv[2], 
+                              NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+}
+
+DEFUN (vpnv6_network_route_map,
+       vpnv6_network_route_map_cmd,
+       "network X:X::X:X/M rd ASN:nn_or_IP-address:nn tag WORD route-map WORD",
+       "Specify a network to announce via BGP\n"
+       "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n"
+       "Specify Route Distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "BGP tag\n"
+       "tag value\n"
+       "route map\n"
+       "route map name\n")
+{
+  return bgp_static_set_safi (SAFI_MPLS_VPN, vty, argv[0], argv[1], argv[2], argv[3],
+                              NULL, NULL, NULL, NULL, NULL, NULL);
+}
+
+/* For testing purpose, static route of MPLS-VPN. */
+DEFUN (no_vpnv6_network,
+       no_vpnv6_network_cmd,
+       "no network X:X::X:X/M rd ASN:nn_or_IP-address:nn tag WORD",
+       NO_STR
+       "Specify a network to announce via BGP\n"
+       "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n"
+       "Specify Route Distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "BGP tag\n"
+       "tag value\n")
+{
+  return bgp_static_unset_safi (SAFI_MPLS_VPN, vty, argv[0], argv[1], argv[2],
+                                NULL, NULL, NULL, NULL);
+}
+
 static int
 show_adj_route_vpn (struct vty *vty, struct peer *peer, struct prefix_rd *prd)
 {
@@ -1120,6 +1166,10 @@ bgp_mplsvpn_init (void)
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_neighbor_advertised_routes_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_rd_neighbor_advertised_routes_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_rd_neighbor_routes_cmd);
+
+  install_element (BGP_VPNV6_NODE, &vpnv6_network_cmd);
+  install_element (BGP_VPNV6_NODE, &vpnv6_network_route_map_cmd);
+  install_element (BGP_VPNV6_NODE, &no_vpnv6_network_cmd);
 
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_rd_cmd);
