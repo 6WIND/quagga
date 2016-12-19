@@ -590,6 +590,10 @@ bgp_stop (struct peer *peer)
     {
       list_delete_all_node (peer->def_route_rd_vpnv4);
     }
+  if (peer->def_route_rd_vpnv6)
+    {
+      list_delete_all_node (peer->def_route_rd_vpnv6);
+    }
   if (peer->def_route_rd_evpn)
     {
       list_delete_all_node (peer->def_route_rd_evpn);

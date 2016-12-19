@@ -554,6 +554,7 @@ struct peer
 
  /* list of EVPN and VPNv4 default route configured (bgp_vrf*) */
  struct list *def_route_rd_vpnv4;
+ struct list *def_route_rd_vpnv6;
  struct list *def_route_rd_evpn;
 
   /* MD5 password */

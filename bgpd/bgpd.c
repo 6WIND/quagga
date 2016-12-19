@@ -965,8 +965,9 @@ peer_create (union sockunion *su, struct bgp *bgp, as_t local_as,
   if (! active && peer_active (peer))
     bgp_timer_set (peer);
 
-  /* Initialize list of VPNv4 and EVPN default routes */
+  /* Initialize list of VPNv4 and EVPN and VPNv6 default routes */
   peer->def_route_rd_vpnv4 = list_new();
+  peer->def_route_rd_vpnv6 = list_new();
   peer->def_route_rd_evpn = list_new();
 
   return peer;
@@ -1504,6 +1505,11 @@ peer_delete (struct peer *peer)
   if (peer->def_route_rd_vpnv4)
     {
       list_delete (peer->def_route_rd_vpnv4);
+    }
+  /* Delete list of VPNv6 default routes */
+  if (peer->def_route_rd_vpnv6)
+    {
+      list_delete (peer->def_route_rd_vpnv6);
     }
   /* Delete list of EVPN default routes */
   if (peer->def_route_rd_evpn)
@@ -3747,7 +3753,12 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
   zlog_info("%s: rd=%s, afi=%d, nh=%s, label=%u", __func__,
             rdstr, afi, route?inet_ntoa(route->nexthop):"<none>", route->label << 4 | 1);
   if (safi == SAFI_MPLS_VPN)
-    list_to_parse = peer->def_route_rd_vpnv4;
+    {
+      if (afi == AFI_IP6)
+        list_to_parse = peer->def_route_rd_vpnv6;
+      else
+        list_to_parse = peer->def_route_rd_vpnv4;
+    }
   else if (safi == SAFI_EVPN)
     list_to_parse = peer->def_route_rd_evpn;
   /* add this VRF in peer list of VPNv4 or EVPN default route if not already present */
@@ -3802,7 +3813,12 @@ peer_default_originate_unset_rd (struct peer *peer, afi_t afi, safi_t safi, stru
     return BGP_ERR_INVALID_FOR_PEER_GROUP_MEMBER;
 
   if (safi == SAFI_MPLS_VPN)
-    list_to_parse = peer->def_route_rd_vpnv4;
+    {
+      if (afi == AFI_IP6)
+        list_to_parse = peer->def_route_rd_vpnv6;
+      else
+        list_to_parse = peer->def_route_rd_vpnv4;
+    }
   else if (safi == SAFI_EVPN)
     list_to_parse = peer->def_route_rd_evpn;
 
@@ -5834,24 +5850,33 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
           struct bgp_vrf *vrf;
           char rdstr[RD_ADDRSTRLEN];
           char labelstr[RD_ADDRSTRLEN];
+          struct list *list_to_parse = NULL;
 
-          for (ALL_LIST_ELEMENTS_RO(peer->def_route_rd_vpnv4, node, vrf))
+          if (safi == SAFI_MPLS_VPN)
             {
-              prefix_rd2str(&vrf->outbound_rd, rdstr, RD_ADDRSTRLEN);
-              if (!vrf->nh.v4.s_addr)
-                vty_out (vty, " neighbor %s default-originate rd %s%s", addr,
-                         rdstr, VTY_NEWLINE);
+              if (afi == AFI_IP6)
+                list_to_parse = peer->def_route_rd_vpnv6;
               else
+                list_to_parse = peer->def_route_rd_vpnv4;
+
+              for (ALL_LIST_ELEMENTS_RO(list_to_parse, node, vrf))
                 {
-                  if (vrf->nlabels)
-                    {
-                      labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
-                      vty_out (vty, " neighbor %s default-originate rd %s %s %s%s", addr,
-                               rdstr, inet_ntoa(vrf->nh.v4), labelstr, VTY_NEWLINE);
-                    }
+                  prefix_rd2str(&vrf->outbound_rd, rdstr, RD_ADDRSTRLEN);
+                  if (!vrf->nh.v4.s_addr)
+                    vty_out (vty, " neighbor %s default-originate rd %s%s", addr,
+                             rdstr, VTY_NEWLINE);
                   else
-                    vty_out (vty, " neighbor %s default-originate rd %s %s%s", addr,
-                             rdstr, inet_ntoa(vrf->nh.v4), VTY_NEWLINE);
+                    {
+                      if (vrf->nlabels)
+                        {
+                          labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
+                          vty_out (vty, " neighbor %s default-originate rd %s %s %s%s", addr,
+                                   rdstr, inet_ntoa(vrf->nh.v4), labelstr, VTY_NEWLINE);
+                        }
+                      else
+                        vty_out (vty, " neighbor %s default-originate rd %s %s%s", addr,
+                                 rdstr, inet_ntoa(vrf->nh.v4), VTY_NEWLINE);
+                    }
                 }
             }
           for (ALL_LIST_ELEMENTS_RO(peer->def_route_rd_evpn, node, vrf))
