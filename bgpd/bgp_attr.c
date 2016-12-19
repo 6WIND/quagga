@@ -2551,12 +2551,7 @@ bgp_packet_mpattr_route_type_5 (struct stream *s,
         {
           //CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_NEXTHOP_UNCHANGED)
           if(p->family == AF_INET)
-            {
-              if (attr->extra->use_gw)
-                stream_put_ipv4(s, attr->extra->evpn_overlay.gw_ip.ipv4.s_addr);
-              else
-                stream_put_ipv4(s, attr->extra->mp_nexthop_global_in.s_addr);
-            }
+            stream_put_ipv4(s, attr->extra->evpn_overlay.gw_ip.ipv4.s_addr);
           else if (p->family == AF_INET6)
             stream_put(s, &(attr->extra->evpn_overlay.gw_ip.ipv6), 16);
         }
