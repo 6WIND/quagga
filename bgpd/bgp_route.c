@@ -1978,7 +1978,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   struct prefix def_route;
   safi_t safi;
 
-  if ((afi != AFI_IP) && (afi != AFI_L2VPN))
+  if ((afi != AFI_IP) && (afi != AFI_IP6) && (afi != AFI_L2VPN))
     return -1;
   if(afi == AFI_L2VPN)
     safi = SAFI_EVPN;
@@ -2095,7 +2095,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
 
               /* Retrieve peer and set DEFAULT_ORIGINATE flag */
               peer = listgetdata(iter);
-              /* Only send UPDATE messages to VPNv4 and EVPN peers */
+              /* Only send UPDATE messages to VPNv4 and EVPN and VPNv6 peers */
               if (peer && peer->status == Established && peer->afc_nego[afi][safi])
                 {
                   SET_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE);
@@ -2182,7 +2182,7 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   struct prefix def_route;
   safi_t safi;
 
-  if ((afi != AFI_IP) && (afi != AFI_L2VPN))
+  if ((afi != AFI_IP) && (afi != AFI_IP6) && (afi != AFI_L2VPN))
     return -1;
   if(afi == AFI_L2VPN)
     safi = SAFI_EVPN;
