@@ -3393,14 +3393,14 @@ peer_default_originate_set_rd_vty (struct vty *vty, const char *peer_str,
     {
       if (nh)
         {
-          if (!inet_aton(nh, &route.nexthop))
+          if (!inet_aton(nh, &route.nexthop.u.prefix4))
             {
               vty_out (vty, "%% Malformed Next Hop address %s%s", nh, VTY_NEWLINE);
               return CMD_WARNING;
             }
         }
       else
-        route.nexthop.s_addr = peer->bgp->router_id.s_addr;
+        route.nexthop.u.prefix4.s_addr = peer->bgp->router_id.s_addr;
 
       if (labels)
         {

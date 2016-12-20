@@ -2036,7 +2036,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
                                            &esi, ethtag))
                     {
                       ad_found = ad;
-                      ret2 = bgp_evpn_ad_update (ad, (struct in_addr*) &route->nexthop,
+                      ret2 = bgp_evpn_ad_update (ad, (struct in_addr*) &route->nexthop.u.prefix4,
                                                  route->l2label);
 
                       break;
@@ -2064,7 +2064,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
                 }
 
               peer_evpn_auto_discovery_set (peer, vrf, ad_found->attr,
-                                            &esi, ethtag, (struct in_addr*) &route->nexthop,
+                                            &esi, ethtag, (struct in_addr*) &route->nexthop.u.prefix4,
                                             route->l2label);
             }
         }

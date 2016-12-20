@@ -3720,6 +3720,7 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
                                const struct bgp_api_route *route)
 {
   char rdstr[RD_ADDRSTRLEN];
+  char nh_str[BUFSIZ];
   struct listnode *node;
   struct bgp_vrf *vrf, *found = NULL;
   struct prefix_rd* d;
@@ -3748,10 +3749,16 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
 
   if (!found)
     return 1;
-  if(route)
-    nh.v4 = route->nexthop;
+  if(route && route->nexthop.family == AF_INET)
+    nh.v4 = route->nexthop.u.prefix4;
+  else
+    {
+      nh.v6_local = route->nexthop.u.prefix6;
+      nh.v6_global = route->nexthop.u.prefix6;
+    }
   zlog_info("%s: rd=%s, afi=%d, nh=%s, label=%u", __func__,
-            rdstr, afi, route?inet_ntoa(route->nexthop):"<none>", route->label << 4 | 1);
+            rdstr, afi, route?inet_ntop (route->nexthop.family, &route->nexthop.u.prefix, nh_str, BUFSIZ):
+            "<none>", route->label << 4 | 1);
   if (safi == SAFI_MPLS_VPN)
     {
       if (afi == AFI_IP6)
