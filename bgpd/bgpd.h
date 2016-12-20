@@ -293,7 +293,7 @@ struct bgp_event_vrf
   uint8_t announce;
   struct prefix_rd outbound_rd; /* dummy for event_shut */
   struct prefix prefix; /* alias subtype */
-  struct in_addr nexthop; /* alias peer */
+  struct prefix nexthop; /* alias peer */
   uint32_t label; /* alias type */
   uint32_t ethtag;
   uint32_t l2label;
@@ -304,7 +304,7 @@ struct bgp_event_vrf
 
 struct bgp_event_shut
 {
-  struct in_addr peer;
+  struct prefix peer;
   uint8_t type, subtype;
 };
 
@@ -315,7 +315,7 @@ struct bgp_event_shut
 struct bgp_api_route
 {
   struct prefix prefix;
-  struct in_addr nexthop;
+  struct prefix nexthop;
   uint32_t label;
   uint32_t l2label;
   uint32_t ethtag;
