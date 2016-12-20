@@ -1423,6 +1423,21 @@ void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
           s->mac_router = NULL;
         }
     }
+    {
+      const char * gateway_ip = NULL;
+      int len;
+      capn_text tp = capn_get_text(p, 5, capn_val0);
+      gateway_ip = tp.str;
+      len = tp.len;
+      if (gateway_ip && len != 0)
+        {
+          s->gatewayIp  = strdup(gateway_ip);
+        }
+      else
+        {
+          s->gatewayIp = NULL;
+        }
+    }
 }
 
 
@@ -1483,6 +1498,7 @@ void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
     }
     { capn_text tp = { .str = s->esi, .len = s->esi ? strlen((const char *)s->esi) : 0 }; capn_set_text(p, 3, tp); }
     { capn_text tp = { .str = s->mac_router, .len = s->mac_router ? strlen((const char *)s->mac_router) : 0 }; capn_set_text(p, 4, tp); }
+    { capn_text tp = { .str = s->gatewayIp, .len = s->gatewayIp ? strlen((const char *)s->gatewayIp) : 0 }; capn_set_text(p, 5, tp); }
 }
 
 
@@ -1510,7 +1526,7 @@ void qcapn_BGPEventVRFRoute_set(struct bgp_event_vrf *s, capn_ptr p)
 
 capn_ptr qcapn_new_BGPEventVRFRoute(struct capn_segment *s)
 {
-    return capn_new_struct(s, 16, 5);
+    return capn_new_struct(s, 16, 6);
 }
 
 
