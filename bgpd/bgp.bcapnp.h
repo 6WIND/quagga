@@ -59,6 +59,8 @@ void qcapn_BGPVRFInfoIter_write(const unsigned long s, capn_ptr p, int offset);
 void qcapn_BGPVRFInfoIter_read(unsigned long *s, capn_ptr p, int offset);
 void qcapn_prefix_macip_read(capn_ptr p, struct prefix *pfx, uint8_t *index);
 void qcapn_prefix_macip_write(capn_ptr p, const struct prefix *pfx, uint8_t *index);
+void qcapn_prefix_ipv4ipv6_write (capn_ptr p, const struct prefix *pfx, uint8_t index);
+void qcapn_prefix_ipv4ipv6_read(capn_ptr p, struct prefix *pfx, uint8_t index);
 
 #define  CAPN_BGPVRF_ROUTE_DEF_SIZE  12
 #endif /* CAPN_C4C948A17D3B2250 */

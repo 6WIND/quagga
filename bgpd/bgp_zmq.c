@@ -147,7 +147,7 @@ bgp_notify_shut (struct bgp *bgp, struct bgp_event_shut *shut)
   /* encapsulate message in bgp_event_vrf structure */
   memset(&msg, 0, sizeof(struct bgp_event_vrf));
   msg.announce = BGP_EVENT_SHUT;
-  msg.nexthop.s_addr = shut->peer.s_addr;
+  msg.nexthop = shut->peer;
   msg.label = shut->type;
   msg.prefix.u.prefix4.s_addr = shut->subtype;
   bgp_notify_send (bgp, &msg);

@@ -252,11 +252,13 @@ bgp_notify_print(struct peer *peer, struct bgp_notify *bgp_notify,
   if(!strcmp(direct,"received"))
     {
       struct bgp_event_shut shut = {
-        .peer  = peer->remote_id,
         .type      = bgp_notify->code,
         .subtype   = bgp_notify->subcode
       };
-    bgp_notify_shut (peer->bgp, &shut);
+      shut.peer.family = AF_INET;
+      shut.peer.prefixlen = IPV4_MAX_BITLEN;
+      shut.peer.u.prefix4 = peer->remote_id;
+      bgp_notify_shut (peer->bgp, &shut);
     }
 #endif /* HAVE_ZEROMQ */
   subcode_str = "";
