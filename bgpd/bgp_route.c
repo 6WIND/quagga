@@ -1594,7 +1594,12 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
     return false;
 
   if (sel->attr && sel->attr->extra)
-    out->nexthop = sel->attr->extra->mp_nexthop_global_in;
+    if (sel->attr->extra->mp_nexthop_global_in.s_addr)
+      {
+        out->nexthop.family = AF_INET;
+        out->nexthop.prefixlen = IPV4_MAX_BITLEN;
+        out->nexthop.u.prefix4 = sel->attr->extra->mp_nexthop_global_in;
+      }
   if (sel->extra && sel->extra->nlabels)
     {
       int idx = 0;
@@ -1669,7 +1674,11 @@ bool bgp_api_static_get (struct bgp_api_route *out, struct bgp_node *bn)
   bgp_static = bn->info;
 
   prefix_copy ((struct prefix *)&out->prefix, &bn->p);
-  out->nexthop = bgp_static->igpnexthop;
+  {
+    out->nexthop.family = AF_INET;
+    out->nexthop.prefixlen = IPV4_MAX_BITLEN;
+    out->nexthop.u.prefix4 = bgp_static->igpnexthop;
+  }
   out->label = bgp_static->nlabels ? (bgp_static->labels[0] >> 4) : 0;
   return true;
 }
@@ -1897,7 +1906,9 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
     {
       if (selected->attr && selected->attr->extra)
         {
-          event.nexthop = selected->attr->extra->mp_nexthop_global_in;
+          event.nexthop.family = AF_INET;
+          event.nexthop.prefixlen = IPV4_MAX_BITLEN;
+          event.nexthop.u.prefix4 = selected->attr->extra->mp_nexthop_global_in;
           /* get routermac if origin evpn */
           if(CHECK_FLAG (selected->flags, BGP_INFO_ORIGIN_EVPN))
             {
@@ -2114,7 +2125,8 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   bgp_static->backdoor = 0;
   bgp_static->valid = 1;
   bgp_static->igpmetric = 0;
-  bgp_static->igpnexthop = route->nexthop;
+  if (route->nexthop.family == AF_INET)
+    bgp_static->igpnexthop = route->nexthop.u.prefix4;
   bgp_static->gatewayIp = route->gatewayIp;
   if (route->label != 0xFFFFFFFF)
     {
