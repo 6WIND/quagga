@@ -6250,7 +6250,8 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
       bgp_static->backdoor = 0;
       bgp_static->valid = 0;
       bgp_static->igpmetric = 0;
-      bgp_static->igpnexthop.s_addr = 0;
+      /* by default: nexthop bgp router id */
+      bgp_static->igpnexthop = bgp->router_id;
       memcpy(bgp_static->labels, labels, sizeof(labels[0]) * nlabels);
       bgp_static->nlabels = nlabels;
       vrf = bgp_vrf_lookup(bgp, &prd);
