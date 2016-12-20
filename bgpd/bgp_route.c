@@ -1976,6 +1976,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   struct prefix *p = (struct prefix *)&route->prefix;
   struct bgp_node *rn;
   struct prefix def_route;
+  struct prefix def_route_ipv6;
   safi_t safi;
 
   if ((afi != AFI_IP) && (afi != AFI_IP6) && (afi != AFI_L2VPN))
@@ -2071,10 +2072,12 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
     }
 
   str2prefix ("0.0.0.0/0", &def_route);
+  str2prefix ("::/0", &def_route_ipv6);
 
   /* if we try to install a default route, set flag accordingly */
-  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p) &&
-      ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN)))
+  if ( ( (0 == prefix_cmp(&def_route, p)) ||
+         (0 == prefix_cmp(&def_route_ipv6, p))) &&
+       ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN)))
     {
       struct bgp_vrf *v;
       struct bgp *bgp;
@@ -2180,6 +2183,7 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   struct bgp_static *old;
   struct bgp_node *rn;
   struct prefix def_route;
+  struct prefix def_route_ipv6;
   safi_t safi;
 
   if ((afi != AFI_IP) && (afi != AFI_IP6) && (afi != AFI_L2VPN))
@@ -2268,10 +2272,12 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
       return ret;
     }
   str2prefix ("0.0.0.0/0", &def_route);
+  str2prefix ("::/0", &def_route_ipv6);
 
   /* if we try to withdraw a default route, unset flag accordingly */
-  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p) &&
-      ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN)))
+  if ( ( (0 == prefix_cmp(&def_route, p)) ||
+         (0 == prefix_cmp(&def_route_ipv6, p))) &&
+       ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN)))
     {
       int ret = -1;
       struct bgp_vrf *v;
