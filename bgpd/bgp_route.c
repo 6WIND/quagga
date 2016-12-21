@@ -1809,9 +1809,10 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
 
       if (selected->attr && selected->attr->extra)
         {
-          if (afi == AFI_IP)
+          int af = NEXTHOP_FAMILY(selected->attr->extra->mp_nexthop_len);
+          if (af == AF_INET)
             strcpy (nh_str, inet_ntoa (selected->attr->extra->mp_nexthop_global_in));
-          else if (afi == AFI_IP6)
+          else if (af == AF_INET6)
             inet_ntop (AF_INET6, &selected->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
         }
 
@@ -1914,9 +1915,20 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
     {
       if (selected->attr && selected->attr->extra)
         {
-          event.nexthop.family = AF_INET;
-          event.nexthop.prefixlen = IPV4_MAX_BITLEN;
-          event.nexthop.u.prefix4 = selected->attr->extra->mp_nexthop_global_in;
+          int af = NEXTHOP_FAMILY(selected->attr->extra->mp_nexthop_len);
+          if (af == AF_INET)
+            {
+              event.nexthop.family = AF_INET;
+              event.nexthop.prefixlen = IPV4_MAX_BITLEN;
+              event.nexthop.u.prefix4 = selected->attr->extra->mp_nexthop_global_in;
+            }
+          else if (af == AF_INET6)
+            {
+              event.nexthop.family = AF_INET6;
+              event.nexthop.prefixlen = IPV6_MAX_BITLEN;
+              memcpy (&event.nexthop.u.prefix6, 
+                      &selected->attr->extra->mp_nexthop_global, sizeof(struct in6_addr));
+            }
           /* get routermac if origin evpn */
           if(CHECK_FLAG (selected->flags, BGP_INFO_ORIGIN_EVPN))
             {
