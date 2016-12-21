@@ -1594,12 +1594,21 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
     return false;
 
   if (sel->attr && sel->attr->extra)
-    if (sel->attr->extra->mp_nexthop_global_in.s_addr)
+    {
+      int af = NEXTHOP_FAMILY(sel->attr->extra->mp_nexthop_len);
+      if (af == AF_INET)
       {
         out->nexthop.family = AF_INET;
         out->nexthop.prefixlen = IPV4_MAX_BITLEN;
         out->nexthop.u.prefix4 = sel->attr->extra->mp_nexthop_global_in;
       }
+    else if (af == AF_INET6)
+      {
+        out->nexthop.family = AF_INET6;
+        out->nexthop.prefixlen = IPV6_MAX_BITLEN;
+        memcpy (&out->nexthop.u.prefix6, &sel->attr->extra->mp_nexthop_global, sizeof(struct in6_addr));
+      }
+    }
   if (sel->extra && sel->extra->nlabels)
     {
       int idx = 0;
