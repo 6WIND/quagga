@@ -1884,7 +1884,6 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
   if(selected->type == ZEBRA_ROUTE_BGP
      && selected->sub_type == BGP_ROUTE_STATIC)
     return;
-
   if (announce == true)
     {
       if(CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
@@ -2127,6 +2126,9 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   bgp_static->igpmetric = 0;
   if (route->nexthop.family == AF_INET)
     bgp_static->igpnexthop = route->nexthop.u.prefix4;
+  else if (route->nexthop.family == AF_INET6)
+    memcpy (&bgp_static->ipv6nexthop, &route->nexthop.u.prefix6, sizeof(struct in6_addr));
+
   bgp_static->gatewayIp = route->gatewayIp;
   if (route->label != 0xFFFFFFFF)
     {
@@ -5825,10 +5827,25 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
       if((&attr)->extra)
         (&attr)->extra->eth_t_id = bgp_static->eth_t_id;
     }
+
   if (bgp_static->igpnexthop.s_addr)
     {
-    bgp_attr_extra_get (&attr)->mp_nexthop_global_in = bgp_static->igpnexthop;
-    bgp_attr_extra_get (&attr)->mp_nexthop_len = IPV4_MAX_BYTELEN;
+      bgp_attr_extra_get (&attr)->mp_nexthop_global_in = bgp_static->igpnexthop;
+      bgp_attr_extra_get (&attr)->mp_nexthop_len = IPV4_MAX_BYTELEN;
+    }
+  else
+    {
+      const char *ip6str = "::0";
+      struct in6_addr result;
+      if (1 == inet_pton(AF_INET6, ip6str, &result))
+        {
+          if (memcmp (&result, &bgp_static->ipv6nexthop, sizeof (struct in6_addr)))
+          {
+            memcpy (&bgp_attr_extra_get (&attr)->mp_nexthop_global,
+                    &bgp_static->ipv6nexthop, sizeof (struct in6_addr));
+            bgp_attr_extra_get (&attr)->mp_nexthop_len = IPV6_MAX_BYTELEN;
+          }
+        }
     }
   /* Apply route-map. */
   if (bgp_static->rmap.name)

@@ -132,6 +132,7 @@ struct bgp_static
 
   /* IGP nexthop. */
   struct in_addr igpnexthop;
+  struct in6_addr ipv6nexthop;
 
   /* Atomic set reference count (ie cause of pathlimit) */
   u_int32_t atomic;
