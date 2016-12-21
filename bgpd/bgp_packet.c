@@ -536,9 +536,9 @@ bgp_default_update_send (struct peer *peer, struct attr *attr,
 }
 
 void
-bgp_default_update_vpnv4_send(struct peer *peer, struct prefix_rd *rd,
-                              struct attr *attr, afi_t afi,
-                              size_t nlabels, uint32_t *labels)
+bgp_default_update_vpn_send(struct peer *peer, struct prefix_rd *rd,
+                            struct attr *attr, afi_t afi,
+                            size_t nlabels, uint32_t *labels)
 {
   struct bgp *bgp;
   struct stream *s;
@@ -553,10 +553,8 @@ bgp_default_update_vpnv4_send(struct peer *peer, struct prefix_rd *rd,
 
   if (afi == AFI_IP)
     str2prefix ("0.0.0.0/0", &p);
-#ifdef HAVE_IPV6
   else
     str2prefix ("::/0", &p);
-#endif /* HAVE_IPV6 */
 
   /* Logging the attribute. */
   if (BGP_DEBUG (update, UPDATE_OUT))
@@ -767,7 +765,7 @@ bgp_default_withdraw_send (struct peer *peer, afi_t afi, safi_t safi)
 }
 
 void
-bgp_default_withdraw_vpnv4_send (struct peer *peer, afi_t afi, struct prefix_rd *rd)
+bgp_default_withdraw_vpn_send (struct peer *peer, afi_t afi, struct prefix_rd *rd)
 {
   struct stream *s;
   struct prefix p;
@@ -783,10 +781,8 @@ bgp_default_withdraw_vpnv4_send (struct peer *peer, afi_t afi, struct prefix_rd 
 
   if (afi == AFI_IP)
     str2prefix ("0.0.0.0/0", &p);
-#ifdef HAVE_IPV6
   else
     str2prefix ("::/0", &p);
-#endif /* HAVE_IPV6 */
 
   total_attr_len = 0;
 

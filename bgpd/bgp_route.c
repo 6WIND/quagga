@@ -4321,7 +4321,7 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
         {
           if (safi == SAFI_MPLS_VPN)
             {
-              bgp_default_withdraw_vpnv4_send (peer, afi, rd);
+              bgp_default_withdraw_vpn_send (peer, afi, rd);
               empty = (NULL == listnode_head(peer->def_route_rd_vpnv4));
             }
           else if (safi == SAFI_EVPN)
@@ -4347,14 +4347,29 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
       ae = attr.extra;
 
       if (vrf->nh.v4.s_addr)
-        memcpy (&attr.nexthop, &(vrf->nh.v4), IPV4_MAX_BYTELEN);
+        {
+          memcpy (&attr.nexthop, &(vrf->nh.v4), 4);
+          bgp_attr_extra_get (&attr)->mp_nexthop_global_in.s_addr = vrf->nh.v4.s_addr;
+          bgp_attr_extra_get (&attr)->mp_nexthop_len = IPV4_MAX_BYTELEN;
+        }
       else
-        attr.nexthop.s_addr = 0;
-
-      if (vrf->nh.v4.s_addr)
-        ae->mp_nexthop_global_in = vrf->nh.v4;
-      else
-        ae->mp_nexthop_global_in = bgp->router_id;
+        {
+          const char *ip6str = "::0";
+          struct in6_addr result;
+          if (1 != inet_pton(AF_INET6, ip6str, &result) ||
+              0 == memcmp (&result, &vrf->nh.v6_global, sizeof (struct in6_addr)))
+            {
+              ae->mp_nexthop_global_in = bgp->router_id;
+              ae->mp_nexthop_len = IPV4_MAX_BYTELEN;
+              attr.nexthop.s_addr = 0;
+            }
+          else
+            {
+              memcpy (&ae->mp_nexthop_global,
+                      &vrf->nh.v6_global, sizeof (struct in6_addr));
+              ae->mp_nexthop_len = IPV6_MAX_BYTELEN;
+            }
+        }
       if (safi == SAFI_EVPN)
         {
           struct eth_segment_id esi;
@@ -4386,7 +4401,7 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
           SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_DEFAULT_ORIGINATE);
         }
       if (safi == SAFI_MPLS_VPN)
-        bgp_default_update_vpnv4_send(peer, rd, &attr, afi, vrf->nlabels, vrf->labels);
+        bgp_default_update_vpn_send(peer, rd, &attr, afi, vrf->nlabels, vrf->labels);
       else if (safi == SAFI_EVPN)
         bgp_default_update_evpn_send(peer, rd, &attr, AFI_IP, vrf->nlabels, vrf->labels);
       bgp_attr_extra_free (&attr);
