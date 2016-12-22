@@ -509,7 +509,7 @@ typedef enum {
 #define SAFI_EVPN                 5
 #define SAFI_LABELED_UNICAST      6
 #define SAFI_ENCAP		  7 /* per IANA */
-#define SAFI_RESERVED_5           5
+#define SAFI_RESERVED_5           6
 #define SAFI_IANA_EVPN            70 /* per IANA */
 #define SAFI_IANA_LABELED_UNICAST 4
 #define SAFI_MAX                  8
