@@ -268,6 +268,65 @@ _qzc_set_bgp_2(struct bgp *p,
     qcapn_BGPAfiSafi_set(p, req->data, afi, safi);
 }
 
+
+static void
+_qzc_set_bgp_3(struct bgp *p,
+        struct QZCSetReq *req,
+        struct capn_segment *seg)
+{
+    afi_t afi;
+
+    if (req->ctxtype != 0xac25a73c3ff455c0)
+        /* error */
+        return ;
+
+    afi = qcapn_AfiKey_get_afi (req->ctxdata);
+
+    if (req->datatype != 0x8f217eb4bad6c06f)
+        /* error */
+        return ;
+
+    struct bgp_api_route data;
+    qcapn_BGPVRFRoute_read(&data, req->data);
+
+    bgp_vrf_static_set (NULL, afi, &data);
+    if (data.esi)
+      free (data.esi);
+    if (data.mac_router)
+      free (data.mac_router);
+    data.esi = data.mac_router = NULL;
+    return;
+}
+
+static void
+_qzc_set_bgp_4(struct bgp *p,
+        struct QZCSetReq *req,
+        struct capn_segment *seg)
+{
+    afi_t afi;
+
+    if (req->ctxtype != 0xac25a73c3ff455c0)
+        /* error */
+        return ;
+
+    afi = qcapn_AfiKey_get_afi (req->ctxdata);
+
+    if (req->datatype != 0x8f217eb4bad6c06f)
+        /* error */
+        return ;
+
+    struct bgp_api_route data;
+    qcapn_BGPVRFRoute_read(&data, req->data);
+
+    bgp_vrf_static_unset (NULL, afi, &data);
+    if (data.esi)
+      free (data.esi);
+    if (data.mac_router)
+      free (data.mac_router);
+    data.esi = data.mac_router = NULL;
+    return;
+}
+
 /* [3fafaa5ff15d4317] bgp <> bgp */
 static void
 _qzc_get_bgp(void *entity, struct QZCGetReq *req, struct QZCGetRep *rep,
@@ -318,13 +377,18 @@ _qzc_set_bgp(void *entity,
     p = (struct bgp *)entity;
     rep->data = new_QZCSetRepReturnCode(seg);
     write_QZCSetRepReturnCode (ret, rep->data);
-
     switch (req->elem) {
     case 1:
         _qzc_set_bgp_1(p, req, seg);
         return;
     case 2:
         _qzc_set_bgp_2(p, req, seg);
+        return;
+    case 3:
+        _qzc_set_bgp_3(p, req, seg);
+        return;
+    case 4:
+        _qzc_set_bgp_4(p, req, seg);
         return;
     default:
         return;

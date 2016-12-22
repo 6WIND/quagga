@@ -10,6 +10,7 @@ static const capn_text capn_val0 = {0, ""};
 
 #include "zebra.h"
 #include "bgpd.h"
+#include "bgp_lu.h"
 
 afi_t qcapn_AfiSafiKey_get_afi(capn_ptr p)
 {
@@ -914,6 +915,8 @@ void qcapn_BGPPeerAfiSafi_set(struct peer *s, capn_ptr p, afi_t afi, safi_t safi
     {
       u_char afc;
       afc = !!(capn_read8(p, 0) & (1 << 0));
+      if (safi == SAFI_LABELED_UNICAST)
+        peer_configure_label (s, afi, safi, 1);
       peer_afc_set(s, afi, safi, afc);
       
     }

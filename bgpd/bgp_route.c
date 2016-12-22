@@ -2015,8 +2015,12 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   if(afi == AFI_L2VPN)
     safi = SAFI_EVPN;
   else
-    safi = SAFI_MPLS_VPN;
-
+    {
+      if (route->l2label == SAFI_LABELED_UNICAST)
+        safi = SAFI_LABELED_UNICAST;
+      else
+        safi = SAFI_MPLS_VPN;
+    }
   /* detect Auto Discovery message */
   if ((safi == SAFI_EVPN) && PREFIX_IS_L2VPN_AD(p))
     {
@@ -2159,8 +2163,11 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   else
     bgp_static->nlabels = 0;
 
-  bgp_static->prd = vrf->outbound_rd;
-  bgp_static->ecomm = vrf->rt_export;
+  if (vrf)
+    {
+      bgp_static->prd = vrf->outbound_rd;
+      bgp_static->ecomm = vrf->rt_export;
+    }
   if(afi == AFI_L2VPN)
     {
       if(route->esi)
@@ -2195,19 +2202,25 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
       bgp_static->ecomm->refcnt++;
     }
 
-  rn = bgp_node_get (vrf->route[afi], p);
-  if (rn->info)
+  if (vrf)
     {
-      struct bgp_static *old = rn->info;
-      if (old->ecomm)
-        ecommunity_unintern (&old->ecomm);
-      bgp_static_free (rn->info);
-      /* reference only dropped if we're replacing a route */
-      bgp_unlock_node (rn);
+      rn = bgp_node_get (vrf->route[afi], p);
+      if (rn->info)
+        {
+          struct bgp_static *old = rn->info;
+          if (old->ecomm)
+            ecommunity_unintern (&old->ecomm);
+          bgp_static_free (rn->info);
+          /* reference only dropped if we're replacing a route */
+          bgp_unlock_node (rn);
+        }
+      rn->info = bgp_static;
+      bgp_static_update_safi (vrf->bgp, p, bgp_static, afi, safi);
     }
-  rn->info = bgp_static;
-
-  bgp_static_update_safi (vrf->bgp, p, bgp_static, afi, safi);
+  else
+    {
+      bgp_static_update_safi (bgp_get_default (), p, bgp_static, afi, safi);
+    }
   return 0;
 }
 
@@ -2226,7 +2239,12 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   if(afi == AFI_L2VPN)
     safi = SAFI_EVPN;
   else
-    safi = SAFI_MPLS_VPN;
+    {
+      if (route->l2label == SAFI_LABELED_UNICAST)
+        safi = SAFI_LABELED_UNICAST;
+      else
+        safi = SAFI_MPLS_VPN;
+    }
 
   /* detect Auto Discovery message */
   if ((safi == SAFI_EVPN) && PREFIX_IS_L2VPN_AD(p))
@@ -2344,19 +2362,25 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
       return ret;
     }
 
-  rn = bgp_node_lookup (vrf->route[afi], p);
-  if (!rn || !rn->info)
-    return -1;
-
-  bgp_static_withdraw_safi (vrf->bgp, p, afi, safi,
+  if (vrf)
+    {
+      rn = bgp_node_lookup (vrf->route[afi], p);
+      if (!rn || !rn->info)
+        return -1;
+      bgp_static_withdraw_safi (vrf->bgp, p, afi, safi,
                             &vrf->outbound_rd, NULL, 0);
-
-  old = rn->info;
-  if (old->ecomm)
-    ecommunity_unintern (&old->ecomm);
-  bgp_static_free (old);
-  rn->info = NULL;
-  bgp_unlock_node (rn);
+      old = rn->info;
+      if (old->ecomm)
+        ecommunity_unintern (&old->ecomm);
+      bgp_static_free (old);
+      rn->info = NULL;
+      bgp_unlock_node (rn);
+    }
+  else
+    {
+      bgp_static_withdraw_safi (bgp_get_default (), p, afi, safi,
+                                NULL, NULL, 0);
+    }
   return 0;
 }
 
@@ -5823,8 +5847,10 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   union gw_addr add;
 
   assert (bgp_static);
-
-  rn = bgp_afi_node_get (bgp->rib[afi][safi], afi, safi, p, &bgp_static->prd);
+  if (safi != SAFI_LABELED_UNICAST)
+    rn = bgp_afi_node_get (bgp->rib[afi][safi], afi, safi, p, &bgp_static->prd);
+  else
+    rn = bgp_afi_node_get (bgp->rib[afi][safi], afi, safi, p, NULL);
   bgp_attr_default_set (&attr, BGP_ORIGIN_IGP);
 
   attr.nexthop = bgp_static->igpnexthop;
@@ -5907,8 +5933,12 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
           /* Unintern original. */
           aspath_unintern (&attr.aspath);
           bgp_attr_extra_free (&attr);
-          bgp_static_withdraw_safi (bgp, p, afi, safi, &bgp_static->prd,
-                                    bgp_static->labels, bgp_static->nlabels);
+          if (safi != SAFI_LABELED_UNICAST)
+            bgp_static_withdraw_safi (bgp, p, afi, safi, &bgp_static->prd,
+                                      bgp_static->labels, bgp_static->nlabels);
+          else
+            bgp_static_withdraw_safi (bgp, p, afi, safi, NULL,
+                                      bgp_static->labels, bgp_static->nlabels);
           return;
         }
 
