@@ -267,12 +267,11 @@ bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
 	}
       if (BGP_DEBUG (update, UPDATE_OUT))
         {
-          char buf[INET6_BUFSIZ];
+          char buf[PREFIX_STRLEN];
 
-          zlog (peer->log, LOG_DEBUG, "%s send UPDATE %s/%d",
-                peer->host,
-                inet_ntop (rn->p.family, &(rn->p.u.prefix), buf, INET6_BUFSIZ),
-                rn->p.prefixlen);
+          prefix2str(&rn->p, buf, sizeof(buf));
+          zlog (peer->log, LOG_DEBUG, "%s send UPDATE %s",
+                peer->host, buf);
         }
 
       /* Synchnorize attribute.  */
