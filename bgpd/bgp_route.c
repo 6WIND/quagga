@@ -10561,6 +10561,78 @@ DEFUN (show_ipv6_bgp_route,
   return bgp_show_route (vty, NULL, argv[0], AFI_IP6, SAFI_UNICAST, NULL, 0, BGP_PATH_ALL);
 }
 
+DEFUN (show_ipv6_bgp_vpnv6_all_route,
+       show_ipv6_bgp_vpnv6_all_route_cmd,
+       "show ipv6 bgp vpnv6 all X:X::X:X",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "Display VPNv6 NLRI specific information\n"
+       "Display information about all VPNv6 NLRIs\n"
+       "Network in the BGP routing table to display\n")
+{
+  return bgp_show_route (vty, NULL, argv[0], AFI_IP6, SAFI_MPLS_VPN, NULL, 0, BGP_PATH_ALL);
+}
+
+DEFUN (show_ipv6_bgp_vpnv6_rd_route,
+       show_ipv6_bgp_vpnv6_rd_route_cmd,
+       "show ipv6 bgp vpnv6 rd ASN:nn_or_IP-address:nn X:X::X:X",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "Display VPNv6 NLRI specific information\n"
+       "Display information for a route distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "Network in the BGP routing table to display\n")
+{
+  int ret;
+  struct prefix_rd prd;
+
+  ret = str2prefix_rd (argv[0], &prd);
+  if (! ret)
+    {
+      vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  return bgp_show_route (vty, NULL, argv[1], AFI_IP6, SAFI_MPLS_VPN, &prd, 0, BGP_PATH_ALL);
+}
+
+DEFUN (show_ipv6_bgp_vpnv6_all_prefix,
+       show_ipv6_bgp_vpnv6_all_prefix_cmd,
+       "show ipv6 bgp vpnv6 all X:X::X:X/M",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "Display VPNv6 NLRI specific information\n"
+       "Display information about all VPNv6 NLRIs\n"
+       "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n")
+{
+  return bgp_show_route (vty, NULL, argv[0], AFI_IP6, SAFI_MPLS_VPN, NULL, 1, BGP_PATH_ALL);
+}
+
+DEFUN (show_ipv6_bgp_vpnv6_rd_prefix,
+       show_ipv6_bgp_vpnv6_rd_prefix_cmd,
+       "show ipv6 bgp vpnv6 rd ASN:nn_or_IP-address:nn X:X::X:X/M",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "Display VPNv6 NLRI specific information\n"
+       "Display information for a route distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n")
+{
+  int ret;
+  struct prefix_rd prd;
+
+  ret = str2prefix_rd (argv[0], &prd);
+  if (! ret)
+    {
+      vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  return bgp_show_route (vty, NULL, argv[1], AFI_IP6, SAFI_MPLS_VPN, &prd, 1, BGP_PATH_ALL);
+}
+
 DEFUN (show_bgp_prefix,
        show_bgp_prefix_cmd,
        "show bgp X:X::X:X/M",
@@ -14998,7 +15070,7 @@ bgp_peer_count_walker (struct thread *t)
   struct bgp_node *rn;
   struct peer_pcounts *pc = THREAD_ARG (t);
   const struct peer *peer = pc->peer;
-  
+
   for (rn = bgp_table_top (pc->table); rn; rn = bgp_route_next (rn))
     {
       struct bgp_adj_in *ain;
@@ -15219,6 +15291,29 @@ DEFUN (show_bgp_ipv4_safi_neighbor_prefix_counts,
     return CMD_WARNING;
 
   return bgp_peer_counts (vty, peer, AFI_IP, safi);
+}
+
+DEFUN (show_ipv6_bgp_vpnv6_neighbor_prefix_counts,
+       show_ipv6_bgp_vpnv6_neighbor_prefix_counts_cmd,
+       "show ipv6 bgp vpnv6 all neighbors (A.B.C.D|X:X::X:X) prefix-counts",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "Address family\n"
+       "Address Family modifier\n"
+       "Address Family modifier\n"
+       "Detailed information on TCP and BGP neighbor connections\n"
+       "Neighbor to display information about\n"
+       "Neighbor to display information about\n"
+       "Display detailed prefix count information\n")
+{
+  struct peer *peer;
+
+  peer = peer_lookup_in_view (vty, NULL, argv[0]);
+  if (! peer)
+    return CMD_WARNING;
+
+  return bgp_peer_counts (vty, peer, AFI_IP6, SAFI_MPLS_VPN);
 }
 
 DEFUN (show_bgp_ipv6_safi_neighbor_prefix_counts,
@@ -19677,6 +19772,11 @@ bgp_route_init (void)
 
   install_element (VIEW_NODE, &show_ipv6_bgp_cmd);
   install_element (VIEW_NODE, &show_ipv6_bgp_route_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_vpnv6_all_route_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_vpnv6_rd_route_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_vpnv6_all_prefix_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_vpnv6_rd_prefix_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_vpnv6_neighbor_prefix_counts_cmd);
   install_element (VIEW_NODE, &show_ipv6_bgp_prefix_cmd);
   install_element (VIEW_NODE, &show_ipv6_bgp_regexp_cmd);
   install_element (VIEW_NODE, &show_ipv6_bgp_prefix_list_cmd);
