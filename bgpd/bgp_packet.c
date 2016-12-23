@@ -52,6 +52,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_evpn.h"
 #include "bgpd/bgp_advertise.h"
 #include "bgpd/bgp_vty.h"
+#include "bgpd/bgp_lu.h"
 
 int stream_put_prefix (struct stream *, struct prefix *);
 
@@ -342,7 +343,12 @@ bgp_update_packet_eor (struct peer *peer, afi_t afi, safi_t safi)
       stream_putc (s, BGP_ATTR_MP_UNREACH_NLRI);
       stream_putc (s, 3);
       stream_putw (s, afi);
-      stream_putc (s, (safi == SAFI_MPLS_VPN) ? SAFI_MPLS_LABELED_VPN : safi);
+      if (safi == SAFI_MPLS_VPN)
+        stream_putc (s, SAFI_MPLS_LABELED_VPN);
+      else if (safi == SAFI_LABELED_UNICAST)
+        stream_putc (s, SAFI_IANA_LABELED_UNICAST);
+      else
+        stream_putc (s, safi);
     }
 
   bgp_packet_set_size (s);
@@ -1524,6 +1530,8 @@ bgp_route_refresh_send (struct peer *peer, afi_t afi, safi_t safi,
     safi = SAFI_MPLS_LABELED_VPN;
   else if (safi == SAFI_EVPN)
     safi = SAFI_IANA_EVPN;
+  else if (safi == SAFI_LABELED_UNICAST)
+    safi = SAFI_IANA_LABELED_UNICAST;
   if (afi == AFI_L2VPN)
     afi = AFI_IANA_L2VPN;
 
@@ -1615,8 +1623,10 @@ bgp_capability_send (struct peer *peer, afi_t afi, safi_t safi,
   /* Adjust safi code. */
   if (safi == SAFI_MPLS_VPN)
     safi = SAFI_MPLS_LABELED_VPN;
-  if (safi == SAFI_EVPN)
+  else if (safi == SAFI_EVPN)
     safi = SAFI_IANA_EVPN;
+  else if (safi == SAFI_LABELED_UNICAST)
+    safi = SAFI_IANA_LABELED_UNICAST;
 
   s = stream_new (BGP_MAX_PACKET_SIZE);
 
@@ -2092,6 +2102,9 @@ bgp_nlri_parse (struct peer *peer, struct attr *attr, struct bgp_nlri *packet)
       case SAFI_UNICAST:
       case SAFI_MULTICAST:
         return bgp_nlri_parse_ip (peer, attr, packet);
+      case SAFI_LABELED_UNICAST:
+      case SAFI_IANA_LABELED_UNICAST:
+        return bgp_nlri_parse_lu (peer, attr, packet);
       case SAFI_MPLS_VPN:
       case SAFI_MPLS_LABELED_VPN:
         return bgp_nlri_parse_vpn (peer, attr, packet);
@@ -2545,7 +2558,8 @@ bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
   /* Check AFI and SAFI. */
   if ((afi != AFI_IP && afi != AFI_IP6 && afi != AFI_IANA_L2VPN)
       || (safi != SAFI_UNICAST && safi != SAFI_MULTICAST
-	  && safi != SAFI_MPLS_LABELED_VPN && safi != SAFI_IANA_EVPN))
+	  && safi != SAFI_MPLS_LABELED_VPN && safi != SAFI_IANA_EVPN
+          && safi != SAFI_IANA_LABELED_UNICAST))
     {
       if (BGP_DEBUG (normal, NORMAL))
 	{
@@ -2560,8 +2574,10 @@ bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
     safi = SAFI_MPLS_VPN;
   else if (safi == SAFI_IANA_EVPN)
     safi = SAFI_EVPN;
+  else if (safi == SAFI_IANA_LABELED_UNICAST)
+    safi = SAFI_LABELED_UNICAST;
   if (afi == AFI_IANA_L2VPN)
-      afi = AFI_L2VPN;
+    afi = AFI_L2VPN;
       
   if (size != BGP_MSG_ROUTE_REFRESH_MIN_SIZE - BGP_HEADER_SIZE)
     {

@@ -2419,6 +2419,8 @@ bgp_packet_mpattr_start (struct stream *s, afi_t afi, safi_t safi,
     stream_putc (s, SAFI_MPLS_LABELED_VPN);
   else if(safi == SAFI_EVPN)
     stream_putc (s, SAFI_IANA_EVPN);
+  else if(safi == SAFI_LABELED_UNICAST)
+    stream_putc (s, SAFI_IANA_LABELED_UNICAST);
   else
     stream_putc (s, safi);
   /* Nexthop */
@@ -2437,6 +2439,7 @@ bgp_packet_mpattr_start (struct stream *s, afi_t afi, safi_t safi,
 	  stream_putl (s, 0);
 	  stream_put (s, &attr->extra->mp_nexthop_global_in, 4);
 	  break;
+	case SAFI_LABELED_UNICAST:
 	case SAFI_ENCAP:
 	  stream_putc (s, 4);
 	  stream_put (s, &attr->extra->mp_nexthop_global_in, 4);
@@ -2482,6 +2485,7 @@ bgp_packet_mpattr_start (struct stream *s, afi_t afi, safi_t safi,
           }
         }
 	break;
+	case SAFI_LABELED_UNICAST:
 	case SAFI_ENCAP:
           assert (attr->extra);
           stream_putc (s, 16);
@@ -2685,6 +2689,24 @@ bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
         }
       else
         bgp_packet_mpattr_route_type_5(s, p, prd, labels, nlabels, attr);
+    }
+  else if ((safi == SAFI_LABELED_UNICAST))
+    {
+      if (nlabels != 0)
+        {
+          size_t i;
+          /* Tag, RD, Prefix write. */
+          stream_putc (s, p->prefixlen + 8 * ( 3 * nlabels));
+          for (i = 0; i < nlabels; i++)
+            stream_put3 (s, labels[i]);
+        }
+      else
+        {
+          /* Withdraw, put bottom of stack as only label */
+          stream_putc (s, p->prefixlen + 8 * (3));
+          stream_put3 (s, 0x1);
+        }
+      stream_put (s, &p->u.prefix, PSIZE (p->prefixlen));
     }
   else
     stream_put_prefix (s, p);
@@ -3185,6 +3207,8 @@ bgp_packet_mpunreach_start (struct stream *s, afi_t afi, safi_t safi)
     stream_putc (s, SAFI_MPLS_LABELED_VPN);
   else if(safi == SAFI_EVPN)
     stream_putc (s, SAFI_IANA_EVPN);
+  else if(safi == SAFI_LABELED_UNICAST)
+    stream_putc (s, SAFI_IANA_LABELED_UNICAST);
   else
     stream_putc (s, safi);
   return attrlen_pnt;

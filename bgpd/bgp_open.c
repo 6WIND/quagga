@@ -106,6 +106,9 @@ bgp_capability_vty_out (struct vty *vty, struct peer *peer)
 	    case SAFI_IANA_EVPN:
 	      vty_out (vty, "SAFI EVPN");
 	      break;
+            case SAFI_IANA_LABELED_UNICAST:
+              vty_out (vty, "SAFI Labeled Unicast");
+              break;
 	    default:
 	      vty_out (vty, "SAFI Unknown %d ", mpc.safi);
 	      break;
@@ -145,9 +148,14 @@ bgp_afi_safi_valid_indices (afi_t *afi, safi_t *safi)
 	  /* BGP MPLS-labeled VPN SAFI isn't contigious with others, remap */
 	case SAFI_MPLS_LABELED_VPN:
 	  *safi = SAFI_MPLS_VPN;
-	case SAFI_UNICAST:
+          return 1;
+        case SAFI_IANA_LABELED_UNICAST:
+          *safi = SAFI_LABELED_UNICAST;
+          return 1;
+        case SAFI_UNICAST:
 	case SAFI_MULTICAST:
 	case SAFI_MPLS_VPN:
+	case SAFI_LABELED_UNICAST:
 	case SAFI_ENCAP:
 	  return 1;
 	}
@@ -872,7 +880,9 @@ bgp_open_option_parse (struct peer *peer, u_char length, int *mp_capability)
 	  && ! peer->afc_nego[AFI_IP6][SAFI_MULTICAST]
 	  && ! peer->afc_nego[AFI_IP6][SAFI_MPLS_VPN]
 	  && ! peer->afc_nego[AFI_IP6][SAFI_ENCAP]
-	  && ! peer->afc_nego[AFI_L2VPN][SAFI_EVPN])
+	  && ! peer->afc_nego[AFI_L2VPN][SAFI_EVPN]
+	  && ! peer->afc_nego[AFI_IP6][SAFI_LABELED_UNICAST]
+	  && ! peer->afc_nego[AFI_IP][SAFI_LABELED_UNICAST])
 	{
 	  plog_err (peer->log, "%s [Error] Configured AFI/SAFIs do not "
 		    "overlap with received MP capabilities",
@@ -909,7 +919,8 @@ bgp_open_capability_orf (struct stream *s, struct peer *peer,
     safi = SAFI_MPLS_LABELED_VPN;
   else if (safi == SAFI_EVPN)
     safi = SAFI_IANA_EVPN;
-
+  else if (safi == SAFI_LABELED_UNICAST)
+    safi = SAFI_IANA_LABELED_UNICAST;
   stream_putc (s, BGP_OPEN_OPT_CAP);
   capp = stream_get_endp (s);           /* Set Capability Len Pointer */
   stream_putc (s, 0);                   /* Capability Length */
@@ -1091,6 +1102,29 @@ bgp_open_capability (struct stream *s, struct peer *peer)
       stream_putc (s, 0);
       stream_putc (s, SAFI_IANA_EVPN);
     }
+  if (peer->afc[AFI_IP][SAFI_LABELED_UNICAST])
+    {
+      peer->afc_adv[AFI_IP][SAFI_LABELED_UNICAST] = 1;
+      stream_putc (s, BGP_OPEN_OPT_CAP);
+      stream_putc (s, CAPABILITY_CODE_MP_LEN + 2);
+      stream_putc (s, CAPABILITY_CODE_MP);
+      stream_putc (s, CAPABILITY_CODE_MP_LEN);
+      stream_putw (s, AFI_IP);
+      stream_putc (s, 0);
+      stream_putc (s, SAFI_IANA_LABELED_UNICAST);
+    }
+  /* IPv6 LU */
+  if (peer->afc[AFI_IP6][SAFI_LABELED_UNICAST])
+    {
+      peer->afc_adv[AFI_IP6][SAFI_LABELED_UNICAST] = 1;
+      stream_putc (s, BGP_OPEN_OPT_CAP);
+      stream_putc (s, CAPABILITY_CODE_MP_LEN + 2);
+      stream_putc (s, CAPABILITY_CODE_MP);
+      stream_putc (s, CAPABILITY_CODE_MP_LEN);
+      stream_putw (s, AFI_IP6);
+      stream_putc (s, 0);
+      stream_putc (s, SAFI_IANA_LABELED_UNICAST);
+    }
 
   /* Route refresh. */
   SET_FLAG (peer->cap, PEER_CAP_REFRESH_ADV);
@@ -1168,6 +1202,8 @@ bgp_open_capability (struct stream *s, struct peer *peer)
                 stream_putc (s, SAFI_MPLS_LABELED_VPN);
               else if(safi == SAFI_EVPN)
                 stream_putc (s, SAFI_IANA_EVPN );
+              else if(safi == SAFI_LABELED_UNICAST)
+                stream_putc (s, SAFI_IANA_LABELED_UNICAST);
               else
                 stream_putc (s, safi);
               if (bgp_flag_check(peer->bgp, BGP_FLAG_GR_PRESERVE_FWD))

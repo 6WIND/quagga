@@ -1044,7 +1044,7 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
       if (NEXTHOP_IS_V4)
 	{
 	  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP)
-              || (safi == SAFI_EVPN))
+              || (safi == SAFI_EVPN) || (safi == SAFI_LABELED_UNICAST))
 	    memcpy (&attr->extra->mp_nexthop_global_in, &peer->nexthop.v4,
 	            IPV4_MAX_BYTELEN);
 	  else
@@ -1245,7 +1245,8 @@ bgp_announce_check_rsclient (struct bgp_info *ri, struct peer *rsclient,
     /* Set IPv4 nexthop. */
     if (p->family == AF_INET)
       {
-        if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) ||
+        if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP)
+            || (safi == SAFI_LABELED_UNICAST)
             || (safi == SAFI_EVPN))
           memcpy (&attr->extra->mp_nexthop_global_in, &rsclient->nexthop.v4,
                   IPV4_MAX_BYTELEN);
@@ -3261,6 +3262,8 @@ bgp_maximum_prefix_overflow (struct peer *peer, afi_t afi,
          ndata[2]  = SAFI_MPLS_LABELED_VPN;
        else if (safi == SAFI_EVPN)
          ndata[2] = SAFI_IANA_EVPN;
+       else if (safi == SAFI_LABELED_UNICAST)
+         ndata[2] = SAFI_IANA_LABELED_UNICAST;
        else
          ndata[2] = safi;
        if (afi == AFI_L2VPN)
@@ -5149,6 +5152,7 @@ bgp_cleanup_routes (void)
           if(afi == AFI_L2VPN)
             continue;
 	  bgp_cleanup_table(bgp->rib[afi][SAFI_UNICAST], SAFI_UNICAST);
+	  bgp_cleanup_table(bgp->rib[afi][SAFI_LABELED_UNICAST], SAFI_LABELED_UNICAST);
 
 	  /*
 	   * VPN and ENCAP tables are two-level (RD is top level)
@@ -7138,7 +7142,8 @@ bgp_aggregate_increment (struct bgp *bgp, struct prefix *p,
   struct bgp_table *table;
 
   /* MPLS-VPN aggregation is not yet supported. */
-  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_EVPN))
+  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_EVPN)
+      || (safi == SAFI_LABELED_UNICAST))
     return;
 
   table = bgp->aggregate[afi][safi];
@@ -7175,7 +7180,8 @@ bgp_aggregate_decrement (struct bgp *bgp, struct prefix *p,
   struct bgp_table *table;
 
   /* MPLS-VPN aggregation is not yet supported. */
-  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_EVPN))
+  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_EVPN)
+      || (safi == SAFI_LABELED_UNICAST))
     return;
 
   table = bgp->aggregate[afi][safi];
@@ -8141,7 +8147,8 @@ route_vty_out(
        * neccessarily the same as the prefix address family.
        * Both SAFI_MPLS_VPN and SAFI_ENCAP use the MP nexthop field
        */
-      if ((safi == SAFI_ENCAP) || (safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN)) {
+      if ((safi == SAFI_ENCAP) || (safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN)
+          || (safi == SAFI_LABELED_UNICAST)) {
 	if (attr->extra) {
 	    char	buf[BUFSIZ];
 	    int		af = NEXTHOP_FAMILY(attr->extra->mp_nexthop_len);
@@ -8239,7 +8246,8 @@ route_vty_out_tmp (struct vty *vty, struct prefix *p,
         }
       if (family == AF_INET)
 	{
-	  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_EVPN))
+	  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_EVPN)
+              || (safi == SAFI_LABELED_UNICAST))
 	    vty_out (vty, "%-16s",
                      inet_ntoa (attr->extra->mp_nexthop_global_in));
 	  else
@@ -8309,7 +8317,8 @@ route_vty_out_tag (struct vty *vty, struct prefix *p,
     {
       if (p->family == AF_INET)
 	{
-	  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP))
+	  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP)
+              || (safi == SAFI_LABELED_UNICAST))
 	    vty_out (vty, "%-16s",
                      inet_ntoa (attr->extra->mp_nexthop_global_in));
 	  else
@@ -8551,7 +8560,8 @@ route_vty_out_detail (struct vty *vty, struct bgp *bgp, struct prefix *p,
 
   if (safi == SAFI_MPLS_LABELED_VPN)
     safi = SAFI_MPLS_VPN;
-
+  if (safi == SAFI_IANA_LABELED_UNICAST)
+    safi = SAFI_LABELED_UNICAST;
   if (attr)
     {
       /* Line1 display AS-path, Aggregator */
@@ -8585,7 +8595,8 @@ route_vty_out_detail (struct vty *vty, struct bgp *bgp, struct prefix *p,
       /* Line2 display Next-hop, Neighbor, Router-id */
       if (p->family == AF_INET)
 	{
-	  vty_out (vty, "    %s", ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP)) ?
+	  vty_out (vty, "    %s", ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP)
+                                   || (safi == SAFI_LABELED_UNICAST)) ?
 		   inet_ntoa (attr->extra->mp_nexthop_global_in) :
 		   inet_ntoa (attr->nexthop));
 	}
