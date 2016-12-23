@@ -1319,6 +1319,8 @@ void bgp_vrf_peer_notification (struct peer *peer, int down)
   struct listnode *node, *node2, *nnode2;
   struct bgp_vrf *vrf;
 
+  if (peer->bgp == NULL || peer->bgp->vrfs == NULL)
+    return;
   for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf))
     {
       for (ALL_LIST_ELEMENTS_RO(vrf->static_evpn_ad, node2, ad))
