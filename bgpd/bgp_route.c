@@ -6236,7 +6236,10 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
     afi = AFI_L2VPN;
   else
     afi = AFI_IP;
-
+  if (!rd_str)
+    {
+      safi = SAFI_LABELED_UNICAST;
+    }
   bgp = vty->index;
 
   ret = str2prefix (ip_str, &p);
@@ -6247,13 +6250,15 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
     }
   apply_mask (&p);
 
-  ret = str2prefix_rd (rd_str, &prd);
-  if (! ret)
+  if (rd_str)
     {
-      vty_out (vty, "%% Malformed rd%s", VTY_NEWLINE);
-      return CMD_WARNING;
+      ret = str2prefix_rd (rd_str, &prd);
+      if (! ret)
+        {
+          vty_out (vty, "%% Malformed rd%s", VTY_NEWLINE);
+          return CMD_WARNING;
+        }
     }
-
   if (! str2labels (tag_str, labels, &nlabels))
     {
       vty_out (vty, "%% Malformed tag%s", VTY_NEWLINE);
@@ -6327,14 +6332,18 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
   else
     afi = (p.family == AF_INET) ? AFI_IP : AFI_IP6;
 
-  prn = bgp_node_get (bgp->route[afi][safi],
-			(struct prefix *)&prd);
-  if (prn->info == NULL)
-    prn->info = bgp_table_init (afi, safi);
+  if (rd_str)
+    {
+      prn = bgp_node_get (bgp->route[afi][safi],
+                          (struct prefix *)&prd);
+      if (prn->info == NULL)
+        prn->info = bgp_table_init (afi, safi);
+      else
+        bgp_unlock_node (prn);
+      table = prn->info;
+    }
   else
-    bgp_unlock_node (prn);
-  table = prn->info;
-
+    table = bgp->route[afi][safi];
   rn = bgp_node_get (table, &p);
 
   if (rn->info)
@@ -6353,13 +6362,15 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
       bgp_static->igpnexthop = bgp->router_id;
       memcpy(bgp_static->labels, labels, sizeof(labels[0]) * nlabels);
       bgp_static->nlabels = nlabels;
-      vrf = bgp_vrf_lookup(bgp, &prd);
-      if (vrf)
+      if (rd_str)
         {
-          bgp_static->ecomm = vrf->rt_export;
+          vrf = bgp_vrf_lookup(bgp, &prd);
+          if (vrf)
+            {
+              bgp_static->ecomm = vrf->rt_export;
+            }
+          bgp_static->prd = prd;
         }
-      bgp_static->prd = prd;
-
       if (rmap_str)
 	{
 	  if (bgp_static->rmap.name)
@@ -6412,6 +6423,10 @@ bgp_static_unset_safi(safi_t safi, struct vty *vty, const char *ip_str,
   size_t nlabels;
   afi_t afi;
 
+  if (!rd_str)
+    {
+      safi = SAFI_LABELED_UNICAST;
+    }
   bgp = vty->index;
 
   /* Convert IP prefix string to struct prefix. */
@@ -6423,13 +6438,15 @@ bgp_static_unset_safi(safi_t safi, struct vty *vty, const char *ip_str,
     }
   apply_mask (&p);
 
-  ret = str2prefix_rd (rd_str, &prd);
-  if (! ret)
+  if (rd_str)
     {
-      vty_out (vty, "%% Malformed rd%s", VTY_NEWLINE);
-      return CMD_WARNING;
+      ret = str2prefix_rd (rd_str, &prd);
+      if (! ret)
+        {
+          vty_out (vty, "%% Malformed rd%s", VTY_NEWLINE);
+          return CMD_WARNING;
+        }
     }
-
   if (! str2labels (tag_str, labels, &nlabels))
     {
       vty_out (vty, "%% Malformed tag%s", VTY_NEWLINE);
@@ -6437,14 +6454,18 @@ bgp_static_unset_safi(safi_t safi, struct vty *vty, const char *ip_str,
     }
 
   afi = (p.family == AF_INET) ? AFI_IP : AFI_IP6;
-  prn = bgp_node_get (bgp->route[afi][safi],
-			(struct prefix *)&prd);
-  if (prn->info == NULL)
-    prn->info = bgp_table_init (afi, safi);
+  if (rd_str)
+    {
+      prn = bgp_node_get (bgp->route[afi][safi],
+                          (struct prefix *)&prd);
+      if (prn->info == NULL)
+        prn->info = bgp_table_init (afi, safi);
+      else
+        bgp_unlock_node (prn);
+      table = prn->info;
+    }
   else
-    bgp_unlock_node (prn);
-  table = prn->info;
-
+    table = bgp->route[afi][safi];
   rn = bgp_node_lookup (table, &p);
 
   if (rn)
@@ -6452,7 +6473,7 @@ bgp_static_unset_safi(safi_t safi, struct vty *vty, const char *ip_str,
       if(safi == SAFI_EVPN)
         bgp_static_withdraw_safi (bgp, &p, AFI_L2VPN, safi, &prd, labels, nlabels);
       else
-        bgp_static_withdraw_safi (bgp, &p, afi, safi, &prd, labels, nlabels);
+        bgp_static_withdraw_safi (bgp, &p, afi, safi, rd_str==NULL?NULL:&prd, labels, nlabels);
 
       bgp_static = rn->info;
       bgp_static_free (bgp_static);

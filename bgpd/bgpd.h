@@ -593,6 +593,8 @@ struct peer
 #define PEER_CONFIG_TIMER             (1 << 1) /* keepalive & holdtime */
 #define PEER_CONFIG_CONNECT           (1 << 2) /* connect */
 #define PEER_CONFIG_ROUTEADV          (1 << 3) /* route advertise */
+#define PEER_CONFIG_SENDLABEL_IPV4    (1 << 4) /* for labeled unicast */
+#define PEER_CONFIG_SENDLABEL_IPV6    (1 << 5) /* for labeled unicast */
   u_int32_t weight;
   u_int32_t holdtime;
   u_int32_t keepalive;
@@ -700,6 +702,7 @@ struct peer
 #define PEER_DOWN_PASSIVE_CHANGE        20 /* neighbor passive command */
 #define PEER_DOWN_MULTIHOP_CHANGE       21 /* neighbor multihop command */
 #define PEER_DOWN_NSF_CLOSE_SESSION     22 /* NSF tcp session close */
+#define PEER_DOWN_LOCAL_SEND_LABEL      23 /* Send Label changed */
 
   /* The kind of route-map Flags.*/
   u_char rmap_type;

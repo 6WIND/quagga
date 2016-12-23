@@ -65,6 +65,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_vty.h"
 #include "bgpd/bgp_mpath.h"
 #include "bgpd/bgp_nht.h"
+#include "bgpd/bgp_lu.h"
 #ifdef HAVE_SNMP
 #include "bgpd/bgp_snmp.h"
 #endif /* HAVE_SNMP */
@@ -5774,10 +5775,21 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
   if (! (afi == AFI_IP && safi == SAFI_UNICAST))
     {
       if (peer->af_group[afi][safi])
-	vty_out (vty, " neighbor %s peer-group %s%s", addr,
-		 peer->group->name, VTY_NEWLINE);
+        vty_out (vty, " neighbor %s peer-group %s%s", addr,
+                 peer->group->name, VTY_NEWLINE);
       else
 	vty_out (vty, " neighbor %s activate%s", addr, VTY_NEWLINE);
+    }
+  if ( (afi == AFI_IP || afi == AFI_IP6) && (safi == SAFI_UNICAST))
+    {
+      if (afi == AFI_IP && peer->config & PEER_CONFIG_SENDLABEL_IPV4)
+          vty_out (vty, " neighbor %s send-label%s", addr, VTY_NEWLINE);
+      if (afi == AFI_IP6 && peer->config & PEER_CONFIG_SENDLABEL_IPV6)
+          vty_out (vty, " neighbor %s send-label%s", addr, VTY_NEWLINE);
+      if (safi == SAFI_UNICAST)
+        vty_out (vty, " neighbor %s activate%s", addr, VTY_NEWLINE);
+      if (afi == AFI_IP)
+        return;
     }
 
   /* ORF capability.  */
@@ -6379,6 +6391,7 @@ bgp_init (void)
   bgp_mplsvpn_init ();
   bgp_encap_init ();
   bgp_ethernetvpn_init ();
+  bgp_lu_init();
 
   /* Access list initialize. */
   access_list_init ();

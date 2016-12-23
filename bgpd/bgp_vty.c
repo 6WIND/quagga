@@ -185,7 +185,7 @@ peer_lookup_vty (struct vty *vty, const char *ip_str)
 }
 
 /* Utility function for looking up peer or peer group.  */
-static struct peer *
+struct peer *
 peer_and_group_lookup_vty (struct vty *vty, const char *peer_str)
 {
   int ret;
@@ -1694,7 +1694,7 @@ peer_remote_as_vty (struct vty *vty, const char *peer_str,
 
 DEFUN (neighbor_remote_as,
        neighbor_remote_as_cmd,
-       NEIGHBOR_CMD2 "remote-as " CMD_AS_RANGE,
+       NEIGHBOR_CMD2 "send-remote-as " CMD_AS_RANGE,
        NEIGHBOR_STR
        NEIGHBOR_ADDR_STR2
        "Specify a BGP neighbor\n"
@@ -1969,8 +1969,13 @@ DEFUN (neighbor_activate,
   if (! peer)
     return CMD_WARNING;
 
-  peer_activate (peer, bgp_node_afi (vty), bgp_node_safi (vty));
-
+  if ( ((vty->node == BGP_IPV4_NODE || vty->node == BGP_NODE) &&
+        peer->config & PEER_CONFIG_SENDLABEL_IPV4) ||
+       ((vty->node == BGP_IPV6_NODE) &&
+        peer->config & PEER_CONFIG_SENDLABEL_IPV6))
+    peer_activate (peer, bgp_node_afi (vty), SAFI_LABELED_UNICAST);
+  else
+    peer_activate (peer, bgp_node_afi (vty), bgp_node_safi (vty));
   return CMD_SUCCESS;
 }
 
@@ -1990,7 +1995,13 @@ DEFUN (no_neighbor_activate,
   if (! peer)
     return CMD_WARNING;
 
-  ret = peer_deactivate (peer, bgp_node_afi (vty), bgp_node_safi (vty));
+  if ( ((vty->node == BGP_IPV4_NODE || vty->node == BGP_NODE) &&
+        peer->config & PEER_CONFIG_SENDLABEL_IPV4) ||
+       ((vty->node == BGP_IPV6_NODE) &&
+        peer->config & PEER_CONFIG_SENDLABEL_IPV6))
+    ret = peer_deactivate (peer, bgp_node_afi (vty), SAFI_LABELED_UNICAST);
+  else
+    ret = peer_deactivate (peer, bgp_node_afi (vty), bgp_node_safi (vty));
 
   return bgp_vty_return (vty, ret);
 }

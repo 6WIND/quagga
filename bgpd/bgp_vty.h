@@ -32,4 +32,7 @@ bgp_parse_afi(const char *str, afi_t *afi);
 extern int
 bgp_parse_safi(const char *str, safi_t *safi);
 
+struct peer *
+peer_and_group_lookup_vty (struct vty *vty, const char *peer_str);
+
 #endif /* _QUAGGA_BGP_VTY_H */
