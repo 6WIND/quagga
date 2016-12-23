@@ -15130,28 +15130,17 @@ bgp_peer_count_walker (struct thread *t)
   return 0;
 }
 
-static int
-bgp_peer_counts (struct vty *vty, struct peer *peer, afi_t afi, safi_t safi)
+static void
+bgp_peer_counts_internal (struct vty *vty, struct peer *peer, afi_t afi, safi_t safi,
+                          struct peer_pcounts *pcounts)
 {
-  struct peer_pcounts pcounts = { .peer = peer };
   unsigned int i;
-  
-  if (!peer || !peer->bgp || !peer->afc[afi][safi]
-      || !peer->bgp->rib[afi][safi])
-    {
-      vty_out (vty, "%% No such neighbor or address family%s", VTY_NEWLINE);
-      return CMD_WARNING;
-    }
-  
-  memset (&pcounts, 0, sizeof(pcounts));
-  pcounts.peer = peer;
-  pcounts.table = peer->bgp->rib[afi][safi];
-  
+
   /* in-place call via thread subsystem so as to record execution time
    * stats for the thread-walk (i.e. ensure this can't be blamed on
    * on just vty_read()).
    */
-  thread_execute (bm->master, bgp_peer_count_walker, &pcounts, 0);
+  thread_execute (bm->master, bgp_peer_count_walker, pcounts, 0);
   
   vty_out (vty, "Prefix counts for %s, %s%s", 
            peer->host, afi_safi_print (afi, safi), VTY_NEWLINE);
@@ -15161,9 +15150,9 @@ bgp_peer_counts (struct vty *vty, struct peer *peer, afi_t afi, safi_t safi)
 
   for (i = 0; i < PCOUNT_MAX; i++)
       vty_out (vty, "%20s: %-10d%s",
-               pcount_strs[i], pcounts.count[i], VTY_NEWLINE);
+               pcount_strs[i], pcounts->count[i], VTY_NEWLINE);
 
-  if (pcounts.count[PCOUNT_PFCNT] != peer->pcount[afi][safi])
+  if (pcounts->count[PCOUNT_PFCNT] != peer->pcount[afi][safi])
     {
       vty_out (vty, "%s [pcount] PfxCt drift!%s",
                peer->host, VTY_NEWLINE);
@@ -15171,6 +15160,45 @@ bgp_peer_counts (struct vty *vty, struct peer *peer, afi_t afi, safi_t safi)
               VTY_NEWLINE);
     }
                
+  return;
+}
+
+static int
+bgp_peer_counts (struct vty *vty, struct peer *peer, afi_t afi, safi_t safi)
+{
+  struct peer_pcounts pcounts = { .peer = peer };
+
+  if (!peer || !peer->bgp || !peer->afc[afi][safi]
+      || !peer->bgp->rib[afi][safi])
+    {
+      vty_out (vty, "%% No such neighbor or address family%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  memset (&pcounts, 0, sizeof(pcounts));
+  pcounts.peer = peer;
+
+  if (safi == SAFI_MPLS_VPN || safi == SAFI_EVPN)
+    {
+      struct bgp_node *rn;
+      for (rn = bgp_table_top (peer->bgp->rib[afi][safi]); rn; rn = bgp_route_next (rn))
+        {
+          /* look for neighbor in tables */
+          if ((rn->info) != NULL)
+            {
+              char rd_str[RD_ADDRSTRLEN];
+              prefix_rd2str ((struct prefix_rd *)rn->p.u.val, rd_str, RD_ADDRSTRLEN);
+              vty_out (vty, "Prefix counts for %s%s", rd_str, VTY_NEWLINE);
+              pcounts.table = bgp_table_top (peer->bgp->rib[afi][safi])->info;
+              bgp_peer_counts_internal (vty, peer, afi, safi, &pcounts);
+            }
+        }
+    }
+  else
+    {
+      pcounts.table = peer->bgp->rib[afi][safi];
+      bgp_peer_counts_internal (vty, peer, afi, safi, &pcounts);
+    }
   return CMD_SUCCESS;
 }
 
