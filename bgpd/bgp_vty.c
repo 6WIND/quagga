@@ -9131,6 +9131,14 @@ ALIAS (show_ip_bgp_neighbors,
        "Address family\n"
        "Detailed information on TCP and BGP neighbor connections\n")
 
+ALIAS (show_ip_bgp_neighbors,
+       show_ipv6_bgp_neighbors_cmd,
+       "show ipv6 bgp neighbors",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "Detailed information on TCP and BGP neighbor connections\n")
+
 DEFUN (show_ip_bgp_neighbors_peer,
        show_ip_bgp_neighbors_peer_cmd,
        "show ip bgp neighbors (A.B.C.D|X:X::X:X)",
@@ -9196,6 +9204,16 @@ ALIAS (show_ip_bgp_neighbors_peer,
        SHOW_STR
        BGP_STR
        "Address family\n"
+       "Detailed information on TCP and BGP neighbor connections\n"
+       "Neighbor to display information about\n"
+       "Neighbor to display information about\n")
+
+ALIAS (show_ip_bgp_neighbors_peer,
+       show_ipv6_bgp_neighbors_peer_cmd,
+       "show ipv6 bgp neighbors (A.B.C.D|X:X::X:X)",
+       SHOW_STR
+       IP_STR
+       BGP_STR
        "Detailed information on TCP and BGP neighbor connections\n"
        "Neighbor to display information about\n"
        "Neighbor to display information about\n")
@@ -11936,6 +11954,10 @@ bgp_vty_init (void)
   install_element (VIEW_NODE, &show_bgp_ipv6_neighbors_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_neighbors_peer_cmd);
   install_element (RESTRICTED_NODE, &show_bgp_ipv6_neighbors_peer_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_neighbors_cmd);
+  install_element (RESTRICTED_NODE, &show_ipv6_bgp_neighbors_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_neighbors_peer_cmd);
+  install_element (RESTRICTED_NODE, &show_ipv6_bgp_neighbors_peer_cmd);
   install_element (VIEW_NODE, &show_ipv6_bgp_summary_cmd);
   install_element (VIEW_NODE, &show_ipv6_mbgp_summary_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_rsclient_summary_cmd);
