@@ -50,29 +50,18 @@ void qcapn_VRFTableIter_read(struct prefix *s, capn_ptr p)
 {
     capn_resolve(&p);
     
+    capn_ptr tmp_p = capn_getp(p, 0, 1);
+    s->family = capn_read8(tmp_p, 0);
+    s->prefixlen = capn_read8(tmp_p, 1);
+    if (s->family == AF_INET || s->family == AF_INET6)
     {
-        capn_ptr tmp_p = capn_getp(p, 0, 1);
-
-        s->family = capn_read8(tmp_p, 0);
-        s->prefixlen = capn_read8(tmp_p, 1);
-
-        if (s->family == AF_INET)
-          s->u.prefix4.s_addr = htonl(capn_read32(tmp_p, 2));
-        else if (s->family == AF_INET6)
-          {
-            size_t i;
-            u_char *in6 = (u_char*) &s->u.prefix6;
-
-            for(i=0; i < sizeof(struct in6_addr); i++)
-              in6[i] = capn_read8(tmp_p, i+2);
-          }
-        else if (s->family == AF_L2VPN)
-          {
-            uint8_t index = 2;
-
-            qcapn_prefix_macip_read (tmp_p, s, &index);
-          }
+      qcapn_prefix_ipv4ipv6_read (p, s, 0);
     }
+    else if (s->family == AF_L2VPN)
+      {
+        uint8_t index = 2;
+        qcapn_prefix_macip_read (tmp_p, s, &index);
+      }
 }
 
 
@@ -80,29 +69,21 @@ void qcapn_VRFTableIter_read(struct prefix *s, capn_ptr p)
 void qcapn_VRFTableIter_write(struct prefix *s, capn_ptr p)
 {
     capn_resolve(&p);
-    
+
+    if (s->family == AF_INET || s->family == AF_INET6)
     {
+      qcapn_prefix_ipv4ipv6_write (p, s, 0);
+    }
+    else if (s->family == AF_L2VPN)
+      {
         capn_ptr tempptr = capn_new_struct(p.seg, 17, 0);
+        uint8_t index = 2;
         capn_write8(tempptr, 0, s->family);
         capn_write8(tempptr, 1, s->prefixlen);
-
-        if (s->family == AF_INET)
-          capn_write32(tempptr, 2, ntohl(s->u.prefix4.s_addr));
-        else if (s->family == AF_INET6)
-          {
-            size_t i;
-            for(i=0; i < sizeof(struct in6_addr); i++)
-              capn_write8(tempptr, i + 2, s->u.prefix + i);
-          }
-        else if (s->family == AF_L2VPN)
-          {
-            uint8_t index = 2;
-
-            qcapn_prefix_macip_write(tempptr, s, &index);
-          }
-
+        qcapn_prefix_macip_write(tempptr, s, &index);
         capn_setp(p, 0, tempptr);
-    }
+      }
+
 }
 
 
