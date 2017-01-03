@@ -1912,7 +1912,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
       SET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
       UNSET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
     }
-  if (afi == AFI_IP)
+  if (afi == AFI_IP || afi == AFI_IP6)
     {
       if (selected->attr && selected->attr->extra)
         {

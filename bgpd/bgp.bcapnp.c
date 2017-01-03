@@ -1277,10 +1277,9 @@ void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p)
         else if (s->prefix.family == AF_INET6)
           {
             size_t i;
-            uint32_t *in6;
+            uint32_t *in6 = (uint32_t *)&s->prefix.u.prefix6;
             for(i=0; i < 4; i++)
               {
-                in6 = (uint32_t *)&(s->prefix.u.prefix6);
                 in6+=i;
                 capn_write32(tempptr, 4 + 4*i, ntohl(*(in6)));
               }
@@ -1451,12 +1450,14 @@ void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
         else if (s->prefix.family == AF_INET6)
           {
             size_t i;
+            u_char *in6 = (u_char *)&s->prefix.u.prefix6;
+
             capn_ptr tempptr = capn_new_struct(p.seg, 21, 0);
             capn_write8(tempptr, 0, s->prefix.family);
             capn_write8(tempptr, 1, s->prefix.prefixlen);
 
             for(i=0; i < sizeof(struct in6_addr); i++)
-              capn_write8(tempptr, i + 2, s->prefix.u.prefix + i);
+              capn_write8(tempptr, i + 2, in6[i]);
 
             capn_setp(p, 0, tempptr);
           }
