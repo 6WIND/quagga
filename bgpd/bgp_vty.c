@@ -11281,6 +11281,8 @@ bgp_vty_init (void)
   install_element (BGP_IPV6M_NODE, &no_neighbor_default_originate_rmap_cmd);
   install_element (BGP_VPNV4_NODE, &neighbor_default_originate_rd_cmd);
   install_element (BGP_VPNV4_NODE, &no_neighbor_default_originate_rd_cmd);
+  install_element (BGP_VPNV6_NODE, &neighbor_default_originate_rd_cmd);
+  install_element (BGP_VPNV6_NODE, &no_neighbor_default_originate_rd_cmd);
   install_element (BGP_EVPN_NODE, &neighbor_default_originate_rd_evpn_cmd);
   install_element (BGP_EVPN_NODE, &no_neighbor_default_originate_rd_cmd);
 
