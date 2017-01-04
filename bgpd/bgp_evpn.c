@@ -163,10 +163,16 @@ bgp_evpn_process_auto_discovery_propagate (struct bgp_vrf *vrf,
       esi = esi2str(&(ad->eth_s_id));
       if (ad->attr && ad->attr->extra)
         {
-          if (afi == AFI_IP)
-            strcpy (nh_str, inet_ntoa (ad->attr->extra->mp_nexthop_global_in));
-          else if (afi == AFI_IP6)
-            inet_ntop (AF_INET6, &ad->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+          if (ad->attr->extra->mp_nexthop_len == IPV4_MAX_BYTELEN)
+            {
+              strcpy (nh_str, inet_ntoa (ad->attr->extra->mp_nexthop_global_in));
+              afi = AFI_IP;
+            }
+          else /* IPv6 nexthop */
+            {
+              inet_ntop (AF_INET6, &ad->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+              afi = AFI_IP6;
+            }
         }
         zlog_debug ("vrf[%s] %s Ethtag %08x/ ESI %s/ Label %u: A/D from %s applied ( nexthop %s)",
                     vrf_rd_str, ad->type == BGP_EVPN_AD_TYPE_MP_UNREACH?"MP_UNREACH":"MP_REACH",
@@ -206,7 +212,7 @@ bgp_evpn_process_auto_discovery_propagate (struct bgp_vrf *vrf,
                 {
                   bgp_vrf_process_entry(ri, ROUTE_INFO_TO_REMOVE,
                                         AFI_L2VPN, SAFI_EVPN);
-                  bgp_process (ri->peer->bgp, ri->net, AFI_IP, SAFI_UNICAST);
+                  bgp_process (ri->peer->bgp, ri->net, afi, SAFI_UNICAST);
                 }
               entry_found = 1;
               break;
@@ -258,7 +264,7 @@ bgp_evpn_process_auto_discovery_propagate (struct bgp_vrf *vrf,
             }
         }
       if (entry_found)
-        bgp_process (vrf->bgp, rn, AFI_IP, SAFI_UNICAST);
+        bgp_process (vrf->bgp, rn, afi, SAFI_UNICAST);
       /* lookup rt export list from ad->attr */
     }
 }
