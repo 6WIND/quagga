@@ -43,6 +43,9 @@ bgp_notify_cleanup (struct bgp *bgp)
 int
 bgp_notify_zmq_url_set (struct bgp *bgp, const char *url)
 {
+  /* maximum capacity of messages that can be stored on queue */
+  int limit = 60000;
+
   if (bgp->notify_zmq_url)
     {
       if (url && !strcmp (url, bgp->notify_zmq_url))
@@ -68,6 +71,7 @@ bgp_notify_zmq_url_set (struct bgp *bgp, const char *url)
                 strerror (errno), errno);
       return -1;
     }
+  zmq_setsockopt (bgp->notify_zmq, ZMQ_SNDHWM, &limit, sizeof(limit));
   if (zmq_bind (bgp->notify_zmq, bgp->notify_zmq_url))
     {
       zlog_err ("ZeroMQ event PUB bind failed: %s (%d)",
