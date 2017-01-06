@@ -139,7 +139,6 @@ bgp_info_nexthop_cmp (struct bgp_info *bi1, struct bgp_info *bi2)
   ae2 = bi2->attr->extra;
 
   compare = IPV4_ADDR_CMP (&bi1->attr->nexthop, &bi2->attr->nexthop);
-
   if (!compare && ae1 && ae2)
     {
       if (ae1->mp_nexthop_len == ae2->mp_nexthop_len)
@@ -151,6 +150,7 @@ bgp_info_nexthop_cmp (struct bgp_info *bi1, struct bgp_info *bi2)
               compare = IPV4_ADDR_CMP (&ae1->mp_nexthop_global_in,
                                        &ae2->mp_nexthop_global_in);
               break;
+            case 24: /* nexthop attribute length for vpnv6 ( incl. RD) */
             case 16:
               compare = IPV6_ADDR_CMP (&ae1->mp_nexthop_global,
                                        &ae2->mp_nexthop_global);
