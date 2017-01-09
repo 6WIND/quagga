@@ -56,11 +56,10 @@ static void qthrift_transport_check_response(struct qthrift_vpnservice *setup, g
     return;
   if (qthrift_transport_current_status != response)
     {
-      if (IS_QTHRIFT_DEBUG_NOTIFICATION)
-        zlog_debug("bgpUpdater check connection with %s:%u %s",
-                   tm->qthrift_notification_address,
-                   setup->qthrift_notification_port,
-                   response == TRUE?"OK":"NOK");
+      zlog_debug("bgpUpdater check connection with %s:%u %s",
+                 tm->qthrift_notification_address,
+                 setup->qthrift_notification_port,
+                 response == TRUE?"OK":"NOK");
     }
   qthrift_transport_current_status = response;
   if(response == FALSE)
