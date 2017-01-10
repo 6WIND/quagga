@@ -4597,7 +4597,10 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
           if (safi == SAFI_MPLS_VPN)
             {
               bgp_default_withdraw_vpn_send (peer, afi, rd);
-              empty = (NULL == listnode_head(peer->def_route_rd_vpnv4));
+              if (afi == AFI_IP6)
+                empty = (NULL == listnode_head(peer->def_route_rd_vpnv6));
+              else
+                empty = (NULL == listnode_head(peer->def_route_rd_vpnv4));
             }
           else if (safi == SAFI_EVPN)
             {
