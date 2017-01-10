@@ -3750,6 +3750,8 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
 
   if (!found)
     return 1;
+
+  memset(&nh, 0, sizeof(nh));
   if(route && route->nexthop.family == AF_INET)
     nh.v4 = route->nexthop.u.prefix4;
   else
@@ -5881,20 +5883,44 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
               for (ALL_LIST_ELEMENTS_RO(list_to_parse, node, vrf))
                 {
                   prefix_rd2str(&vrf->outbound_rd, rdstr, RD_ADDRSTRLEN);
-                  if (!vrf->nh.v4.s_addr)
-                    vty_out (vty, " neighbor %s default-originate rd %s%s", addr,
-                             rdstr, VTY_NEWLINE);
-                  else
+                  if (afi == AFI_IP)
                     {
-                      if (vrf->nlabels)
-                        {
-                          labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
-                          vty_out (vty, " neighbor %s default-originate rd %s %s %s%s", addr,
-                                   rdstr, inet_ntoa(vrf->nh.v4), labelstr, VTY_NEWLINE);
-                        }
+                      if (!vrf->nh.v4.s_addr)
+                        vty_out (vty, " neighbor %s default-originate rd %s%s", addr,
+                                 rdstr, VTY_NEWLINE);
                       else
-                        vty_out (vty, " neighbor %s default-originate rd %s %s%s", addr,
-                                 rdstr, inet_ntoa(vrf->nh.v4), VTY_NEWLINE);
+                        {
+                          if (vrf->nlabels)
+                            {
+                              labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
+                              vty_out (vty, " neighbor %s default-originate rd %s %s %s%s", addr,
+                                       rdstr, inet_ntoa(vrf->nh.v4), labelstr, VTY_NEWLINE);
+                            }
+                            else
+                              vty_out (vty, " neighbor %s default-originate rd %s %s%s", addr,
+                                       rdstr, inet_ntoa(vrf->nh.v4), VTY_NEWLINE);
+                        }
+                    }
+		  else
+                    {
+                      if (IN6_IS_ADDR_UNSPECIFIED (&vrf->nh.v6_global))
+                        vty_out (vty, " neighbor %s default-originate rd %s%s", addr,
+                                 rdstr, VTY_NEWLINE);
+                      else
+		        {
+			  char buf[INET6_ADDRSTRLEN];
+                          inet_ntop (AF_INET6, &vrf->nh.v6_global, buf, INET6_ADDRSTRLEN);
+
+                          if (vrf->nlabels)
+                            {
+                              labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
+                              vty_out (vty, " neighbor %s default-originate rd %s %s %s%s", addr,
+                                       rdstr, buf, labelstr, VTY_NEWLINE);
+                            }
+                            else
+                              vty_out (vty, " neighbor %s default-originate rd %s %s%s", addr,
+                                       rdstr, buf, VTY_NEWLINE);
+			}
                     }
                 }
             }

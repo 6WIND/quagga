@@ -3404,14 +3404,25 @@ peer_default_originate_set_rd_vty (struct vty *vty, const char *peer_str,
     {
       if (nh)
         {
-          if (!inet_aton(nh, &route.nexthop.u.prefix4))
+          if (inet_pton(AF_INET, nh, &route.nexthop.u.prefix4) == 1)
+              route.nexthop.family = AF_INET;
+          else if (inet_pton(AF_INET6, nh, &route.nexthop.u.prefix6) == 1)
+              route.nexthop.family = AF_INET6;
+          else
             {
               vty_out (vty, "%% Malformed Next Hop address %s%s", nh, VTY_NEWLINE);
               return CMD_WARNING;
             }
         }
       else
-        route.nexthop.u.prefix4.s_addr = peer->bgp->router_id.s_addr;
+        {
+          /* Why is router_id address? How to do with vpnv6? TODO */
+          if (afi == AFI_IP)
+            {
+              route.nexthop.family = AF_INET;
+              route.nexthop.u.prefix4.s_addr = peer->bgp->router_id.s_addr;
+            }
+        }
 
       if (labels)
         {
