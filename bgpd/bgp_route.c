@@ -82,6 +82,9 @@ bgp_static_free (struct bgp_static *bgp_static);
 static void
 bgp_vrf_apply_new_imports_internal (struct bgp_vrf *vrf, afi_t afi, safi_t safi);
 
+static void bgp_send_notification_to_sdn (afi_t afi, safi_t safi, struct bgp_node *rn,
+                                          struct bgp_info *selected, uint8_t announce);
+
 void
 overlay_index_dup(struct attr *attr, struct overlay_index *src)
 {
@@ -1773,6 +1776,97 @@ static void bgp_vrf_update_labels (struct bgp_vrf *vrf, struct bgp_node *rn,
     }
 }
 
+static void bgp_send_notification_to_sdn (afi_t afi, safi_t safi, struct bgp_node *rn,
+                                          struct bgp_info *selected, uint8_t announce)
+{
+  struct bgp_event_vrf event;
+
+  memset (&event, 0, sizeof (struct bgp_event_vrf));
+  event.announce = announce;
+  if (safi == SAFI_LABELED_UNICAST &&
+      selected->extra && selected->extra->nlabels)
+    event.label = selected->extra->labels[0] >> 4;
+
+  prefix_copy (&event.prefix, &rn->p);
+
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      char pfx_str[PREFIX_STRLEN];
+      char nh_str[BUFSIZ] = "<?>";
+      char pre_str[20], post_str[20];
+
+      prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+      if (rn->p.family == AF_INET)
+        {
+          strcpy (nh_str, inet_ntoa (selected->attr->nexthop));
+        }
+      else if (rn->p.family == AF_INET6)
+        {
+          inet_ntop (AF_INET6, &selected->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+        }
+
+      if(selected->type == ZEBRA_ROUTE_BGP
+         && selected->sub_type == BGP_ROUTE_STATIC)
+        {
+          sprintf (post_str, "by config");
+          sprintf (pre_str, "mngr->bgp");
+        }
+      else
+        {
+          if (announce)
+            sprintf (post_str, "to capnp manager");
+          else
+            sprintf (post_str, "from capnp manager");
+          sprintf(pre_str, "bgp->mngr");
+        }
+      if (announce)
+        zlog_info ("%s Route %s : advertised %s ( label %u nh %s)",
+                    pre_str, pfx_str, post_str, event.label, nh_str);
+      else
+        zlog_info ("%s Route %s : withdrawn %s (label %d nh %s)",
+                    pre_str, pfx_str, post_str, event.label, nh_str);
+    }
+  if (announce == true)
+    {
+      if(CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
+        return;
+      SET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
+      UNSET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
+    }
+  else
+    {
+      /* if not already sent, do nothing */
+      if(!CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
+        return;
+      if(CHECK_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT))
+        return;
+      SET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
+      UNSET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
+    }
+  if(selected->type == ZEBRA_ROUTE_BGP
+     && selected->sub_type == BGP_ROUTE_STATIC)
+    return;
+  if (afi == AFI_IP || afi == AFI_IP6)
+    {
+      if (rn->p.family == AF_INET)
+        {
+          event.nexthop.family = AF_INET;
+          event.nexthop.prefixlen = IPV4_MAX_BITLEN;
+          event.nexthop.u.prefix4 = selected->attr->nexthop;
+        }
+      else if (rn->p.family == AF_INET6)
+        {
+          event.nexthop.family = AF_INET6;
+          event.nexthop.prefixlen = IPV6_MAX_BITLEN;
+          memcpy (&event.nexthop.u.prefix6, 
+                  &selected->attr->extra->mp_nexthop_global, sizeof(struct in6_addr));
+        }
+#ifdef HAVE_ZEROMQ
+      bgp_notify_route (bgp_get_default (), &event);
+#endif /* HAVE_ZEROMQ */
+    }
+}
+
 /* messages sent to ODL to signify that an entry
  * has been selected, or unselected
  */
@@ -2906,6 +3000,70 @@ bgp_process_rsclient (struct work_queue *wq, void *data)
   return WQ_SUCCESS;
 }
 
+/* send an informational message to upper layer */
+static void 
+bgp_process_notification_to_sdn (struct bgp_node *rn, afi_t afi, safi_t safi,
+                         struct bgp_info *old_select, struct bgp_info *new_select)
+{
+  struct bgp_info *ri;
+
+  if (safi == SAFI_MPLS_VPN || safi == SAFI_EVPN || safi == SAFI_ENCAP)
+    return;
+
+  if (old_select && new_select)
+    {
+      if(!CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH_CHG) &&
+         !CHECK_FLAG (new_select->flags, BGP_INFO_ATTR_CHANGED))
+        {
+          return;
+        }
+    }
+  if (old_select)
+    {
+      if( CHECK_FLAG (old_select->flags, BGP_INFO_SELECTED))
+        {
+          if(!bgp_is_mpath_entry(old_select, new_select))
+            {
+              bgp_send_notification_to_sdn (afi, safi, rn, old_select, false);
+            }
+        }
+      /* withdraw mp entries which could have been removed
+       * and that a update has previously been sent
+       */
+      for(ri = rn->info; ri; ri = ri->next)
+        {
+          if(ri == old_select || (ri == new_select) )
+            continue;
+          if(!bgp_is_mpath_entry(ri, new_select))
+            {
+              bgp_send_notification_to_sdn (afi, safi, rn, ri, false);
+            }
+        }
+    }
+  if (new_select)
+    {
+      if(!CHECK_FLAG (new_select->flags, BGP_INFO_SELECTED) ||
+         CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH) ||
+         CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH_CHG))
+        {
+          bgp_send_notification_to_sdn (afi, safi, rn, new_select, true);
+        }
+      /* append mp entries which could have been added 
+       * and that a update has not been sent
+       */
+      for(ri = rn->info; ri; ri = ri->next)
+        {
+          if( (ri == new_select) || ( ri == old_select))
+            continue;
+          if(bgp_is_mpath_entry(ri, new_select))
+            {
+              bgp_send_notification_to_sdn (afi, safi, rn, ri, true);
+            }
+        }
+    }
+  return;
+}
+
 static wq_item_status
 bgp_process_main (struct work_queue *wq, void *data)
 {
@@ -2944,7 +3102,7 @@ bgp_process_main (struct work_queue *wq, void *data)
 
   /* If the user did "clear ip bgp prefix x.x.x.x" this flag will be set */
   UNSET_FLAG(rn->flags, BGP_NODE_USER_CLEAR);
-
+  bgp_process_notification_to_sdn (rn, afi, safi, old_select, new_select);
   if (old_select)
       bgp_info_unset_flag (rn, old_select, BGP_INFO_SELECTED);
   if (new_select)
@@ -5871,6 +6029,7 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   if(afi == AFI_L2VPN)
     {
       struct bgp_encap_type_vxlan bet;
+      struct attr_extra *extra;
 
       memset(&bet, 0, sizeof(struct bgp_encap_type_vxlan));
       if(bgp_static->eth_t_id)
