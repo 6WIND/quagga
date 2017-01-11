@@ -1172,6 +1172,10 @@ extern bool bgp_api_route_get (struct bgp_vrf *vrf,
                                struct bgp_node *bn,
                                int iter_on_multipath, 
                                void **next);
+extern bool bgp_api_route_get_main (struct bgp_api_route *out, 
+                                    struct bgp_node *bn,
+                                    int iter_on_multipath, 
+                                    void **next);
 extern bool bgp_api_static_get (struct bgp_api_route *out, struct bgp_node *bn);
 
 #endif /* _QUAGGA_BGPD_H */

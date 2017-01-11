@@ -2,6 +2,28 @@
  * derived from GPLv2+ sources
  */
 
+static struct bgp_node * qcap_iter_bgp_vrf_rib(struct bgp_table *table,
+        const struct prefix *prev_iter,
+        struct prefix *next_iter,
+        bool *hasnext)
+{
+    struct bgp_node *bn;
+    if (!prev_iter) {
+        bn = bgp_table_top_nolock (table);
+    } else {
+        bn = bgp_table_get_next (table, (struct prefix *)prev_iter);
+        if (bn)
+            bgp_unlock_node(bn);
+    }
+    if (bn) {
+        prefix_copy (next_iter, &bn->p);
+        *hasnext = true;
+    } else
+        *hasnext = false;
+    return bn;
+}
+
+/* Iterated GET bgp_vrf:2 <> bgp_vrf->rib ()*/
 /* [] bgpd:1 <> bgp_master->bgp (bgp)*/
 
 static void
@@ -187,6 +209,140 @@ _qzc_get_bgp_3(struct bgp *p,
     rep->datatype = 0x9bb91c45a95a581d;
 }
 
+/* [] bgp:4 <> bgp->rib (bgp_rib)*/
+
+static void
+_qzc_get_bgp_4(struct bgp *p,
+        struct QZCGetReq *req, struct QZCGetRep *rep,
+        struct capn_segment *seg)
+{
+    struct bgp_table * table;
+    struct prefix iter, nextiter;
+    const struct prefix *iterptr;
+    afi_t afi;
+    safi_t safi;
+    void *next  = NULL;
+
+    if (req->ctxtype != 0xac25a73c3ff455c0)
+        /* error */
+        return;
+    afi = qcapn_AfiSafiKey_get_afi (req->ctxdata);
+    safi = qcapn_AfiSafiKey_get_safi (req->ctxdata);
+    table = p->rib[afi][safi];
+
+    if (req->itertype == 0xeb8ab4f58b7753ee) {
+        qcapn_VRFTableIter_read(&iter, req->iterdata);
+        iterptr = &iter;
+    } else if (req->itertype == 0) {
+        iterptr = NULL;
+    } else {
+        /* error */
+        return;
+    }
+
+    bool hasnext = false;
+    struct bgp_node * val = qcap_iter_bgp_vrf_rib(table, iterptr, &nextiter, &hasnext);
+
+    if (hasnext) {
+        rep->itertype = 0xeb8ab4f58b7753ee;
+        rep->nextiter = qcapn_new_VRFTableIter(seg);
+        qcapn_VRFTableIter_write(&nextiter, rep->nextiter);
+    } else
+        rep->itertype = 0;
+
+    rep->datatype = 0;
+    if (val) {
+        struct bgp_api_route *outptr;
+        struct bgp_api_route tmpval;
+
+        memset(&tmpval,0, sizeof(struct bgp_api_route));
+        outptr = &tmpval;
+        rep->data = qcapn_new_BGPVRFRoute(seg, sizeof(next));
+        rep->datatype = 0x8f217eb4bad6c06f;
+        qcapn_BGPVRFRoute_write(outptr, rep->data);
+        if (!bgp_api_route_get_main(&tmpval, val, 0, &next))
+            return;
+
+        qcapn_BGPVRFRoute_write(outptr, rep->data);
+        /* send value of pointer to next  ri which has BGP_INFO_MULTIPATH flag,
+           sending 0 means there is no next element */
+        qcapn_BGPVRFInfoIter_write((unsigned long) next,
+                                   rep->data, CAPN_BGPVRF_ROUTE_DEF_SIZE);
+        if (outptr->esi)
+          free (outptr->esi);
+        if (outptr->mac_router)
+          free (outptr->mac_router);
+        outptr->mac_router = outptr->esi = NULL;
+    }
+}
+
+/* Iterated GET bgp:5 <> bgp_rib ()*/
+
+static void
+_qzc_get_bgp_5(struct bgp *p,
+        struct QZCGetReq *req, struct QZCGetRep *rep,
+        struct capn_segment *seg)
+{
+    unsigned long mpath_iter_ptr = 0;
+    struct bgp_info *binfo;
+    struct bgp_node *rn, dummy;
+    void *next = NULL;
+    struct bgp_api_route *outptr;
+    struct bgp_api_route tmpval;
+
+    if (req->itertype == 0xeb8ab4f58b7753ee) {
+        qcapn_BGPVRFInfoIter_read(&mpath_iter_ptr, req->iterdata, 0);
+    } else {
+        /* error */
+        zlog_err("%s: req->itertype:%016lx != 0xeb8ab4f58b7753ee",
+                   __func__, req->itertype);
+        return;
+    }
+
+    binfo = (struct bgp_info*) mpath_iter_ptr;
+    memset(&dummy, 0, sizeof(struct bgp_node));
+    rn = &dummy;
+    if(binfo)
+      prefix_copy (&rn->p, &binfo->net->p);
+    rn->info = (struct bgp_info *)mpath_iter_ptr;
+
+    rep->datatype = 0;
+    rep->itertype = 0; /* by default, no need to iterate more */
+
+    /* do not write route if bgp info has nothing, but keep next iteration */
+    memset(&tmpval,0, sizeof(struct bgp_api_route));
+    outptr = &tmpval;
+    rep->data = qcapn_new_BGPVRFRoute(seg, 0);
+    rep->datatype = 0x8f217eb4bad6c06f;
+    qcapn_BGPVRFRoute_write(outptr, rep->data);
+
+    /* do this way to look for multipath entries instead of selected */
+    if (!bgp_api_route_get_main (&tmpval, rn, 1, &next))
+        return;
+
+    qcapn_BGPVRFRoute_write(outptr, rep->data);
+    /* send value of pointer to next  ri which has BGP_INFO_MULTIPATH flag,
+       sending 0 means there is no next element */
+    if ((unsigned long) next)
+      {
+        /* This way bgp_configurator can know there is something next after the
+         route transfert done above */
+        rep->itertype = 0xeb8ab4f58b7753ee;
+        rep->nextiter = qcapn_new_BGPVRFInfoIter(seg);
+        qcapn_BGPVRFInfoIter_write((unsigned long) next, rep->nextiter, 0);
+      }
+    if(outptr->esi)
+      {
+        free(outptr->esi);
+        outptr->esi = NULL;
+      }
+    if(outptr->mac_router)
+      {
+        free(outptr->mac_router);
+        outptr->mac_router = NULL;
+      }
+}
+
 /* [] bgp:2 <> bgp->peer (peer)*/
 
 static void
@@ -344,10 +500,17 @@ _qzc_get_bgp(void *entity, struct QZCGetReq *req, struct QZCGetRep *rep,
     case 3:
         _qzc_get_bgp_3(p, req, rep, seg);
         return;
+    case 4:
+        _qzc_get_bgp_4(p, req, rep, seg);
+        return;
+    case 5:
+        _qzc_get_bgp_5(p, req, rep, seg);
+        return;
     default:
         return;
     }
 }
+
 static void
 _qzc_createchild_bgp(void *entity,
 			struct QZCCreateReq *req, struct QZCCreateRep *rep,
@@ -589,28 +752,6 @@ _qzc_get_bgp_vrf_1(struct bgp_vrf *p,
     qcapn_BGPVRF_write(p, rep->data);
     rep->datatype = 0x912c4b0c412022b1;
 }
-
-static struct bgp_node * qcap_iter_bgp_vrf_rib(struct bgp_table *table,
-        const struct prefix *prev_iter,
-        struct prefix *next_iter,
-        bool *hasnext)
-{
-    struct bgp_node *bn;
-    if (!prev_iter) {
-        bn = bgp_table_top_nolock (table);
-    } else {
-        bn = bgp_table_get_next (table, (struct prefix *)prev_iter);
-        if (bn)
-            bgp_unlock_node(bn);
-    }
-    if (bn) {
-        prefix_copy (next_iter, &bn->p);
-        *hasnext = true;
-    } else
-        *hasnext = false;
-    return bn;
-}
-
 
 /* Iterated GET bgp_vrf:2 <> bgp_vrf->rib ()*/
 
