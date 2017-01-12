@@ -2746,7 +2746,7 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
           if(iter->peer->remote_id.s_addr == select->peer->remote_id.s_addr)
             {
               bgp_vrf_process_entry(iter, action, afi,safi);
-              bgp_process (iter->peer->bgp, iter->net, afi_int, SAFI_UNICAST);
+              bgp_process (iter->peer->bgp, iter->net, afi_int, safi);
               break;
             }
         }
@@ -2796,7 +2796,7 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
             bgp_evpn_auto_discovery_new_entry (vrf, iter);
         }
       bgp_vrf_process_entry(iter, action, afi, safi);
-      bgp_process (iter->peer->bgp, iter->net, afi_int, SAFI_UNICAST);
+      bgp_process (iter->peer->bgp, iter->net, afi_int, safi);
     }
   bgp_unlock_node (vrf_rn);
 }
