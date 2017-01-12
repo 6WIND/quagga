@@ -62,10 +62,27 @@ bgp_mpath_is_configured_sort (struct bgp *bgp, bgp_peer_sort_t sort,
 }
 
 bool
-bgp_mpath_is_configured (struct bgp *bgp, afi_t afi, safi_t safi)
+bgp_mpath_is_configured (struct bgp *bgp, afi_t afi, safi_t safi, struct bgp_node *rn)
 {
-  return bgp_mpath_is_configured_sort (bgp, BGP_PEER_IBGP, afi, safi)
-         || bgp_mpath_is_configured_sort (bgp, BGP_PEER_EBGP, afi, safi);
+  bool val;
+  struct bgp_vrf *vrf = NULL;
+
+  val  = bgp_mpath_is_configured_sort (bgp, BGP_PEER_IBGP, afi, safi)
+    || bgp_mpath_is_configured_sort (bgp, BGP_PEER_EBGP, afi, safi);
+  if (val)
+    return val;
+  if(rn == NULL)
+    return val;
+  if (rn->table && bgp_node_table (rn) &&
+      bgp_node_table (rn)->type == BGP_TABLE_VRF)
+    {
+      vrf = bgp_vrf_lookup_per_rn(bgp, afi, rn);
+    }
+  if (vrf && vrf->max_mpath > 1)
+    {
+      return true;
+    }
+  return false;
 }
 
 /*
@@ -513,15 +530,9 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
       maxpaths = (new_best->peer->sort == BGP_PEER_IBGP) ?
         mpath_cfg->maxpaths_ibgp : mpath_cfg->maxpaths_ebgp;
     }
-  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN))
-    {
-      prd = &bgp_node_table (rn)->prd;
-      if (new_best)
-        vrf = bgp_vrf_lookup(new_best->peer->bgp, prd);
-      else if (old_best)
-        vrf = bgp_vrf_lookup(old_best->peer->bgp, prd);
-    }
-  else if(rn->table && bgp_node_table (rn) && bgp_node_table (rn)->type == BGP_TABLE_VRF)
+  prd = &bgp_node_table (rn)->prd;
+  if(rn->table && bgp_node_table (rn) && 
+     bgp_node_table (rn)->type == BGP_TABLE_VRF)
     {
       if (new_best)
         vrf = bgp_vrf_lookup_per_rn(new_best->peer->bgp, afi, rn);
