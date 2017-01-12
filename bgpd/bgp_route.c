@@ -9856,7 +9856,7 @@ DEFUN (show_ip_bgp_vrf_route,
        "Route Distinguisher\n"
        "IPv4 Address\n")
 {
-  return bgp_show_vrf_route (vty, argv[0], argv[2], AFI_IP, 0);
+  return bgp_show_vrf_route (vty, argv[0], argv[1], AFI_IP, 0);
 }
 
 DEFUN (show_ipv6_bgp_vrf_route,
@@ -9870,7 +9870,7 @@ DEFUN (show_ipv6_bgp_vrf_route,
        "IPv6 address")
 {
   afi_t afi = AFI_IP6;
-  return bgp_show_vrf_route (vty, argv[0], argv[2], afi, 0);
+  return bgp_show_vrf_route (vty, argv[0], argv[1], afi, 0);
 }
 
 DEFUN (show_ip_bgp_ipv4_route,
