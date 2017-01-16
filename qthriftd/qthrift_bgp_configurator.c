@@ -1011,6 +1011,7 @@ instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _re
   /* creation of capnproto context */
   qthrift_vpnservice_setup_thrift_bgp_cache(ctxt);
   qthrift_vpnservice_setup_qzc(ctxt);
+  qthrift_vpnservice_setup_bgp_context (ctxt);
   if(IS_QTHRIFT_DEBUG)
     zlog_info ("stopBgp(AS %u) OK", (as_t)asNumber);
   return TRUE;
@@ -1605,7 +1606,8 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
   Update *upd;
 
   qthrift_vpnservice_get_context (&ctxt);
-  if(!ctxt)
+  if (ctxt == NULL
+      || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
     {
       (*_return)->errcode = BGP_ERR_FAILED;
       (*_return)->__isset_errcode = TRUE;
