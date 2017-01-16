@@ -157,7 +157,7 @@ struct bgp_static
   uint32_t eth_t_id;
   struct eth_segment_id *eth_s_id;
   char *router_mac;
-  struct in_addr gatewayIp;
+  struct prefix gatewayIp;
 };
 
 #define BGP_INFO_COUNTABLE(BI) \

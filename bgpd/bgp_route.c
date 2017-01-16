@@ -1703,9 +1703,20 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
   if(sel->attr && sel->attr->extra && CHECK_FLAG (sel->flags, BGP_INFO_ORIGIN_EVPN))
     {
       out->esi = esi2str(&(sel->attr->extra->evpn_overlay.eth_s_id));
-      out->gatewayIp.family = AF_INET;
-      out->gatewayIp.prefixlen = IPV4_MAX_BITLEN;
-      out->gatewayIp.u.prefix4.s_addr = sel->attr->extra->evpn_overlay.gw_ip.ipv4.s_addr;
+      if (bn->p.family == AF_INET)
+        {
+          out->gatewayIp.family = AF_INET;
+          out->gatewayIp.prefixlen = IPV4_MAX_BITLEN;
+          out->gatewayIp.u.prefix4.s_addr = sel->attr->extra->evpn_overlay.gw_ip.ipv4.s_addr;
+        }
+      else if (bn->p.family == AF_INET6)
+        {
+          out->gatewayIp.family = AF_INET6;
+          out->gatewayIp.prefixlen = IPV6_MAX_BITLEN;
+          memcpy ( &(out->gatewayIp.u.prefix6),
+                   &(sel->attr->extra->evpn_overlay.gw_ip.ipv6),
+                   sizeof(struct in6_addr));
+        }
       if (bn->p.family == AF_L2VPN)
         out->ethtag = bn->p.u.prefix_macip.eth_tag_id;
       else
@@ -2107,10 +2118,13 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                 }
               else
                 event.ethtag = selected->attr->extra->eth_t_id;
-              if (selected->attr->extra->evpn_overlay.gw_ip.ipv4.s_addr != 0)
-                event.gatewayIp = (char *)inet_ntop(AF_INET, &selected->attr->extra->evpn_overlay.gw_ip.ipv4, gw_str, BUFSIZ);
-              else
-                event.gatewayIp = NULL;
+              if ( (rn->p.family == AF_INET) || (rn->p.family == AF_INET6))
+                {
+                  if (selected->attr->extra->evpn_overlay.gw_ip.ipv4.s_addr != 0)
+                    event.gatewayIp = inet_ntop(rn->p.family, &(selected->attr->extra->evpn_overlay.gw_ip.ipv4), gw_str, BUFSIZ);
+                  else
+                    event.gatewayIp = NULL;
+                }
             }
           else
             {
@@ -2320,9 +2334,8 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
     bgp_static->igpnexthop = route->nexthop.u.prefix4;
   else if (route->nexthop.family == AF_INET6)
     memcpy (&bgp_static->ipv6nexthop, &route->nexthop.u.prefix6, sizeof(struct in6_addr));
-  
-  if (route->gatewayIp.family == AF_INET)
-    bgp_static->gatewayIp = route->gatewayIp.u.prefix4;
+
+  prefix_copy (&(bgp_static->gatewayIp), &(route->gatewayIp)); 
   if (route->label != 0xFFFFFFFF)
     {
       bgp_static->labels[0] = (route->label << 4) | 1;
@@ -6101,7 +6114,10 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
       attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
     }
   memset(&add, 0, sizeof(union gw_addr));
-  add.ipv4.s_addr = bgp_static->gatewayIp.s_addr;
+  if (bgp_static->gatewayIp.family == AF_INET)
+    add.ipv4.s_addr = bgp_static->gatewayIp.u.prefix4.s_addr;
+  else if (bgp_static->gatewayIp.family == AF_INET6)
+    memcpy( &(add.ipv6), &(bgp_static->gatewayIp.u.prefix6), sizeof (struct in6_addr));
   if(afi == AFI_L2VPN)
     {
       struct bgp_encap_type_vxlan bet;
