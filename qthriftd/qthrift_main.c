@@ -98,7 +98,7 @@ static int retain_mode = 0;
 char *config_file = NULL;
 
 /* VTY port number and address.  */
-int vty_port = QTHRIFT_VTY_PORT;
+int vty_port = 0;
 char *vty_addr = NULL;
 
 /* privileges */
@@ -156,7 +156,8 @@ sighup (void)
   zlog_notice ("qthriftd restarting!");
 
   /* Create VTY's socket */
-  vty_serv_sock (vty_addr, vty_port, QTHRIFT_VTYSH_PATH);
+  if (vty_port)
+    vty_serv_sock (vty_addr, vty_port, QTHRIFT_VTYSH_PATH);
 
   /* Try to return to normal operation. */
 }
@@ -273,6 +274,7 @@ main (int argc, char **argv)
   struct thread thread;
   struct qthrift *qthrift;
   int tmp_port, opt;
+  char vtydisplay[20];
 
   /* Set umask before anything for security */
   umask (0027);
@@ -307,8 +309,8 @@ main (int argc, char **argv)
               break;
             }
           vty_port = atoi (optarg);
-	  if (vty_port <= 0 || vty_port > 0xffff)
-	    vty_port = QTHRIFT_VTY_PORT;
+	  if (vty_port < 0 || vty_port > 0xffff)
+	    vty_port = 0;
 	  break;
 	case 'p':
 	  tmp_port = atoi (optarg);
@@ -361,11 +363,16 @@ main (int argc, char **argv)
   tm->qthrift = qthrift;
 
   /* Make thrift- vty socket. */
-  vty_serv_sock (vty_addr, vty_port, QTHRIFT_VTYSH_PATH);
-
+  if (vty_port)
+    {
+    vty_serv_sock (vty_addr, vty_port, QTHRIFT_VTYSH_PATH);
+    sprintf (vtydisplay, "vty@%d,", vty_port);
+    }
+  else
+    sprintf (vtydisplay, "");
   /* Print banner. */
-  zlog_notice ("qthriftd starting: vty@%d, qthrift@%s:%d pid %d",
-	       vty_port, 
+  zlog_notice ("qthriftd starting: %s qthrift@%s:%d pid %d",
+	       vtydisplay,
 	       (tm->address ? tm->address : "<all>"),
 	       qthrift_vpnservice_get_thrift_bgp_configurator_server_port(qthrift->qthrift_vpnservice),
 	       getpid ());
