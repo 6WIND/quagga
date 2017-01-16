@@ -1245,8 +1245,7 @@ void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p)
         }
     }
     {
-        capn_ptr tmp_p = capn_getp(p, 4, 1);
-        s->gatewayIp.s_addr = htonl(capn_read32(tmp_p, 0));
+      qcapn_prefix_ipv4ipv6_read (p, &s->gatewayIp, 4);
     }
 }
 
@@ -1302,9 +1301,7 @@ void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p)
     { capn_text tp = { .str = s->esi, .len = s->esi ? strlen((const char *)s->esi) : 0 }; capn_set_text(p, 2, tp); }
     { capn_text tp = { .str = s->mac_router, .len = s->mac_router ? strlen((const char *)s->mac_router) : 0 }; capn_set_text(p, 3, tp); }
     {
-        capn_ptr tempptr = capn_new_struct(p.seg, 8, 0);
-        capn_write32(tempptr, 0, ntohl(s->gatewayIp.s_addr));
-        capn_setp(p, 4, tempptr);
+      qcapn_prefix_ipv4ipv6_write (p, &s->gatewayIp, 4);
     }
 }
 

@@ -1703,7 +1703,9 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
   if(sel->attr && sel->attr->extra && CHECK_FLAG (sel->flags, BGP_INFO_ORIGIN_EVPN))
     {
       out->esi = esi2str(&(sel->attr->extra->evpn_overlay.eth_s_id));
-      out->gatewayIp.s_addr = sel->attr->extra->evpn_overlay.gw_ip.ipv4.s_addr;
+      out->gatewayIp.family = AF_INET;
+      out->gatewayIp.prefixlen = IPV4_MAX_BITLEN;
+      out->gatewayIp.u.prefix4.s_addr = sel->attr->extra->evpn_overlay.gw_ip.ipv4.s_addr;
       if (bn->p.family == AF_L2VPN)
         out->ethtag = bn->p.u.prefix_macip.eth_tag_id;
       else
@@ -2318,8 +2320,9 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
     bgp_static->igpnexthop = route->nexthop.u.prefix4;
   else if (route->nexthop.family == AF_INET6)
     memcpy (&bgp_static->ipv6nexthop, &route->nexthop.u.prefix6, sizeof(struct in6_addr));
-
-  bgp_static->gatewayIp = route->gatewayIp;
+  
+  if (route->gatewayIp.family == AF_INET)
+    bgp_static->gatewayIp = route->gatewayIp.u.prefix4;
   if (route->label != 0xFFFFFFFF)
     {
       bgp_static->labels[0] = (route->label << 4) | 1;
