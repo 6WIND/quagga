@@ -100,6 +100,7 @@ char *config_file = NULL;
 /* VTY port number and address.  */
 int vty_port = 0;
 char *vty_addr = NULL;
+int qthrift_kill_in_progress = 0;
 
 /* privileges */
 static zebra_capabilities_t _caps_p [] =  
@@ -174,6 +175,10 @@ sigchild (void)
   while ((p=waitpid(-1, &status, WNOHANG)) != -1)
     {
       /* Handle the death of pid p */
+      if (p == 0)
+        return;
+      if (qthrift_kill_in_progress)
+        return;
       zlog_err("BGPD terminated (%u)",p);
       qthrift_vpnservice_get_context (&ctxt);
       /* kill BGP Daemon */
@@ -186,6 +191,7 @@ sigchild (void)
         return;
       asNumber = qthrift_vpnservice_get_bgp_context(ctxt)->asNumber;
       /* reset Thrift Context */
+      qthrift_kill_in_progress = 1;
       qthrift_vpnservice_terminate_bgp_context(ctxt);
       qthrift_vpnservice_terminate_thrift_bgp_cache(ctxt);
       qthrift_vpnservice_terminate_qzc(ctxt);
@@ -195,6 +201,7 @@ sigchild (void)
       qthrift_vpnservice_setup_bgp_context (ctxt);
       if(asNumber)
         zlog_err ("stopBgp(AS %u) OK", (as_t)asNumber);
+      qthrift_kill_in_progress = 0;
     }
 }
 

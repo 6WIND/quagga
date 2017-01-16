@@ -1004,6 +1004,9 @@ instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _re
       *_return = BGP_ERR_FAILED;
       return FALSE;
     }
+  if (qthrift_kill_in_progress)
+    return TRUE;
+  qthrift_kill_in_progress = 1;
   /* kill BGP Daemon */
   qthrift_vpnservice_terminate_qzc(ctxt);
   qthrift_vpnservice_terminate_thrift_bgp_cache(ctxt);
@@ -1014,6 +1017,7 @@ instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _re
   qthrift_vpnservice_setup_bgp_context (ctxt);
   if(IS_QTHRIFT_DEBUG)
     zlog_info ("stopBgp(AS %u) OK", (as_t)asNumber);
+  qthrift_kill_in_progress = 0;
   return TRUE;
 }
 
