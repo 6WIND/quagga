@@ -1703,6 +1703,7 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
   if(sel->attr && sel->attr->extra && CHECK_FLAG (sel->flags, BGP_INFO_ORIGIN_EVPN))
     {
       out->esi = esi2str(&(sel->attr->extra->evpn_overlay.eth_s_id));
+      out->gatewayIp.s_addr = sel->attr->extra->evpn_overlay.gw_ip.ipv4.s_addr;
       if (bn->p.family == AF_L2VPN)
         out->ethtag = bn->p.u.prefix_macip.eth_tag_id;
       else
