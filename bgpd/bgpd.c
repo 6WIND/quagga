@@ -3752,12 +3752,15 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
     return 1;
 
   memset(&nh, 0, sizeof(nh));
-  if(route && route->nexthop.family == AF_INET)
-    nh.v4 = route->nexthop.u.prefix4;
-  else
+  if(route)
     {
-      nh.v6_local = route->nexthop.u.prefix6;
-      nh.v6_global = route->nexthop.u.prefix6;
+     if (route->nexthop.family == AF_INET)
+       nh.v4 = route->nexthop.u.prefix4;
+     else
+       {
+         nh.v6_local = route->nexthop.u.prefix6;
+         nh.v6_global = route->nexthop.u.prefix6;
+       }
     }
   zlog_info("%s: rd=%s, afi=%d, nh=%s, label=%u", __func__,
             rdstr, afi, route?inet_ntop (route->nexthop.family, &route->nexthop.u.prefix, nh_str, BUFSIZ):
@@ -3776,8 +3779,13 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
   if (!d)
     {
       memcpy (&found->nh, &nh, sizeof(nh));
-      if (route && route->gatewayIp.family == AF_INET)
-        found->ipv4_gatewayIp.s_addr = route->gatewayIp.u.prefix4.s_addr;
+      if (route)
+        {
+          if (route->gatewayIp.family == AF_INET)
+            found->ipv4_gatewayIp.s_addr = route->gatewayIp.u.prefix4.s_addr;
+          else if (route->gatewayIp.family == AF_INET6)
+            memcpy (&(found->ipv6_gatewayIp), &(route->gatewayIp.u.prefix6), sizeof (struct in6_addr));
+        }
       if (route && route->label)
         {
           found->labels[0] = route->label << 4 | 1;
