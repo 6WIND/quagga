@@ -53,6 +53,7 @@ struct qthrift_vpnservice_bgp_context
   gint32 proc;
   char *logFile;
   char *logLevel;
+  uint8_t multipath_on[AFI_MAX][SAFI_MAX];
 };
 
 /* qthrift cache contexts */
@@ -147,5 +148,9 @@ void qthrift_vpnservice_setup_bgp_context(struct qthrift_vpnservice *setup);
 void qthrift_vpnservice_terminate_bgp_context(struct qthrift_vpnservice *setup);
 void qthrift_vpnservice_terminate_thrift_bgp_cache (struct qthrift_vpnservice *setup);
 void qthrift_vpnservice_setup_thrift_bgp_cache( struct qthrift_vpnservice *setup);
+gboolean qthrift_vpnservice_set_bgp_context_multipath (struct qthrift_vpnservice_bgp_context *bgp,
+                                                       afi_t afi, safi_t safi, uint8_t on,
+                                                       gint32 *_return, GError **error);
+void qthrift_vpnservice_apply_multipath (struct qthrift_vpnservice_bgp_context *bgp);
 
 #endif /* _QTHRIFT_VPNSERVICE_H */
