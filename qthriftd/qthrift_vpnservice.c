@@ -569,7 +569,8 @@ void qthrift_vpnservice_setup_bgp_context(struct qthrift_vpnservice *setup)
   setup->bgp_context->logFile = strdup (BGP_DEFAULT_LOG_FILE);
   setup->bgp_context->logLevel = strdup (BGP_DEFAULT_LOG_LEVEL);
   /* configure log settings to qthrift daemon too */
-  set_log_file_with_level(setup->bgp_context->logFile, setup->bgp_context->logLevel);
+  if (qthrift_disable_stdout)
+    set_log_file_with_level(setup->bgp_context->logFile, setup->bgp_context->logLevel);
 }
 
 #define ERROR_BGP_MULTIPATH_NOT_SET g_error_new(1, 7, "BGP multipath already configured for afi/safi");

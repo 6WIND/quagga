@@ -101,6 +101,7 @@ char *config_file = NULL;
 int vty_port = 0;
 char *vty_addr = NULL;
 int qthrift_kill_in_progress = 0;
+int qthrift_disable_stdout = 0;
 
 /* privileges */
 static zebra_capabilities_t _caps_p [] =  
@@ -135,6 +136,7 @@ usage (char *progname, int status)
       printf ("Usage : %s [OPTION...]\n\n\
 Daemon which manages thrift configuration/updates\n\n\
 qthrift configuration across thrift defined model : vpnservice.\n\n\
+-D                          Disable default logging to stdout \n\
 -p, --thrift_port           Set thrift's config port number\n\
 -P, --thrift_notif_port     Set thrift's notif update port number\n\
 -N, --thrift_notif_address  Set thrift's notif update specified address\n\
@@ -299,12 +301,15 @@ main (int argc, char **argv)
   /* Command line argument treatment. */
   while (1)
     {
-      opt = getopt_long (argc, argv, "A:P:p:N:n:h", longopts, 0);
+      opt = getopt_long (argc, argv, "A:P:p:N:n:Dh", longopts, 0);
 
       if (opt == EOF)
 	break;
       switch (opt)
 	{
+	case 'D':
+          qthrift_disable_stdout = 1;
+          break;
 	case 'A':
 	  vty_addr = optarg;
 	  break;
