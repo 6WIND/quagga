@@ -148,6 +148,12 @@ qthrift_bgp_set_log_config(struct qthrift_vpnservice *ctxt,
                            struct qthrift_vpnservice_bgp_context *bgp_ctxt,
                            gint32* _return,  GError **error);
 
+static gboolean
+qthrift_bgp_set_multipath_internal(struct qthrift_vpnservice *ctxt,  gint32* _return,
+                                   afi_t af, safi_t saf, const gint32 enable, GError **error);
+
+static af_afi qthrift_afi_value (afi_t afi);
+static af_safi qthrift_safi_value (safi_t safi);
 
 /* The implementation of InstanceBgpConfiguratorHandler follows. */
 
@@ -252,6 +258,24 @@ qthrift_af_flag2str(guint32 af_flag)
         i++;
     }
   return af_flag_str[i];
+}
+
+static af_afi qthrift_afi_value (afi_t afi)
+{
+  if (afi == AFI_IP)
+    return AFI_IP;
+  else if (afi == AFI_INTERNAL_L2VPN)
+    return AF_AFI_AFI_L2VPN;
+  return AFI_IP;
+}
+
+static af_safi qthrift_safi_value (safi_t safi)
+{
+  if (safi == SAFI_MPLS_VPN)
+    return AF_SAFI_SAFI_MPLS_VPN;
+  else if (safi == SAFI_INTERNAL_EVPN)
+    return AF_SAFI_SAFI_EVPN;
+  return AF_SAFI_SAFI_MPLS_VPN;
 }
 
 /*
@@ -838,8 +862,14 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
                   stalepathTime,
                   announceFbit == true?"true":"false");
     }
-
- return ret;
+  {
+    int i, j;
+    for (i = 0; i < AFI_MAX;i++ )
+      for (j = 0; j < SAFI_MAX; j++)
+        if (qthrift_vpnservice_get_bgp_context(ctxt)->multipath_on[i][j])
+          ret = qthrift_bgp_set_multipath_internal (ctxt, _return, i, j, 1, error);
+  }
+  return ret;
 }
 
 /*
@@ -2225,50 +2255,21 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
 }
 
 /*
- * Enable/disable multipath feature for VPNv4 address family
+ * Enable/disable multipath feature. capnproto exchange
  */
 static gboolean
-qthrift_bgp_set_multipath(struct qthrift_vpnservice *ctxt,  gint32* _return, const af_afi afi,
-                          const af_safi safi, const gint32 enable, GError **error)
+qthrift_bgp_set_multipath_internal(struct qthrift_vpnservice *ctxt,  gint32* _return,
+                                   afi_t af, safi_t saf, const gint32 enable, GError **error)
 {
   struct capn rc;
   struct capn_segment *cs;
   struct bgp inst;
   struct QZCGetRep *grep;
-  int af, saf;
   capn_ptr afisafi_ctxt, nctxt;
 
-  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
-    {
-      *_return = BGP_ERR_FAILED;
-      *error = ERROR_BGP_AS_NOT_STARTED;
-      return FALSE;
-    }
-
-  /* prepare afisafi context */
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
   afisafi_ctxt = qcapn_new_AfiSafiKey(cs);
-  if(afi == AF_AFI_AFI_IP)
-    af = AFI_IP;
-  else if(afi == AF_AFI_AFI_L2VPN)
-    af = AFI_INTERNAL_L2VPN;
-  else
-    {
-      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
-      *_return = BGP_ERR_PARAM;
-      return FALSE;
-    }
-  if(safi == AF_SAFI_SAFI_MPLS_VPN)
-    saf = SAFI_MPLS_VPN;
-  else if(safi == AF_SAFI_SAFI_EVPN)
-    saf = SAFI_INTERNAL_EVPN;
-  else
-    {
-      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
-      *_return = BGP_ERR_PARAM;
-      return FALSE;
-    }
   capn_write8(afisafi_ctxt, 0, af);
   capn_write8(afisafi_ctxt, 1, saf);
   /* retrieve bgp context */
@@ -2281,6 +2282,8 @@ qthrift_bgp_set_multipath(struct qthrift_vpnservice *ctxt,  gint32* _return, con
       capn_free(&rc);
       return FALSE;
     }
+  memset(&inst, 0, sizeof(struct bgp));
+  /* prepare afisafi context */
   memset(&inst, 0, sizeof(struct bgp));
   qcapn_BGPAfiSafi_read(&inst, grep->data, af, saf);
   /* set flag per afi/safi */
@@ -2310,14 +2313,70 @@ qthrift_bgp_set_multipath(struct qthrift_vpnservice *ctxt,  gint32* _return, con
     if(IS_QTHRIFT_DEBUG)
       {
         if(enable)
-          zlog_info ("enableMultipath for afi:%d safi:%d OK", af, saf);
+          zlog_info ("enableMultipath for afi:%d safi:%d OK",
+                     qthrift_afi_value (af), qthrift_safi_value (saf));
         else
-          zlog_info ("disableMultipath for afi:%d safi:%d OK", af, saf);
+          zlog_info ("disableMultipath for afi:%d safi:%d OK",
+                     qthrift_afi_value (af), qthrift_safi_value (saf));
       }
   }
-
   capn_free(&rc);
   return TRUE;
+}
+
+/*
+ * Enable/disable multipath feature for VPNv4 address family
+ */
+static gboolean
+qthrift_bgp_set_multipath(struct qthrift_vpnservice *ctxt,  gint32* _return, const af_afi afi,
+                          const af_safi safi, const gint32 enable, GError **error)
+{
+  int af, saf;
+  gboolean ret;
+
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL)
+    {
+      qthrift_vpnservice_setup_bgp_context(ctxt);
+    }
+  if(afi == AF_AFI_AFI_IP)
+    af = AFI_IP;
+  else if(afi == AF_AFI_AFI_L2VPN)
+    af = AFI_INTERNAL_L2VPN;
+  else
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  if(safi == AF_SAFI_SAFI_MPLS_VPN)
+    saf = SAFI_MPLS_VPN;
+  else if(safi == AF_SAFI_SAFI_EVPN)
+    saf = SAFI_INTERNAL_EVPN;
+  else
+    {
+      *error = ERROR_BGP_AFISAFI_NOTSUPPORTED;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  ret = qthrift_vpnservice_set_bgp_context_multipath (qthrift_vpnservice_get_bgp_context(ctxt),
+                                                      afi, safi, (uint8_t) enable, _return, error);
+  /* silently leave command if bgp did not start */
+  if((ret == TRUE) && IS_QTHRIFT_DEBUG)
+    {
+      if(enable)
+        zlog_info ("enableMultipath config for afi:%d safi:%d OK",
+                   afi, safi);
+      else
+        zlog_info ("disableMultipath config for afi:%d safi:%d OK",
+                   afi, safi);
+    }
+  if (qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      return ret;
+    }
+  ret = qthrift_bgp_set_multipath_internal (ctxt, _return, af, saf,
+                                            enable, error);
+  return ret;
 }
 
 gboolean
