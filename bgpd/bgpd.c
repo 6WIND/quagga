@@ -5788,16 +5788,23 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
         vty_out (vty, " neighbor %s peer-group %s%s", addr,
                  peer->group->name, VTY_NEWLINE);
       else
-	vty_out (vty, " neighbor %s activate%s", addr, VTY_NEWLINE);
+        {
+          if (peer->afc[afi][safi])
+            vty_out (vty, " neighbor %s activate%s", addr, VTY_NEWLINE);
+        }
     }
-  if ( (afi == AFI_IP || afi == AFI_IP6) && (safi == SAFI_UNICAST))
+  if (safi == SAFI_UNICAST)
     {
       if (afi == AFI_IP && peer->config & PEER_CONFIG_SENDLABEL_IPV4)
+        {
           vty_out (vty, " neighbor %s send-label%s", addr, VTY_NEWLINE);
+          vty_out (vty, " neighbor %s activate%s", addr, VTY_NEWLINE);
+        }
       if (afi == AFI_IP6 && peer->config & PEER_CONFIG_SENDLABEL_IPV6)
+        {
           vty_out (vty, " neighbor %s send-label%s", addr, VTY_NEWLINE);
-      if (safi == SAFI_UNICAST)
-        vty_out (vty, " neighbor %s activate%s", addr, VTY_NEWLINE);
+          vty_out (vty, " neighbor %s activate%s", addr, VTY_NEWLINE);
+        }
       if (afi == AFI_IP)
         return;
     }
@@ -6100,7 +6107,8 @@ bgp_config_write_family (struct vty *vty, struct bgp *bgp, afi_t afi,
     }
   for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
     {
-      if (peer->afc[afi][safi])
+      if (peer->afc[afi][safi] || (afi == AFI_IP6 && safi == SAFI_UNICAST
+                                   && peer->afc[afi][SAFI_LABELED_UNICAST]))
 	{
 	  if (! CHECK_FLAG (peer->sflags, PEER_STATUS_ACCEPT_PEER))
 	    {
