@@ -48,5 +48,6 @@ extern struct thread_master *master;
 extern struct qthrift_master *tm;
 
 extern int qthrift_kill_in_progress;
+extern int qthrift_disable_stdout;
 
 #endif /* _QTHRIFT_MASTER_H_ */
