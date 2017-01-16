@@ -486,7 +486,6 @@ void qthrift_vpnservice_setup_bgp_context(struct qthrift_vpnservice *setup)
   setup->bgp_context->logLevel = strdup (BGP_DEFAULT_LOG_LEVEL);
   /* configure log settings to qthrift daemon too */
   set_log_file_with_level(setup->bgp_context->logFile, setup->bgp_context->logLevel);
-  zlog_set_level (NULL, ZLOG_DEST_STDOUT, ZLOG_DISABLED);
 }
 
 struct qthrift_vpnservice_bgp_context *qthrift_vpnservice_get_bgp_context(struct qthrift_vpnservice *setup)
