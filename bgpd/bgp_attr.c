@@ -2499,11 +2499,31 @@ bgp_packet_mpattr_start (struct stream *s, afi_t afi, safi_t safi,
       switch (safi)
       {
       case SAFI_EVPN:
-          /* XXX assumption : NH as MPLSVPN, and IPv4 */
-	  stream_putc (s, 12);
-	  stream_putl (s, 0);   /* RD = 0, per RFC */
-	  stream_putl (s, 0);
-	  stream_put (s, &attr->extra->mp_nexthop_global_in, 4);
+        {
+          struct attr_extra *attre = attr->extra;
+
+          assert (attr->extra);
+          if (attre->mp_nexthop_len == 4) {
+            /* NH as MPLSVPN, and IPv4 */
+            stream_putc (s, 12);
+            stream_putl (s, 0);   /* RD = 0, per RFC */
+            stream_putl (s, 0);
+            stream_put (s, &attr->extra->mp_nexthop_global_in, 4);
+          } else if (attre->mp_nexthop_len == 16) {
+            stream_putc (s, 24);
+            stream_putl (s, 0);   /* RD = 0, per RFC */
+            stream_putl (s, 0);
+            stream_put (s, &attre->mp_nexthop_global, 16);
+          } else if (attre->mp_nexthop_len == 32) {
+            stream_putc (s, 48);
+            stream_putl (s, 0);   /* RD = 0, per RFC */
+            stream_putl (s, 0);
+            stream_put (s, &attre->mp_nexthop_global, 16);
+            stream_putl (s, 0);   /* RD = 0, per RFC */
+            stream_putl (s, 0);
+            stream_put (s, &attre->mp_nexthop_local, 16);
+          }
+        }
 	  break;
         break;
       default:
