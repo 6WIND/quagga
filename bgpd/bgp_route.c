@@ -2620,11 +2620,18 @@ static void bgp_vrf_copy_bgp_info(struct bgp_vrf *vrf, struct bgp_node *rn,
 void bgp_vrf_process_entry (struct bgp_info *iter, 
                             int action, afi_t afi, safi_t safi)
 {
-  afi_t afi_int;
+  afi_t afi_int = AFI_IP;
   struct bgp_node *vrf_rn = iter->net;
 
-  if(afi == AFI_L2VPN)
-    afi_int = AFI_IP;
+  if (afi == AFI_L2VPN)
+    {
+      if (vrf_rn->p.family == AF_INET)
+        afi_int = AFI_IP;
+      else if (vrf_rn->p.family == AF_INET6)
+        afi_int = AFI_IP6;
+      else if (vrf_rn->p.family == AF_L2VPN)
+        afi_int = AFI_L2VPN;
+    }
   else
     afi_int = afi;
   if(action == ROUTE_INFO_TO_REMOVE)
@@ -2708,10 +2715,17 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
   struct bgp_info *iter = NULL;
   struct prefix_rd *prd;
   char pfx_str[PREFIX_STRLEN];
-  afi_t afi_int;
+  afi_t afi_int = AFI_IP;
 
-  if(afi == AFI_L2VPN)
-    afi_int = AFI_IP; /* XXX should be set to appropriate AFI : AF_INET or AF_INET6 */
+  if (afi == AFI_L2VPN)
+    {
+      if (rn->p.family == AF_INET)
+        afi_int = AFI_IP;
+      else if (rn->p.family == AF_INET6)
+        afi_int = AFI_IP6;
+      else if (rn->p.family == AF_L2VPN)
+        afi_int = AFI_L2VPN;
+    }
   else
     afi_int = afi;
   prd = &bgp_node_table (rn)->prd;
@@ -4698,7 +4712,12 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
       if (safi == SAFI_MPLS_VPN)
         bgp_default_update_vpn_send(peer, rd, &attr, afi, vrf->nlabels, vrf->labels);
       else if (safi == SAFI_EVPN)
-        bgp_default_update_evpn_send(peer, rd, &attr, AFI_IP, vrf->nlabels, vrf->labels);
+        {
+          if (ae->mp_nexthop_len == IPV6_MAX_BYTELEN)
+            bgp_default_update_evpn_send(peer, rd, &attr, AFI_IP6, vrf->nlabels, vrf->labels);
+          else
+            bgp_default_update_evpn_send(peer, rd, &attr, AFI_IP, vrf->nlabels, vrf->labels);
+        }
       bgp_attr_extra_free (&attr);
       aspath_unintern (&aspath);
     }
