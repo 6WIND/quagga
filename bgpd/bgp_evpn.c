@@ -1227,7 +1227,7 @@ bgp_ethernetvpn_init (void)
 int
 peer_evpn_auto_discovery_set (struct peer *peer, struct bgp_vrf *vrf, struct attr * attr,
                               struct eth_segment_id *esi, u_int32_t ethtag,
-                              struct in_addr *nexthop, u_int32_t label)
+                              struct prefix *nexthop, u_int32_t label)
 {
   /* Adress family must be activated.  */
   if (! peer->afc[AFI_L2VPN][SAFI_EVPN])
@@ -1340,11 +1340,25 @@ void bgp_vrf_peer_notification (struct peer *peer, int down)
             }
           if (ad->status != 0)
             {
+              struct prefix nexthop;
+
               ad->status = 0;
               /* force sending XXX */
+              if (ad->attr->extra->mp_nexthop_len == IPV4_MAX_BYTELEN)
+                {
+                  nexthop.family = AF_INET;
+                  nexthop.prefixlen = IPV4_MAX_PREFIXLEN;
+                  nexthop.u.prefix4 = ad->attr->extra->mp_nexthop_global_in;
+                }
+              else
+                {
+                  nexthop.family = AF_INET6;
+                  nexthop.prefixlen = IPV6_MAX_PREFIXLEN;
+                  memcpy (&nexthop.u.prefix6, &(ad->attr->extra->mp_nexthop_global), sizeof(struct in6_addr));
+                }
               peer_evpn_auto_discovery_set (peer, vrf, ad->attr,
-                                            &ad->eth_s_id, ad->eth_t_id, 
-                                            (struct in_addr*) &ad->attr->extra->mp_nexthop_global_in,
+                                            &ad->eth_s_id, ad->eth_t_id,
+                                            &nexthop,
                                             ad->label);
             }
         }

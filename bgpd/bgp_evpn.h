@@ -27,7 +27,7 @@ extern int bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
 
 extern int peer_evpn_auto_discovery_set (struct peer *peer, struct bgp_vrf *vrf,
                                          struct attr * attr, struct eth_segment_id *esi,
-                                         u_int32_t ethtag, struct in_addr *nexthop,
+                                         u_int32_t ethtag, struct prefix *nexthop,
                                          u_int32_t label);
 extern int peer_evpn_auto_discovery_unset (struct peer *peer, struct bgp_vrf *vrf,
                                            struct attr * attr, struct eth_segment_id *esi,

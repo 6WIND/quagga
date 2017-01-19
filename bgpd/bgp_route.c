@@ -2280,7 +2280,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
                 }
 
               peer_evpn_auto_discovery_set (peer, vrf, ad_found->attr,
-                                            &esi, ethtag, (struct in_addr*) &route->nexthop.u.prefix4,
+                                            &esi, ethtag, (struct prefix *)&route->nexthop,
                                             route->l2label);
             }
         }
@@ -4726,7 +4726,7 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
 void
 bgp_auto_discovery_evpn (struct peer *peer, struct bgp_vrf *vrf, struct attr * attr,
                          struct eth_segment_id *esi, u_int32_t ethtag,
-                         struct in_addr *nexthop, u_int32_t label, int withdraw)
+                         struct prefix *nexthop, u_int32_t label, int withdraw)
 {
   if (withdraw)
     {
@@ -4737,11 +4737,17 @@ bgp_auto_discovery_evpn (struct peer *peer, struct bgp_vrf *vrf, struct attr * a
     {
       struct attr_extra *extra;
       extra = bgp_attr_extra_get(attr);
-      /* set nexthop */
-      attr->nexthop = *nexthop;
       attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
-      extra->mp_nexthop_global_in = *nexthop;
-
+      if (nexthop->family == AF_INET)
+        {
+          extra->mp_nexthop_len = IPV4_MAX_BYTELEN;
+          extra->mp_nexthop_global_in = nexthop->u.prefix4;
+        }
+      else
+        {
+          extra->mp_nexthop_len = IPV6_MAX_BYTELEN;
+          memcpy (&extra->mp_nexthop_global, &(nexthop->u.prefix6), sizeof (struct in6_addr));
+        }
       /* routermac if present */
       if(vrf->mac_router)
         {
