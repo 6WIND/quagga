@@ -5942,7 +5942,7 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
           for (ALL_LIST_ELEMENTS_RO(peer->def_route_rd_evpn, node, vrf))
             {
               prefix_rd2str(&vrf->outbound_rd, rdstr, RD_ADDRSTRLEN);
-              if (!vrf->nh.v4.s_addr)
+              if (!vrf->nh.v4.s_addr && IN6_IS_ADDR_UNSPECIFIED (&vrf->nh.v6_global))
                 vty_out (vty, " neighbor %s default-originate rd %s%s", addr,
                          rdstr, VTY_NEWLINE);
               else
@@ -5950,6 +5950,16 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
                   char local_string[200];
                   char *ptr = local_string;
                   
+                  if (vrf->nh.v4.s_addr)
+                    ptr+=sprintf (ptr, " neighbor %s default-originate rd %s %s ", addr,
+                                  rdstr, inet_ntoa(vrf->nh.v4));
+		  else
+                    {
+                      char buf[INET6_ADDRSTRLEN];
+                      inet_ntop (AF_INET6, &vrf->nh.v6_global, buf, INET6_ADDRSTRLEN);
+                      ptr+=sprintf (ptr, " neighbor %s default-originate rd %s %s ", addr,
+                                    rdstr, buf);
+                    }
                   if (vrf->nlabels)
                     labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
                   ptr+=snprintf (ptr, 200," neighbor %s default-originate rd %s %s %s %s %u %s", addr,
