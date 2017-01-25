@@ -2630,7 +2630,10 @@ void bgp_vrf_process_entry (struct bgp_info *iter,
       else if (vrf_rn->p.family == AF_INET6)
         afi_int = AFI_IP6;
       else if (vrf_rn->p.family == AF_L2VPN)
-        afi_int = AFI_L2VPN;
+        if (vrf_rn->p.prefixlen == L2VPN_IPV6_PREFIX_LEN)
+          afi_int = AFI_IP6;
+        else
+          afi_int = AFI_IP;
     }
   else
     afi_int = afi;
@@ -2724,7 +2727,10 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
       else if (rn->p.family == AF_INET6)
         afi_int = AFI_IP6;
       else if (rn->p.family == AF_L2VPN)
-        afi_int = AFI_L2VPN;
+        if (rn->p.prefixlen == L2VPN_IPV6_PREFIX_LEN)
+          afi_int = AFI_IP6;
+        else
+          afi_int = AFI_IP;
     }
   else
     afi_int = afi;
