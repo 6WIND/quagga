@@ -1264,8 +1264,12 @@ void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p)
         else if (s->prefix.family == AF_INET6)
           size = 20;
         else if (s->prefix.family == AF_L2VPN)
-          size = 18;
-
+         {
+            if (s->prefix.u.prefix_macip.ip_len == 128)
+              size = 30; /* ipv6 replaced by ipv4 */
+            else
+              size = 18;
+          }
         tempptr = capn_new_struct(p.seg, size, 0);
         capn_write8(tempptr, 0, s->prefix.family);
         capn_write8(tempptr, 1, s->prefix.prefixlen);
@@ -1612,8 +1616,22 @@ void qcapn_prefix_macip_read(capn_ptr p, struct prefix *pfx, uint8_t *index)
     *index = *index + 1;
     pfx->u.prefix_macip.ip_len = capn_read8(p, *index);
     *index = *index + 1;
-    pfx->u.prefix_macip.ip.in4.s_addr = ntohl(capn_read32(p, *index));
-    *index = *index + 4;
+    if (pfx->u.prefix_macip.ip_len == 32)
+      {
+        pfx->u.prefix_macip.ip.in4.s_addr = ntohl(capn_read32(p, *index));
+        *index = *index + 4;
+      }
+    else if (pfx->u.prefix_macip.ip_len == 128)
+      {
+        uint32_t *in6;
+        for(i=0; i < 4; i++)
+          {
+            in6 = (uint32_t *)&(pfx->u.prefix_macip.ip.in6);
+            in6+=i;
+            *in6 = ntohl(capn_read32(p, *index));
+            *index = *index + 4;
+          }
+      }
 }
 
 void qcapn_prefix_macip_write(capn_ptr p, const struct prefix *pfx, uint8_t *index)
@@ -1629,8 +1647,22 @@ void qcapn_prefix_macip_write(capn_ptr p, const struct prefix *pfx, uint8_t *ind
     *index = *index + 1;
     capn_write8(p, *index, pfx->u.prefix_macip.ip_len);
     *index = *index + 1;
-    capn_write32(p, *index, ntohl(pfx->u.prefix_macip.ip.in4.s_addr));
-    *index = *index + 4;
+    if (pfx->u.prefix_macip.ip_len == 32)
+      {
+        capn_write32(p, *index, ntohl(pfx->u.prefix_macip.ip.in4.s_addr));
+        *index = *index + 4;
+      }
+    else if (pfx->u.prefix_macip.ip_len == 128)
+      {
+        for(i=0; i < 4; i++)
+          {
+            uint32_t *in6;
+            in6 = (uint32_t *)&(pfx->u.prefix_macip.ip.in6);
+            in6+=i;
+            capn_write32(p, *index, ntohl(*(in6)));
+            *index = *index + 4;
+          }
+      }
 }
 
 void qcapn_prefix_ipv4ipv6_write (capn_ptr p, const struct prefix *pfx, uint8_t index)
