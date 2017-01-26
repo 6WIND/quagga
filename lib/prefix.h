@@ -64,7 +64,7 @@ struct macipaddr {
     struct in6_addr in6;            /* AF_INET6 */
 #endif /* HAVE_IPV6 */
   } ip __attribute__ ((packed));
-};
+} __attribute__ ((packed));
 
 struct ipvrfaddr {
   u_int32_t eth_tag_id;
