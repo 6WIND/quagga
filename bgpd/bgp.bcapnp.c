@@ -76,7 +76,7 @@ void qcapn_VRFTableIter_write(struct prefix *s, capn_ptr p)
     }
     else if (s->family == AF_L2VPN)
       {
-        capn_ptr tempptr = capn_new_struct(p.seg, 17, 0);
+        capn_ptr tempptr = capn_new_struct(p.seg, 30, 0);
         uint8_t index = 2;
         capn_write8(tempptr, 0, s->family);
         capn_write8(tempptr, 1, s->prefixlen);
@@ -1465,8 +1465,12 @@ void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
         else if (s->prefix.family == AF_L2VPN)
           {
             uint8_t index = 2;
-
-            capn_ptr tempptr = capn_new_struct(p.seg, 18, 0);
+            uint8_t size;
+            if (s->prefix.u.prefix_macip.ip_len == 128)
+              size = 30; /* ipv6 replaced by ipv4 */
+            else
+              size = 18;
+            capn_ptr tempptr = capn_new_struct(p.seg, size, 0);
             capn_write8(tempptr, 0, s->prefix.family);
             capn_write8(tempptr, 1, s->prefix.prefixlen);
             qcapn_prefix_macip_write(tempptr, &s->prefix, &index);
