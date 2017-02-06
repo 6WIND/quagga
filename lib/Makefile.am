@@ -43,6 +43,7 @@ endif
 if HAVE_CCAPNPROTO
 libzebra_la_SOURCES += qzc.capnp.c
 BUILT_SOURCES += qzc.capnp.c
+pkginclude_HEADERS += qzc.capnp.h
 endif
 
 EXTRA_DIST = \
