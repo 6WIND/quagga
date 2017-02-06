@@ -1,6 +1,6 @@
 #ifndef CAPN_C7BBE66A583460D4
 #define CAPN_C7BBE66A583460D4
-#include <capn.h>
+#include <capnp_c.h>
 
 #if CAPN_VERSION != 1
 #error "version mismatch between capn.h and generated code"

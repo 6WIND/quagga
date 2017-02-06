@@ -2,7 +2,7 @@
  * derived from GPLv2+ sources
  */
 #include <stdbool.h>
-#include "c-capnproto/capn.h"
+#include "capnp_c.h"
 #include "bgp.bcapnp.h"
 
 static const capn_text capn_val0 = {0, ""};

@@ -1517,7 +1517,7 @@ dnl ------
 dnl capnproto
 dnl ------
 if test "$with_ccapnproto" != "no"; then
-  AC_SEARCH_LIBS([capn_init_malloc], [capn_c], [
+  AC_SEARCH_LIBS([capn_init_malloc], [capnp_c], [
     AC_DEFINE(HAVE_CCAPNPROTO, 1, [Enable c-capnproto support])
     AC_DEFINE(CAPN_C_CFLAGS, $(CAPN_C_CFLAGS), [cflags for c-capnproto])
     AC_DEFINE(CAPN_C_LIBS, $(CAPN_C_LIBS), [ldflags for c-capnproto])
@@ -1525,7 +1525,7 @@ if test "$with_ccapnproto" != "no"; then
     AC_SUBST(CAPN_C_CFLAGS)
     AC_SUBST(CAPN_C_LIBS)
   ], [
-   AC_MSG_ERROR([ccapnproto needed but libcapn_c was not found])
+   AC_MSG_ERROR([ccapnproto needed but libcapnp_c was not found])
   ])
 fi
 
