@@ -1034,7 +1034,8 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
       /* Set IPv4 nexthop. */
       if (NEXTHOP_IS_V4)
 	{
-	  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP))
+	  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP)
+              || (safi == SAFI_EVPN))
 	    memcpy (&attr->extra->mp_nexthop_global_in, &peer->nexthop.v4,
 	            IPV4_MAX_BYTELEN);
 	  else
@@ -1235,7 +1236,8 @@ bgp_announce_check_rsclient (struct bgp_info *ri, struct peer *rsclient,
     /* Set IPv4 nexthop. */
     if (p->family == AF_INET)
       {
-        if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP))
+        if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) ||
+            || (safi == SAFI_EVPN))
           memcpy (&attr->extra->mp_nexthop_global_in, &rsclient->nexthop.v4,
                   IPV4_MAX_BYTELEN);
         else
