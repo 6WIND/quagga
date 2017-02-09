@@ -459,7 +459,8 @@ vty_command (struct vty *vty, char *buf)
       snprintf(prompt_str, sizeof(prompt_str), cmd_prompt (vty->node), vty_str);
 
       /* now log the command */
-      zlog(NULL, LOG_EMERG, "%s%s", prompt_str, buf);
+      if (vty_command_debug)
+        zlog(NULL, LOG_EMERG, "%s%s", prompt_str, buf);
     }
 
   /*
