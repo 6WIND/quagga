@@ -1,4 +1,4 @@
-/* qthrift thrift BGP Configurator Server Part
+ /* qthrift thrift BGP Configurator Server Part
  * Copyright (c) 2016 6WIND,
  *
  * This file is part of GNU Quagga.
@@ -1653,8 +1653,6 @@ instance_bgp_configurator_handler_set_update_source (BgpConfiguratorIf *iface, g
 {
   struct qthrift_vpnservice *ctxt = NULL;
   uint64_t peer_nid;
-  int ret;
-  union sockunion su;
   capn_ptr peer_ctxt;
   struct QZCGetRep *grep_peer;
   struct peer peer;
@@ -1702,11 +1700,13 @@ instance_bgp_configurator_handler_set_update_source (BgpConfiguratorIf *iface, g
   /* change updateSource */
   if(srcIp)
     {
-      ret = str2sockunion (srcIp, &su);
-      if (ret == 0)
-        peer.update_source = &su;
-      else
-        peer.update_if = (char *)srcIp;
+      peer.update_source = (char *)srcIp;
+    }
+  else
+    {
+      if (peer.update_source)
+        free (peer.update_source);
+      peer.update_source = NULL;
     }
   qzcclient_qzcgetrep_free( grep_peer);
   /* prepare QZCSetRequest context */
