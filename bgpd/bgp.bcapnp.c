@@ -360,25 +360,21 @@ void qcapn_BGPPeer_set(struct peer *s, capn_ptr p)
       
     }
     {
-      const char * update_source = NULL;
+      char * update_source = NULL;
       int len;
       capn_text tp = capn_get_text(p, 2, capn_val0);
-      update_source = tp.str;
+      update_source = (char *)tp.str;
       len = tp.len;
       if (update_source && len != 0)
         {
-          union sockunion *su;
-
-          su = sockunion_str2su (update_source);
-          if (su)
-            s->update_source = su;
-          else
-            s->update_if = strdup(update_source);
+          union sockunion su;
+	  int ret = str2sockunion (update_source, &su);
+	  if (ret == 0)
+            peer_update_source_addr_set (s, &su);
         }
       else
         {
-          s->update_source = NULL;
-          s->update_if = NULL;
+	  peer_update_source_unset (s);
         }
     }
 }

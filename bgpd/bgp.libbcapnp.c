@@ -196,18 +196,11 @@ void qcapn_BGPPeer_read(struct peer *s, capn_ptr p)
       len = tp.len;
       if (update_source && len != 0)
         {
-          union sockunion *su;
-
-          su = sockunion_str2su (update_source);
-          if (su)
-            s->update_source = su;
-          else
-            s->update_if = strdup(update_source);
+          s->update_source = strdup(update_source);
         }
       else
         {
           s->update_source = NULL;
-          s->update_if = NULL;
         }
     }
 }
@@ -232,16 +225,10 @@ void qcapn_BGPPeer_write(const struct peer *s, capn_ptr p)
     capn_write32(p, 20, s->ttl);
     {
       capn_text tp;
-      char *ptr = malloc(65);
       if(s->update_source)
         {
-          ptr = (char *)sockunion2str((const union sockunion *)s->update_source, ptr, 64);
-          tp.str = ptr;
-          tp.len = strlen(ptr);
-        } else if (s->update_if)
-        {
-          tp.str = s->update_if;
-          tp.len = strlen(s->update_if);
+          tp.str = strdup (s->update_source);
+          tp.len = strlen(s->update_source);
         } else
         {
           tp.str = NULL;
