@@ -87,6 +87,7 @@ struct bgp_info
 #define BGP_INFO_MULTIPATH_CHG  (1 << 12)
 #define BGP_INFO_UPDATE_SENT    (1 << 13)
 #define BGP_INFO_WITHDRAW_SENT  (1 << 14)
+#define BGP_INFO_VPN_HIDEN      (1 << 15)
 
   /* BGP route type.  This can be static, RIP, OSPF, BGP etc.  */
   u_char type;
@@ -263,5 +264,12 @@ extern void bgp_vrf_apply_new_imports (struct bgp_vrf *vrf, afi_t afi);
 extern void
 bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                 struct bgp_info *selected, uint8_t announce);
+extern void
+bgp_vrf_added_vrf_update_global_rib (struct bgp_vrf *vrf);
+extern void
+bgp_vrf_delete_vrf_update_global_rib (struct prefix *p, struct bgp_info *vrf_ri,
+                                      struct bgp_vrf *vrf, afi_t afi);
+extern void
+bgp_vrf_update_global_rib_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi);
 
 #endif /* _QUAGGA_BGP_ROUTE_H */
