@@ -77,7 +77,7 @@ struct bgp_info
   int lock;
   
   /* BGP information status.  */
-  u_int16_t flags;
+  u_int32_t flags;
 #define BGP_INFO_IGP_CHANGED    (1 << 0)
 #define BGP_INFO_DAMPED         (1 << 1)
 #define BGP_INFO_HISTORY        (1 << 2)
@@ -98,6 +98,7 @@ struct bgp_info
  * XXX later: to replace this flag with a list of pointers to nlri
  */
 #define BGP_INFO_EVPN_AD        (1 << 16)
+#define BGP_INFO_VPN_HIDEN      (1 << 17)
 
   /* BGP route type.  This can be static, RIP, OSPF, BGP etc.  */
   u_char type;
@@ -311,5 +312,12 @@ extern void bgp_vrf_process_entry(struct bgp_info *iter,
 struct bgp_info_extra *bgp_info_extra_new (void);
 void
 overlay_index_dup(struct attr *attr, struct overlay_index *src);
+extern void
+bgp_vrf_added_vrf_update_global_rib (struct bgp_vrf *vrf);
+extern void
+bgp_vrf_delete_vrf_update_global_rib (struct prefix *p, struct bgp_info *vrf_ri,
+                                      struct bgp_vrf *vrf, afi_t afi);
+extern void
+bgp_vrf_update_global_rib_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi);
 
 #endif /* _QUAGGA_BGP_ROUTE_H */

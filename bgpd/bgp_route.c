@@ -1351,6 +1351,8 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
   if (bgp_flag_check (bgp, BGP_FLAG_DETERMINISTIC_MED))
     for (ri1 = rn->info; ri1; ri1 = ri1->next)
       {
+        if (CHECK_FLAG (ri1->flags, BGP_INFO_VPN_HIDEN))
+          continue;
 	if (CHECK_FLAG (ri1->flags, BGP_INFO_DMED_CHECK))
 	  continue;
 	if (BGP_INFO_HOLDDOWN (ri1))
@@ -1366,6 +1368,8 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
 	if (ri1->next)
 	  for (ri2 = ri1->next; ri2; ri2 = ri2->next)
 	    {
+              if (CHECK_FLAG (ri2->flags, BGP_INFO_VPN_HIDEN))
+                continue;
 	      if (CHECK_FLAG (ri2->flags, BGP_INFO_DMED_CHECK))
 		continue;
 	      if (BGP_INFO_HOLDDOWN (ri2))
@@ -1413,6 +1417,8 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
   new_select = NULL;
   for (ri = rn->info; (ri != NULL) && (nextri = ri->next, 1); ri = nextri)
     {
+      if (CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+        continue;
       if (CHECK_FLAG (ri->flags, BGP_INFO_SELECTED))
 	old_select = ri;
 
@@ -1681,6 +1687,7 @@ void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
             ri_next = ri->next;
             bgp_vrf_update(vrf, afi, rn, ri, false);
             bgp_info_reap (rn, ri);
+            bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, afi);
           }
       bgp_table_finish (&vrf->rib[afi]);
 
@@ -2524,6 +2531,7 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
   struct prefix_rd *prd;
   int action;
   struct bgp_info *ri;
+  int action_add_done = 0;
 
   if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_INTERNAL_EVPN))
     return;
@@ -2564,6 +2572,8 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
                       (struct prefix*)prd))
         {
           bgp_vrf_process_two(vrf, afi, safi, rn, ri, attr, action);
+          if (action == ROUTE_INFO_TO_ADD)
+            action_add_done = 1;
         }
   /* 
    * if old present, for each export target
@@ -2605,6 +2615,8 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
              */
             bgp_vrf_process_two(vrf, afi, safi, rn, ri, attr, withdraw == false?
                                 ROUTE_INFO_TO_UPDATE:ROUTE_INFO_TO_REMOVE);
+            if (withdraw == false)
+              action_add_done = 1;
           }
       }
     }
@@ -2643,6 +2655,8 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
           for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
             {
               bgp_vrf_process_two(vrf, afi, safi, rn, ri, attr, action);
+              if (action == ROUTE_INFO_TO_ADD)
+                action_add_done = 1;
             }
       }
 
@@ -2657,7 +2671,125 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
                       (struct prefix*)prd))
         {
           bgp_vrf_process_two(vrf, afi, safi, rn, ri, attr, action);
+          if (action == ROUTE_INFO_TO_ADD)
+            action_add_done = 1;
         }
+  /* prerequisite: this ri is not yet selected
+   */
+
+  if (ri && (action_add_done == 0) && (action == ROUTE_INFO_TO_ADD) &&
+      !CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+    {
+      SET_FLAG (ri->flags, BGP_INFO_VPN_HIDEN);
+    }
+  else if (ri && CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN) && action_add_done == 1)
+    {
+      UNSET_FLAG (ri->flags, BGP_INFO_VPN_HIDEN);
+    }
+}
+
+void
+bgp_vrf_update_global_rib_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi)
+{
+  struct bgp *bgp;
+  struct bgp_table *table;
+  struct bgp_node *rn;
+  struct bgp_node *rm;
+  struct bgp_info *ri;
+
+  bgp = bgp_get_default ();
+  if (bgp == NULL)
+    return ;
+
+  for (rn = bgp_table_top (bgp->rib[afi][safi]); rn; rn = bgp_route_next (rn))
+    {
+      if ((table = rn->info) != NULL)
+	{
+	  for (rm = bgp_table_top (table); rm; rm = bgp_route_next (rm))
+	    for (ri = rm->info; ri; ri = ri->next)
+	      {
+                /* a new vrf just has been added. check hidden vpn information */
+                if (CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+                  {
+                    bgp_vrf_process_imports2(bgp, afi, safi, rm, NULL, ri, ri->attr);
+                    if (!CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+                      bgp_process (bgp, rm, afi, safi);
+                  }
+              }
+        }
+    }
+}
+
+void bgp_vrf_added_vrf_update_global_rib (struct bgp_vrf *vrf)
+{
+  bgp_vrf_update_global_rib_perafisafi (vrf, AFI_IP, SAFI_MPLS_VPN);
+  bgp_vrf_update_global_rib_perafisafi (vrf, AFI_INTERNAL_L2VPN, SAFI_INTERNAL_EVPN);
+}
+
+/* set to hidden entry from global RIB */
+void
+bgp_vrf_delete_vrf_update_global_rib (struct prefix *p, struct bgp_info *vrf_ri,
+                                      struct bgp_vrf *in_vrf, afi_t afi)
+{
+  struct bgp_node *rn = NULL;
+  struct bgp_info *ri;
+  struct bgp *bgp;
+  struct ecommunity *ecom = NULL;
+  struct listnode *node;
+  safi_t safi_int = SAFI_MPLS_VPN;
+  size_t i;
+  int vrf_ignore = 1;
+  struct attr *attr;
+  struct prefix_rd *prd = &(in_vrf->outbound_rd);
+
+  bgp = bgp_get_default ();
+  if (bgp == NULL)
+    return ;
+  if (afi == AFI_IP || afi == AFI_IP6)
+    safi_int = SAFI_MPLS_VPN;
+  else if (afi == AFI_INTERNAL_L2VPN)
+    safi_int = SAFI_INTERNAL_EVPN;
+  rn = bgp_afi_node_get (bgp->rib[afi][safi_int], afi, safi_int, p, prd);
+  /* Check previously received route. */
+  for (ri = rn->info; ri; ri = ri->next)
+    if (ri->peer == vrf_ri->peer)
+      break;
+  if (!ri)
+    return;
+  attr = ri->attr;
+  if (attr && attr->extra)
+    ecom = attr->extra->ecommunity;
+  else
+    return;
+  if (ecom)
+    for (i = 0; i < (size_t)ecom->size; i++)
+      {
+        struct bgp_rt_sub dummy, *rt_sub;
+        uint8_t *val = ecom->val + 8 * i;
+        uint8_t type = val[1];
+        struct bgp_vrf *vrf;
+
+        if (type != ECOMMUNITY_ROUTE_TARGET)
+          continue;
+
+        memcpy(&dummy.rt, val, 8);
+        rt_sub = hash_lookup (bgp->rt_subscribers, &dummy);
+        if (!rt_sub)
+          continue;
+        for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
+          {
+            if (in_vrf && vrf == in_vrf)
+              continue;
+            vrf_ignore = 0;
+          }
+      }
+  /* if vrf ignore, then hide it */
+  if (vrf_ignore)
+    {
+      SET_FLAG (ri->flags, BGP_INFO_VPN_HIDEN);
+      UNSET_FLAG (ri->flags, BGP_INFO_SELECTED);
+      bgp_process (bgp, rn, afi, safi_int);
+    }
 }
 
 void
@@ -3609,12 +3741,12 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 {
   int ret;
   int aspath_loop_count = 0;
-  struct bgp_node *rn;
+  struct bgp_node *rn = NULL;
   struct bgp *bgp;
   struct attr new_attr;
   struct attr_extra new_extra;
   struct attr *attr_new;
-  struct bgp_info *ri;
+  struct bgp_info *ri = NULL;
   struct bgp_info *new;
   const char *reason;
   char buf[SU_ADDRSTRLEN];
@@ -3984,9 +4116,11 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
   if (ri)
     bgp_rib_remove (rn, ri, peer, afi, safi);
 
-  bgp_unlock_node (rn);
-  bgp_attr_flush (&new_attr);
-
+  if (rn)
+    {
+      bgp_unlock_node (rn);
+      bgp_attr_flush (&new_attr);
+    }
   return 0;
 }
 
@@ -7907,7 +8041,6 @@ route_vty_out_tag (struct vty *vty, struct prefix *p,
   
   if (!binfo->extra)
     return;
-  
   /* short status lead text */ 
   route_vty_short_status_out (vty, binfo);
     

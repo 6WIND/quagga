@@ -2289,6 +2289,7 @@ bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_import)
 
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     bgp_vrf_apply_new_imports (vrf, afi);
+  bgp_vrf_added_vrf_update_global_rib (vrf);
 }
 
 static void
