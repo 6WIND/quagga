@@ -546,7 +546,8 @@ show_adj_route_vpn (struct vty *vty, struct peer *peer, struct prefix_rd *prd)
                     vty_out (vty, v4_header, VTY_NEWLINE);
                     header = 0;
                   }
-
+                if (CHECK_FLAG (rm->flags, BGP_INFO_VPN_HIDEN))
+                  return;
                 if (rd_header)
                   {
                     u_int16_t type;
@@ -598,7 +599,8 @@ enum bgp_show_type
   bgp_show_type_community,
   bgp_show_type_community_exact,
   bgp_show_type_community_list,
-  bgp_show_type_community_list_exact
+  bgp_show_type_community_list_exact,
+  bgp_show_type_hiddentoo
 };
 
 static int
@@ -649,6 +651,9 @@ bgp_show_mpls_vpn(
 	    for (ri = rm->info; ri; ri = ri->next)
 	      {
                 total_count++;
+		if ((type != bgp_show_type_hiddentoo)
+                    && CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+                  continue;
 		if (type == bgp_show_type_neighbor)
 		  {
 		    union sockunion *su = output_arg;
@@ -735,6 +740,18 @@ DEFUN (show_bgp_ipv4_vpn,
   return bgp_show_mpls_vpn (vty, AFI_IP, NULL, bgp_show_type_normal, NULL, 0);
 }
 
+DEFUN (show_bgp_ipv4_vpn_hidden,
+       show_bgp_ipv4_vpn_hidden_cmd,
+       "show bgp ipv4 vpn all hidden",
+       SHOW_STR
+       BGP_STR
+       "Address Family\n"
+       "Display VPN NLRI specific information\n"
+       "Also display entries with non matching VRFs")
+{
+  return bgp_show_mpls_vpn (vty, AFI_IP, NULL, bgp_show_type_hiddentoo, NULL, 0);
+}
+
 DEFUN (show_bgp_ipv6_vpn,
        show_bgp_ipv6_vpn_cmd,
        "show bgp ipv6 vpn",
@@ -744,6 +761,18 @@ DEFUN (show_bgp_ipv6_vpn,
        "Display VPN NLRI specific information\n")
 {
   return bgp_show_mpls_vpn (vty, AFI_IP6, NULL, bgp_show_type_normal, NULL, 0);
+}
+
+DEFUN (show_bgp_ipv6_vpn_hidden,
+       show_bgp_ipv6_vpn_hidden_cmd,
+       "show bgp ipv6 vpn all hidden",
+       SHOW_STR
+       BGP_STR
+       "Address Family\n"
+       "Display VPN NLRI specific information\n"
+       "Also display entries with non matching VRFs")
+{
+  return bgp_show_mpls_vpn (vty, AFI_IP6, NULL, bgp_show_type_hiddentoo, NULL, 0);
 }
 
 DEFUN (show_bgp_ipv4_vpn_rd,
@@ -1159,6 +1188,7 @@ bgp_mplsvpn_init (void)
   install_element (BGP_VPNV4_NODE, &no_vpnv4_network_cmd);
 
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_cmd);
+  install_element (VIEW_NODE, &show_bgp_ipv4_vpn_hidden_cmd),
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_rd_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_tags_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_rd_tags_cmd);
@@ -1172,6 +1202,7 @@ bgp_mplsvpn_init (void)
   install_element (BGP_VPNV6_NODE, &no_vpnv6_network_cmd);
 
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_cmd);
+  install_element (VIEW_NODE, &show_bgp_ipv6_vpn_hidden_cmd),
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_rd_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_tags_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_rd_tags_cmd);

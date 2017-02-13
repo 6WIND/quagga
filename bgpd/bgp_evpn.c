@@ -586,6 +586,8 @@ show_adj_route_evpn (struct vty *vty, struct peer *peer, struct prefix_rd *prd, 
                           vty_out (vty, BGP_SHOW_OCODE_HEADER, VTY_NEWLINE, VTY_NEWLINE);
                           header1 = 0;
                         }
+                      if (CHECK_FLAG (rm->flags, BGP_INFO_VPN_HIDEN))
+                        return;
                       if (rd_header)
                         {
                           ptr = prefix_rd2str ((struct prefix_rd *)rn->p.u.val, buf, RD_ADDRSTRLEN);
@@ -636,7 +638,8 @@ enum bgp_show_type
   bgp_show_type_community,
   bgp_show_type_community_exact,
   bgp_show_type_community_list,
-  bgp_show_type_community_list_exact
+  bgp_show_type_community_list_exact,
+  bgp_show_type_hiddentoo
 };
 
 #define SHOW_DISPLAY_STANDARD 0
@@ -682,6 +685,9 @@ bgp_show_ethernet_vpn (struct vty *vty, struct prefix_rd *prd, enum bgp_show_typ
 	    for (ri = rm->info; ri; ri = ri->next)
 	      {
                 total_count++;
+		if ((type != bgp_show_type_hiddentoo)
+                    && CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+                  continue;
 		if (type == bgp_show_type_neighbor)
 		  {
 		    union sockunion *su = output_arg;
@@ -770,6 +776,19 @@ DEFUN (show_bgp_l2vpn_evpn_all,
 {
   return bgp_show_ethernet_vpn (vty, NULL, bgp_show_type_normal, NULL,
                                 SHOW_DISPLAY_STANDARD);
+}
+
+DEFUN (show_bgp_l2vpn_evpn_all_hidden,
+       show_bgp_l2vpn_evpn_all_hidden_cmd,
+       "show bgp l2vpn evpn all hidden",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display VPN NLRI specific information\n"
+       "Also display entries with non matching VRFs")
+{
+  return bgp_show_ethernet_vpn (vty, NULL, bgp_show_type_hiddentoo, NULL, SHOW_DISPLAY_STANDARD);
 }
 
 DEFUN (show_bgp_evpn_rd,
@@ -1205,6 +1224,7 @@ void
 bgp_ethernetvpn_init (void)
 {
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_hidden_cmd);
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_cmd);
   install_element (VIEW_NODE, &show_bgp_evpn_rd_cmd);
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_tags_cmd);

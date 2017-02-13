@@ -88,7 +88,7 @@ struct bgp_info
   int lock;
   
   /* BGP information status.  */
-  u_int16_t flags;
+  u_int32_t flags;
 #define BGP_INFO_IGP_CHANGED    (1 << 0)
 #define BGP_INFO_DAMPED         (1 << 1)
 #define BGP_INFO_HISTORY        (1 << 2)
@@ -105,6 +105,7 @@ struct bgp_info
 #define BGP_INFO_UPDATE_SENT    (1 << 13)
 #define BGP_INFO_WITHDRAW_SENT  (1 << 14)
 #define BGP_INFO_ORIGIN_EVPN    (1 << 15)
+#define BGP_INFO_VPN_HIDEN      (1 << 16)
 
   /* BGP route type.  This can be static, RIP, OSPF, BGP etc.  */
   u_char type;
@@ -323,6 +324,13 @@ info_make (int type, int sub_type, struct peer *peer, struct attr *attr,
 struct bgp_info_extra *bgp_info_extra_new (void);
 void
 overlay_index_dup(struct attr *attr, struct overlay_index *src);
+extern void
+bgp_vrf_added_vrf_update_global_rib (struct bgp_vrf *vrf);
+extern void
+bgp_vrf_delete_vrf_update_global_rib (struct prefix *p, struct bgp_info *vrf_ri,
+                                      struct bgp_vrf *vrf, afi_t afi);
+extern void
+bgp_vrf_update_global_rib_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi);
 
 void bgp_vrf_process_entry (struct bgp_info *iter, 
                             int action, afi_t afi, safi_t safi);
