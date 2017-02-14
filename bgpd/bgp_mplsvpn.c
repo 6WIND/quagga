@@ -460,7 +460,8 @@ enum bgp_show_type
   bgp_show_type_community,
   bgp_show_type_community_exact,
   bgp_show_type_community_list,
-  bgp_show_type_community_list_exact
+  bgp_show_type_community_list_exact,
+  bgp_show_type_hiddentoo
 };
 
 static int
@@ -510,9 +511,10 @@ bgp_show_mpls_vpn(
 	  for (rm = bgp_table_top (table); rm; rm = bgp_route_next (rm))
 	    for (ri = rm->info; ri; ri = ri->next)
 	      {
-                if (CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
-                  return;
                 total_count++;
+		if ((type != bgp_show_type_hiddentoo)
+                    && CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+                  continue;
 		if (type == bgp_show_type_neighbor)
 		  {
 		    union sockunion *su = output_arg;
@@ -597,6 +599,19 @@ DEFUN (show_bgp_ipv4_vpn,
        "Display VPN NLRI specific information\n")
 {
   return bgp_show_mpls_vpn (vty, AFI_IP, NULL, bgp_show_type_normal, NULL, 0);
+}
+
+DEFUN (show_ip_bgp_vpnv4_all_hidden,
+       show_ip_bgp_vpnv4_all_hidden_cmd,
+       "show ip bgp vpnv4 all hidden",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "Address Family\n"
+       "Display VPN NLRI specific information\n"
+       "Also display entries with non matching VRFs")
+{
+  return bgp_show_mpls_vpn (vty, AFI_IP, NULL, bgp_show_type_hiddentoo, NULL, 0);
 }
 
 ALIAS (show_bgp_ipv4_vpn,
@@ -1083,6 +1098,7 @@ bgp_mplsvpn_init (void)
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_rd_neighbor_advertised_routes_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_rd_neighbor_routes_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_cmd);
+  install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_hidden_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_rd_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_rd_tags_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_neighbors_routes_cmd);
@@ -1107,6 +1123,7 @@ bgp_mplsvpn_init (void)
   install_element (ENABLE_NODE, &show_bgp_ipv4_vpn_rd_neighbor_routes_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_vpnv4_all_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_vpnv4_rd_cmd);
+  install_element (ENABLE_NODE, &show_ip_bgp_vpnv4_all_hidden_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_vpnv4_rd_tags_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_vpnv4_all_neighbors_routes_cmd);
   install_element (ENABLE_NODE, &show_ip_bgp_vpnv4_all_tags_cmd);
