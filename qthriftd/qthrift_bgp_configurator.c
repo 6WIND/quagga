@@ -1112,6 +1112,7 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
   if(IS_QTHRIFT_DEBUG_CACHE)
     zlog_info ("CACHE_PEER : add entry %llx", (long long unsigned int)peer_nid);
   listnode_add(ctxt->bgp_peer_list, entry);
+
   /* set aficfg */
   ret = qthrift_bgp_afi_config(ctxt, _return, routerId, \
                                AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN, TRUE, error);
@@ -1414,12 +1415,16 @@ instance_bgp_configurator_handler_set_update_source (BgpConfiguratorIf *iface, g
   if(srcIp)
     {
       peer.update_source = (char *)srcIp;
+      /* force to set update source only */
+      peer.flags |=  PEER_FLAG_USE_CONFIGURED_SOURCE;
     }
   else
     {
       if (peer.update_source)
         free (peer.update_source);
       peer.update_source = NULL;
+      /* unset update source flag */
+      peer.flags &= ~PEER_FLAG_USE_CONFIGURED_SOURCE;
     }
   qzcclient_qzcgetrep_free( grep_peer);
   /* prepare QZCSetRequest context */
