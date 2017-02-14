@@ -3518,6 +3518,49 @@ peer_update_source_unset (struct peer *peer)
 }
 
 int
+peer_connect_with_update_source_only_set (struct peer *peer, int enable)
+{
+  struct peer_group *group;
+  struct listnode *node, *nnode;
+
+  if (enable == peer->connect_with_update_source_only)
+    return 0;
+
+  if (enable)
+      peer->connect_with_update_source_only = true;
+  else
+      peer->connect_with_update_source_only = false;
+
+  if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
+    {
+      if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status))
+       {
+         peer->last_reset = PEER_DOWN_UPDATE_SOURCE_CHANGE;
+         bgp_notify_send (peer, BGP_NOTIFY_CEASE,
+                          BGP_NOTIFY_CEASE_CONFIG_CHANGE);
+       }
+      else
+	BGP_EVENT_ADD (peer, BGP_Stop);
+      return 0;
+    }
+
+  /* peer-group member updates. */
+  group = peer->group;
+  for (ALL_LIST_ELEMENTS (group->peer, node, nnode, peer))
+    {
+      if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status))
+       {
+         peer->last_reset = PEER_DOWN_UPDATE_SOURCE_CHANGE;
+         bgp_notify_send (peer, BGP_NOTIFY_CEASE,
+                          BGP_NOTIFY_CEASE_CONFIG_CHANGE);
+       }
+      else
+	BGP_EVENT_ADD (peer, BGP_Stop);
+    }
+  return 0;
+}
+
+int
 peer_default_originate_set (struct peer *peer, afi_t afi, safi_t safi,
 			    const char *rmap)
 {
@@ -5606,6 +5649,12 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
 			      peer->update_source) != 0)
 	  vty_out (vty, " neighbor %s update-source %s%s", addr,
 		   sockunion2str (peer->update_source, buf, SU_ADDRSTRLEN),
+		   VTY_NEWLINE);
+      if (peer->connect_with_update_source_only)
+	if (! peer_group_active (peer) || ! g_peer->connect_with_update_source_only
+	    || g_peer->connect_with_update_source_only !=
+	       peer->connect_with_update_source_only)
+	  vty_out (vty, " neighbor %s connect_with_update_source_only%s", addr,
 		   VTY_NEWLINE);
 
       /* advertisement-interval */

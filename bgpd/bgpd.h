@@ -487,6 +487,7 @@ struct peer
   char *ifname;			/* bind interface name. */
   char *update_if;
   union sockunion *update_source;
+  bool connect_with_update_source_only; /* Only connect with update source address */
   struct zlog *log;
 
   union sockunion *su_local;	/* Sockunion of local address.  */
@@ -1096,6 +1097,7 @@ extern int peer_description_unset (struct peer *);
 extern int peer_update_source_if_set (struct peer *, const char *);
 extern int peer_update_source_addr_set (struct peer *, union sockunion *);
 extern int peer_update_source_unset (struct peer *);
+extern int peer_connect_with_update_source_only_set (struct peer *peer, int enable);
 
 extern int peer_default_originate_set (struct peer *, afi_t, safi_t, const char *);
 extern int peer_default_originate_unset (struct peer *, afi_t, safi_t);
