@@ -487,7 +487,6 @@ struct peer
   char *ifname;			/* bind interface name. */
   char *update_if;
   union sockunion *update_source;
-  bool connect_with_update_source_only; /* Only connect with update source address */
   struct zlog *log;
 
   union sockunion *su_local;	/* Sockunion of local address.  */
@@ -537,6 +536,7 @@ struct peer
 #define PEER_FLAG_DISABLE_CONNECTED_CHECK   (1 << 6) /* disable-connected-check */
 #define PEER_FLAG_LOCAL_AS_NO_PREPEND       (1 << 7) /* local-as no-prepend */
 #define PEER_FLAG_LOCAL_AS_REPLACE_AS       (1 << 8) /* local-as no-prepend replace-as */
+#define PEER_FLAG_USE_CONFIGURED_SOURCE     (1 << 9) /* use configured source-only */
 
   /* NSF mode (graceful restart) */
   u_char nsf[AFI_MAX][SAFI_MAX];

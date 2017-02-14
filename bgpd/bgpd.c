@@ -3523,14 +3523,13 @@ peer_connect_with_update_source_only_set (struct peer *peer, int enable)
   struct peer_group *group;
   struct listnode *node, *nnode;
 
-  if (enable == peer->connect_with_update_source_only)
-    return 0;
-
+  if (CHECK_FLAG (peer->flags, PEER_FLAG_USE_CONFIGURED_SOURCE) && enable)
+      return 0;
   if (enable)
-      peer->connect_with_update_source_only = true;
+    SET_FLAG (peer->flags, PEER_FLAG_USE_CONFIGURED_SOURCE);
   else
-      peer->connect_with_update_source_only = false;
-
+    UNSET_FLAG (peer->flags, PEER_FLAG_USE_CONFIGURED_SOURCE);
+ 
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
     {
       if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status))
@@ -5650,10 +5649,10 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
 	  vty_out (vty, " neighbor %s update-source %s%s", addr,
 		   sockunion2str (peer->update_source, buf, SU_ADDRSTRLEN),
 		   VTY_NEWLINE);
-      if (peer->connect_with_update_source_only)
-	if (! peer_group_active (peer) || ! g_peer->connect_with_update_source_only
-	    || g_peer->connect_with_update_source_only !=
-	       peer->connect_with_update_source_only)
+      if (CHECK_FLAG (peer->flags, PEER_FLAG_USE_CONFIGURED_SOURCE))
+	if (! peer_group_active (peer) || ! CHECK_FLAG (g_peer->flags, PEER_FLAG_USE_CONFIGURED_SOURCE)
+	    || CHECK_FLAG (g_peer->flags, PEER_FLAG_USE_CONFIGURED_SOURCE) !=
+            CHECK_FLAG (peer->flags, PEER_FLAG_USE_CONFIGURED_SOURCE))
 	  vty_out (vty, " neighbor %s connect_with_update_source_only%s", addr,
 		   VTY_NEWLINE);
 
