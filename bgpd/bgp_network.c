@@ -242,7 +242,7 @@ bgp_accept (struct thread *thread)
       return -1;
     }
 
-  if (peer1->connect_with_update_source_only)
+  if (CHECK_FLAG (peer1->flags, PEER_FLAG_USE_CONFIGURED_SOURCE))
     {
       union sockunion *su_local;
 
@@ -404,7 +404,7 @@ bgp_connect (struct peer *peer)
   ifindex_t ifindex = 0;
 
   /* Check connect_with_update_source_only flag for peer */
-  if (peer->connect_with_update_source_only && !peer->update_source)
+  if (CHECK_FLAG (peer->flags, PEER_FLAG_USE_CONFIGURED_SOURCE) && !peer->update_source)
     {
       zlog_debug ("[Event] The connect_with_update_source_only flag is set "
                   "for peer %s, but update source is not configured, cancel "
