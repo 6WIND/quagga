@@ -149,6 +149,7 @@ struct BGPPeer $ctype("struct peer") $cgen
 	cfDisableConnectedCheck	@13 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_DISABLE_CONNECTED_CHECK");
 #	cfLocalAsNoPrepend	@14 :Bool $cflag(field = "flags", setter = "peer_local_as_set", value = "PEER_FLAG_LOCAL_AS_NO_PREPEND") $caltname("no_prepend");
 #	cfLocalAsReplaceAs	@15 :Bool $cflag(field = "flags", setter = "peer_local_as_set", value = "PEER_FLAG_LOCAL_AS_REPLACE_AS") $caltname("replace_as");
+#	cfUseConfiguredSources	@16 :Bool $cflag(field = "flags", setter = "peer_flag_set", value = "PEER_FLAG_USE_CONFIGURED_SOURCE") $caltname("use_configured_source");
 
 	ttl			@14 :Int32 $csetter("peer_ebgp_multihop_set");
 	updateSource		@15 :Text $csetter("peer_update_source_addr_set");

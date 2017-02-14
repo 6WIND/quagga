@@ -557,6 +557,11 @@ void qcapn_BGPPeer_read(struct peer *s, capn_ptr p)
       if (tmp) s->flags |=  PEER_FLAG_DISABLE_CONNECTED_CHECK;
       else     s->flags &= ~PEER_FLAG_DISABLE_CONNECTED_CHECK;
     }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 6) & (1 << 7));
+      if (tmp) s->flags |=  PEER_FLAG_USE_CONFIGURED_SOURCE;
+      else     s->flags &= ~PEER_FLAG_USE_CONFIGURED_SOURCE;
+    }
     s->ttl = capn_read32(p, 20);
     {
       const char * update_source = NULL;
@@ -599,6 +604,7 @@ void qcapn_BGPPeer_write(const struct peer *s, capn_ptr p)
     capn_write1(p, 52, !!(s->flags & PEER_FLAG_STRICT_CAP_MATCH));
     capn_write1(p, 53, !!(s->flags & PEER_FLAG_DYNAMIC_CAPABILITY));
     capn_write1(p, 54, !!(s->flags & PEER_FLAG_DISABLE_CONNECTED_CHECK));
+    capn_write1(p, 55, !!(s->flags & PEER_FLAG_USE_CONFIGURED_SOURCE));
     capn_write32(p, 20, s->ttl);
     {
       capn_text tp;
@@ -715,6 +721,14 @@ void qcapn_BGPPeer_set(struct peer *s, capn_ptr p)
       if (flags) peer_flag_set(s, PEER_FLAG_DISABLE_CONNECTED_CHECK);
 	else peer_flag_unset(s, PEER_FLAG_DISABLE_CONNECTED_CHECK);
       
+    }
+    {
+      u_int32_t flags;
+      flags = !!(capn_read8(p, 6) & (1 << 7));
+      if (flags)
+        peer_connect_with_update_source_only_set (s, 1);
+      else 
+        peer_connect_with_update_source_only_set (s, 0);
     }
     {
       int ttl;
