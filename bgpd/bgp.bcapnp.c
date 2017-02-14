@@ -354,6 +354,14 @@ void qcapn_BGPPeer_set(struct peer *s, capn_ptr p)
       
     }
     {
+      u_int32_t flags;
+      flags = !!(capn_read8(p, 6) & (1 << 7));
+      if (flags)
+        peer_connect_with_update_source_only_set (s, 1);
+      else 
+        peer_connect_with_update_source_only_set (s, 0);
+    }
+    {
       int ttl;
       ttl = capn_read32(p, 20);
       if (ttl) { peer_ebgp_multihop_set(s, ttl); } else { peer_ebgp_multihop_unset(s); }
