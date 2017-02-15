@@ -1417,9 +1417,8 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
   new_select = NULL;
   for (ri = rn->info; (ri != NULL) && (nextri = ri->next, 1); ri = nextri)
     {
-      if (CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
-        continue;
-      if (CHECK_FLAG (ri->flags, BGP_INFO_SELECTED))
+      if (!CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN) &&
+          (CHECK_FLAG (ri->flags, BGP_INFO_SELECTED)))
 	old_select = ri;
 
       if (BGP_INFO_HOLDDOWN (ri))
@@ -1433,7 +1432,8 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
           
           continue;
         }
-
+      if (CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+        continue;
       if (ri->peer &&
           ri->peer != bgp->peer_self &&
           !CHECK_FLAG (ri->peer->sflags, PEER_STATUS_NSF_WAIT))
