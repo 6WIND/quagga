@@ -2231,13 +2231,14 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
                       (struct prefix*)prd))
         {
           bgp_vrf_process_two(vrf, afi, safi, rn, ri, action);
-          if (action == ROUTE_INFO_TO_ADD)
-            action_add_done = 1;
+          /* static entry : do not hide */
         }
   /* prerequisite: this ri is not yet selected
+   * new ri without ext.comm is not hidden
+   * the same for ri = bgp static entry
    */
-
-  if (ri && (action_add_done == 0) && (action == ROUTE_INFO_TO_ADD) &&
+  if (ri && (ri->sub_type != BGP_ROUTE_STATIC) &&
+      (action_add_done == 0) && (action == ROUTE_INFO_TO_ADD) &&
       !CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
     {
       SET_FLAG (ri->flags, BGP_INFO_VPN_HIDEN);
