@@ -1901,6 +1901,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
           /* get routermac if origin evpn */
           if(CHECK_FLAG (selected->flags, BGP_INFO_ORIGIN_EVPN))
             {
+              char gw_str[BUFSIZ];
               event.esi = esi2str(&(selected->attr->extra->evpn_overlay.eth_s_id));
               if (rn->p.family == AF_L2VPN)
                 {
@@ -1908,6 +1909,10 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                 }
               else
                 event.ethtag = selected->attr->extra->eth_t_id;
+              if (selected->attr->extra->evpn_overlay.gw_ip.ipv4.s_addr != 0)
+                event.gatewayIp = (char *)inet_ntop(AF_INET, &selected->attr->extra->evpn_overlay.gw_ip.ipv4, gw_str, BUFSIZ);
+              else
+                event.gatewayIp = NULL;
             }
           else
             {

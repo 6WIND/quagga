@@ -299,6 +299,7 @@ struct bgp_event_vrf
   uint32_t l2label;
   char *esi;
   char *mac_router;
+  char *gatewayIp;
 };
 
 struct bgp_event_shut
