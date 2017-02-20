@@ -455,9 +455,9 @@ vty_command (struct vty *vty, char *buf)
 
       /* format the prompt */
       snprintf(prompt_str, sizeof(prompt_str), cmd_prompt (vty->node), vty_str);
-
-      /* now log the command */
-      zlog(NULL, LOG_EMERG, "%s%s", prompt_str, buf);
+      if (strncmp(buf, "en", strlen("en")))
+          /* now log the command */
+          zlog(NULL, LOG_EMERG, "%s%s", prompt_str, buf);
     }
 
   /*
@@ -489,9 +489,9 @@ vty_command (struct vty *vty, char *buf)
 
       /* format the prompt */
       snprintf(prompt_str, sizeof(prompt_str), cmd_prompt (vty->node), vty_str);
-
-      /* now log the command */
-      zlog(NULL, LOG_NOTICE, "%s%s", prompt_str, buf);
+      if (strncmp(buf, "en", strlen("en")))
+          /* now log the command */
+          zlog(NULL, LOG_NOTICE, "%s%s", prompt_str, buf);
     }
   /* Split readline string up into the vector */
   vline = cmd_make_strvec (buf);
