@@ -248,9 +248,12 @@ bgp_accept (struct thread *thread)
 
       if (!peer1->update_source)
       {
-        zlog_debug ("[Event] The connect_with_update_source_only flag is set for"
-                    " peer %s, but update source has not been configured, ingore"
-                    " the incoming connection", inet_sutop (&su, buf));
+        if (BGP_DEBUG (events, EVENTS))
+          zlog_debug ("neighbor %s connect_with_update_source_only set"
+                      " but neighbor %s update-source unconfigured"
+                      " ignore incoming connection", 
+                      inet_sutop (&su, buf),
+                      inet_sutop (&su, buf));
         close (bgp_sock);
         return -1;
       }
@@ -258,7 +261,7 @@ bgp_accept (struct thread *thread)
       su_local = sockunion_getsockname (bgp_sock);
       if (!su_local)
         {
-          zlog_warn ("Can't get local address and port by getsockname");
+          zlog_err ("bgp_accept: Can't get local address and port by getsockname");
           close (bgp_sock);
           return -1;
         }
@@ -267,9 +270,10 @@ bgp_accept (struct thread *thread)
           char buf1[BUFSIZ], buf2[BUFSIZ];
           sockunion2str (su_local, buf1, SU_ADDRSTRLEN);
           sockunion2str (peer1->update_source, buf2, SU_ADDRSTRLEN);
-          zlog_debug ("[Event] The dest address of incomming connection is %s,"
-                      " other than the configured update-source ip %s",
-                      buf1, buf2);
+          if (BGP_DEBUG (events, EVENTS))
+            zlog_debug ("neighbor %s connect_with_update_source_only set."
+                        " incoming connection to %s does not match update-source %s",
+                        inet_sutop (&su, buf), buf1, buf2);
           close (bgp_sock);
           sockunion_free (su_local);
           return -1;
