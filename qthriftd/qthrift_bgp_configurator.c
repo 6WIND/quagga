@@ -179,7 +179,8 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
 #define ERROR_BGP_PEER_NOTFOUND g_error_new(1, 4, "BGP Peer %s not configured", peerIp);
 #define ERROR_BGP_NO_ROUTES_FOUND g_error_new(1, 6, "BGP GetRoutes: no routes");
 #define ERROR_BGP_INVALID_MAXPATH g_error_new(1, 5, "BGP maxpaths: out of range value 0 < %d < 8", maxPath);
-
+#define ERROR_BGP_INTERNAL g_error_new(1, 7, "Error reported by BGP, check log file");
+#define BGP_ERR_INTERNAL 110
 
 /*
  * capnproto node identifiers used for qthrift<->bgp exchange
@@ -378,7 +379,7 @@ qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const 
                                  NULL, NULL);
   if(grep_peer == NULL)
     {
-      *_return = BGP_ERR_FAILED;
+      *_return = BGP_ERR_INTERNAL;
       capn_free(&rc);
       return FALSE;
     }
@@ -400,7 +401,7 @@ qthrift_bgp_afi_config(struct qthrift_vpnservice *ctxt,  gint32* _return, const 
                            &afisafi_ctxt, &bgp_ctxttype_afisafi);
   if(ret == 0)
     {
-      *_return = BGP_ERR_FAILED;
+      *_return = BGP_ERR_INTERNAL;
       capn_free(&rc);
       return FALSE;
     }
@@ -477,7 +478,7 @@ qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _retur
                                  NULL, NULL);
   if(grep_peer == NULL)
     {
-      *_return = BGP_ERR_FAILED;
+      *_return = BGP_ERR_INTERNAL;
       capn_free(&rc);
       return FALSE;
     }
@@ -500,7 +501,7 @@ qthrift_bgp_peer_af_flag_config(struct qthrift_vpnservice *ctxt,  gint32* _retur
                            &bgp_datatype_peer_3, &afisafi_ctxt, &bgp_ctxttype_afisafi);
   if(ret == 0)
     {
-      *_return = BGP_ERR_FAILED;
+      *_return = BGP_ERR_INTERNAL;
       capn_free(&rc);
       return FALSE;
     }
@@ -1099,7 +1100,10 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
   if (peer_nid == 0)
     {
       *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_INTERNAL;
       XFREE(MTYPE_QTHRIFT, inst.host);
+      if(IS_QTHRIFT_DEBUG)
+        zlog_info ("createPeer(%s,%u) NOK (capnproto error 1)", routerId, (as_t)asNumber);
       return FALSE;
     }
   if(IS_QTHRIFT_DEBUG)
@@ -1116,11 +1120,28 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
   /* set aficfg */
   ret = qthrift_bgp_afi_config(ctxt, _return, routerId, \
                                AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN, TRUE, error);
+  if (ret == FALSE && *_return == BGP_ERR_INTERNAL)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_INTERNAL;
+      if(IS_QTHRIFT_DEBUG)
+        zlog_info ("createPeer(%s,%u) NOK (capnproto error 2)", routerId, (as_t)asNumber);
+      return FALSE;
+    }
 
-  return ret && qthrift_bgp_peer_af_flag_config(ctxt, _return, routerId, \
-                                                AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN,
-                                                PEER_FLAG_NEXTHOP_UNCHANGED, TRUE,
-                                                error);
+  ret = qthrift_bgp_peer_af_flag_config(ctxt, _return, routerId, \
+                                        AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN,
+                                        PEER_FLAG_NEXTHOP_UNCHANGED, TRUE,
+                                        error);
+  if (ret == FALSE && *_return == BGP_ERR_INTERNAL)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_INTERNAL;
+      if(IS_QTHRIFT_DEBUG)
+        zlog_info ("createPeer(%s,%u) NOK (capnproto error 3)", routerId, (as_t)asNumber);
+      return FALSE;
+    }
+  return ret;
 }
 
 /*
@@ -1174,6 +1195,13 @@ instance_bgp_configurator_handler_delete_peer(BgpConfiguratorIf *iface, gint32* 
       if(IS_QTHRIFT_DEBUG)
         zlog_info ("deletePeer(%s) OK", peerIp);
       return TRUE;
+    }
+  else
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_INTERNAL;
+      if(IS_QTHRIFT_DEBUG)
+        zlog_info ("deletePeer(%s) NOK (capnproto error)", peerIp);
     }
   return FALSE;
 }
@@ -1468,6 +1496,7 @@ gboolean instance_bgp_configurator_handler_enable_address_family(BgpConfigurator
                                                                  const af_safi safi, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
+  gboolean ret;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -1475,7 +1504,15 @@ gboolean instance_bgp_configurator_handler_enable_address_family(BgpConfigurator
       *_return = BGP_ERR_FAILED;
       return FALSE;
     }
-  return qthrift_bgp_afi_config(ctxt, _return, peerIp, afi, safi, TRUE, error);
+  ret = qthrift_bgp_afi_config(ctxt, _return, peerIp, afi, safi, TRUE, error);
+  if (ret == FALSE && *_return == BGP_ERR_INTERNAL)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_INTERNAL;
+      if(IS_QTHRIFT_DEBUG)
+        zlog_info ("enableAddressFamily(%s, %u, %u) NOK (capnproto error)", peerIp, afi, safi);
+    }
+  return ret;
 }
 
 /*
@@ -1488,6 +1525,7 @@ instance_bgp_configurator_handler_disable_address_family(BgpConfiguratorIf *ifac
                                                          const af_safi safi, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
+  gboolean ret;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -1495,7 +1533,15 @@ instance_bgp_configurator_handler_disable_address_family(BgpConfiguratorIf *ifac
       *_return = BGP_ERR_FAILED;
       return FALSE;
     }
-  return qthrift_bgp_afi_config(ctxt, _return, peerIp, afi, safi, FALSE, error);
+  ret = qthrift_bgp_afi_config(ctxt, _return, peerIp, afi, safi, FALSE, error);
+  if (ret == FALSE && *_return == BGP_ERR_INTERNAL)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_INTERNAL;
+      if(IS_QTHRIFT_DEBUG)
+        zlog_info ("disableAddressFamily(%s, %u, %u) NOK (capnproto error)", peerIp, afi, safi);
+    }
+  return ret;
 }
 
 gboolean
