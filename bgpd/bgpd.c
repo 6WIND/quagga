@@ -2144,7 +2144,8 @@ bgp_vrf_create (struct bgp *bgp, struct prefix_rd *outbound_rd)
   vrf->bgp = bgp;
   vrf->outbound_rd = *outbound_rd;
   vrf->max_mpath = bgp->maxpaths[AFI_IP][SAFI_MPLS_VPN].maxpaths_ibgp;
-
+  if (vrf->max_mpath == 0)
+    vrf->max_mpath = BGP_DEFAULT_MAXPATHS;
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     {
       vrf->route[afi] = bgp_table_init (afi, SAFI_UNICAST);
