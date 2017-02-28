@@ -2610,6 +2610,14 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
     }
   if (old_select && new_select)
     {
+      if (vrf && (old_select != new_select) &&
+          !CHECK_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG) && 
+          !CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH_CHG)){
+          bgp_info_unset_flag (rn, old_select, BGP_INFO_SELECTED);
+          bgp_vrf_update(vrf, afi, rn, old_select, false);
+          bgp_info_set_flag (rn, new_select, BGP_INFO_SELECTED);
+          bgp_vrf_update(vrf, afi, rn, new_select, true);
+        }
       if(!CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH_CHG) &&
          !CHECK_FLAG (new_select->flags, BGP_INFO_ATTR_CHANGED))
         {
