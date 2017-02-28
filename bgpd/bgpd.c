@@ -2187,6 +2187,8 @@ bgp_vrf_lookup_per_name (struct bgp *bgp, const char *name, int create)
   vrf->bgp = bgp;
   vrf->name = strdup (name);
   vrf->max_mpath = bgp->maxpaths[AFI_IP][SAFI_MPLS_VPN].maxpaths_ibgp;
+  if (vrf->max_mpath == 0)
+    vrf->max_mpath = BGP_DEFAULT_MAXPATHS;
   vrf->flag |= BGP_VRF_RD_UNSET;
   vrf->ltype = BGP_LAYER_TYPE_3;
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
