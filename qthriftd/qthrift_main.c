@@ -137,8 +137,8 @@ usage (char *progname, int status)
 Daemon which manages thrift configuration/updates\n\n\
 qthrift configuration across thrift defined model : vpnservice.\n\n\
 -D                          Disable default logging to stdout \n\
--p, --thrift_port           Set thrift's config port number\n\
--P, --thrift_notif_port     Set thrift's notif update port number\n\
+-P, --thrift_port           Set thrift's config port number\n\
+-p, --thrift_notif_port     Set thrift's notif update port number\n\
 -N, --thrift_notif_address  Set thrift's notif update specified address\n\
 -h, --help                  Display this help and exit\n\
 \n\
