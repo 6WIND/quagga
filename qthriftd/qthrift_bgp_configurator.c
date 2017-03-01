@@ -1323,6 +1323,7 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
   struct qthrift_cache_peer *entry;
   uint64_t peer_nid;
   gboolean ret = FALSE;
+  struct qthrift_cache_peer *c_peer;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -1339,6 +1340,15 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
   if(asNumber < 0)
     {
       *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+  c_peer = qthrift_bgp_configurator_find_peer(ctxt, routerId, _return, 0);
+  if(c_peer && c_peer->peer_nid)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_INTERNAL;
+      if(IS_QTHRIFT_DEBUG)
+        zlog_info ("createPeer(%s) already present. do nothing.", routerId);
       return FALSE;
     }
   memset(&inst, 0, sizeof(struct peer));
