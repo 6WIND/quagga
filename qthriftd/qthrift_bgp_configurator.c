@@ -1571,27 +1571,24 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
       listnode_add(ctxt->bgp_vrf_list, entry);
       if(IS_QTHRIFT_DEBUG)
         zlog_info ("addVrf(%s) OK", rd);
-      /* max_mpath has been set in bgpd with a default value owned by bgpd itself
-       * must get back this value before going further else max_mpath will be overwritten
-       * by first bgpvrf read */
-      {
-        struct QZCGetRep *grep_vrf;
-
-        grep_vrf = qzcclient_getelem (ctxt->qzc_sock, &bgpvrf_nid, 1, \
-                                      NULL, NULL, NULL, NULL);
-        if(grep_vrf == NULL)
-          {
-            *_return = BGP_ERR_FAILED;
-            return FALSE;
-          }
-        memset(&instvrf, 0, sizeof(struct bgp_vrf));
-        qcapn_BGPVRF_read(&instvrf, grep_vrf->data);
-
-        /* reset qzc reply and rc context */
-        qzcclient_qzcgetrep_free( grep_vrf);
-
-      }
     }
+  /* max_mpath has been set in bgpd with a default value owned by bgpd itself
+   * must get back this value before going further else max_mpath will be overwritten
+   * by first bgpvrf read */
+  {
+    struct QZCGetRep *grep_vrf;
+    grep_vrf = qzcclient_getelem (ctxt->qzc_sock, &bgpvrf_nid, 1,       \
+                                  NULL, NULL, NULL, NULL);
+    if(grep_vrf == NULL)
+      {
+        *_return = BGP_ERR_FAILED;
+        return FALSE;
+      }
+    memset(&instvrf, 0, sizeof(struct bgp_vrf));
+    qcapn_BGPVRF_read(&instvrf, grep_vrf->data);
+    /* reset qzc reply and rc context */
+    qzcclient_qzcgetrep_free( grep_vrf);
+  }
   /* configuring bgp vrf with import and export communities */
   /* irts and erts have to be concatenated into temp string */
   rts = XMALLOC(MTYPE_QTHRIFT,2048);
