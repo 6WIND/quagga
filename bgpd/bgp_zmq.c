@@ -31,7 +31,12 @@
 #include "bgpd.h"
 #include "bgpd/bgp_vty.h"
 
+#define BGP_NOTIFY_ZMQ_LIMIT     500000
+#define BGP_NOTIFY_ZMQ_MIN_LIMIT 60000
+#define BGP_NOTIFY_ZMQ_MAX_LIMIT 4000000
+
 int bgp_zmq_notify_send_counter;
+uint32_t bgp_notify_zmq_limit = BGP_NOTIFY_ZMQ_LIMIT;
 
 void
 bgp_notify_cleanup (struct bgp *bgp)
@@ -42,9 +47,39 @@ bgp_notify_cleanup (struct bgp *bgp)
     zmq_close (bgp->notify_zmq);
 }
 
+DEFUN (debug_bgp_notify_zmq_set_limit,
+       debug_bgp_notify_zmq_set_limit_cmd,
+       "debug bgp zmq notification-limit [60000-4000000]",
+       DEBUG_STR
+       BGP_STR
+       "BGP ZMQ debugging\n"
+       "Notification Threshold\n"
+       "Size of storage queue bgp->sdnc\n"
+       )
+{
+  uint32_t limit;
+  struct bgp *bgp = bgp_get_default();
+
+  if (!bgp)
+    return CMD_SUCCESS;
+  limit = atol (argv[0]);
+  if (limit < BGP_NOTIFY_ZMQ_MIN_LIMIT || limit > BGP_NOTIFY_ZMQ_MAX_LIMIT)
+    return CMD_SUCCESS;
+  if (limit != bgp_notify_zmq_limit)
+    {
+      bgp_notify_zmq_limit = limit;
+      if (bgp->notify_zmq)
+        zmq_setsockopt (bgp->notify_zmq, ZMQ_SNDHWM, &limit, sizeof(limit));
+    }
+  return CMD_SUCCESS;
+}
+
 int
 bgp_notify_zmq_url_set (struct bgp *bgp, const char *url)
 {
+  /* maximum capacity of messages that can be stored on queue */
+  uint32_t limit = bgp_notify_zmq_limit;
+
   if (bgp->notify_zmq_url)
     {
       if (url && !strcmp (url, bgp->notify_zmq_url))
@@ -70,6 +105,7 @@ bgp_notify_zmq_url_set (struct bgp *bgp, const char *url)
                 strerror (errno), errno);
       return -1;
     }
+  zmq_setsockopt (bgp->notify_zmq, ZMQ_SNDHWM, &limit, sizeof(limit));
   if (zmq_bind (bgp->notify_zmq, bgp->notify_zmq_url))
     {
       zlog_err ("ZeroMQ event PUB bind failed: %s (%d)",
@@ -126,6 +162,7 @@ DEFUN (show_debugging_bgp_zmq,
        "ZMQ information")
 {
   vty_out (vty, "BGP ZMQ notifications : %u%s", bgp_zmq_notify_send_counter, VTY_NEWLINE);
+  vty_out (vty, "BGP ZMQ queue storage limit : %u%s", bgp_notify_zmq_limit, VTY_NEWLINE);
   return CMD_SUCCESS;
 }
 
@@ -133,6 +170,8 @@ DEFUN (show_debugging_bgp_zmq,
 void
 bgp_notify_zmq_init (void)
 {
+  bgp_notify_zmq_limit = BGP_NOTIFY_ZMQ_LIMIT;
   install_element (ENABLE_NODE, &show_debugging_bgp_zmq_cmd);
-
+  install_element (ENABLE_NODE, &debug_bgp_notify_zmq_set_limit_cmd);
+  install_element (CONFIG_NODE, &debug_bgp_notify_zmq_set_limit_cmd);
 }
