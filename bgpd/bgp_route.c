@@ -65,6 +65,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 extern const char *bgp_origin_str[];
 extern const char *bgp_origin_long_str[];
 
+uint32_t bgp_process_main_lost, bgp_process_vrf_lost;
+
 void
 overlay_index_dup(struct attr *attr, struct overlay_index *src)
 {
@@ -3009,7 +3011,65 @@ bgp_process_main (struct work_queue *wq, void *data)
   return WQ_SUCCESS;
 }
 
-/* processing done for BGP VRF tables */
+DEFUN (show_debugging_bgp_workqueue,
+       show_debugging_bgp_workqueue_cmd,
+       "show debugging bgp work-queues",
+       SHOW_STR
+       DEBUG_STR
+       BGP_STR
+       "Work Queue information")
+{
+  vty_out (vty, "BGP workqueue lost messages: main %u vrf %u%s", 
+           bgp_process_main_lost, bgp_process_vrf_lost, VTY_NEWLINE);
+  return CMD_SUCCESS;
+}
+
+
+/* processing error due to a job in main table */
+static void bgp_process_error(struct work_queue *wq, struct work_queue_item *job)
+{
+  void *data = job->data;
+  struct bgp_process_queue *pq = data;
+   struct bgp_node *rn = pq->rn;
+  afi_t afi = pq->afi;
+  safi_t safi = pq->safi;
+  char pfx_str[INET6_BUFSIZ];
+
+  if (rn)
+    prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+
+  zlog_err("[%s] afi %u safi %u / main / workqueue dropped ( ran %u)",
+           pfx_str, afi, safi, job->ran);
+  bgp_process_main_lost++;
+}
+
+/* processing error due to a job for BGP VRF tables */
+static void bgp_process_vrf_error(struct work_queue *wq, struct work_queue_item *job)
+{
+  void *data = job->data;
+  struct bgp_process_queue *pq = data;
+  struct bgp *bgp = pq->bgp;
+  struct bgp_node *rn = pq->rn;
+  afi_t afi = pq->afi;
+  safi_t safi = pq->safi;
+  struct bgp_vrf *vrf;
+  char pfx_str[INET6_BUFSIZ];
+  char vrf_rd_str[RD_ADDRSTRLEN];
+
+  if (!bgp)
+    return;
+  if (rn)
+    {
+      prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+      vrf = bgp_vrf_lookup_per_rn(bgp, afi, rn);
+      if (vrf)
+        prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+    }
+  zlog_err("[%s] afi %u safi %u / vrf %s / workqueue dropped ( ran %u)",
+           pfx_str, afi, safi, vrf_rd_str, job->ran);
+  bgp_process_vrf_lost++;
+}
+
 static wq_item_status
 bgp_process_vrf_main (struct work_queue *wq, void *data)
 {
@@ -3166,6 +3226,7 @@ bgp_process_queue_init (void)
     }
   
   bm->process_main_queue->spec.workfunc = &bgp_process_main;
+  bm->process_main_queue->spec.errorfunc = &bgp_process_error;
   bm->process_main_queue->spec.del_item_data = &bgp_processq_del;
   bm->process_main_queue->spec.max_retries = 0;
   bm->process_main_queue->spec.hold = 50;
@@ -3176,6 +3237,7 @@ bgp_process_queue_init (void)
   bm->process_rsclient_queue->spec.hold = 50;
 
   bm->process_vrf_queue->spec.workfunc = &bgp_process_vrf_main;
+  bm->process_vrf_queue->spec.errorfunc = &bgp_process_vrf_error;
   bm->process_vrf_queue->spec.del_item_data = &bgp_processq_del;
   bm->process_vrf_queue->spec.max_retries = 0;
   bm->process_vrf_queue->spec.hold = 50;
@@ -19228,6 +19290,7 @@ bgp_route_init (void)
   install_element (RESTRICTED_NODE, &show_bgp_view_rsclient_prefix_cmd);
   install_element (ENABLE_NODE, &show_bgp_view_rsclient_route_cmd);
   install_element (ENABLE_NODE, &show_bgp_view_rsclient_prefix_cmd);
+  install_element (ENABLE_NODE, &show_debugging_bgp_workqueue_cmd);
 }
 
 void
