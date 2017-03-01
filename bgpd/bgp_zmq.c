@@ -19,6 +19,7 @@
 
 #include <zebra.h>
 #include <zmq.h>
+#include "command.h"
 #include "bgp_memory.h"
 
 #include "prefix.h"
@@ -28,8 +29,10 @@
 #include "bgp.bcapnp.h"
 
 #include "bgpd.h"
+#include "bgpd/bgp_vty.h"
 
 DEFINE_MTYPE_STATIC(BGPD, ZMQ_NOTIFY, "BGP ZeroMQ notification feed")
+int bgp_zmq_notify_send_counter;
 
 void
 bgp_notify_cleanup (struct bgp *bgp)
@@ -95,7 +98,7 @@ bgp_notify_send (struct bgp *bgp, struct bgp_event_vrf *update)
   uint8_t buf[4096];
   ssize_t rs = capn_write_mem(&rc, buf, sizeof(buf), 0);
   capn_free(&rc);
-
+  bgp_zmq_notify_send_counter++;
   zmq_send (bgp->notify_zmq, buf, rs, 0);
 }
 
@@ -117,4 +120,24 @@ bgp_notify_shut (struct bgp *bgp, struct bgp_event_shut *shut)
   msg.label = shut->type;
   msg.prefix.u.prefix4.s_addr = shut->subtype;
   bgp_notify_send (bgp, &msg);
+}
+
+DEFUN (show_debugging_bgp_zmq,
+       show_debugging_bgp_zmq_cmd,
+       "show debugging bgp zmq",
+       SHOW_STR
+       DEBUG_STR
+       BGP_STR
+       "ZMQ information")
+{
+  vty_out (vty, "BGP ZMQ notifications : %u%s", bgp_zmq_notify_send_counter, VTY_NEWLINE);
+  return CMD_SUCCESS;
+}
+
+
+void
+bgp_notify_zmq_init (void)
+{
+  install_element (ENABLE_NODE, &show_debugging_bgp_zmq_cmd);
+
 }

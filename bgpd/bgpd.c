@@ -6318,6 +6318,7 @@ bgp_init (void)
   /* BGP inits. */
   bgp_attr_init ();
   bgp_debug_init ();
+  bgp_notify_zmq_init ();
   bgp_dump_init ();
   bgp_route_init ();
   bgp_route_map_init ();
