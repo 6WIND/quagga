@@ -22,9 +22,39 @@
 #include <zebra.h>
 #include "command.h"
 #include "qthriftd/qthrift_debug.h"
-
+#include "qthriftd/qthrift_thrift_wrapper.h"
+#include "qthriftd/bgp_configurator.h"
+#include "qthriftd/bgp_updater.h"
+#include "qthriftd/qthrift_bgp_configurator.h"
+#include "qthriftd/qthrift_bgp_updater.h"
+#include "qthriftd/qthrift_vpnservice.h"
 /* For debug statement. */
 unsigned long qthrift_debug = 0;
+
+DEFUN (show_debugging_qthrift_stats,
+       show_debugging_qthrift_stats_cmd,
+       "show debugging qthrift stats",
+       SHOW_STR
+       DEBUG_STR
+       QTHRIFT_STR
+       "QTHRIFT Statistics")
+{
+  struct qthrift_vpnservice *ctxt = NULL;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      return CMD_SUCCESS;
+    }
+  vty_out (vty, "BGP ZMQ notifications total %u lost %u thrift lost %u%s",
+           ctxt->bgp_update_total,
+           ctxt->bgp_update_lost_msgs,
+           ctxt->bgp_update_thrift_lost_msgs,
+           VTY_NEWLINE);
+
+  return CMD_SUCCESS;
+}
+
 
 DEFUN (show_debugging_qthrift,
        show_debugging_qthrift_cmd,
@@ -190,4 +220,5 @@ qthrift_debug_init (void)
   install_element (ENABLE_NODE, &no_debug_qthrift_notification_cmd);
   install_element (ENABLE_NODE, &debug_qthrift_cache_cmd);
   install_element (ENABLE_NODE, &no_debug_qthrift_cache_cmd);
+  install_element (ENABLE_NODE, &show_debugging_qthrift_stats_cmd);
 }

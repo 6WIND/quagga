@@ -200,19 +200,13 @@ qthrift_close (void)
 
 void qthrift_server_socket(struct qthrift *qthrift)
 {
-  gboolean client_ready;
-
 #if (!GLIB_CHECK_VERSION (2, 36, 0))
   g_type_init ();
 #endif
   qthrift_vpnservice_setup_thrift_bgp_configurator_server(qthrift->qthrift_vpnservice);
   qthrift_vpnservice_setup_thrift_bgp_updater_client(qthrift->qthrift_vpnservice);
   /* send notification to listener */
-  client_ready = qthrift_bgp_updater_on_start_config_resync_notification ();
+  qthrift_bgp_updater_on_start_config_resync_notification ();
   qthrift->qthrift_vpnservice->bgp_update_total++;
-  if(client_ready == TRUE)
-    {
-      qthrift->qthrift_vpnservice->bgp_update_lost_msgs++;
-    }
   return;
 }
