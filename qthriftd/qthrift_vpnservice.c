@@ -317,8 +317,6 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, struct zmq_ms
       qthrift_bgp_updater_on_notification_send_event(ip_str, t->type, t->subtype);
     }
   capn_free(&rc);
-  if(client_ready == FALSE)
-    ctxt->bgp_update_lost_msgs++;
   return;
 }
 

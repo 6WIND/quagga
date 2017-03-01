@@ -118,6 +118,7 @@ struct qthrift_vpnservice
 
   /* Thrift Update Statistics */
   u_int32_t bgp_update_lost_msgs;
+  u_int32_t bgp_update_thrift_lost_msgs;
   u_int32_t bgp_update_monitor;
   u_int32_t bgp_update_retries;
   u_int32_t bgp_update_total;
