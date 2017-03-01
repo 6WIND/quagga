@@ -1008,6 +1008,7 @@ extern int bgp_timers_unset (struct bgp *);
 extern int bgp_default_local_preference_set (struct bgp *, u_int32_t);
 extern int bgp_default_local_preference_unset (struct bgp *);
 
+extern void bgp_notify_zmq_init (void);
 extern int bgp_notify_zmq_url_set (struct bgp *, const char *url);
 extern void bgp_notify_route (struct bgp *, struct bgp_event_vrf *update);
 extern void bgp_notify_shut (struct bgp *, struct bgp_event_shut *shut);
