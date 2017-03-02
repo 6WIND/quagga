@@ -2238,6 +2238,22 @@ bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd)
   return NULL;
 }
 
+void bgp_vrf_update_rd_layer(struct bgp_vrf *vrf, bgp_layer_type_t ltype)
+{
+  if (!vrf)
+    return;
+  if (vrf->ltype != ltype)
+    {
+      vrf->ltype = ltype;
+      if (ltype == BGP_LAYER_TYPE_2)
+        vrf->max_mpath = vrf->bgp->maxpaths[AFI_L2VPN][SAFI_EVPN].maxpaths_ibgp;
+      else
+        vrf->max_mpath = vrf->bgp->maxpaths[AFI_IP][SAFI_MPLS_VPN].maxpaths_ibgp;
+      if (vrf->max_mpath == 0)
+        vrf->max_mpath = BGP_DEFAULT_MAXPATHS;
+    }
+}
+
 struct bgp_vrf *
 bgp_vrf_update_rd (struct bgp *bgp, struct bgp_vrf *vrf, struct prefix_rd *outbound_rd)
 {

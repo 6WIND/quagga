@@ -222,6 +222,8 @@ _qzc_create_bgp_3(struct bgp *p,
         uint8_t lt = qcapn_BGPVRF_get_layer_type(req->data);
 
         ret = bgp_vrf_update_rd(p, NULL, &outbound_rd);
+        if (ret)
+          bgp_vrf_update_rd_layer(ret, (lt == 1) ? BGP_LAYER_TYPE_2 : BGP_LAYER_TYPE_3);
       }
     }
     if (ret)

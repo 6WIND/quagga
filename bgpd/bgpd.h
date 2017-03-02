@@ -1142,6 +1142,7 @@ extern int peer_ttl_security_hops_unset (struct peer *);
 
 extern void bgp_scan_finish (void);
 extern void bgp_vrf_delete_rd (struct bgp_vrf *vrf);
+extern void bgp_vrf_update_rd_layer (struct bgp_vrf *vrf, bgp_layer_type_t type);
 extern struct bgp_vrf *bgp_vrf_update_rd (struct bgp *bgp, struct bgp_vrf *vrf, struct prefix_rd *outbound_rd);
 extern struct bgp_vrf *bgp_vrf_lookup (struct bgp *bgp, struct prefix_rd *outbound_rd);
 extern struct bgp_vrf *bgp_vrf_lookup_per_name (struct bgp *bgp, const char *name, int create);
