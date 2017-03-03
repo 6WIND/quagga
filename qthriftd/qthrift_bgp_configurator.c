@@ -1388,6 +1388,13 @@ gboolean instance_bgp_configurator_handler_del_vrf(BgpConfiguratorIf *iface, gin
           return TRUE;
         }
     }
+  else
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_INTERNAL;
+      if(IS_QTHRIFT_DEBUG)
+        zlog_info ("delVrf(%s) NOK (capnproto error)", rd);
+    }
   return FALSE;
 }
 
@@ -1476,6 +1483,18 @@ instance_bgp_configurator_handler_set_update_source (BgpConfiguratorIf *iface, g
             zlog_info ("unsetUpdateSource(%s) OK", peerIp);
           else
             zlog_info ("setUpdateSource(%s, %s) OK", peerIp, srcIp);
+        }
+    }
+  else
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_INTERNAL;
+      if(IS_QTHRIFT_DEBUG)
+        {
+          if(srcIp == 0)
+            zlog_info ("unsetUpdateSource(%s) NOK (capnproto error)", peerIp);
+          else
+            zlog_info ("setUpdateSource(%s) NOK (capnproto error)", peerIp);
         }
     }
   capn_free(&rc);
