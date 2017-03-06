@@ -845,6 +845,25 @@ DEFUN (show_bgp_ipv6_vpn_rd,
   return bgp_show_mpls_vpn (vty, AFI_IP6, &prd, bgp_show_type_normal, NULL, 0);
 }
 
+ALIAS (show_bgp_ipv4_vpn_rd,
+       show_ip_bgp_vpnv4_rd_cmd,
+       "show ip bgp vpnv4 rd ASN:nn_or_IP-address:nn",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "Display VPNv4 NLRI specific information\n"
+       "Display information for a route distinguisher\n"
+       "VPN Route Distinguisher\n")
+
+ALIAS (show_bgp_ipv6_vpn_rd,
+       show_ip_bgp_vpnv6_rd_cmd,
+       "show ip bgp vpnv6 rd ASN:nn_or_IP-address:nn",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "Display VPNv6 NLRI specific information\n"
+       "Display information for a route distinguisher\n"
+       "VPN Route Distinguisher\n")
 
 DEFUN (show_bgp_ipv4_vpn_tags,
        show_bgp_ipv4_vpn_tags_cmd,
@@ -1217,6 +1236,7 @@ bgp_mplsvpn_init (void)
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_hidden_cmd),
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_rd_cmd);
+  install_element (VIEW_NODE, &show_ip_bgp_vpnv4_rd_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_tags_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_rd_tags_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv4_vpn_neighbor_routes_cmd);
@@ -1232,6 +1252,7 @@ bgp_mplsvpn_init (void)
   install_element (VIEW_NODE, &show_ip_bgp_vpnv6_all_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_hidden_cmd),
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_rd_cmd);
+  install_element (VIEW_NODE, &show_ip_bgp_vpnv6_rd_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_tags_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_rd_tags_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_vpn_neighbor_routes_cmd);
