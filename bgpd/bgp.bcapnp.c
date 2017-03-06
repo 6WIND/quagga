@@ -561,13 +561,14 @@ void qcapn_BGPVRF_set(struct bgp_vrf *s, capn_ptr p)
         capn_getv64(listptr, 0, buf, listsize);
         rt_import = ecommunity_parse ((uint8_t *)buf, listsize * 8);
     }
-      bgp_vrf_rt_import_set(s, rt_import);
-      
+    if (s->rt_import == NULL || !ecommunity_cmp (s->rt_import, rt_import))
+      {
+        bgp_vrf_rt_import_set(s, rt_import);
         ecommunity_unintern(&rt_import);
+      }
     }
     {
       struct ecommunity * rt_export;
-      
     {
         capn_ptr tmp_p = capn_getp(p, 1, 1);
         capn_list64 listptr = { .p = capn_getp(tmp_p, 0, 1) };
@@ -576,9 +577,11 @@ void qcapn_BGPVRF_set(struct bgp_vrf *s, capn_ptr p)
         capn_getv64(listptr, 0, buf, listsize);
         rt_export = ecommunity_parse ((uint8_t *)buf, listsize * 8);
     }
-      bgp_vrf_rt_export_set(s, rt_export);
-      
+    if (s->rt_export == NULL || !ecommunity_cmp (s->rt_export, rt_export))
+      {
+        bgp_vrf_rt_export_set(s, rt_export);
         ecommunity_unintern(&rt_export);
+      }
     }
 }
 
