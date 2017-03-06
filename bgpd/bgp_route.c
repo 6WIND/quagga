@@ -1430,8 +1430,14 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
            */
           if (CHECK_FLAG (ri->flags, BGP_INFO_REMOVED)
               && (ri != old_select))
+            {
+              struct bgp_vrf *vrf = NULL;
+              if(rn)
+                vrf = bgp_vrf_lookup_per_rn(bgp, afi, rn);
+              if (vrf)
+                bgp_vrf_update(vrf, afi, rn, ri, false);
               bgp_info_reap (rn, ri);
-          
+            }
           continue;
         }
       if (CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
@@ -3080,7 +3086,7 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
   safi_t safi = pq->safi;
   struct bgp_info *new_select;
   struct bgp_info *old_select;
-  struct bgp_info *ri;
+  struct bgp_info *ri, *ri_next = NULL;
   struct bgp_info_pair old_and_new;
   struct bgp_vrf *vrf = NULL;
 
@@ -3115,49 +3121,39 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
           return WQ_SUCCESS;
         }
     }
-  if (old_select && new_select)
-    {
-      if (vrf && (old_select != new_select) &&
-          (vrf->max_mpath == BGP_DEFAULT_MAXPATHS))
-        {
-          bgp_info_unset_flag (rn, old_select, BGP_INFO_SELECTED);
-          bgp_vrf_update(vrf, afi, rn, old_select, false);
-          bgp_info_set_flag (rn, new_select, BGP_INFO_SELECTED);
-          bgp_vrf_update(vrf, afi, rn, new_select, true);
-        }
-      if(!CHECK_FLAG (new_select->flags, BGP_INFO_MULTIPATH_CHG) &&
-         !CHECK_FLAG (new_select->flags, BGP_INFO_ATTR_CHANGED))
-        {
-          UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_SCHEDULED);
-          return WQ_SUCCESS;
-        }
-    }
-
   if (old_select)
     {
       /* dont call bgp_vrf_update if multipath set */
       if( CHECK_FLAG (old_select->flags, BGP_INFO_SELECTED))
         {
-          if(!bgp_is_mpath_entry(old_select, new_select))
+          if (CHECK_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG) ||
+              old_select != new_select)
             {
-              bgp_vrf_update(vrf, afi, rn, old_select, false);
-            }
-          else
-            {
-              UNSET_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG);
-              SET_FLAG (old_select->flags, BGP_INFO_MULTIPATH);
+              if (old_select == new_select &&
+                  CHECK_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG))
+                ;
+              else if(!bgp_is_mpath_entry(old_select, new_select))
+                {
+                  bgp_vrf_update(vrf, afi, rn, old_select, false);
+                }
             }
         }
       /* withdraw mp entries which could have been removed
        * and that a update has previously been sent
        */
-      for(ri = rn->info; ri; ri = ri->next)
+      for(ri = rn->info; ri; ri = ri_next)
         {
+          ri_next = ri->next;
           if(ri == old_select || (ri == new_select) )
             continue;
           if(!bgp_is_mpath_entry(ri, new_select))
             {
               bgp_vrf_update(vrf, afi, rn, ri, false);
+            }
+          else if (ri->flags & BGP_INFO_REMOVED)
+            {
+              bgp_vrf_update(vrf, afi, rn, ri, false);
+              bgp_info_reap (rn, ri);
             }
         }
       bgp_info_unset_flag (rn, old_select, BGP_INFO_SELECTED);
