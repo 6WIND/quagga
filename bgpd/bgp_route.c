@@ -2269,19 +2269,9 @@ static void bgp_vrf_copy_bgp_info(struct bgp_vrf *vrf, struct bgp_node *rn,
       if(target->attr)
         bgp_attr_unintern(&target->attr);
       target->attr = bgp_attr_intern (select->attr);
-      if(select->attr->extra)
+      if (select->attr->extra)
         {
-          if(select->attr->extra->ecommunity)
-            {
-              if(!target->attr->extra)
-                bgp_attr_extra_get(target->attr);
-              /* MAC-VRF does not export RouterMac
-               * however, because ecom is shared among all bgp infos
-               * this option is not stripped;
-               * This should be the place to strip the ecomm
-               */
-              overlay_index_dup(target->attr, &(select->attr->extra->evpn_overlay));
-            }
+          overlay_index_dup (target->attr, &(select->attr->extra->evpn_overlay));
         }
     }
   /* copy label information */
@@ -5811,6 +5801,8 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
 
   if (bgp_static->ecomm)
     {
+      if (bgp_attr_extra_get (&attr)->ecommunity)
+        ecommunity_free (&bgp_attr_extra_get (&attr)->ecommunity);
       bgp_attr_extra_get (&attr)->ecommunity = ecommunity_dup (bgp_static->ecomm);
       attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
     }
