@@ -2015,12 +2015,6 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
                       if(iter->attr)
                         bgp_attr_unintern(&iter->attr);
                       iter->attr = bgp_attr_intern (select->attr);
-                      if(select->attr->extra && select->attr->extra->ecommunity)
-                        {
-                          bgp_attr_extra_get(iter->attr);
-                          iter->attr->extra->ecommunity = 
-                            ecommunity_dup(select->attr->extra->ecommunity);
-                        }
                     }
                   /* if changes, update, and permit resending
                      information */
@@ -5083,6 +5077,8 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
 
   if (bgp_static->ecomm)
     {
+      if (bgp_attr_extra_get (&attr)->ecommunity)
+        ecommunity_free (&bgp_attr_extra_get (&attr)->ecommunity);
       bgp_attr_extra_get (&attr)->ecommunity = ecommunity_dup (bgp_static->ecomm);
       attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
     }
