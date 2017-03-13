@@ -90,7 +90,7 @@ bgp_afi_node_get (struct bgp_table *table, afi_t afi, safi_t safi, struct prefix
     return NULL;
   
   if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) ||
-      (safi == SAFI_EVPN))
+      (safi == SAFI_INTERNAL_EVPN))
     {
       prn = bgp_node_get (table, (struct prefix *) prd);
 
@@ -14135,7 +14135,6 @@ struct bgp_table_stats
 {
   struct bgp_table *table;
   unsigned long long counts[BGP_STATS_MAX];
-  safi_t safi;
 };
 
 #if 0
@@ -14154,15 +14153,17 @@ ravg_tally (unsigned long count, unsigned long oldavg, unsigned long newval)
 }
 #endif
 
-static void
-bgp_table_stats_walker_internal (struct bgp_table_stats *ts, struct bgp_table *table)
+static int
+bgp_table_stats_walker (struct thread *t)
 {
   struct bgp_node *rn;
-  unsigned int space = 0;
   struct bgp_node *top;
+  struct bgp_table_stats *ts = THREAD_ARG (t);
+  unsigned int space = 0;
+  
+  if (!(top = bgp_table_top (ts->table)))
+    return 0;
 
-  if (!(top = bgp_table_top (table)))
-      return;
   switch (top->p.family)
     {
       case AF_INET:
@@ -14253,38 +14254,9 @@ bgp_table_stats_walker_internal (struct bgp_table_stats *ts, struct bgp_table *t
             }
         }
     }
-  return;
-}
-
-static int
-bgp_table_stats_walker (struct thread *t)
-{
-  struct bgp_table *top;
-  struct bgp_table_stats *ts = THREAD_ARG (t);
-
-  top = ts->table;
-
-  if (ts->safi == SAFI_MPLS_VPN || ts->safi == SAFI_ENCAP ||
-      ts->safi == SAFI_EVPN)
-    {
-      struct bgp_table *table;
-      struct bgp_node *rn;
-
-      for (rn = bgp_table_top (top); rn;
-           rn = bgp_route_next (rn))
-        {
-          if ((table = rn->info) != NULL)
-            {
-              zlog_err("this way");
-              bgp_table_stats_walker_internal (ts, table);
-            }
-        }
-    }
-  else
-    bgp_table_stats_walker_internal (ts, top);
-  zlog_err("endof way");
   return 0;
 }
+
 static int
 bgp_table_stats (struct vty *vty, struct bgp *bgp, afi_t afi, safi_t safi)
 {
@@ -14299,7 +14271,6 @@ bgp_table_stats (struct vty *vty, struct bgp *bgp, afi_t afi, safi_t safi)
   
   memset (&ts, 0, sizeof (ts));
   ts.table = bgp->rib[afi][safi];
-  ts.safi = safi;
   thread_execute (bm->master, bgp_table_stats_walker, &ts, 0);
 
   vty_out (vty, "BGP %s RIB statistics%s%s",
