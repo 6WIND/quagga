@@ -174,16 +174,16 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
  * thrift error messages returned
  * in case bgp_configurator has to trigger a thrift exception
  */
-#define ERROR_BGP_AS_STARTED g_error_new(1, 2, "BGP AS %u started", qthrift_vpnservice_get_bgp_context(ctxt)->asNumber);
-#define ERROR_BGP_RD_NOTFOUND g_error_new(1, 3, "BGP RD %s not configured", rd);
-#define ERROR_BGP_AS_NOT_STARTED g_error_new(1, 1, "BGP AS not started");
-#define ERROR_BGP_AFISAFI_NOTSUPPORTED g_error_new(1, 5, "BGP Afi/Safi %d/%d not supported", afi, safi);
-#define ERROR_BGP_PEER_NOTFOUND g_error_new(1, 4, "BGP Peer %s not configured", peerIp);
+#define ERROR_BGP_AS_STARTED g_error_new(1, BGP_ERR_ACTIVE, "Already active");
+#define ERROR_BGP_RD_NOTFOUND g_error_new(1, BGP_ERR_PARAM, "BGP RD %s not configured", rd);
+#define ERROR_BGP_AS_NOT_STARTED g_error_new(1, BGP_ERR_INACTIVE, "Already inactive");
+#define ERROR_BGP_AFISAFI_NOTSUPPORTED g_error_new(1, BGP_ERR_PARAM, "BGP Afi/Safi %d/%d not supported", afi, safi);
+#define ERROR_BGP_PEER_NOTFOUND g_error_new(1, BGP_ERR_PARAM, "BGP Peer %s not configured", peerIp);
 #define ERROR_BGP_NO_ROUTES_FOUND g_error_new(1, 6, "BGP GetRoutes: no routes");
-#define ERROR_BGP_INVALID_MAXPATH g_error_new(1, 5, "BGP maxpaths: out of range value 0 < %d < 8", maxPath);
+#define ERROR_BGP_INVALID_MAXPATH g_error_new(1, BGP_ERR_PARAM, "BGP maxpaths: out of range value 0 < %d < 8", maxPath);
 #define ERROR_BGP_INVALID_AD g_error_new(1, 5, "BGP [Push/Withdraw]Route: invalid parameter for Auto Discovery");
 #define ERROR_BGP_INVALID_AD_PROCESSING g_error_new(1, 6, "BGP [Push/Withdraw]Route: error when processing Auto Discovery");
-#define ERROR_BGP_INTERNAL g_error_new(1, 7, "Error reported by BGP, check log file");
+#define ERROR_BGP_INTERNAL g_error_new(1, BGP_ERR_FAILED, "Error reported by BGP, check log file");
 #define BGP_ERR_INTERNAL 110
 
 /*
