@@ -4449,6 +4449,13 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
         ae->mp_nexthop_global_in = vrf->nh.v4;
       else
         ae->mp_nexthop_global_in = bgp->router_id;
+
+      if (vrf->rt_export)
+        {
+          ae->ecommunity = ecommunity_dup(vrf->rt_export);
+          attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
+        }
+
       if (safi == SAFI_INTERNAL_EVPN)
         {
           struct eth_segment_id esi;
@@ -4483,6 +4490,9 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
         bgp_default_update_vpnv4_send(peer, rd, &attr, afi, vrf->nlabels, vrf->labels);
       else if (safi == SAFI_INTERNAL_EVPN)
         bgp_default_update_evpn_send(peer, rd, &attr, AFI_IP, vrf->nlabels, vrf->labels);
+
+      if (ae->ecommunity)
+        ecommunity_free(&ae->ecommunity);
       bgp_attr_extra_free (&attr);
       aspath_unintern (&aspath);
     }
