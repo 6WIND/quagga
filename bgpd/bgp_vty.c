@@ -3452,11 +3452,14 @@ peer_default_originate_set_rd_vty (struct vty *vty, const char *peer_str,
         }
       else
         {
-          /* Why is router_id address? How to do with vpnv6? TODO */
           if (afi == AFI_IP)
             {
               route.nexthop.family = AF_INET;
               route.nexthop.u.prefix4.s_addr = peer->bgp->router_id.s_addr;
+            }
+          else if (afi == AFI_IP6)
+            {
+              route.nexthop.family = AF_INET6;
             }
         }
 

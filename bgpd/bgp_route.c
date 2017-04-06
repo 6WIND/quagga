@@ -4801,9 +4801,10 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
           if (1 != inet_pton(AF_INET6, ip6str, &result) ||
               0 == memcmp (&result, &vrf->nh.v6_global, sizeof (struct in6_addr)))
             {
-              ae->mp_nexthop_global_in = bgp->router_id;
-              ae->mp_nexthop_len = IPV4_MAX_BYTELEN;
-              attr.nexthop.s_addr = 0;
+              /* IPv6 global nexthop must be included. */
+              memcpy (&ae->mp_nexthop_global,
+                      &peer->nexthop.v6_global, sizeof (struct in6_addr));
+              ae->mp_nexthop_len = IPV6_MAX_BYTELEN;
             }
           else
             {
