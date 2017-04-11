@@ -3232,6 +3232,109 @@ bgp_withdraw_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
   bgp_unlock_node (rn);
 }
 
+static void
+bgp_vrf_restore_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_node *rn,
+                     struct bgp_info *select)
+{
+  struct bgp_node *vrf_rn;
+  struct bgp_info *iter = NULL;
+  struct prefix_rd *prd;
+  char pfx_str[PREFIX_STRLEN];
+
+  prd = &bgp_node_table (rn)->prd;
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN];
+      char nh_str[BUFSIZ] = "<?>";
+
+      prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+      prefix_rd2str(prd, rd_str, sizeof(rd_str));
+      prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+      if(select && select->attr && select->attr->extra)
+        {
+          if (afi == AFI_IP)
+            strcpy (nh_str, inet_ntoa (select->attr->extra->mp_nexthop_global_in));
+          else if (afi == AFI_IP6)
+            inet_ntop (AF_INET6, &select->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+        }
+      else if(select)
+        {
+          inet_ntop (AF_INET, &select->attr->nexthop,
+                     nh_str, sizeof (nh_str));
+        }
+      zlog_debug ("vrf[%s] %s: [%s] [nh %s] %s ", vrf_rd_str, pfx_str, rd_str, nh_str,
+                "restoring");
+    }
+
+  if(!vrf || !vrf->rib[afi] || !select)
+    {
+      return;
+    }
+
+  vrf_rn = bgp_node_get (vrf->rib[afi], &rn->p);
+  if(!vrf_rn)
+    {
+      return;
+    }
+
+  /* check entry not already present */
+  for (iter = vrf_rn->info; iter; iter = iter->next)
+    {
+      if (!rd_same (&iter->extra->vrf_rd, prd))
+        continue;
+      /* search associated old entry.
+       * assume with same nexthop and same peer */
+      if(iter->peer->remote_id.s_addr == select->peer->remote_id.s_addr)
+        {
+          /* match */
+          if (CHECK_FLAG(iter->flags, BGP_INFO_REMOVED))
+            {
+              bgp_info_restore (vrf_rn, iter);
+            }
+          break;
+        }
+    }
+  bgp_unlock_node (vrf_rn);
+}
+
+/* Undo the effects of a previous call to bgp_info_delete for vrf node. */
+static void
+bgp_vrf_info_restore (struct bgp *bgp, afi_t afi, safi_t safi,
+                      struct bgp_node *rn,
+                      struct bgp_info *ri)
+{
+  struct ecommunity *ecom = NULL;
+  struct bgp_vrf *vrf;
+  struct listnode *node;
+  size_t i;
+
+  if (safi != SAFI_MPLS_VPN)
+    return;
+
+  if (ri && ri->attr && ri->attr->extra)
+    ecom = ri->attr->extra->ecommunity;
+
+  if (ecom)
+    for (i = 0; i < (size_t)ecom->size; i++)
+      {
+        struct bgp_rt_sub dummy, *rt_sub;
+        uint8_t *val = ecom->val + 8 * i;
+        uint8_t type = val[1];
+
+        if (type != ECOMMUNITY_ROUTE_TARGET)
+          continue;
+
+        memcpy(&dummy.rt, val, 8);
+        rt_sub = hash_lookup (bgp->rt_subscribers, &dummy);
+        if (!rt_sub)
+          continue;
+        for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
+          {
+            bgp_vrf_restore_one (vrf, afi, safi, rn, ri);
+          }
+      }
+}
+
 static int
 bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 	    afi_t afi, safi_t safi, int type, int sub_type,
@@ -3416,6 +3519,7 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
             inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
             p->prefixlen);
           bgp_info_restore (rn, ri);
+          bgp_vrf_info_restore (bgp, afi, safi, rn, ri);
         }
 
       /* Received Logging. */
