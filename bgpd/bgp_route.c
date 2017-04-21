@@ -1773,7 +1773,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   str2prefix ("0.0.0.0/0", &def_route);
 
   /* if we try to install a default route, set flag accordingly */
-  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p))
+  if (prefix_same (&def_route, p))
     {
       struct bgp_vrf *v;
       struct bgp *bgp;
@@ -1859,7 +1859,7 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   str2prefix ("0.0.0.0/0", &def_route);
 
   /* if we try to withdraw a default route, unset flag accordingly */
-  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p))
+  if (prefix_same( &def_route, p))
     {
       int ret = -1;
       struct bgp_vrf *v;
