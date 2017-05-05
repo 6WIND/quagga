@@ -1838,6 +1838,88 @@ void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
     }
 }
 
+static void bgp_vrf_disable_perafi (struct bgp_vrf *vrf, afi_t afi)
+{
+  struct bgp_info *ri, *ri_next;
+  struct bgp_node *rn;
+
+  if (! vrf)
+    return;
+
+  for (rn = bgp_table_top (vrf->rib[afi]); rn; rn = bgp_route_next (rn))
+    for (ri = rn->info; ri; ri = ri_next)
+      {
+        ri_next = ri->next;
+        bgp_vrf_update(vrf, afi, rn, ri, false);
+        bgp_info_reap (rn, ri);
+        bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, afi);
+      }
+}
+
+static void bgp_vrf_disable_l2vpn (struct bgp_vrf *vrf)
+{
+  struct bgp_info *ri, *ri_next;
+  struct bgp_node *rn;
+
+  if (! vrf)
+    return;
+
+  for (rn = bgp_table_top (vrf->rib[AFI_IP]); rn; rn = bgp_route_next (rn))
+    for (ri = rn->info; ri; ri = ri_next)
+      {
+        ri_next = ri->next;
+        bgp_vrf_update(vrf, AFI_IP, rn, ri, false);
+        bgp_info_reap (rn, ri);
+        bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, AFI_L2VPN);
+      }
+
+  for (rn = bgp_table_top (vrf->rib[AFI_IP6]); rn; rn = bgp_route_next (rn))
+    for (ri = rn->info; ri; ri = ri_next)
+      {
+        ri_next = ri->next;
+        bgp_vrf_update(vrf, AFI_IP6, rn, ri, false);
+        bgp_info_reap (rn, ri);
+        bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, AFI_L2VPN);
+      }
+}
+
+void bgp_vrf_disable_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi)
+{
+  struct bgp_node *rn;
+
+  if (! vrf)
+    return;
+
+  if (afi != AFI_IP && afi != AFI_IP6 && afi != AFI_L2VPN)
+    return;
+  if ((afi == AFI_IP || afi == AFI_IP6) && safi != SAFI_MPLS_VPN)
+    return;
+
+  if (afi == AFI_L2VPN && safi != SAFI_EVPN)
+    return;
+
+  if (afi == AFI_IP || afi == AFI_IP6)
+      bgp_vrf_disable_perafi (vrf, afi);
+  else
+      bgp_vrf_disable_l2vpn(vrf);
+
+  /* static route */
+  for (rn = bgp_table_top (vrf->route[afi]); rn; rn = bgp_route_next (rn))
+    if (rn->info)
+      {
+        struct bgp_static *bs = rn->info;
+        if (afi == AFI_L2VPN)
+          bgp_static_withdraw_safi (vrf->bgp, &rn->p, afi, SAFI_EVPN,
+                                    &vrf->outbound_rd, NULL, 0);
+        else
+          bgp_static_withdraw_safi (vrf->bgp, &rn->p, afi, SAFI_MPLS_VPN,
+                                    &vrf->outbound_rd, NULL, 0);
+        bgp_static_free (bs);
+        rn->info = NULL;
+        bgp_unlock_node (rn);
+      }
+}
+
 /* from draft-ietf-bess-evpn-inter-subnet-forwarding-01,
  * for EVPN, MAC/IP advertisement should be filtered
  * Label-1 = MPLS Label or VNID corresponding to MAC-VRF
@@ -2406,6 +2488,9 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
 
   if (vrf)
     {
+      if (! vrf->afc[afi][safi])
+        return -1;
+
       rn = bgp_node_get (vrf->route[afi], p);
       if (rn->info)
         {
@@ -2566,6 +2651,9 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
 
   if (vrf)
     {
+      if (! vrf->afc[afi][safi])
+        return -1;
+
       rn = bgp_node_lookup (vrf->route[afi], p);
       if (!rn || !rn->info)
         return -1;
@@ -2769,6 +2857,14 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
       zlog_debug ("vrf[%s] %s: [%s] [nh %s] %s ", vrf_rd_str, pfx_str, rd_str, nh_str,
                 action == ROUTE_INFO_TO_REMOVE? "withdrawing" : "updating");
     }  
+
+  if (!vrf->afc[afi][safi])
+    {
+      zlog_info ("ignore vrf processing because VRF table is disabled (afi %d safi %d)",
+                  afi, safi);
+      return;
+    }
+
   /* add a new entry if necessary
    * if already present, do nothing. 
    * use the loop to parse old entry also */
@@ -2921,7 +3017,7 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
                       (struct prefix*)prd))
         {
           bgp_vrf_process_one(vrf, afi, safi, rn, ri, action);
-          if (action == ROUTE_INFO_TO_ADD)
+          if (action == ROUTE_INFO_TO_ADD && vrf->afc[afi][safi])
             action_add_done = 1;
         }
   if (old_ecom)
@@ -2985,7 +3081,7 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
           for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
             {
               bgp_vrf_process_one (vrf, afi, safi, rn, ri, action);
-              if (action == ROUTE_INFO_TO_ADD)
+              if (action == ROUTE_INFO_TO_ADD && vrf->afc[afi][safi])
                 action_add_done = 1;
             }
       }
@@ -2998,7 +3094,7 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
                       (struct prefix*)prd))
         {
           bgp_vrf_process_one(vrf, afi, safi, rn, ri, action);
-          if (action == ROUTE_INFO_TO_ADD)
+          if (action == ROUTE_INFO_TO_ADD && vrf->afc[afi][safi])
             action_add_done = 1;
         }
   if (ri && (ri->sub_type != BGP_ROUTE_STATIC) &&

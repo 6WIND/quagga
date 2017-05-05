@@ -262,6 +262,9 @@ struct bgp_vrf
   /* Static route configuration.  */
   struct bgp_table *route[AFI_MAX];
 
+  /* Enable VRF table configuration */
+  uint8_t afc[AFI_MAX][SAFI_MAX];
+
   /* maximum multipath entries for the VRF */
   uint32_t max_mpath_configured;
   uint32_t max_mpath[AFI_MAX][SAFI_MAX];
@@ -1175,6 +1178,9 @@ extern void bgp_vrf_rt_import_set (struct bgp_vrf *vrf, struct ecommunity *rt_im
 extern void bgp_vrf_clean_tables (struct bgp_vrf *vrf);
 extern void bgp_vrf_rt_import_unset (struct bgp_vrf *vrf);
 extern void bgp_vrf_rt_export_unset (struct bgp_vrf *vrf);
+extern void bgp_vrf_enable(struct bgp_vrf *vrf, afi_t afi, safi_t safi);
+extern void bgp_vrf_disable(struct bgp_vrf *vrf, afi_t afi, safi_t safi);
+extern void bgp_vrf_disable_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi);
 extern int bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
 extern int bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
 extern bool bgp_api_route_get (struct bgp_vrf *vrf,
