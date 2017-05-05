@@ -984,16 +984,22 @@ _qzc_set_bgp_vrf_1(struct bgp_vrf *p,
         struct QZCSetReq *req,
         struct capn_segment *seg)
 {
+    afi_t afi;
+    safi_t safi;
 
-    if (req->ctxtype != 0)
+    if (req->ctxtype != 0 && req->ctxtype != 0x9af9aec34821d76a)
         /* error */
         return;
-
 
     if (req->datatype != 0x912c4b0c412022b1)
         /* error */
         return;
 
+    if (req->ctxtype == 0x9af9aec34821d76a) {
+        afi = qcapn_AfiSafiKey_get_afi (req->ctxdata);
+        safi = qcapn_AfiSafiKey_get_safi (req->ctxdata);
+        bgp_vrf_enable (p, afi, safi);
+    }
     qcapn_BGPVRF_set(p, req->data);
 }
 
@@ -1037,7 +1043,31 @@ _qzc_set_bgp_vrf_3(struct bgp_vrf *p,
     return ret;
 }
 
+/* Iterated item SET bgp_vrf:1 <> bgp_vrf-> ()*/
+static int
+_qzc_unset_bgp_vrf_1(struct bgp_vrf *p,
+        struct QZCSetReq *req,
+        struct QZCSetRep *rep,
+        struct capn_segment *seg)
+{
+    afi_t afi;
+    safi_t safi;
 
+    if (req->ctxtype != 0x9af9aec34821d76a)
+        /* error */
+        return 0;
+
+    if (req->datatype != 0x912c4b0c412022b1)
+        /* error */
+        return 0;
+
+    afi = qcapn_AfiSafiKey_get_afi (req->ctxdata);
+    safi = qcapn_AfiSafiKey_get_safi (req->ctxdata);
+
+    bgp_vrf_disable (p, afi, safi);
+
+    return 1;
+}
 
 /* Iterated item SET bgp_vrf:3 <> bgp_vrf-> ()*/
 
@@ -1138,6 +1168,9 @@ _qzc_unset_bgp_vrf(void *entity,
 
     p = (struct bgp_vrf *)entity;
     switch (req->elem) {
+    case 1:
+        ret = _qzc_unset_bgp_vrf_1(p, req, rep, seg);
+        break;
     case 3:
         ret = _qzc_unset_bgp_vrf_3(p, req, rep, seg);
         break;
