@@ -15379,14 +15379,12 @@ bgp_table_stats_walker (struct thread *t)
         {
           if ((table = rn->info) != NULL)
             {
-              zlog_err("this way");
               bgp_table_stats_walker_internal (ts, table);
             }
         }
     }
   else
     bgp_table_stats_walker_internal (ts, top);
-  zlog_err("endof way");
   return 0;
 }
 static int
