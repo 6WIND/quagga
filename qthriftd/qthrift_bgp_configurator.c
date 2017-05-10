@@ -2576,7 +2576,7 @@ instance_bgp_configurator_handler_multipaths(BgpConfiguratorIf *iface, gint32* _
   qcapn_BGPVRF_read(&instvrf, grep_vrf->data);
 
   /* update max_mpath */
-  instvrf.max_mpath = maxPath;
+  instvrf.max_mpath_configured = maxPath;
   /* reset qzc reply and rc context */
   qzcclient_qzcgetrep_free( grep_vrf);
   /* prepare QZCSetRequest context */

@@ -252,6 +252,7 @@ void qcapn_BGPAfiSafi_set(struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
                                BGP_PEER_EBGP, max);
         bgp_maximum_paths_set (s, AFI_IP, SAFI_UNICAST,
                                BGP_PEER_IBGP, max);
+        bgp_vrfs_maximum_paths_set(s, afi, max);
       }
       else
       {
@@ -264,6 +265,7 @@ void qcapn_BGPAfiSafi_set(struct bgp *s, capn_ptr p, afi_t afi, safi_t safi)
                                  BGP_PEER_EBGP);
         bgp_maximum_paths_unset (s, AFI_IP, SAFI_UNICAST,
                                  BGP_PEER_IBGP);
+        bgp_vrfs_maximum_paths_set(s, afi, 1);
       }
     }
 }
@@ -548,7 +550,8 @@ void qcapn_BGPVRF_set(struct bgp_vrf *s, capn_ptr p)
 {
     capn_resolve(&p);
     {
-      s->max_mpath = capn_read32(p, 8);
+      s->max_mpath_configured = capn_read32(p, 8);
+      bgp_vrf_maximum_paths_set(s);
     }
     {
       struct ecommunity * rt_import;
