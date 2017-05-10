@@ -10275,7 +10275,8 @@ DEFUN (bgp_vrf_maximum_path,
     }
 
   /* update max_mpath field in struct bgp_vrf */
-  vrf->max_mpath = max_mpath;
+  vrf->max_mpath_configured = max_mpath;
+  bgp_vrf_maximum_paths_set(vrf);
   return CMD_SUCCESS;
 }
 
@@ -10540,7 +10541,8 @@ DEFUN (no_bgp_vrf_maximum_path,
   struct bgp_vrf *vrf = vty->index_sub;
 
   /* reset maximum mpath to default value */
-  vrf->max_mpath = BGP_DEFAULT_MAXPATHS;
+  vrf->max_mpath_configured = BGP_DEFAULT_MAXPATHS;
+  bgp_vrf_maximum_paths_set(vrf);
 
   return CMD_SUCCESS;
 }

@@ -541,7 +541,7 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
     }
   if (vrf)
     {
-      maxpaths = vrf->max_mpath;
+      maxpaths = vrf->max_mpath[afi];
     }
 
   if (old_best)

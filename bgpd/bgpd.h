@@ -259,8 +259,8 @@ struct bgp_vrf
   struct bgp_table *route[AFI_MAX];
 
   /* maximum multipath entries for the VRF */
-  uint32_t max_mpath;
-
+  uint32_t max_mpath_configured;
+  uint32_t max_mpath[AFI_MAX];
   /* default route */
   struct bgp_nexthop nh;
 
@@ -1180,5 +1180,8 @@ extern bool bgp_api_route_get_main (struct bgp_api_route *out,
                                     int iter_on_multipath, 
                                     void **next);
 extern bool bgp_api_static_get (struct bgp_api_route *out, struct bgp_node *bn);
+
+extern void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf);
+extern void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, u_int16_t maxpaths);
 
 #endif /* _QUAGGA_BGPD_H */
