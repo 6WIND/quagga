@@ -88,7 +88,7 @@ void qcapn_BGPVRF_read(struct bgp_vrf *s, capn_ptr p)
     *(uint64_t *)s->outbound_rd.val = capn_read64(p, 0);
     s->outbound_rd.family = AF_UNSPEC;
     s->outbound_rd.prefixlen = 64;
-    s->max_mpath = capn_read32(p, 8);
+    s->max_mpath_configured = capn_read32(p, 8);
     {
         capn_ptr tmp_p = capn_getp(p, 0, 1);
         capn_list64 listptr = { .p = capn_getp(tmp_p, 0, 1) };
@@ -116,7 +116,7 @@ void qcapn_BGPVRF_write(const struct bgp_vrf *s, capn_ptr p)
 {
     capn_resolve(&p);
     capn_write64(p, 0, *(uint64_t *)s->outbound_rd.val);
-    capn_write32(p, 8, s->max_mpath);
+    capn_write32(p, 8, s->max_mpath_configured);
     {
         capn_ptr tempptr = capn_new_struct(p.seg, 0, 1);
         size_t size = s->rt_import ? s->rt_import->size : 0;
