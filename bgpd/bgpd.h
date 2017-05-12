@@ -286,7 +286,7 @@ struct bgp_vrf
 
   /* maximum multipath entries for the VRF */
   uint32_t max_mpath_configured;
-  uint32_t max_mpath[AFI_MAX];
+  uint32_t max_mpath[AFI_MAX][SAFI_MAX];
 
   /* incoming rx a/d */
   struct list *rx_evpn_ad;
@@ -1182,6 +1182,6 @@ extern int bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bg
 extern void bgp_vrf_clean_tables (struct bgp_vrf *vrf);
 
 extern void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf);
-extern void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, u_int16_t maxpaths);
+extern void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi, u_int16_t maxpaths);
 
 #endif /* _QUAGGA_BGPD_H */
