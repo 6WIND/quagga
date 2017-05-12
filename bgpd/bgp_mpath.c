@@ -515,6 +515,7 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
   old_mpath_count = 0;
   prev_mpath = new_best;
   mp_node = listhead (mp_list);
+  int is_origin_evpn = 0;
 
   debug = BGP_DEBUG (events, EVENTS);
 
@@ -535,13 +536,24 @@ bgp_info_mpath_update (struct bgp_node *rn, struct bgp_info *new_best,
      bgp_node_table (rn)->type == BGP_TABLE_VRF)
     {
       if (new_best)
-        vrf = bgp_vrf_lookup_per_rn(new_best->peer->bgp, afi, rn);
+        {
+          vrf = bgp_vrf_lookup_per_rn(new_best->peer->bgp, afi, rn);
+          if (CHECK_FLAG (new_best->flags, BGP_INFO_ORIGIN_EVPN))
+            is_origin_evpn = 1;
+        }
       else if (old_best)
-        vrf = bgp_vrf_lookup_per_rn(old_best->peer->bgp, afi, rn);
-    }
-  if (vrf)
-    {
-      maxpaths = vrf->max_mpath[afi];
+        {
+          vrf = bgp_vrf_lookup_per_rn(old_best->peer->bgp, afi, rn);
+          if (CHECK_FLAG (old_best->flags, BGP_INFO_ORIGIN_EVPN))
+            is_origin_evpn = 1;
+        }
+      if (vrf)
+        {
+          if (is_origin_evpn)
+            maxpaths = vrf->max_mpath[AFI_L2VPN][SAFI_EVPN];
+          else
+            maxpaths = vrf->max_mpath[afi][SAFI_MPLS_VPN];
+        }
     }
 
   if (old_best)
