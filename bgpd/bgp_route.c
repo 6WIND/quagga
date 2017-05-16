@@ -2444,7 +2444,14 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
       /* check entry not already present */
       for (iter = vrf_rn->info; iter; iter = iter->next)
         {
-          if(iter->peer->remote_id.s_addr == select->peer->remote_id.s_addr)
+          if (iter->extra == NULL)
+            continue;
+          /* coming from same peer */
+          if(iter->peer->remote_id.s_addr != select->peer->remote_id.s_addr)
+            continue;
+          if (!rd_same (&iter->extra->vrf_rd, &select->extra->vrf_rd))
+            continue;
+          if (0 == bgp_info_nexthop_cmp (iter, select))
             {
               bgp_vrf_process_entry(iter, action, afi,safi);
               bgp_process (iter->peer->bgp, iter->net, afi == AFI_INTERNAL_L2VPN?AFI_IP:afi, SAFI_UNICAST);
@@ -2457,13 +2464,14 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
       /* check entry not already present */
       for (iter = vrf_rn->info; iter; iter = iter->next)
         {
-          if (!rd_same (&iter->extra->vrf_rd, prd))
+          if (!rd_same (&iter->extra->vrf_rd, &select->extra->vrf_rd))
             continue;
           /* search associated old entry.
            * assume with same nexthop and same peer */
-          if(iter->peer->remote_id.s_addr == select->peer->remote_id.s_addr)
+          if(iter->peer->remote_id.s_addr != select->peer->remote_id.s_addr)
+            continue;
+          if (0 == bgp_info_nexthop_cmp (iter, select))
             {
-              /* update */
               if(action == ROUTE_INFO_TO_UPDATE)
                 {
                   /* because there is an update. signify a withdraw */
@@ -2487,7 +2495,7 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
           if (select->extra)
             {
               iter->extra = bgp_info_extra_new();
-              iter->extra->vrf_rd = *prd;
+              memcpy(&iter->extra->vrf_rd,&select->extra->vrf_rd,sizeof(struct prefix_rd));
             }
           bgp_vrf_copy_bgp_info(vrf, rn, safi, select, iter);
 	  if (select->attr->extra)
@@ -3776,7 +3784,6 @@ bgp_withdraw_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
   for (ri = rn->info; ri; ri = ri->next)
     if (ri->peer == peer && ri->type == type && ri->sub_type == sub_type)
       break;
-
   /* Withdraw specified route from routing table. */
   if (ri && ! CHECK_FLAG (ri->flags, BGP_INFO_HISTORY))
     bgp_rib_withdraw (rn, ri, peer, afi, safi, prd);
@@ -4244,6 +4251,7 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
           new->attr->extra->eth_t_id = evpn_p->eth_t_id;
         }
     }
+  memcpy (&(bgp_info_extra_get (new)->vrf_rd), prd,sizeof(struct prefix_rd));
   /* Nexthop reachability check. */
   if ((afi == AFI_IP || afi == AFI_IP6)
       && safi == SAFI_UNICAST
