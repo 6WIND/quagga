@@ -1958,8 +1958,14 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
       /* check entry not already present */
       for (iter = vrf_rn->info; iter; iter = iter->next)
         {
+          if (iter->extra == NULL)
+            continue;
           /* coming from same peer */
-          if(iter->peer->remote_id.s_addr == select->peer->remote_id.s_addr)
+          if(iter->peer->remote_id.s_addr != select->peer->remote_id.s_addr)
+            continue;
+          if (!rd_same (&iter->extra->vrf_rd, &select->extra->vrf_rd))
+            continue;
+          if (0 == bgp_info_nexthop_cmp (iter, select))
             {
               bgp_info_delete(vrf_rn, iter);
               prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
@@ -1991,13 +1997,14 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
       /* check entry not already present */
       for (iter = vrf_rn->info; iter; iter = iter->next)
         {
-          if (!rd_same (&iter->extra->vrf_rd, prd))
+          if (!rd_same (&iter->extra->vrf_rd, &select->extra->vrf_rd))
             continue;
           /* search associated old entry.
            * assume with same nexthop and same peer */
-          if(iter->peer->remote_id.s_addr == select->peer->remote_id.s_addr)
+          if(iter->peer->remote_id.s_addr != select->peer->remote_id.s_addr)
+            continue;
+          if (0 == bgp_info_nexthop_cmp (iter, select))
             {
-              /* update */
               if(action == ROUTE_INFO_TO_UPDATE)
                 {
                   /* because there is an update. signify a withdraw */
@@ -2031,7 +2038,8 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
           if (select->attr)
             iter->attr = bgp_attr_intern (select->attr);
           iter->extra = bgp_info_extra_new();
-          iter->extra->vrf_rd = *prd;
+          if (select->extra)
+            memcpy(&iter->extra->vrf_rd,&select->extra->vrf_rd,sizeof(struct prefix_rd));
           if (select->extra)
             {
               iter->extra->nlabels = select->extra->nlabels;
@@ -3218,7 +3226,6 @@ bgp_withdraw_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
   for (ri = rn->info; ri; ri = ri->next)
     if (ri->peer == peer && ri->type == type && ri->sub_type == sub_type)
       break;
-
   /* Withdraw specified route from routing table. */
   if (ri && ! CHECK_FLAG (ri->flags, BGP_INFO_HISTORY))
     bgp_rib_withdraw (rn, ri, peer, afi, safi, prd);
@@ -3631,7 +3638,7 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       bgp_info_extra_get (new)->nlabels = nlabels;
       memcpy (new->extra->labels, labels, sizeof(*labels) * nlabels);
     }
-
+  memcpy (&(bgp_info_extra_get (new)->vrf_rd), prd,sizeof(struct prefix_rd));
   /* Nexthop reachability check. */
   if ((afi == AFI_IP || afi == AFI_IP6)
       && safi == SAFI_UNICAST
