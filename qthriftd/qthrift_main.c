@@ -289,6 +289,12 @@ main (int argc, char **argv)
   /* Set umask before anything for security */
   umask (0027);
 
+  pid_t pid = proc_find(argv[0]);
+  if (pid != -1)
+    { 
+      printf("%s: pid %u already present. cancel execution\r\n",argv[0], pid);
+      return;
+    }
   /* Preserve name of myself. */
   progname = ((p = strrchr (argv[0], '/')) ? ++p : argv[0]);
 
