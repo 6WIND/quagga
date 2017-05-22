@@ -2960,7 +2960,8 @@ bgp_rib_remove (struct bgp_node *rn, struct bgp_info *ri, struct peer *peer,
   if (!CHECK_FLAG (ri->flags, BGP_INFO_HISTORY))
     bgp_info_delete (rn, ri); /* keep historical info */
 
-  bgp_vrf_process_imports2(peer->bgp, afi, safi, rn, ri, NULL);
+  if (!CHECK_FLAG(peer->bgp->flags, BGP_FLAG_DELETING))
+    bgp_vrf_process_imports2(peer->bgp, afi, safi, rn, ri, NULL);
   bgp_process (peer->bgp, rn, afi, safi);
 }
 
