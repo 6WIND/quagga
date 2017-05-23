@@ -10313,10 +10313,9 @@ DEFUN (exit_bgp_vrf,
 
 DEFUN (bgp_vrf_rd,
        bgp_vrf_rd_cmd,
-       "rd WORD [LAYER]",
+       "rd WORD",
        "Route Distinguisher\n"
        "Route Distinguisher Name\n"
-       "Layer type: layer_2 or layer_3\n"
 )
 {
   struct bgp *bgp = vty->index;
@@ -10348,6 +10347,14 @@ DEFUN (bgp_vrf_rd,
 
   return CMD_SUCCESS;
 }
+
+ALIAS (bgp_vrf_rd,
+       bgp_vrf_rd_arg_cmd,
+       "rd WORD (layer_2|layer_3)",
+       "Route Distinguisher\n"
+       "Route Distinguisher Name\n"
+       "Layer type: layer_2\n"
+       "Layer type: layer_3\n")
 
 DEFUN (bgp_vrf_rt_export,
        bgp_vrf_rt_export_cmd,
@@ -10660,6 +10667,7 @@ bgp_vty_init (void)
   install_element (BGP_NODE, &bgp_vrf_cmd);
   install_element (BGP_NODE, &no_bgp_vrf_cmd);
   install_element (BGP_VRF_NODE, &bgp_vrf_rd_cmd);
+  install_element (BGP_VRF_NODE, &bgp_vrf_rd_arg_cmd);
   install_element (BGP_VRF_NODE, &no_bgp_vrf_rd_cmd);
   install_element (BGP_VRF_NODE, &bgp_vrf_rt_export_cmd);
   install_element (BGP_VRF_NODE, &bgp_vrf_rt_import_cmd);
