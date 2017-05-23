@@ -10079,10 +10079,9 @@ bgp_config_write_redistribute (struct vty *vty, struct bgp *bgp, afi_t afi,
 
 DEFUN (bgp_vrf,
        bgp_vrf_cmd,
-       "vrf rd WORD [LAYER]",
+       "vrf rd WORD",
        "BGP VPN VRF\n"
        "Route Distinguisher\n"
-       "Layer type: layer_2 or layer_3\n"
        "Route Distinguisher\n"
 )
 {
@@ -10097,7 +10096,7 @@ DEFUN (bgp_vrf,
       return CMD_WARNING;
     }
 
-  if (argv[1])
+  if (argc == 2)
     {
       if (!strncmp(argv[1], "layer_2", 7))
         ltype = BGP_LAYER_TYPE_2;
@@ -10121,6 +10120,15 @@ DEFUN (bgp_vrf,
   bgp_vrf_create (bgp, ltype, &prd);
   return CMD_SUCCESS;
 }
+
+ALIAS (bgp_vrf,
+       bgp_vrf_arg_cmd,
+       "vrf rd WORD (layer_2|layer_3)",
+       "BGP VPN VRF\n"
+       "Route Distinguisher\n"
+       "Route Distinguisher\n"
+       "Layer type: layer_2\n"
+       "Layer type: layer_3\n")
 
 DEFUN (bgp_vrf_exports,
        bgp_vrf_exports_cmd,
@@ -10442,6 +10450,7 @@ bgp_vty_init (void)
   install_default (BGP_EVPN_NODE);
   
   install_element (BGP_NODE, &bgp_vrf_cmd);
+  install_element (BGP_NODE, &bgp_vrf_arg_cmd);
   install_element (BGP_NODE, &bgp_vrf_exports_cmd);
   install_element (BGP_NODE, &bgp_vrf_imports_cmd);
   install_element (BGP_NODE, &bgp_vrf_maximum_path_cmd);
