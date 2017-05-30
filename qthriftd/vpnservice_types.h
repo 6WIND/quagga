@@ -28,7 +28,7 @@ const char *
 toString_af_afi(int value); 
 
 enum _af_safi {
-  AF_SAFI_SAFI_IPV4_LABELED_UNICAST = 4,
+  AF_SAFI_SAFI_IP_LABELED_UNICAST = 4,
   AF_SAFI_SAFI_MPLS_VPN = 5,
   AF_SAFI_SAFI_EVPN = 6
 };
@@ -161,6 +161,7 @@ GType routes_get_type (void);
 #define BGP_ERR_INACTIVE 11
 #define BGP_ERR_NOT_ITER 15
 #define BGP_ERR_PARAM 100
+#define BGP_ERR_NOT_SUPPORTED 200
 #define BGP_ETHTAG_MAX_ET 4294967295
 
 /* struct BgpConfiguratorStartBgpArgs */
@@ -326,6 +327,58 @@ GType bgp_configurator_create_peer_result_get_type (void);
 #define IS_BGP_CONFIGURATOR_CREATE_PEER_RESULT(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_CREATE_PEER_RESULT))
 #define IS_BGP_CONFIGURATOR_CREATE_PEER_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_CREATE_PEER_RESULT))
 #define BGP_CONFIGURATOR_CREATE_PEER_RESULT_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_CREATE_PEER_RESULT, BgpConfiguratorCreatePeerResultClass))
+
+/* struct BgpConfiguratorSetPeerSecretArgs */
+struct _BgpConfiguratorSetPeerSecretArgs
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+  gchar * ipAddress;
+  gboolean __isset_ipAddress;
+  gchar * rfc2385_sharedSecret;
+  gboolean __isset_rfc2385_sharedSecret;
+};
+typedef struct _BgpConfiguratorSetPeerSecretArgs BgpConfiguratorSetPeerSecretArgs;
+
+struct _BgpConfiguratorSetPeerSecretArgsClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorSetPeerSecretArgsClass BgpConfiguratorSetPeerSecretArgsClass;
+
+GType bgp_configurator_set_peer_secret_args_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS (bgp_configurator_set_peer_secret_args_get_type())
+#define BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS, BgpConfiguratorSetPeerSecretArgs))
+#define BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS, BgpConfiguratorSetPeerSecretArgsClass))
+#define IS_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS))
+#define IS_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS))
+#define BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS, BgpConfiguratorSetPeerSecretArgsClass))
+
+/* struct BgpConfiguratorSetPeerSecretResult */
+struct _BgpConfiguratorSetPeerSecretResult
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+  gint32 success;
+  gboolean __isset_success;
+};
+typedef struct _BgpConfiguratorSetPeerSecretResult BgpConfiguratorSetPeerSecretResult;
+
+struct _BgpConfiguratorSetPeerSecretResultClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorSetPeerSecretResultClass BgpConfiguratorSetPeerSecretResultClass;
+
+GType bgp_configurator_set_peer_secret_result_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT (bgp_configurator_set_peer_secret_result_get_type())
+#define BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT, BgpConfiguratorSetPeerSecretResult))
+#define BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT, BgpConfiguratorSetPeerSecretResultClass))
+#define IS_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT))
+#define IS_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT))
+#define BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT, BgpConfiguratorSetPeerSecretResultClass))
 
 /* struct BgpConfiguratorDeletePeerArgs */
 struct _BgpConfiguratorDeletePeerArgs
@@ -511,6 +564,8 @@ struct _BgpConfiguratorPushRouteArgs
   gboolean __isset_enc_type;
   gchar * routermac;
   gboolean __isset_routermac;
+  af_afi afi;
+  gboolean __isset_afi;
 };
 typedef struct _BgpConfiguratorPushRouteArgs BgpConfiguratorPushRouteArgs;
 
@@ -571,6 +626,8 @@ struct _BgpConfiguratorWithdrawRouteArgs
   gboolean __isset_esi;
   gchar * macaddress;
   gboolean __isset_macaddress;
+  af_afi afi;
+  gboolean __isset_afi;
 };
 typedef struct _BgpConfiguratorWithdrawRouteArgs BgpConfiguratorWithdrawRouteArgs;
 
@@ -1087,6 +1144,8 @@ struct _BgpConfiguratorGetRoutesArgs
   gboolean __isset_optype;
   gint32 winSize;
   gboolean __isset_winSize;
+  af_afi afi;
+  gboolean __isset_afi;
 };
 typedef struct _BgpConfiguratorGetRoutesArgs BgpConfiguratorGetRoutesArgs;
 
@@ -1313,6 +1372,8 @@ struct _BgpUpdaterOnUpdatePushRouteArgs
   gboolean __isset_l2label;
   gchar * routermac;
   gboolean __isset_routermac;
+  af_afi afi;
+  gboolean __isset_afi;
 };
 typedef struct _BgpUpdaterOnUpdatePushRouteArgs BgpUpdaterOnUpdatePushRouteArgs;
 
@@ -1356,6 +1417,8 @@ struct _BgpUpdaterOnUpdateWithdrawRouteArgs
   gboolean __isset_l3label;
   gint32 l2label;
   gboolean __isset_l2label;
+  af_afi afi;
+  gboolean __isset_afi;
 };
 typedef struct _BgpUpdaterOnUpdateWithdrawRouteArgs BgpUpdaterOnUpdateWithdrawRouteArgs;
 

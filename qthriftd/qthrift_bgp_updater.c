@@ -49,7 +49,7 @@ qthrift_bgp_updater_on_update_push_route (const protocol_type p_type, const gcha
       return FALSE;
   response = bgp_updater_client_send_on_update_push_route(ctxt->bgp_updater_client, p_type,
                                                           rd, prefix, prefixlen, nexthop, ethtag, esi, macaddress, 
-                                                          l3label, l2label, routermac, &error);
+                                                          l3label, l2label, routermac, AFI_IP, &error);
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
     {
     char ethtag_str[20];
@@ -85,7 +85,7 @@ qthrift_bgp_updater_on_update_withdraw_route (const protocol_type p_type, const 
       return FALSE;
   response = bgp_updater_client_on_update_withdraw_route(ctxt->bgp_updater_client, p_type,
                                                          rd, prefix, prefixlen, nexthop, ethtag, esi, macaddress,
-                                                         l3label, l2label, &error);
+                                                         l3label, l2label, AFI_IP, &error);
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
     {
       char ethtag_str[20];

@@ -63,12 +63,15 @@ gboolean
 instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
                                              const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi,
                                              const gchar * macaddress, const gint32 l3label, const gint32 l2label,
-                                             const encap_type enc_type, const gchar * routermac, GError **error);
+                                             const encap_type enc_type, const gchar * routermac, const af_afi afi, GError **error);
 gboolean
 instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
-                                                 const gchar * rd,  const gint64 ethtag, const gchar * esi, const gchar * macaddress, GError **error);
+                                                 const gchar * rd,  const gint64 ethtag, const gchar * esi, const gchar * macaddress, const af_afi afi, GError **error);
 gboolean
 instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _return, const gint64 asNumber, GError **error);
+gboolean
+instance_bgp_configurator_handler_set_peer_secret(BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress,
+                                                  const gchar *rfc2385_sharedSecret, GError **error);
 gboolean
 instance_bgp_configurator_handler_delete_peer(BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, GError **error);
 gboolean
@@ -104,7 +107,7 @@ instance_bgp_configurator_handler_disable_default_originate(BgpConfiguratorIf *i
                                                             const af_afi afi, const af_safi safi, GError **error);
 gboolean
 instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes ** _return, const protocol_type p_type, 
-                                              const gint32 optype, const gint32 winSize, GError **error);
+                                              const gint32 optype, const gint32 winSize, const af_afi afi, GError **error);
 
 gboolean
 instance_bgp_configurator_handler_enable_multipath(BgpConfiguratorIf *iface, gint32* _return,
@@ -924,7 +927,7 @@ gboolean
 instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
                                              const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi,
                                              const gchar * macaddress, const gint32 l3label, const gint32 l2label, 
-                                             const encap_type enc_type, const gchar * routermac, GError **error)
+                                             const encap_type enc_type, const gchar * routermac, const af_afi afi2, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
   struct bgp_api_route inst;
@@ -1110,7 +1113,7 @@ error:
  */
 gboolean
 instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix,
-                                                 const gchar * rd,  const gint64 ethtag, const gchar * esi, const gchar * macaddress, GError **error)
+                                                 const gchar * rd,  const gint64 ethtag, const gchar * esi, const gchar * macaddress, const af_afi afi2, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
   struct bgp_api_route inst;
@@ -1441,6 +1444,18 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
         }
     }
   return ret;
+}
+
+/* 'setPeerSecret' sets the shared secret needed to protect the peer
+ * connection using TCP MD5 Signature Option (see rfc 2385).
+ */
+gboolean
+instance_bgp_configurator_handler_set_peer_secret(BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress,
+                                                  const gchar *rfc2385_sharedSecret, GError **error)
+{
+  *_return = BGP_ERR_NOT_SUPPORTED;
+  return FALSE;
+
 }
 
 /*
@@ -2088,7 +2103,7 @@ struct prefix *prev_iter_table_ptr = NULL;
 struct prefix prev_iter_table_entry;
 gboolean
 instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes ** _return, const protocol_type p_type, 
-                                              const gint32 optype, const gint32 winSize, GError **error)
+                                              const gint32 optype, const gint32 winSize, const af_afi afi2, GError **error)
 {
   struct capn_ptr afikey, iter_table, *iter_table_ptr = NULL;
   struct capn rc;

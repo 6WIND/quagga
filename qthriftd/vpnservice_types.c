@@ -29,7 +29,7 @@ toString_af_safi(int value)
 {
   static __thread char buf[16] = {0};
   switch(value) {
-  case AF_SAFI_SAFI_IPV4_LABELED_UNICAST:return "AF_SAFI_SAFI_IPV4_LABELED_UNICAST";
+  case AF_SAFI_SAFI_IP_LABELED_UNICAST:return "AF_SAFI_SAFI_IP_LABELED_UNICAST";
   case AF_SAFI_SAFI_MPLS_VPN:return "AF_SAFI_SAFI_MPLS_VPN";
   case AF_SAFI_SAFI_EVPN:return "AF_SAFI_SAFI_EVPN";
   default: g_snprintf(buf, 16, "%d", value); return buf;
@@ -2980,6 +2980,536 @@ bgp_configurator_create_peer_result_get_type (void)
   return type;
 }
 
+enum _BgpConfiguratorSetPeerSecretArgsProperties
+{
+  PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_0,
+  PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_IP_ADDRESS,
+  PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_RFC2385_SHARED_SECRET
+};
+
+/* reads a bgp_configurator_set_peer_secret_args object */
+static gint32
+bgp_configurator_set_peer_secret_args_read (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+  gchar *name = NULL;
+  ThriftType ftype;
+  gint16 fid;
+  guint32 len = 0;
+  gpointer data = NULL;
+  BgpConfiguratorSetPeerSecretArgs * this_object = BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS(object);
+
+  /* satisfy -Wall in case these aren't used */
+  THRIFT_UNUSED_VAR (len);
+  THRIFT_UNUSED_VAR (data);
+  THRIFT_UNUSED_VAR (this_object);
+
+  /* read the struct begin marker */
+  if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+  {
+    if (name) g_free (name);
+    return -1;
+  }
+  xfer += ret;
+  if (name) g_free (name);
+  name = NULL;
+
+  /* read the struct fields */
+  while (1)
+  {
+    /* read the beginning of a field */
+    if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+    {
+      if (name) g_free (name);
+      return -1;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* break if we get a STOP field */
+    if (ftype == T_STOP)
+    {
+      break;
+    }
+
+    switch (fid)
+    {
+      case 1:
+        if (ftype == T_STRING)
+        {
+          if (this_object->ipAddress != NULL)
+          {
+            g_free(this_object->ipAddress);
+            this_object->ipAddress = NULL;
+          }
+
+          if ((ret = thrift_protocol_read_string (protocol, &this_object->ipAddress, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->__isset_ipAddress = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      case 2:
+        if (ftype == T_STRING)
+        {
+          if (this_object->rfc2385_sharedSecret != NULL)
+          {
+            g_free(this_object->rfc2385_sharedSecret);
+            this_object->rfc2385_sharedSecret = NULL;
+          }
+
+          if ((ret = thrift_protocol_read_string (protocol, &this_object->rfc2385_sharedSecret, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->__isset_rfc2385_sharedSecret = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      default:
+        if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+          return -1;
+        xfer += ret;
+        break;
+    }
+    if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+
+  if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static gint32
+bgp_configurator_set_peer_secret_args_write (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+
+  BgpConfiguratorSetPeerSecretArgs * this_object = BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS(object);
+  THRIFT_UNUSED_VAR (this_object);
+  if ((ret = thrift_protocol_write_struct_begin (protocol, "BgpConfiguratorSetPeerSecretArgs", error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "ipAddress", T_STRING, 1, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_string (protocol, this_object->ipAddress, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "rfc2385_sharedSecret", T_STRING, 2, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_string (protocol, this_object->rfc2385_sharedSecret, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static void
+bgp_configurator_set_peer_secret_args_set_property (GObject *object,
+                                                    guint property_id,
+                                                    const GValue *value,
+                                                    GParamSpec *pspec)
+{
+  BgpConfiguratorSetPeerSecretArgs *self = BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_IP_ADDRESS:
+      if (self->ipAddress != NULL)
+        g_free (self->ipAddress);
+      self->ipAddress = g_value_dup_string (value);
+      self->__isset_ipAddress = TRUE;
+      break;
+
+    case PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_RFC2385_SHARED_SECRET:
+      if (self->rfc2385_sharedSecret != NULL)
+        g_free (self->rfc2385_sharedSecret);
+      self->rfc2385_sharedSecret = g_value_dup_string (value);
+      self->__isset_rfc2385_sharedSecret = TRUE;
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
+bgp_configurator_set_peer_secret_args_get_property (GObject *object,
+                                                    guint property_id,
+                                                    GValue *value,
+                                                    GParamSpec *pspec)
+{
+  BgpConfiguratorSetPeerSecretArgs *self = BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_IP_ADDRESS:
+      g_value_set_string (value, self->ipAddress);
+      break;
+
+    case PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_RFC2385_SHARED_SECRET:
+      g_value_set_string (value, self->rfc2385_sharedSecret);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void 
+bgp_configurator_set_peer_secret_args_instance_init (BgpConfiguratorSetPeerSecretArgs * object)
+{
+  /* satisfy -Wall */
+  THRIFT_UNUSED_VAR (object);
+  object->ipAddress = NULL;
+  object->__isset_ipAddress = FALSE;
+  object->rfc2385_sharedSecret = NULL;
+  object->__isset_rfc2385_sharedSecret = FALSE;
+}
+
+static void 
+bgp_configurator_set_peer_secret_args_finalize (GObject *object)
+{
+  BgpConfiguratorSetPeerSecretArgs *tobject = BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS (object);
+
+  /* satisfy -Wall in case we don't use tobject */
+  THRIFT_UNUSED_VAR (tobject);
+  if (tobject->ipAddress != NULL)
+  {
+    g_free(tobject->ipAddress);
+    tobject->ipAddress = NULL;
+  }
+  if (tobject->rfc2385_sharedSecret != NULL)
+  {
+    g_free(tobject->rfc2385_sharedSecret);
+    tobject->rfc2385_sharedSecret = NULL;
+  }
+}
+
+static void
+bgp_configurator_set_peer_secret_args_class_init (BgpConfiguratorSetPeerSecretArgsClass * cls)
+{
+  GObjectClass *gobject_class = G_OBJECT_CLASS (cls);
+  ThriftStructClass *struct_class = THRIFT_STRUCT_CLASS (cls);
+
+  struct_class->read = bgp_configurator_set_peer_secret_args_read;
+  struct_class->write = bgp_configurator_set_peer_secret_args_write;
+
+  gobject_class->finalize = bgp_configurator_set_peer_secret_args_finalize;
+  gobject_class->get_property = bgp_configurator_set_peer_secret_args_get_property;
+  gobject_class->set_property = bgp_configurator_set_peer_secret_args_set_property;
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_IP_ADDRESS,
+     g_param_spec_string ("ipAddress",
+                          NULL,
+                          NULL,
+                          NULL,
+                          G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS_RFC2385_SHARED_SECRET,
+     g_param_spec_string ("rfc2385_sharedSecret",
+                          NULL,
+                          NULL,
+                          NULL,
+                          G_PARAM_READWRITE));
+}
+
+GType
+bgp_configurator_set_peer_secret_args_get_type (void)
+{
+  static GType type = 0;
+
+  if (type == 0) 
+  {
+    static const GTypeInfo type_info = 
+    {
+      sizeof (BgpConfiguratorSetPeerSecretArgsClass),
+      NULL, /* base_init */
+      NULL, /* base_finalize */
+      (GClassInitFunc) bgp_configurator_set_peer_secret_args_class_init,
+      NULL, /* class_finalize */
+      NULL, /* class_data */
+      sizeof (BgpConfiguratorSetPeerSecretArgs),
+      0, /* n_preallocs */
+      (GInstanceInitFunc) bgp_configurator_set_peer_secret_args_instance_init,
+      NULL, /* value_table */
+    };
+
+    type = g_type_register_static (THRIFT_TYPE_STRUCT, 
+                                   "BgpConfiguratorSetPeerSecretArgsType",
+                                   &type_info, 0);
+  }
+
+  return type;
+}
+
+enum _BgpConfiguratorSetPeerSecretResultProperties
+{
+  PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT_0,
+  PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT_SUCCESS
+};
+
+/* reads a bgp_configurator_set_peer_secret_result object */
+static gint32
+bgp_configurator_set_peer_secret_result_read (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+  gchar *name = NULL;
+  ThriftType ftype;
+  gint16 fid;
+  guint32 len = 0;
+  gpointer data = NULL;
+  BgpConfiguratorSetPeerSecretResult * this_object = BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT(object);
+
+  /* satisfy -Wall in case these aren't used */
+  THRIFT_UNUSED_VAR (len);
+  THRIFT_UNUSED_VAR (data);
+  THRIFT_UNUSED_VAR (this_object);
+
+  /* read the struct begin marker */
+  if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+  {
+    if (name) g_free (name);
+    return -1;
+  }
+  xfer += ret;
+  if (name) g_free (name);
+  name = NULL;
+
+  /* read the struct fields */
+  while (1)
+  {
+    /* read the beginning of a field */
+    if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+    {
+      if (name) g_free (name);
+      return -1;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* break if we get a STOP field */
+    if (ftype == T_STOP)
+    {
+      break;
+    }
+
+    switch (fid)
+    {
+      case 0:
+        if (ftype == T_I32)
+        {
+          if ((ret = thrift_protocol_read_i32 (protocol, &this_object->success, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->__isset_success = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      default:
+        if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+          return -1;
+        xfer += ret;
+        break;
+    }
+    if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+
+  if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static gint32
+bgp_configurator_set_peer_secret_result_write (ThriftStruct *object, ThriftProtocol *protocol, GError **error)
+{
+  gint32 ret;
+  gint32 xfer = 0;
+
+  BgpConfiguratorSetPeerSecretResult * this_object = BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT(object);
+  THRIFT_UNUSED_VAR (this_object);
+  if ((ret = thrift_protocol_write_struct_begin (protocol, "BgpConfiguratorSetPeerSecretResult", error)) < 0)
+    return -1;
+  xfer += ret;
+  if (this_object->__isset_success == TRUE) {
+    if ((ret = thrift_protocol_write_field_begin (protocol, "success", T_I32, 0, error)) < 0)
+      return -1;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, this_object->success, error)) < 0)
+      return -1;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return -1;
+    xfer += ret;
+  }
+  if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  return xfer;
+}
+
+static void
+bgp_configurator_set_peer_secret_result_set_property (GObject *object,
+                                                      guint property_id,
+                                                      const GValue *value,
+                                                      GParamSpec *pspec)
+{
+  BgpConfiguratorSetPeerSecretResult *self = BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT_SUCCESS:
+      self->success = g_value_get_int (value);
+      self->__isset_success = TRUE;
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
+bgp_configurator_set_peer_secret_result_get_property (GObject *object,
+                                                      guint property_id,
+                                                      GValue *value,
+                                                      GParamSpec *pspec)
+{
+  BgpConfiguratorSetPeerSecretResult *self = BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT (object);
+
+  switch (property_id)
+  {
+    case PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT_SUCCESS:
+      g_value_set_int (value, self->success);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void 
+bgp_configurator_set_peer_secret_result_instance_init (BgpConfiguratorSetPeerSecretResult * object)
+{
+  /* satisfy -Wall */
+  THRIFT_UNUSED_VAR (object);
+  object->success = 0;
+  object->__isset_success = FALSE;
+}
+
+static void 
+bgp_configurator_set_peer_secret_result_finalize (GObject *object)
+{
+  BgpConfiguratorSetPeerSecretResult *tobject = BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT (object);
+
+  /* satisfy -Wall in case we don't use tobject */
+  THRIFT_UNUSED_VAR (tobject);
+}
+
+static void
+bgp_configurator_set_peer_secret_result_class_init (BgpConfiguratorSetPeerSecretResultClass * cls)
+{
+  GObjectClass *gobject_class = G_OBJECT_CLASS (cls);
+  ThriftStructClass *struct_class = THRIFT_STRUCT_CLASS (cls);
+
+  struct_class->read = bgp_configurator_set_peer_secret_result_read;
+  struct_class->write = bgp_configurator_set_peer_secret_result_write;
+
+  gobject_class->finalize = bgp_configurator_set_peer_secret_result_finalize;
+  gobject_class->get_property = bgp_configurator_set_peer_secret_result_get_property;
+  gobject_class->set_property = bgp_configurator_set_peer_secret_result_set_property;
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT_SUCCESS,
+     g_param_spec_int ("success",
+                       NULL,
+                       NULL,
+                       G_MININT32,
+                       G_MAXINT32,
+                       0,
+                       G_PARAM_READWRITE));
+}
+
+GType
+bgp_configurator_set_peer_secret_result_get_type (void)
+{
+  static GType type = 0;
+
+  if (type == 0) 
+  {
+    static const GTypeInfo type_info = 
+    {
+      sizeof (BgpConfiguratorSetPeerSecretResultClass),
+      NULL, /* base_init */
+      NULL, /* base_finalize */
+      (GClassInitFunc) bgp_configurator_set_peer_secret_result_class_init,
+      NULL, /* class_finalize */
+      NULL, /* class_data */
+      sizeof (BgpConfiguratorSetPeerSecretResult),
+      0, /* n_preallocs */
+      (GInstanceInitFunc) bgp_configurator_set_peer_secret_result_instance_init,
+      NULL, /* value_table */
+    };
+
+    type = g_type_register_static (THRIFT_TYPE_STRUCT, 
+                                   "BgpConfiguratorSetPeerSecretResultType",
+                                   &type_info, 0);
+  }
+
+  return type;
+}
+
 enum _BgpConfiguratorDeletePeerArgsProperties
 {
   PROP_BGP_CONFIGURATOR_DELETE_PEER_ARGS_0,
@@ -4637,7 +5167,8 @@ enum _BgpConfiguratorPushRouteArgsProperties
   PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_L3LABEL,
   PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_L2LABEL,
   PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_ENC_TYPE,
-  PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_ROUTERMAC
+  PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_ROUTERMAC,
+  PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_AFI
 };
 
 /* reads a bgp_configurator_push_route_args object */
@@ -4872,6 +5403,21 @@ bgp_configurator_push_route_args_read (ThriftStruct *object, ThriftProtocol *pro
           xfer += ret;
         }
         break;
+      case 12:
+        if (ftype == T_I32)
+        {
+          gint32 ecast9;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast9, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->afi = (af_afi)ecast9;
+          this_object->__isset_afi = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
       default:
         if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
           return -1;
@@ -5011,6 +5557,16 @@ bgp_configurator_push_route_args_write (ThriftStruct *object, ThriftProtocol *pr
   if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
     return -1;
   xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 12, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_i32 (protocol, (gint32) this_object->afi, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
   if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
     return -1;
   xfer += ret;
@@ -5098,6 +5654,11 @@ bgp_configurator_push_route_args_set_property (GObject *object,
       self->__isset_routermac = TRUE;
       break;
 
+    case PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_AFI:
+      self->afi = g_value_get_int (value);
+      self->__isset_afi = TRUE;
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -5158,6 +5719,10 @@ bgp_configurator_push_route_args_get_property (GObject *object,
       g_value_set_string (value, self->routermac);
       break;
 
+    case PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_AFI:
+      g_value_set_int (value, self->afi);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -5189,6 +5754,7 @@ bgp_configurator_push_route_args_instance_init (BgpConfiguratorPushRouteArgs * o
   object->__isset_enc_type = FALSE;
   object->routermac = NULL;
   object->__isset_routermac = FALSE;
+  object->__isset_afi = FALSE;
 }
 
 static void 
@@ -5351,6 +5917,17 @@ bgp_configurator_push_route_args_class_init (BgpConfiguratorPushRouteArgsClass *
                           NULL,
                           NULL,
                           G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_PUSH_ROUTE_ARGS_AFI,
+     g_param_spec_int ("afi",
+                       NULL,
+                       NULL,
+                       1,
+                       3,
+                       1,
+                       G_PARAM_READWRITE));
 }
 
 GType
@@ -5622,7 +6199,8 @@ enum _BgpConfiguratorWithdrawRouteArgsProperties
   PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_RD,
   PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_ETHTAG,
   PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_ESI,
-  PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_MACADDRESS
+  PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_MACADDRESS,
+  PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_AFI
 };
 
 /* reads a bgp_configurator_withdraw_route_args object */
@@ -5677,11 +6255,11 @@ bgp_configurator_withdraw_route_args_read (ThriftStruct *object, ThriftProtocol 
       case 1:
         if (ftype == T_I32)
         {
-          gint32 ecast9;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast9, error)) < 0)
+          gint32 ecast10;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast10, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->p_type = (protocol_type)ecast9;
+          this_object->p_type = (protocol_type)ecast10;
           this_object->__isset_p_type = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -5778,6 +6356,21 @@ bgp_configurator_withdraw_route_args_read (ThriftStruct *object, ThriftProtocol 
           xfer += ret;
         }
         break;
+      case 7:
+        if (ftype == T_I32)
+        {
+          gint32 ecast11;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast11, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->afi = (af_afi)ecast11;
+          this_object->__isset_afi = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
       default:
         if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
           return -1;
@@ -5867,6 +6460,16 @@ bgp_configurator_withdraw_route_args_write (ThriftStruct *object, ThriftProtocol
   if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
     return -1;
   xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 7, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_i32 (protocol, (gint32) this_object->afi, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
   if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
     return -1;
   xfer += ret;
@@ -5925,6 +6528,11 @@ bgp_configurator_withdraw_route_args_set_property (GObject *object,
       self->__isset_macaddress = TRUE;
       break;
 
+    case PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_AFI:
+      self->afi = g_value_get_int (value);
+      self->__isset_afi = TRUE;
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -5965,6 +6573,10 @@ bgp_configurator_withdraw_route_args_get_property (GObject *object,
       g_value_set_string (value, self->macaddress);
       break;
 
+    case PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_AFI:
+      g_value_set_int (value, self->afi);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -5987,6 +6599,7 @@ bgp_configurator_withdraw_route_args_instance_init (BgpConfiguratorWithdrawRoute
   object->__isset_esi = FALSE;
   object->macaddress = NULL;
   object->__isset_macaddress = FALSE;
+  object->__isset_afi = FALSE;
 }
 
 static void 
@@ -6088,6 +6701,17 @@ bgp_configurator_withdraw_route_args_class_init (BgpConfiguratorWithdrawRouteArg
                           NULL,
                           NULL,
                           G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_WITHDRAW_ROUTE_ARGS_AFI,
+     g_param_spec_int ("afi",
+                       NULL,
+                       NULL,
+                       1,
+                       3,
+                       1,
+                       G_PARAM_READWRITE));
 }
 
 GType
@@ -8425,11 +9049,11 @@ bgp_configurator_enable_address_family_args_read (ThriftStruct *object, ThriftPr
       case 2:
         if (ftype == T_I32)
         {
-          gint32 ecast10;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast10, error)) < 0)
+          gint32 ecast12;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast12, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->afi = (af_afi)ecast10;
+          this_object->afi = (af_afi)ecast12;
           this_object->__isset_afi = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -8440,11 +9064,11 @@ bgp_configurator_enable_address_family_args_read (ThriftStruct *object, ThriftPr
       case 3:
         if (ftype == T_I32)
         {
-          gint32 ecast11;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast11, error)) < 0)
+          gint32 ecast13;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast13, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->safi = (af_safi)ecast11;
+          this_object->safi = (af_safi)ecast13;
           this_object->__isset_safi = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -8992,11 +9616,11 @@ bgp_configurator_disable_address_family_args_read (ThriftStruct *object, ThriftP
       case 2:
         if (ftype == T_I32)
         {
-          gint32 ecast12;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast12, error)) < 0)
+          gint32 ecast14;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast14, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->afi = (af_afi)ecast12;
+          this_object->afi = (af_afi)ecast14;
           this_object->__isset_afi = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -9007,11 +9631,11 @@ bgp_configurator_disable_address_family_args_read (ThriftStruct *object, ThriftP
       case 3:
         if (ftype == T_I32)
         {
-          gint32 ecast13;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast13, error)) < 0)
+          gint32 ecast15;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast15, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->safi = (af_safi)ecast13;
+          this_object->safi = (af_safi)ecast15;
           this_object->__isset_safi = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -10854,7 +11478,8 @@ enum _BgpConfiguratorGetRoutesArgsProperties
   PROP_BGP_CONFIGURATOR_GET_ROUTES_ARGS_0,
   PROP_BGP_CONFIGURATOR_GET_ROUTES_ARGS_P_TYPE,
   PROP_BGP_CONFIGURATOR_GET_ROUTES_ARGS_OPTYPE,
-  PROP_BGP_CONFIGURATOR_GET_ROUTES_ARGS_WIN_SIZE
+  PROP_BGP_CONFIGURATOR_GET_ROUTES_ARGS_WIN_SIZE,
+  PROP_BGP_CONFIGURATOR_GET_ROUTES_ARGS_AFI
 };
 
 /* reads a bgp_configurator_get_routes_args object */
@@ -10909,11 +11534,11 @@ bgp_configurator_get_routes_args_read (ThriftStruct *object, ThriftProtocol *pro
       case 1:
         if (ftype == T_I32)
         {
-          gint32 ecast14;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast14, error)) < 0)
+          gint32 ecast16;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast16, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->p_type = (protocol_type)ecast14;
+          this_object->p_type = (protocol_type)ecast16;
           this_object->__isset_p_type = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -10941,6 +11566,21 @@ bgp_configurator_get_routes_args_read (ThriftStruct *object, ThriftProtocol *pro
             return -1;
           xfer += ret;
           this_object->__isset_winSize = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
+      case 4:
+        if (ftype == T_I32)
+        {
+          gint32 ecast17;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast17, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->afi = (af_afi)ecast17;
+          this_object->__isset_afi = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
             return -1;
@@ -11006,6 +11646,16 @@ bgp_configurator_get_routes_args_write (ThriftStruct *object, ThriftProtocol *pr
   if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
     return -1;
   xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 4, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_i32 (protocol, (gint32) this_object->afi, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
   if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
     return -1;
   xfer += ret;
@@ -11041,6 +11691,11 @@ bgp_configurator_get_routes_args_set_property (GObject *object,
       self->__isset_winSize = TRUE;
       break;
 
+    case PROP_BGP_CONFIGURATOR_GET_ROUTES_ARGS_AFI:
+      self->afi = g_value_get_int (value);
+      self->__isset_afi = TRUE;
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -11069,6 +11724,10 @@ bgp_configurator_get_routes_args_get_property (GObject *object,
       g_value_set_int (value, self->winSize);
       break;
 
+    case PROP_BGP_CONFIGURATOR_GET_ROUTES_ARGS_AFI:
+      g_value_set_int (value, self->afi);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -11085,6 +11744,7 @@ bgp_configurator_get_routes_args_instance_init (BgpConfiguratorGetRoutesArgs * o
   object->__isset_optype = FALSE;
   object->winSize = 0;
   object->__isset_winSize = FALSE;
+  object->__isset_afi = FALSE;
 }
 
 static void 
@@ -11140,6 +11800,17 @@ bgp_configurator_get_routes_args_class_init (BgpConfiguratorGetRoutesArgsClass *
                        G_MININT32,
                        G_MAXINT32,
                        0,
+                       G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_CONFIGURATOR_GET_ROUTES_ARGS_AFI,
+     g_param_spec_int ("afi",
+                       NULL,
+                       NULL,
+                       1,
+                       3,
+                       1,
                        G_PARAM_READWRITE));
 }
 
@@ -11470,11 +12141,11 @@ bgp_configurator_enable_multipath_args_read (ThriftStruct *object, ThriftProtoco
       case 1:
         if (ftype == T_I32)
         {
-          gint32 ecast15;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast15, error)) < 0)
+          gint32 ecast18;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast18, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->afi = (af_afi)ecast15;
+          this_object->afi = (af_afi)ecast18;
           this_object->__isset_afi = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -11485,11 +12156,11 @@ bgp_configurator_enable_multipath_args_read (ThriftStruct *object, ThriftProtoco
       case 2:
         if (ftype == T_I32)
         {
-          gint32 ecast16;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast16, error)) < 0)
+          gint32 ecast19;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast19, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->safi = (af_safi)ecast16;
+          this_object->safi = (af_safi)ecast19;
           this_object->__isset_safi = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -11980,11 +12651,11 @@ bgp_configurator_disable_multipath_args_read (ThriftStruct *object, ThriftProtoc
       case 1:
         if (ftype == T_I32)
         {
-          gint32 ecast17;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast17, error)) < 0)
+          gint32 ecast20;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast20, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->afi = (af_afi)ecast17;
+          this_object->afi = (af_afi)ecast20;
           this_object->__isset_afi = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -11995,11 +12666,11 @@ bgp_configurator_disable_multipath_args_read (ThriftStruct *object, ThriftProtoc
       case 2:
         if (ftype == T_I32)
         {
-          gint32 ecast18;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast18, error)) < 0)
+          gint32 ecast21;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast21, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->safi = (af_safi)ecast18;
+          this_object->safi = (af_safi)ecast21;
           this_object->__isset_safi = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -12963,7 +13634,8 @@ enum _BgpUpdaterOnUpdatePushRouteArgsProperties
   PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_MACADDRESS,
   PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_L3LABEL,
   PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_L2LABEL,
-  PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_ROUTERMAC
+  PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_ROUTERMAC,
+  PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_AFI
 };
 
 /* reads a bgp_updater_on_update_push_route_args object */
@@ -13018,11 +13690,11 @@ bgp_updater_on_update_push_route_args_read (ThriftStruct *object, ThriftProtocol
       case 1:
         if (ftype == T_I32)
         {
-          gint32 ecast21;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast21, error)) < 0)
+          gint32 ecast24;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast24, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->p_type = (protocol_type)ecast21;
+          this_object->p_type = (protocol_type)ecast24;
           this_object->__isset_p_type = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -13196,6 +13868,21 @@ bgp_updater_on_update_push_route_args_read (ThriftStruct *object, ThriftProtocol
           xfer += ret;
         }
         break;
+      case 12:
+        if (ftype == T_I32)
+        {
+          gint32 ecast25;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast25, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->afi = (af_afi)ecast25;
+          this_object->__isset_afi = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
       default:
         if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
           return -1;
@@ -13335,6 +14022,16 @@ bgp_updater_on_update_push_route_args_write (ThriftStruct *object, ThriftProtoco
   if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
     return -1;
   xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 12, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_i32 (protocol, (gint32) this_object->afi, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
   if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
     return -1;
   xfer += ret;
@@ -13422,6 +14119,11 @@ bgp_updater_on_update_push_route_args_set_property (GObject *object,
       self->__isset_routermac = TRUE;
       break;
 
+    case PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_AFI:
+      self->afi = g_value_get_int (value);
+      self->__isset_afi = TRUE;
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -13482,6 +14184,10 @@ bgp_updater_on_update_push_route_args_get_property (GObject *object,
       g_value_set_string (value, self->routermac);
       break;
 
+    case PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_AFI:
+      g_value_set_int (value, self->afi);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -13514,6 +14220,7 @@ bgp_updater_on_update_push_route_args_instance_init (BgpUpdaterOnUpdatePushRoute
   object->__isset_l2label = FALSE;
   object->routermac = NULL;
   object->__isset_routermac = FALSE;
+  object->__isset_afi = FALSE;
 }
 
 static void 
@@ -13676,6 +14383,17 @@ bgp_updater_on_update_push_route_args_class_init (BgpUpdaterOnUpdatePushRouteArg
                           NULL,
                           NULL,
                           G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_UPDATER_ON_UPDATE_PUSH_ROUTE_ARGS_AFI,
+     g_param_spec_int ("afi",
+                       NULL,
+                       NULL,
+                       1,
+                       3,
+                       1,
+                       G_PARAM_READWRITE));
 }
 
 GType
@@ -13719,7 +14437,8 @@ enum _BgpUpdaterOnUpdateWithdrawRouteArgsProperties
   PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_ESI,
   PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_MACADDRESS,
   PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_L3LABEL,
-  PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_L2LABEL
+  PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_L2LABEL,
+  PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_AFI
 };
 
 /* reads a bgp_updater_on_update_withdraw_route_args object */
@@ -13774,11 +14493,11 @@ bgp_updater_on_update_withdraw_route_args_read (ThriftStruct *object, ThriftProt
       case 1:
         if (ftype == T_I32)
         {
-          gint32 ecast22;
-          if ((ret = thrift_protocol_read_i32 (protocol, &ecast22, error)) < 0)
+          gint32 ecast26;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast26, error)) < 0)
             return -1;
           xfer += ret;
-          this_object->p_type = (protocol_type)ecast22;
+          this_object->p_type = (protocol_type)ecast26;
           this_object->__isset_p_type = TRUE;
         } else {
           if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
@@ -13933,6 +14652,21 @@ bgp_updater_on_update_withdraw_route_args_read (ThriftStruct *object, ThriftProt
           xfer += ret;
         }
         break;
+      case 11:
+        if (ftype == T_I32)
+        {
+          gint32 ecast27;
+          if ((ret = thrift_protocol_read_i32 (protocol, &ecast27, error)) < 0)
+            return -1;
+          xfer += ret;
+          this_object->afi = (af_afi)ecast27;
+          this_object->__isset_afi = TRUE;
+        } else {
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return -1;
+          xfer += ret;
+        }
+        break;
       default:
         if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
           return -1;
@@ -14062,6 +14796,16 @@ bgp_updater_on_update_withdraw_route_args_write (ThriftStruct *object, ThriftPro
   if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
     return -1;
   xfer += ret;
+  if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 11, error)) < 0)
+    return -1;
+  xfer += ret;
+  if ((ret = thrift_protocol_write_i32 (protocol, (gint32) this_object->afi, error)) < 0)
+    return -1;
+  xfer += ret;
+
+  if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+    return -1;
+  xfer += ret;
   if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
     return -1;
   xfer += ret;
@@ -14142,6 +14886,11 @@ bgp_updater_on_update_withdraw_route_args_set_property (GObject *object,
       self->__isset_l2label = TRUE;
       break;
 
+    case PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_AFI:
+      self->afi = g_value_get_int (value);
+      self->__isset_afi = TRUE;
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -14198,6 +14947,10 @@ bgp_updater_on_update_withdraw_route_args_get_property (GObject *object,
       g_value_set_int (value, self->l2label);
       break;
 
+    case PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_AFI:
+      g_value_set_int (value, self->afi);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -14228,6 +14981,7 @@ bgp_updater_on_update_withdraw_route_args_instance_init (BgpUpdaterOnUpdateWithd
   object->__isset_l3label = FALSE;
   object->l2label = 0;
   object->__isset_l2label = FALSE;
+  object->__isset_afi = FALSE;
 }
 
 static void 
@@ -14375,6 +15129,17 @@ bgp_updater_on_update_withdraw_route_args_class_init (BgpUpdaterOnUpdateWithdraw
                        G_MININT32,
                        G_MAXINT32,
                        0,
+                       G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_BGP_UPDATER_ON_UPDATE_WITHDRAW_ROUTE_ARGS_AFI,
+     g_param_spec_int ("afi",
+                       NULL,
+                       NULL,
+                       1,
+                       3,
+                       1,
                        G_PARAM_READWRITE));
 }
 

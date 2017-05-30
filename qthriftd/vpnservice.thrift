@@ -1,3 +1,5 @@
+ // https://wiki.opendaylight.org/view/Vpnservice:BGP_Stack_setup
+ //
  // the label argument in pushRoute can use these consts
  const i32 LBL_NO_LABEL = 0
  
@@ -39,6 +41,7 @@
  const i32 BGP_ERR_INACTIVE = 11
  const i32 BGP_ERR_NOT_ITER = 15
  const i32 BGP_ERR_PARAM = 100
+ const i32 BGP_ERR_NOT_SUPPORTED = 200
  
  const i32 BGP_ETHTAG_MAX_ET = 0xffffffff
 
@@ -47,10 +50,10 @@
      AFI_IP = 1,
      AFI_IPV6 = 2,
      AFI_L2VPN = 3
-     }
+ }
  
  enum af_safi {
-     SAFI_IPV4_LABELED_UNICAST = 4,
+     SAFI_IP_LABELED_UNICAST = 4,
      SAFI_MPLS_VPN = 5,
      SAFI_EVPN = 6
  }
@@ -93,7 +96,7 @@ enum protocol_type {
      9: string rd,
      10: string prefix,
      11: string nexthop,
-     12: string routermac
+     12: string routermac,
  }
  
  /*
@@ -122,6 +125,33 @@ enum protocol_type {
                       6:i32 stalepathTime, 7:bool announceFbit),
      i32 stopBgp(1:i64 asNumber),
      i32 createPeer(1:string ipAddress, 2:i64 asNumber),
+
+     /* 'setPeerSecret' sets the shared secret needed to protect the peer
+      * connection using TCP MD5 Signature Option (see rfc 2385).
+      *
+      * Params:
+      *
+      *   'ipAddress' is the peer ( neighbour) address. Mandatory.
+      *
+      *   'rfc2385_sharedSecret' is the secret. Mandatory. Length must be
+      *   greater than zero.
+      *
+      * Return codes:
+      *
+      *   0 on success.
+      *
+      *   BGP_ERR_FAILED if 'ipAddress' is missing or unknown.
+      *
+      *   BGP_ERR_PARAM if 'rfc2385_sharedSecret' is missing or invalid (e.g.
+      *   it is too short or too long).
+      *
+      *   BGP_ERR_INACTIVE when there is not session.
+      *
+      *   BGP_ERR_NOT_SUPPORTED when TCP MD5 Signature Option is not supported
+      *   (e.g. the underlying TCP stack does not support it)
+      *
+      */
+     i32 setPeerSecret(1:string ipAddress, 2:string rfc2385_sharedSecret),
      i32 deletePeer(1:string ipAddress)
      i32 addVrf(1:layer_type l_type, 2:string rd, 3:list<string> irts, 4:list<string> erts),
      i32 delVrf(1:string rd),
@@ -137,17 +167,20 @@ enum protocol_type {
       *       value should have 'colon' separators : 00:02:ab:de:45:23:54:75:fd:ab as example
       * encap_type: restricted for VXLAN if L3VPN-EVPN configured.
       *             ignored if L3VPN-MPLS is configured.
+      * af_afi: indicates whether prefix is IPv4 or IPv6
       */
      i32 pushRoute(1:protocol_type p_type, 2:string prefix, 3:string nexthop, 4:string rd,
                    5:i64 ethtag, 6:string esi, 7:string macaddress,
-                   8:i32 l3label, 9:i32 l2label, 10:encap_type enc_type, 11:string routermac),
+                   8:i32 l3label, 9:i32 l2label, 10:encap_type enc_type,
+                   11:string routermac, 12:af_afi afi),
      /*
       * 'p_type' is mandatory
       * kludge: second argument is either 'rd' (VPNv4) or 
       * label (v4LU) as a string (eg: "2500")
+      * af_afi: indicates whether prefix is IPv4 or IPv6
       */
      i32 withdrawRoute(1:protocol_type p_type, 2:string prefix, 3:string rd,
-                       4:i64 ethtag, 5:string esi, 6:string macaddress),
+                       4:i64 ethtag, 5:string esi, 6:string macaddress, 7:af_afi afi),
      i32 setEbgpMultihop(1:string peerIp, 2:i32 nHops),
      i32 unsetEbgpMultihop(1:string peerIp),
      i32 setUpdateSource(1:string peerIp, 2:string srcIp),
@@ -171,7 +204,7 @@ enum protocol_type {
       * calling INIT when NEXT is expected causes reinit.
       * only vpnv4 RIBs are supported.
       */
-     Routes getRoutes(1:protocol_type p_type, 2:i32 optype, 3:i32 winSize),
+     Routes getRoutes(1:protocol_type p_type, 2:i32 optype, 3:i32 winSize, 4:af_afi afi),
      i32 enableMultipath(1:af_afi afi, 2:af_safi safi),
      i32 disableMultipath(1:af_afi afi, 2:af_safi safi),
      i32 multipaths(1:string rd, 2:i32 maxPath),
@@ -182,11 +215,12 @@ enum protocol_type {
    oneway void onUpdatePushRoute(1:protocol_type p_type, 2:string rd, 3:string prefix, 
                                  4:i32 prefixlen, 5:string nexthop, 
                                  6:i64 ethtag, 7:string esi, 8:string macaddress,
-                                 9:i32 l3label, 10:i32 l2label, 11:string routermac),
+                                 9:i32 l3label, 10:i32 l2label,
+                                 11:string routermac, 12:af_afi afi),
    oneway void onUpdateWithdrawRoute(1:protocol_type p_type, 2:string rd, 3:string prefix, 
                                      4:i32 prefixlen, 5:string nexthop,
                                      6:i64 ethtag, 7:string esi, 8:string macaddress,
-                                     9:i32 l3label, 10:i32 l2label),
+                                     9:i32 l3label, 10:i32 l2label, 11:af_afi afi),
    // tell them we're open for business
    oneway void onStartConfigResyncNotification(),
    // relay to odl a bgp Notification we got from peer 

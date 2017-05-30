@@ -28,6 +28,12 @@ bgp_configurator_if_create_peer (BgpConfiguratorIf *iface, gint32* _return, cons
 }
 
 gboolean
+bgp_configurator_if_set_peer_secret (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, const gchar * rfc2385_sharedSecret, GError **error)
+{
+  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->set_peer_secret (iface, _return, ipAddress, rfc2385_sharedSecret, error);
+}
+
+gboolean
 bgp_configurator_if_delete_peer (BgpConfiguratorIf *iface, gint32* _return, const gchar * ipAddress, GError **error)
 {
   return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->delete_peer (iface, _return, ipAddress, error);
@@ -46,15 +52,15 @@ bgp_configurator_if_del_vrf (BgpConfiguratorIf *iface, gint32* _return, const gc
 }
 
 gboolean
-bgp_configurator_if_push_route (BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const encap_type enc_type, const gchar * routermac, GError **error)
+bgp_configurator_if_push_route (BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const encap_type enc_type, const gchar * routermac, const af_afi afi, GError **error)
 {
-  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->push_route (iface, _return, p_type, prefix, nexthop, rd, ethtag, esi, macaddress, l3label, l2label, enc_type, routermac, error);
+  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->push_route (iface, _return, p_type, prefix, nexthop, rd, ethtag, esi, macaddress, l3label, l2label, enc_type, routermac, afi, error);
 }
 
 gboolean
-bgp_configurator_if_withdraw_route (BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, GError **error)
+bgp_configurator_if_withdraw_route (BgpConfiguratorIf *iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const af_afi afi, GError **error)
 {
-  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->withdraw_route (iface, _return, p_type, prefix, rd, ethtag, esi, macaddress, error);
+  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->withdraw_route (iface, _return, p_type, prefix, rd, ethtag, esi, macaddress, afi, error);
 }
 
 gboolean
@@ -112,9 +118,9 @@ bgp_configurator_if_disable_graceful_restart (BgpConfiguratorIf *iface, gint32* 
 }
 
 gboolean
-bgp_configurator_if_get_routes (BgpConfiguratorIf *iface, Routes ** _return, const protocol_type p_type, const gint32 optype, const gint32 winSize, GError **error)
+bgp_configurator_if_get_routes (BgpConfiguratorIf *iface, Routes ** _return, const protocol_type p_type, const gint32 optype, const gint32 winSize, const af_afi afi, GError **error)
 {
-  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->get_routes (iface, _return, p_type, optype, winSize, error);
+  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->get_routes (iface, _return, p_type, optype, winSize, afi, error);
 }
 
 gboolean
@@ -810,6 +816,192 @@ gboolean bgp_configurator_client_create_peer (BgpConfiguratorIf * iface, gint32*
   return TRUE;
 }
 
+gboolean bgp_configurator_client_send_set_peer_secret (BgpConfiguratorIf * iface, const gchar * ipAddress, const gchar * rfc2385_sharedSecret, GError ** error)
+{
+  gint32 cseqid = 0;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
+
+  if (thrift_protocol_write_message_begin (protocol, "setPeerSecret", T_CALL, cseqid, error) < 0)
+    return FALSE;
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+
+    
+    if ((ret = thrift_protocol_write_struct_begin (protocol, "setPeerSecret_args", error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "ipAddress", T_STRING, 1, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_string (protocol, ipAddress, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "rfc2385_sharedSecret", T_STRING, 2, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_string (protocol, rfc2385_sharedSecret, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_write_message_end (protocol, error) < 0)
+    return FALSE;
+  if (!thrift_transport_flush (protocol->transport, error))
+    return FALSE;
+  if (!thrift_transport_write_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_recv_set_peer_secret (BgpConfiguratorIf * iface, gint32* _return, GError ** error)
+{
+  gint32 rseqid;
+  gchar * fname = NULL;
+  ThriftMessageType mtype;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->input_protocol;
+  ThriftApplicationException *xception;
+
+  if (thrift_protocol_read_message_begin (protocol, &fname, &mtype, &rseqid, error) < 0) {
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+
+  if (mtype == T_EXCEPTION) {
+    if (fname) g_free (fname);
+    xception = g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION, NULL);
+    thrift_struct_read (THRIFT_STRUCT (xception), protocol, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR,xception->type, "application error: %s", xception->message);
+    g_object_unref (xception);
+    return FALSE;
+  } else if (mtype != T_REPLY) {
+    if (fname) g_free (fname);
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_INVALID_MESSAGE_TYPE, "invalid message type %d, expected T_REPLY", mtype);
+    return FALSE;
+  } else if (strncmp (fname, "setPeerSecret", 13) != 0) {
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol,error);
+    thrift_transport_read_end (protocol->transport, error);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_WRONG_METHOD_NAME, "wrong method name %s, expected setPeerSecret", fname);
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+  if (fname) g_free (fname);
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+    gchar *name = NULL;
+    ThriftType ftype;
+    gint16 fid;
+    guint32 len = 0;
+    gpointer data = NULL;
+    
+
+    /* satisfy -Wall in case these aren't used */
+    THRIFT_UNUSED_VAR (len);
+    THRIFT_UNUSED_VAR (data);
+
+    /* read the struct begin marker */
+    if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+    {
+      if (name) g_free (name);
+      return 0;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* read the struct fields */
+    while (1)
+    {
+      /* read the beginning of a field */
+      if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+      {
+        if (name) g_free (name);
+        return 0;
+      }
+      xfer += ret;
+      if (name) g_free (name);
+      name = NULL;
+
+      /* break if we get a STOP field */
+      if (ftype == T_STOP)
+      {
+        break;
+      }
+
+      switch (fid)
+      {
+        case 0:
+          if (ftype == T_I32)
+          {
+            if ((ret = thrift_protocol_read_i32 (protocol, &*_return, error)) < 0)
+              return 0;
+            xfer += ret;
+          } else {
+            if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+              return 0;
+            xfer += ret;
+          }
+          break;
+        default:
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return 0;
+          xfer += ret;
+          break;
+      }
+      if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+        return 0;
+      xfer += ret;
+    }
+
+    if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_read_message_end (protocol, error) < 0)
+    return FALSE;
+
+  if (!thrift_transport_read_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_set_peer_secret (BgpConfiguratorIf * iface, gint32* _return, const gchar * ipAddress, const gchar * rfc2385_sharedSecret, GError ** error)
+{
+  if (!bgp_configurator_client_send_set_peer_secret (iface, ipAddress, rfc2385_sharedSecret, error))
+    return FALSE;
+  if (!bgp_configurator_client_recv_set_peer_secret (iface, _return, error))
+    return FALSE;
+  return TRUE;
+}
+
 gboolean bgp_configurator_client_send_delete_peer (BgpConfiguratorIf * iface, const gchar * ipAddress, GError ** error)
 {
   gint32 cseqid = 0;
@@ -1026,14 +1218,14 @@ gboolean bgp_configurator_client_send_add_vrf (BgpConfiguratorIf * iface, const 
       return 0;
     xfer += ret;
     {
-      guint i19;
+      guint i22;
 
       if ((ret = thrift_protocol_write_list_begin (protocol, T_STRING, (gint32) (irts ? irts->len : 0), error)) < 0)
         return 0;
       xfer += ret;
-      for (i19 = 0; i19 < (irts ? irts->len : 0); i19++)
+      for (i22 = 0; i22 < (irts ? irts->len : 0); i22++)
       {
-        if ((ret = thrift_protocol_write_string (protocol, ((gchar*)g_ptr_array_index ((GPtrArray *) irts, i19)), error)) < 0)
+        if ((ret = thrift_protocol_write_string (protocol, ((gchar*)g_ptr_array_index ((GPtrArray *) irts, i22)), error)) < 0)
           return 0;
         xfer += ret;
 
@@ -1049,14 +1241,14 @@ gboolean bgp_configurator_client_send_add_vrf (BgpConfiguratorIf * iface, const 
       return 0;
     xfer += ret;
     {
-      guint i20;
+      guint i23;
 
       if ((ret = thrift_protocol_write_list_begin (protocol, T_STRING, (gint32) (erts ? erts->len : 0), error)) < 0)
         return 0;
       xfer += ret;
-      for (i20 = 0; i20 < (erts ? erts->len : 0); i20++)
+      for (i23 = 0; i23 < (erts ? erts->len : 0); i23++)
       {
-        if ((ret = thrift_protocol_write_string (protocol, ((gchar*)g_ptr_array_index ((GPtrArray *) erts, i20)), error)) < 0)
+        if ((ret = thrift_protocol_write_string (protocol, ((gchar*)g_ptr_array_index ((GPtrArray *) erts, i23)), error)) < 0)
           return 0;
         xfer += ret;
 
@@ -1394,7 +1586,7 @@ gboolean bgp_configurator_client_del_vrf (BgpConfiguratorIf * iface, gint32* _re
   return TRUE;
 }
 
-gboolean bgp_configurator_client_send_push_route (BgpConfiguratorIf * iface, const protocol_type p_type, const gchar * prefix, const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const encap_type enc_type, const gchar * routermac, GError ** error)
+gboolean bgp_configurator_client_send_push_route (BgpConfiguratorIf * iface, const protocol_type p_type, const gchar * prefix, const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const encap_type enc_type, const gchar * routermac, const af_afi afi, GError ** error)
 {
   gint32 cseqid = 0;
   ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
@@ -1514,6 +1706,16 @@ gboolean bgp_configurator_client_send_push_route (BgpConfiguratorIf * iface, con
       return 0;
     xfer += ret;
     if ((ret = thrift_protocol_write_string (protocol, routermac, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 12, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, (gint32) afi, error)) < 0)
       return 0;
     xfer += ret;
 
@@ -1661,16 +1863,16 @@ gboolean bgp_configurator_client_recv_push_route (BgpConfiguratorIf * iface, gin
   return TRUE;
 }
 
-gboolean bgp_configurator_client_push_route (BgpConfiguratorIf * iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const encap_type enc_type, const gchar * routermac, GError ** error)
+gboolean bgp_configurator_client_push_route (BgpConfiguratorIf * iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const encap_type enc_type, const gchar * routermac, const af_afi afi, GError ** error)
 {
-  if (!bgp_configurator_client_send_push_route (iface, p_type, prefix, nexthop, rd, ethtag, esi, macaddress, l3label, l2label, enc_type, routermac, error))
+  if (!bgp_configurator_client_send_push_route (iface, p_type, prefix, nexthop, rd, ethtag, esi, macaddress, l3label, l2label, enc_type, routermac, afi, error))
     return FALSE;
   if (!bgp_configurator_client_recv_push_route (iface, _return, error))
     return FALSE;
   return TRUE;
 }
 
-gboolean bgp_configurator_client_send_withdraw_route (BgpConfiguratorIf * iface, const protocol_type p_type, const gchar * prefix, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, GError ** error)
+gboolean bgp_configurator_client_send_withdraw_route (BgpConfiguratorIf * iface, const protocol_type p_type, const gchar * prefix, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const af_afi afi, GError ** error)
 {
   gint32 cseqid = 0;
   ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
@@ -1740,6 +1942,16 @@ gboolean bgp_configurator_client_send_withdraw_route (BgpConfiguratorIf * iface,
       return 0;
     xfer += ret;
     if ((ret = thrift_protocol_write_string (protocol, macaddress, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 7, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, (gint32) afi, error)) < 0)
       return 0;
     xfer += ret;
 
@@ -1887,9 +2099,9 @@ gboolean bgp_configurator_client_recv_withdraw_route (BgpConfiguratorIf * iface,
   return TRUE;
 }
 
-gboolean bgp_configurator_client_withdraw_route (BgpConfiguratorIf * iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, GError ** error)
+gboolean bgp_configurator_client_withdraw_route (BgpConfiguratorIf * iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const af_afi afi, GError ** error)
 {
-  if (!bgp_configurator_client_send_withdraw_route (iface, p_type, prefix, rd, ethtag, esi, macaddress, error))
+  if (!bgp_configurator_client_send_withdraw_route (iface, p_type, prefix, rd, ethtag, esi, macaddress, afi, error))
     return FALSE;
   if (!bgp_configurator_client_recv_withdraw_route (iface, _return, error))
     return FALSE;
@@ -3540,7 +3752,7 @@ gboolean bgp_configurator_client_disable_graceful_restart (BgpConfiguratorIf * i
   return TRUE;
 }
 
-gboolean bgp_configurator_client_send_get_routes (BgpConfiguratorIf * iface, const protocol_type p_type, const gint32 optype, const gint32 winSize, GError ** error)
+gboolean bgp_configurator_client_send_get_routes (BgpConfiguratorIf * iface, const protocol_type p_type, const gint32 optype, const gint32 winSize, const af_afi afi, GError ** error)
 {
   gint32 cseqid = 0;
   ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
@@ -3580,6 +3792,16 @@ gboolean bgp_configurator_client_send_get_routes (BgpConfiguratorIf * iface, con
       return 0;
     xfer += ret;
     if ((ret = thrift_protocol_write_i32 (protocol, winSize, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "afi", T_I32, 4, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, (gint32) afi, error)) < 0)
       return 0;
     xfer += ret;
 
@@ -3729,9 +3951,9 @@ gboolean bgp_configurator_client_recv_get_routes (BgpConfiguratorIf * iface, Rou
   return TRUE;
 }
 
-gboolean bgp_configurator_client_get_routes (BgpConfiguratorIf * iface, Routes ** _return, const protocol_type p_type, const gint32 optype, const gint32 winSize, GError ** error)
+gboolean bgp_configurator_client_get_routes (BgpConfiguratorIf * iface, Routes ** _return, const protocol_type p_type, const gint32 optype, const gint32 winSize, const af_afi afi, GError ** error)
 {
-  if (!bgp_configurator_client_send_get_routes (iface, p_type, optype, winSize, error))
+  if (!bgp_configurator_client_send_get_routes (iface, p_type, optype, winSize, afi, error))
     return FALSE;
   if (!bgp_configurator_client_recv_get_routes (iface, _return, error))
     return FALSE;
@@ -4302,6 +4524,7 @@ bgp_configurator_if_interface_init (BgpConfiguratorIfInterface *iface)
   iface->start_bgp = bgp_configurator_client_start_bgp;
   iface->stop_bgp = bgp_configurator_client_stop_bgp;
   iface->create_peer = bgp_configurator_client_create_peer;
+  iface->set_peer_secret = bgp_configurator_client_set_peer_secret;
   iface->delete_peer = bgp_configurator_client_delete_peer;
   iface->add_vrf = bgp_configurator_client_add_vrf;
   iface->del_vrf = bgp_configurator_client_del_vrf;
@@ -4385,6 +4608,13 @@ gboolean bgp_configurator_handler_create_peer (BgpConfiguratorIf * iface, gint32
   return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->create_peer (iface, _return, ipAddress, asNumber, error);
 }
 
+gboolean bgp_configurator_handler_set_peer_secret (BgpConfiguratorIf * iface, gint32* _return, const gchar * ipAddress, const gchar * rfc2385_sharedSecret, GError ** error)
+{
+  g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
+
+  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->set_peer_secret (iface, _return, ipAddress, rfc2385_sharedSecret, error);
+}
+
 gboolean bgp_configurator_handler_delete_peer (BgpConfiguratorIf * iface, gint32* _return, const gchar * ipAddress, GError ** error)
 {
   g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
@@ -4406,18 +4636,18 @@ gboolean bgp_configurator_handler_del_vrf (BgpConfiguratorIf * iface, gint32* _r
   return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->del_vrf (iface, _return, rd, error);
 }
 
-gboolean bgp_configurator_handler_push_route (BgpConfiguratorIf * iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const encap_type enc_type, const gchar * routermac, GError ** error)
+gboolean bgp_configurator_handler_push_route (BgpConfiguratorIf * iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * nexthop, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const gint32 l3label, const gint32 l2label, const encap_type enc_type, const gchar * routermac, const af_afi afi, GError ** error)
 {
   g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
 
-  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->push_route (iface, _return, p_type, prefix, nexthop, rd, ethtag, esi, macaddress, l3label, l2label, enc_type, routermac, error);
+  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->push_route (iface, _return, p_type, prefix, nexthop, rd, ethtag, esi, macaddress, l3label, l2label, enc_type, routermac, afi, error);
 }
 
-gboolean bgp_configurator_handler_withdraw_route (BgpConfiguratorIf * iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, GError ** error)
+gboolean bgp_configurator_handler_withdraw_route (BgpConfiguratorIf * iface, gint32* _return, const protocol_type p_type, const gchar * prefix, const gchar * rd, const gint64 ethtag, const gchar * esi, const gchar * macaddress, const af_afi afi, GError ** error)
 {
   g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
 
-  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->withdraw_route (iface, _return, p_type, prefix, rd, ethtag, esi, macaddress, error);
+  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->withdraw_route (iface, _return, p_type, prefix, rd, ethtag, esi, macaddress, afi, error);
 }
 
 gboolean bgp_configurator_handler_set_ebgp_multihop (BgpConfiguratorIf * iface, gint32* _return, const gchar * peerIp, const gint32 nHops, GError ** error)
@@ -4483,11 +4713,11 @@ gboolean bgp_configurator_handler_disable_graceful_restart (BgpConfiguratorIf * 
   return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->disable_graceful_restart (iface, _return, error);
 }
 
-gboolean bgp_configurator_handler_get_routes (BgpConfiguratorIf * iface, Routes ** _return, const protocol_type p_type, const gint32 optype, const gint32 winSize, GError ** error)
+gboolean bgp_configurator_handler_get_routes (BgpConfiguratorIf * iface, Routes ** _return, const protocol_type p_type, const gint32 optype, const gint32 winSize, const af_afi afi, GError ** error)
 {
   g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
 
-  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->get_routes (iface, _return, p_type, optype, winSize, error);
+  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->get_routes (iface, _return, p_type, optype, winSize, afi, error);
 }
 
 gboolean bgp_configurator_handler_enable_multipath (BgpConfiguratorIf * iface, gint32* _return, const af_afi afi, const af_safi safi, GError ** error)
@@ -4517,6 +4747,7 @@ bgp_configurator_handler_bgp_configurator_if_interface_init (BgpConfiguratorIfIn
   iface->start_bgp = bgp_configurator_handler_start_bgp;
   iface->stop_bgp = bgp_configurator_handler_stop_bgp;
   iface->create_peer = bgp_configurator_handler_create_peer;
+  iface->set_peer_secret = bgp_configurator_handler_set_peer_secret;
   iface->delete_peer = bgp_configurator_handler_delete_peer;
   iface->add_vrf = bgp_configurator_handler_add_vrf;
   iface->del_vrf = bgp_configurator_handler_del_vrf;
@@ -4549,6 +4780,7 @@ bgp_configurator_handler_class_init (BgpConfiguratorHandlerClass *cls)
   cls->start_bgp = NULL;
   cls->stop_bgp = NULL;
   cls->create_peer = NULL;
+  cls->set_peer_secret = NULL;
   cls->delete_peer = NULL;
   cls->add_vrf = NULL;
   cls->del_vrf = NULL;
@@ -4609,6 +4841,12 @@ bgp_configurator_processor_process_create_peer (BgpConfiguratorProcessor *,
                                                 ThriftProtocol *,
                                                 ThriftProtocol *,
                                                 GError **);
+static gboolean
+bgp_configurator_processor_process_set_peer_secret (BgpConfiguratorProcessor *,
+                                                    gint32,
+                                                    ThriftProtocol *,
+                                                    ThriftProtocol *,
+                                                    GError **);
 static gboolean
 bgp_configurator_processor_process_delete_peer (BgpConfiguratorProcessor *,
                                                 gint32,
@@ -4719,7 +4957,7 @@ bgp_configurator_processor_process_multipaths (BgpConfiguratorProcessor *,
                                                GError **);
 
 static bgp_configurator_processor_process_function_def
-bgp_configurator_processor_process_function_defs[21] = {
+bgp_configurator_processor_process_function_defs[22] = {
   {
     (gchar *)"startBgp",
     bgp_configurator_processor_process_start_bgp
@@ -4731,6 +4969,10 @@ bgp_configurator_processor_process_function_defs[21] = {
   {
     (gchar *)"createPeer",
     bgp_configurator_processor_process_create_peer
+  },
+  {
+    (gchar *)"setPeerSecret",
+    bgp_configurator_processor_process_set_peer_secret
   },
   {
     (gchar *)"deletePeer",
@@ -5114,6 +5356,107 @@ bgp_configurator_processor_process_create_peer (BgpConfiguratorProcessor *self,
 }
 
 static gboolean
+bgp_configurator_processor_process_set_peer_secret (BgpConfiguratorProcessor *self,
+                                                    gint32 sequence_id,
+                                                    ThriftProtocol *input_protocol,
+                                                    ThriftProtocol *output_protocol,
+                                                    GError **error)
+{
+  gboolean result = TRUE;
+  ThriftTransport * transport;
+  ThriftApplicationException *xception;
+  BgpConfiguratorSetPeerSecretArgs * args =
+    g_object_new (TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_ARGS, NULL);
+
+  g_object_get (input_protocol, "transport", &transport, NULL);
+
+  if ((thrift_struct_read (THRIFT_STRUCT (args), input_protocol, error) != -1) &&
+      (thrift_protocol_read_message_end (input_protocol, error) != -1) &&
+      (thrift_transport_read_end (transport, error) != FALSE))
+  {
+    gchar * ipAddress;
+    gchar * rfc2385_sharedSecret;
+    gint return_value;
+    BgpConfiguratorSetPeerSecretResult * result_struct;
+
+    g_object_get (args,
+                  "ipAddress", &ipAddress,
+                  "rfc2385_sharedSecret", &rfc2385_sharedSecret,
+                  NULL);
+
+    g_object_unref (transport);
+    g_object_get (output_protocol, "transport", &transport, NULL);
+
+    result_struct = g_object_new (TYPE_BGP_CONFIGURATOR_SET_PEER_SECRET_RESULT, NULL);
+    g_object_get (result_struct, "success", &return_value, NULL);
+
+    if (bgp_configurator_handler_set_peer_secret (BGP_CONFIGURATOR_IF (self->handler),
+                                                  (gint32 *)&return_value,
+                                                  ipAddress,
+                                                  rfc2385_sharedSecret,
+                                                  error) == TRUE)
+    {
+      g_object_set (result_struct, "success", (gint)(gint32)return_value, NULL);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "setPeerSecret",
+                                               T_REPLY,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (result_struct),
+                               output_protocol,
+                               error) != -1));
+    }
+    else
+    {
+      if (*error == NULL)
+        g_warning ("BgpConfigurator.setPeerSecret implementation returned FALSE "
+                   "but did not set an error");
+
+      xception =
+        g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION,
+                      "type",    *error != NULL ? (*error)->code :
+                                 THRIFT_APPLICATION_EXCEPTION_ERROR_UNKNOWN,
+                      "message", *error != NULL ? (*error)->message : NULL,
+                      NULL);
+      g_clear_error (error);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "setPeerSecret",
+                                               T_EXCEPTION,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (xception),
+                               output_protocol,
+                               error) != -1));
+
+      g_object_unref (xception);
+    }
+
+    if (ipAddress != NULL)
+      g_free (ipAddress);
+    if (rfc2385_sharedSecret != NULL)
+      g_free (rfc2385_sharedSecret);
+    g_object_unref (result_struct);
+
+    if (result == TRUE)
+      result =
+        ((thrift_protocol_write_message_end (output_protocol, error) != -1) &&
+         (thrift_transport_write_end (transport, error) != FALSE) &&
+         (thrift_transport_flush (transport, error) != FALSE));
+  }
+  else
+    result = FALSE;
+
+  g_object_unref (transport);
+  g_object_unref (args);
+
+  return result;
+}
+
+static gboolean
 bgp_configurator_processor_process_delete_peer (BgpConfiguratorProcessor *self,
                                                 gint32 sequence_id,
                                                 ThriftProtocol *input_protocol,
@@ -5444,6 +5787,7 @@ bgp_configurator_processor_process_push_route (BgpConfiguratorProcessor *self,
     gint l2label;
     encap_type enc_type;
     gchar * routermac;
+    af_afi afi;
     gint return_value;
     BgpConfiguratorPushRouteResult * result_struct;
 
@@ -5459,6 +5803,7 @@ bgp_configurator_processor_process_push_route (BgpConfiguratorProcessor *self,
                   "l2label", &l2label,
                   "enc_type", &enc_type,
                   "routermac", &routermac,
+                  "afi", &afi,
                   NULL);
 
     g_object_unref (transport);
@@ -5480,6 +5825,7 @@ bgp_configurator_processor_process_push_route (BgpConfiguratorProcessor *self,
                                              l2label,
                                              enc_type,
                                              routermac,
+                                             afi,
                                              error) == TRUE)
     {
       g_object_set (result_struct, "success", (gint)(gint32)return_value, NULL);
@@ -5575,6 +5921,7 @@ bgp_configurator_processor_process_withdraw_route (BgpConfiguratorProcessor *sel
     gint64 ethtag;
     gchar * esi;
     gchar * macaddress;
+    af_afi afi;
     gint return_value;
     BgpConfiguratorWithdrawRouteResult * result_struct;
 
@@ -5585,6 +5932,7 @@ bgp_configurator_processor_process_withdraw_route (BgpConfiguratorProcessor *sel
                   "ethtag", &ethtag,
                   "esi", &esi,
                   "macaddress", &macaddress,
+                  "afi", &afi,
                   NULL);
 
     g_object_unref (transport);
@@ -5601,6 +5949,7 @@ bgp_configurator_processor_process_withdraw_route (BgpConfiguratorProcessor *sel
                                                  ethtag,
                                                  esi,
                                                  macaddress,
+                                                 afi,
                                                  error) == TRUE)
     {
       g_object_set (result_struct, "success", (gint)(gint32)return_value, NULL);
@@ -6568,6 +6917,7 @@ bgp_configurator_processor_process_get_routes (BgpConfiguratorProcessor *self,
     protocol_type p_type;
     gint optype;
     gint winSize;
+    af_afi afi;
     Routes * return_value;
     BgpConfiguratorGetRoutesResult * result_struct;
 
@@ -6575,6 +6925,7 @@ bgp_configurator_processor_process_get_routes (BgpConfiguratorProcessor *self,
                   "p_type", &p_type,
                   "optype", &optype,
                   "winSize", &winSize,
+                  "afi", &afi,
                   NULL);
 
     g_object_unref (transport);
@@ -6588,6 +6939,7 @@ bgp_configurator_processor_process_get_routes (BgpConfiguratorProcessor *self,
                                              p_type,
                                              optype,
                                              winSize,
+                                             afi,
                                              error) == TRUE)
     {
       g_object_set (result_struct, "success", return_value, NULL);
@@ -7052,7 +7404,7 @@ bgp_configurator_processor_init (BgpConfiguratorProcessor *self)
   self->handler = NULL;
   self->process_map = g_hash_table_new (g_str_hash, g_str_equal);
 
-  for (index = 0; index < 21; index += 1)
+  for (index = 0; index < 22; index += 1)
     g_hash_table_insert (self->process_map,
                          bgp_configurator_processor_process_function_defs[index].name,
                          &bgp_configurator_processor_process_function_defs[index]);
