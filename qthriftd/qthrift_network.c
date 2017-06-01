@@ -79,11 +79,12 @@ int
 qthrift_accept (struct thread *thread)
 {
   struct qthrift_listener *listener = THREAD_ARG(thread);
-  struct qthrift_peer *peer;
+  struct qthrift_peer *peer, *peer2;
   GError *error = NULL;
   struct qthrift *qthrift = (struct qthrift *)(listener->qthrift);
   ThriftTransport *transport;
   ThriftSocket *socket;
+  struct listnode *node, *nnode;
 
   /* Register accept thread. */
   if( THREAD_FD (thread) < 0)
@@ -115,6 +116,27 @@ qthrift_accept (struct thread *thread)
                                   transport);
   /* run a thread for reading on accepted socket */
   THREAD_READ_ON (tm->master, peer->t_read, qthrift_read_packet, peer, peer->fd);
+
+  /* close previous thrift connections */
+  for (ALL_LIST_ELEMENTS (qthrift->peer, node, nnode, peer2))
+    {
+      if (peer == peer2)
+        continue;
+
+      THREAD_OFF(peer2->t_read);
+      list_delete_node (qthrift->peer, node);
+      if(peer2->fd)
+        {
+          if (IS_QTHRIFT_DEBUG)
+            zlog_info("qthrift_accept : close connection (fd %d)", peer2->fd);
+          qthrift_vpnservice_terminate_client(peer2->peer);
+          XFREE(MTYPE_QTHRIFT, peer2->peer);
+          peer2->peer = NULL;
+          peer2->fd=0;
+        }
+      XFREE(MTYPE_QTHRIFT, peer2);
+    }
+
   return 0;
 }
 
