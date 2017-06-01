@@ -940,6 +940,7 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
   struct capn_segment *cs;
   int ret;
   gboolean is_auto_discovery = FALSE;
+  char esi_static[]="00:00:00:00:00:00:00:00:00:00";
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -995,7 +996,11 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
     {
       afi = AFI_INTERNAL_L2VPN;
       inst.ethtag = (uint32_t ) ethtag;
-      if( !esi || str2esi (esi, NULL) == 0)
+      if (!esi)
+        {
+          esi = esi_static;
+        }
+      if (str2esi (esi, NULL) == 0)
         {
           *_return = BGP_ERR_PARAM;
           return FALSE;
@@ -1126,6 +1131,7 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
   struct capn_segment *cs;
   int ret;
   gboolean is_auto_discovery = FALSE;
+  char esi_static[]="00:00:00:00:00:00:00:00:00:00";
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -1165,7 +1171,11 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
   if(p_type == PROTOCOL_TYPE_PROTOCOL_EVPN)
     {
       afi = AFI_INTERNAL_L2VPN;
-      if( !esi || str2esi (esi,NULL) == 0)
+      if (!esi)
+        {
+          esi = esi_static;
+        }
+      if (str2esi (esi,NULL) == 0)
         {
           *_return = BGP_ERR_PARAM;
           return FALSE;
