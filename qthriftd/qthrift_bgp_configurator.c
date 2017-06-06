@@ -1007,14 +1007,15 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
         }
       inst.esi = strdup(esi);
 
-      if( !routermac || str2mac (routermac, NULL) == 0)
+      if( routermac && str2mac (routermac, NULL))
         {
-          *_return = BGP_ERR_PARAM;
-          ret = FALSE;
-          goto error;
+          inst.mac_router = strdup(routermac);
+        }
+      else
+        {
+          inst.mac_router = NULL;
         }
 
-      inst.mac_router = strdup(routermac);
 
       if (is_auto_discovery)
         {
@@ -1100,14 +1101,15 @@ error:
         zlog_info ("pushRoute(prefix %s, nexthop %s, rd %s, l3label %d, l2label %d,"
                     " esi %s, ethtag %ld, routermac %s, macaddress %s, enc_type %d) %s",
                     prefix, nexthop, rd, l3label, l2label, esi, ethtag,
-                    routermac, macaddress, enc_type, ret? "OK": "NOK");
+                   routermac?routermac:"<none>", macaddress, enc_type, ret? "OK": "NOK");
       else
         zlog_info ("pushRoute(prefix %s, nexthop %s, rd %s, l3label %d) %s",
                     prefix, nexthop, rd, l3label, ret? "OK": "NOK");
     }
 
   free(inst.esi);
-  free(inst.mac_router);
+  if (inst.mac_router)
+    free(inst.mac_router);
   return ret;
 }
 
