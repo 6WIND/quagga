@@ -45,13 +45,13 @@
 
 static void qthrift_vpnservice_callback (void *arg, void *zmqsock, struct zmq_msg_t *message);
 
-static void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response);
+void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response);
 static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thread);
 static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *thread);
 int qthrift_monitor_retry_job_in_progress;
-static gboolean qthrift_transport_current_status = FALSE;
+gboolean qthrift_transport_current_status = FALSE;
 
-static void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response)
+void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response)
 {
   if(qthrift_monitor_retry_job_in_progress)
     return;
