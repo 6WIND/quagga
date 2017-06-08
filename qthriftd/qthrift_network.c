@@ -226,8 +226,6 @@ void qthrift_server_socket(struct qthrift *qthrift)
   g_type_init ();
 #endif
   qthrift_vpnservice_setup_thrift_bgp_configurator_server(qthrift->qthrift_vpnservice);
-  qthrift_vpnservice_setup_thrift_bgp_updater_client(qthrift->qthrift_vpnservice);
-  /* send notification to listener */
   qthrift_bgp_updater_on_start_config_resync_notification ();
   qthrift->qthrift_vpnservice->bgp_update_total++;
   return;

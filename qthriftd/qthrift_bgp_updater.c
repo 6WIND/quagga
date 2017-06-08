@@ -31,6 +31,8 @@
 #include "qthriftd/qthrift_vpnservice.h"
 #include "qthriftd/qthrift_debug.h"
 
+extern gboolean qthrift_transport_current_status;
+extern void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response);
 /*
  * update push route notification message
  * sent when a vpnv4 route is pushed
@@ -92,15 +94,30 @@ qthrift_bgp_updater_on_start_config_resync_notification (void)
   GError *error = NULL;
   gboolean response;
   struct qthrift_vpnservice *ctxt = NULL;
+  static gboolean client_ready;
 
   qthrift_vpnservice_get_context (&ctxt);
-  if(!ctxt || !ctxt->bgp_updater_client)
+  if(!ctxt)
       return FALSE;
+  if ((!ctxt->bgp_updater_client) || (qthrift_transport_current_status == FALSE))
+    {
+      if(ctxt->bgp_updater_client)
+        qthrift_vpnservice_terminate_thrift_bgp_updater_client(ctxt);
+      /* start the retry mecanism */
+      client_ready = qthrift_vpnservice_setup_thrift_bgp_updater_client(ctxt);
+      qthrift_transport_check_response(ctxt, client_ready);
+      if(client_ready == FALSE)
+        {
+          if(IS_QTHRIFT_DEBUG_NOTIFICATION)
+            zlog_debug ("bgp->sdnc message failed to be sent");
+          zlog_info ("onStartConfigResyncNotification() NOK");
+          ctxt->bgp_update_lost_msgs++;
+          return;
+        }
+    }
   response = bgp_updater_client_on_start_config_resync_notification(ctxt->bgp_updater_client, &error);
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_info ("onStartConfigResyncNotification()");
-  if (response == FALSE)
-    ctxt->bgp_update_thrift_lost_msgs++;
+    zlog_info ("onStartConfigResyncNotification() OK");
   return response;
 }
 
