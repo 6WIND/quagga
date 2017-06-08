@@ -6062,6 +6062,7 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   SET_FLAG (new->flags, BGP_INFO_VALID);
   new->extra = bgp_info_extra_new();
   new->extra->nlabels = bgp_static->nlabels;
+  memcpy (&(bgp_info_extra_get (new)->vrf_rd), &(bgp_static->prd),sizeof(struct prefix_rd));
   memcpy (new->extra->labels, bgp_static->labels,
                   sizeof(*bgp_static->labels) * bgp_static->nlabels);
 
