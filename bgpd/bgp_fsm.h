@@ -78,4 +78,7 @@ extern void bgp_timer_set (struct peer *);
 extern void bgp_fsm_change_status (struct peer *peer, int status);
 extern const char *peer_down_str[];
 
+extern int bgp_update_delay_active (struct peer *peer, afi_t afi, safi_t safi);
+extern void bgp_update_delay_begin (struct peer *peer, afi_t, safi_t safi);
+extern void bgp_update_delay_end (struct peer *peer, afi_t, safi_t safi);
 #endif /* _QUAGGA_BGP_FSM_H */

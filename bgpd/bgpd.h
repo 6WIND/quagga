@@ -211,6 +211,8 @@ struct bgp
   char *notify_zmq_url;
   void *notify_zmq;
 
+#define MAX_EOR_UPDATE_DELAY 3600
+  u_int16_t v_update_delay;
   QZC_NODE
 };
 
@@ -717,6 +719,9 @@ struct peer
 #define PEER_RMAP_TYPE_IMPORT         (1 << 6) /* neighbor route-map import */
 #define PEER_RMAP_TYPE_EXPORT         (1 << 7) /* neighbor route-map export */
 
+  u_int16_t order_send_eor;
+  struct thread *t_update_delay[AFI_MAX][SAFI_MAX];
+
   QZC_NODE
 };
 
@@ -1183,5 +1188,6 @@ extern bool bgp_api_static_get (struct bgp_api_route *out, struct bgp_node *bn);
 
 extern void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf);
 extern void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi, u_int16_t maxpaths);
+extern void bgp_send_eor (struct peer *peer);
 
 #endif /* _QUAGGA_BGPD_H */

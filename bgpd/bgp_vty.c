@@ -860,6 +860,80 @@ bgp_config_write_maxpaths (struct vty *vty, struct bgp *bgp, afi_t afi,
 }
 
 /* BGP timers.  */
+static int bgp_update_delay_config_get (struct bgp *bgp)
+{
+  return bgp->v_update_delay;
+}
+
+static void  bgp_update_delay_config_set (struct bgp *bgp, int update_delay)
+{
+  bgp->v_update_delay = update_delay;
+  return;
+}
+
+/* BGP update delay */
+DEFUN (bgp_update_delay,
+       bgp_update_delay_cmd,
+       "bgp update-delay <0-3600>",
+       "BGP\n"
+       "Force initial delay for updates\n"
+       "Time in seconds\n")
+{
+  struct bgp *bgp;
+   bgp = vty->index;
+   unsigned long update_delay = 0;
+
+  VTY_GET_INTEGER ("update_delay", update_delay, argv[0]);
+  /* Holdtime value check. */
+   if (update_delay > MAX_EOR_UPDATE_DELAY)
+    {
+      vty_out (vty, "%% update delay must be between 0 and less than %d seconds%s",
+	       MAX_EOR_UPDATE_DELAY, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+   bgp_update_delay_config_set (bgp, update_delay);
+   return CMD_SUCCESS;
+}
+
+/* BGP update delay */
+DEFUN (no_bgp_update_delay,
+       no_bgp_update_delay_cmd,
+       "no bgp update-delay",
+       "No\n"
+       "BGP\n"
+       "Force initial delay for updates to 0\n")
+{
+  struct bgp *bgp;
+  bgp = vty->index;
+  bgp_update_delay_config_set (bgp, 0);
+  return CMD_SUCCESS;
+}
+
+/* BGP update delay */
+DEFUN (bgp_vty_send_eor,
+       bgp_vty_send_eor_cmd,
+       "bgp send-eor WORD",
+       "BGP\n"
+       "Send End of RIB\n"
+       NEIGHBOR_ADDR_STR)
+{
+  struct bgp *bgp;
+  struct peer *peer;
+
+  bgp = vty->index;
+  peer = peer_lookup_vty (vty, argv[0]);
+  if (! peer)
+    return CMD_WARNING;
+
+  if (bgp_update_delay_config_get (bgp) == 0)
+    {
+      bgp_update_delay_config_set (bgp, 360);
+      vty_out (vty, "%% forcing update delay to 360 seconds to be able to send EOR%s",
+	       VTY_NEWLINE);
+    }
+  bgp_eor_send (peer);
+  return CMD_SUCCESS;
+}
 
 DEFUN (bgp_timers,
        bgp_timers_cmd,
@@ -12036,6 +12110,10 @@ bgp_vty_init (void)
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_paths_cmd);
   /* Community-list. */
   community_list_vty ();
+
+  install_element (BGP_NODE, &bgp_update_delay_cmd);
+  install_element (BGP_NODE, &no_bgp_update_delay_cmd);
+  install_element (BGP_NODE, &bgp_vty_send_eor_cmd);
 }
 
 /* VTY functions.  */

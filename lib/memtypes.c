@@ -165,6 +165,7 @@ struct memory_list memory_list_bgp[] =
   { MTYPE_BGP_ESI,		"BGP ESI",			},
   { MTYPE_BGP_MAC,		"BGP MAC",			},
   { MTYPE_BGP_EVPN_AD,		"BGP EVPN AD",			},
+  { MTYPE_BGP_ENDOFRIB_CTXT,	"BGP EOR CTXT",			},
   { -1, NULL }
 };
 

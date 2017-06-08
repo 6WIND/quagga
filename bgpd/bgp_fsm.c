@@ -1177,3 +1177,34 @@ bgp_event (struct thread *thread)
   
   return ret;
 }
+
+
+int bgp_update_delay_active (struct peer *peer, afi_t afi, safi_t safi)
+{
+  if(peer->t_update_delay[afi][safi])
+    return 1;
+  return 0;
+}
+
+void bgp_update_delay_begin (struct peer *peer, afi_t afi, safi_t safi)
+{
+  struct bgp *bgp = peer->bgp;
+  struct bgp_eor *eor = XCALLOC(MTYPE_BGP_ENDOFRIB_CTXT, sizeof(struct bgp_eor));
+  eor->peer = peer;
+  eor->afi = afi;
+  eor->safi = safi;
+  peer->t_update_delay[afi][safi] = thread_add_timer(bm->master, bgp_eor_send_afi_safi, eor,
+                                                     bgp->v_update_delay);
+
+}
+
+
+void bgp_update_delay_end (struct peer *peer, afi_t afi, safi_t safi)
+{
+  if (!peer)
+    return;
+  if (!peer->t_update_delay[afi][safi])
+    return;
+  THREAD_OFF(peer->t_update_delay[afi][safi]);
+  peer->t_update_delay[afi][safi] = NULL;
+}

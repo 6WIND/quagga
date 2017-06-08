@@ -70,4 +70,15 @@ extern void bgp_auto_discovery_update_send(struct peer *peer, struct prefix_rd *
 extern void bgp_auto_discovery_withdraw_send (struct peer *peer, struct prefix_rd *rd,
                                               struct attr *attr, u_int32_t ethtag,
                                               uint32_t label);
+
+struct bgp_eor {
+  struct peer *peer;
+  afi_t afi;
+  safi_t safi;
+};
+
+extern int bgp_eor_send_afi_safi (struct thread *t);
+
+extern void bgp_eor_send (struct peer *peer);
+
 #endif /* _QUAGGA_BGP_PACKET_H */
