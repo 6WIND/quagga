@@ -208,6 +208,10 @@ struct bgp
   char *logFile;
   char *logLevel;
 
+#define MAX_EOR_UPDATE_DELAY 3600
+  u_int16_t v_update_delay;
+  bool eor_request;
+
   QZC_NODE
 };
 
@@ -672,6 +676,8 @@ struct peer
 #define PEER_RMAP_TYPE_IMPORT         (1 << 6) /* neighbor route-map import */
 #define PEER_RMAP_TYPE_EXPORT         (1 << 7) /* neighbor route-map export */
 
+  u_int16_t order_send_eor;
+  struct thread *t_update_delay[AFI_MAX][SAFI_MAX];
 
   QZC_NODE
 };
@@ -1125,5 +1131,6 @@ extern void bgp_vrf_clean_tables (struct bgp_vrf *vrf);
 
 extern void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf);
 extern void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, u_int16_t maxpaths);
+extern void bgp_send_eor (struct peer *peer);
 
 #endif /* _QUAGGA_BGPD_H */

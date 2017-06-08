@@ -783,18 +783,29 @@ bgp_write_packet (struct peer *peer)
 	    if (s)
 	      return s;
 	  }
-
+        
 	if (CHECK_FLAG (peer->cap, PEER_CAP_RESTART_RCV))
 	  {
 	    if (peer->afc_nego[afi][safi] && peer->synctime
 		&& ! CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND))
 	      {
-		SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND);
-		return bgp_update_packet_eor (peer, afi, safi);
-	      }
-	  }
+		if (peer->bgp->v_update_delay == 0
+                    || peer->bgp->eor_request == true)
+                  {
+                    if (peer->bgp->eor_request == true)
+                      {
+                        if (bgp_update_delay_active (peer, afi, safi))
+                          bgp_update_delay_end(peer, afi, safi);
+                      }
+                    SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND);
+                    return bgp_update_packet_eor (peer, afi, safi);
+                  }
+                /* do not send eor if job already in progress */
+                if (!bgp_update_delay_active (peer, afi, safi))
+                  bgp_update_delay_begin (peer, afi, safi);
+              }
+          }
       }
-
   return NULL;
 }
 
@@ -982,6 +993,125 @@ bgp_write_notify (struct peer *peer)
   BGP_EVENT_ADD (peer, BGP_Stop);
 
   return 0;
+}
+ 
+int bgp_eor_send_afi_safi (struct thread *t)
+{
+  struct bgp_eor *ctxt = THREAD_ARG(t);
+  struct stream *s;
+  int length;
+  struct peer *peer;
+  afi_t afi;
+  safi_t safi;
+  
+  if (!ctxt)
+    return 0;
+  peer = ctxt->peer;
+  afi = ctxt->afi;
+  safi = ctxt->safi;
+  XFREE (MTYPE_ENDOFRIB_CTXT, ctxt);
+  if (peer->afc_nego[afi][safi] && peer->synctime &&
+      CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND))
+    return 0;
+
+  SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND);
+
+  s = stream_new (BGP_MAX_PACKET_SIZE);
+
+  /* Make keepalive packet. */
+  bgp_packet_set_marker (s, BGP_MSG_UPDATE);
+
+  /* Set packet size. */
+  length = bgp_packet_set_size (s);
+
+  /* Dump packet if debug option is set. */
+  /* bgp_packet_dump (s); */
+ 
+  if (BGP_DEBUG (normal, NORMAL))
+    zlog_debug ("send End-of-RIB for %s to %s", afi_safi_print (afi, safi), peer->host);
+  if (CHECK_FLAG (peer->cap, PEER_CAP_RESTART_RCV))
+    {
+      /* Unfeasible Routes Length */
+      stream_putw (s, 0);
+      if (afi == AFI_IP && safi == SAFI_UNICAST)
+        {
+          /* Total Path Attribute Length */
+          stream_putw (s, 0);
+        }
+      else
+        {
+          /* Total Path Attribute Length */
+          stream_putw (s, 6);
+          stream_putc (s, BGP_ATTR_FLAG_OPTIONAL);
+          stream_putc (s, BGP_ATTR_MP_UNREACH_NLRI);
+          stream_putc (s, 3);
+          stream_putw (s, afi);
+          stream_putc (s, (safi == SAFI_MPLS_VPN) ? SAFI_MPLS_LABELED_VPN : safi);
+        }
+    }
+  bgp_packet_set_size (s);
+  bgp_packet_add (peer, s);
+  BGP_WRITE_ON (peer->t_write, bgp_write, peer->fd);
+  return 0;
+}
+
+void bgp_eor_send (struct peer *peer)
+{
+  struct stream *s;
+  int length;
+  afi_t afi;
+  safi_t safi;
+
+  s = stream_new (BGP_MAX_PACKET_SIZE);
+
+  /* Make keepalive packet. */
+  bgp_packet_set_marker (s, BGP_MSG_UPDATE);
+
+  /* Set packet size. */
+  length = bgp_packet_set_size (s);
+
+  /* Dump packet if debug option is set. */
+  /* bgp_packet_dump (s); */
+ 
+  for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
+      {
+        if (peer->afc_nego[afi][safi] == 0)
+          continue;
+
+        if (peer->synctime &&
+            CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND))
+          continue;
+
+        SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND);
+
+        if (BGP_DEBUG (normal, NORMAL))
+          zlog_debug ("send End-of-RIB for %s to %s", afi_safi_print (afi, safi), peer->host);
+	if (CHECK_FLAG (peer->cap, PEER_CAP_RESTART_RCV))
+	  {
+            /* Unfeasible Routes Length */
+            stream_putw (s, 0);
+            if (afi == AFI_IP && safi == SAFI_UNICAST)
+              {
+                /* Total Path Attribute Length */
+                stream_putw (s, 0);
+              }
+            else
+              {
+                /* Total Path Attribute Length */
+                stream_putw (s, 6);
+                stream_putc (s, BGP_ATTR_FLAG_OPTIONAL);
+                stream_putc (s, BGP_ATTR_MP_UNREACH_NLRI);
+                stream_putc (s, 3);
+                stream_putw (s, afi);
+                stream_putc (s, (safi == SAFI_MPLS_VPN) ? SAFI_MPLS_LABELED_VPN : safi);
+              }
+          }
+      }
+  bgp_packet_set_size (s);
+  bgp_packet_add (peer, s);
+  BGP_WRITE_ON (peer->t_write, bgp_write, peer->fd);
+  return ;
 }
 
 /* Make keepalive packet and send it to the peer. */

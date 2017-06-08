@@ -61,4 +61,14 @@ extern void bgp_default_update_vpnv4_send (struct peer *peer, struct prefix_rd *
 
 extern int bgp_nlri_parse (struct peer *, struct attr *, struct bgp_nlri *);
 
+struct bgp_eor {
+  struct peer *peer;
+  afi_t afi;
+  safi_t safi;
+};
+
+extern int bgp_eor_send_afi_safi (struct thread *t);
+
+extern void bgp_eor_send (struct peer *peer);
+
 #endif /* _QUAGGA_BGP_PACKET_H */

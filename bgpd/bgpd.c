@@ -6054,6 +6054,9 @@ bgp_config_write (struct vty *vty)
 	vty_out (vty, " timers bgp %d %d%s", bgp->default_keepalive, 
 		 bgp->default_holdtime, VTY_NEWLINE);
 
+      /* BGP update delay */
+      if (bgp->v_update_delay)
+        vty_out (vty, " bgp update-delay %u%s", bgp->v_update_delay, VTY_NEWLINE);
       /* peer-group */
       for (ALL_LIST_ELEMENTS (bgp->group, node, nnode, group))
 	{
@@ -6196,6 +6199,28 @@ bgp_init (void)
 #ifdef HAVE_SNMP
   bgp_snmp_init ();
 #endif /* HAVE_SNMP */
+}
+
+void bgp_send_eor (struct peer *peer)
+{
+  afi_t afi;
+  safi_t safi;
+
+  /* emission in progress */
+  if (peer->order_send_eor)
+    return;
+  peer->order_send_eor = 1;
+  /* cancel threads */
+  for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
+      {
+        if (bgp_update_delay_active (peer, afi, safi))
+          bgp_update_delay_end (peer, afi, safi);
+      }
+  /* send EOR */
+  bgp_eor_send (peer);
+
+  peer->order_send_eor = 0;
 }
 
 void
