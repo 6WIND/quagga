@@ -5488,16 +5488,20 @@ bgp_static_delete (struct bgp *bgp)
 
 		for (rm = bgp_table_top (table); rm; rm = bgp_route_next (rm))
 		  {
-		    bgp_static = rn->info;
+		    bgp_static = rm->info;
+		    if (!bgp_static)
+		      continue;
 		    bgp_static_withdraw_safi (bgp, &rm->p,
 					       AFI_IP, safi,
 					       (struct prefix_rd *)&rn->p,
 					       bgp_static->labels,
                                                bgp_static->nlabels);
 		    bgp_static_free (bgp_static);
-		    rn->info = NULL;
-		    bgp_unlock_node (rn);
+		    rm->info = NULL;
+		    bgp_unlock_node (rm);
 		  }
+		rn->info = NULL;
+		bgp_unlock_node (rn);
 	      }
 	    else
 	      {
