@@ -1,0 +1,141 @@
+#! /bin/sh
+# Copyright (c) 2016 6WIND,
+# This file is part of ZRPC daemon.
+# See the LICENSE file.
+
+### BEGIN INIT INFO
+# Provides:		qthriftd
+# Required-Start:	$remote_fs
+# Required-Stop:	$remote_fs
+# Default-Start:	2 3 4 5
+# Default-Stop:
+# Short-Description:	Zebra RPC Daemon for QUAGGA Framework
+### END INIT INFO
+
+set -e
+
+# /opt/quagga/etc/init.d/qthriftd: start and stop the quagga-thrift daemon
+
+PREFIX=/opt/quagga
+
+BIN=$PREFIX/sbin/qthriftd
+test -x $BIN || exit 0
+BASENAME=$(basename $BIN)
+
+PIDFILE=${PREFIX}/var/run/quagga/${BASENAME}.init.pid
+LOGFILE=${PREFIX}/var/log/quagga/${BASENAME}.init.log
+
+umask 022
+
+. /lib/lsb/init-functions
+
+check_privsep_dir() {
+	# Create the PrivSep empty dir if necessary
+	if [ ! -d $PREFIX/var/run/quagga ]; then
+		mkdir $PREFIX/var/run/quagga/
+		chmod 0755 $PREFIX/var/run/quagga/
+		chown -R quagga:quagga $PREFIX/var/run/quagga/
+	fi
+	if [ ! -d $PREFIX/var/log/quagga ]; then
+		mkdir $PREFIX/var/log/quagga/
+		chmod 0755 $PREFIX/var/log/quagga/
+		chown -R quagga:quagga $PREFIX/var/log/quagga/
+	fi
+}
+
+log_rotate () {
+	local tarname
+
+	# If logfile is greater than 100Mo
+	if [ -r $LOGFILE ] && [ "$(stat --printf='%s' $LOGFILE)" -gt "$((100*1024*1024))" ]; then
+		tarname=$tarname"${LOGFILE}."
+		tarname=$tarname"$(stat -c %y $LOGFILE|sed 's/\([ :]\)/-/g' | sed 's:\..*::' | sed 's:-::g')"
+		tarname=$tarname".tgz"
+		tar cPzf $tarname $LOGFILE
+		rm -f $LOGFILE
+	fi
+}
+
+start () {
+        local rc;
+        local ret;
+        local nb;
+        log_rotate
+
+        $BIN >> $LOGFILE 2>&1 &
+        ret=$!
+        sleep 1
+        if [ ! -z "$ret" ]; then
+                nb=$(ps -ax | grep $ret | grep qthriftd | wc -l)
+                if [ "$nb" -eq "1" ]; then
+                    echo $ret > $PIDFILE
+                    rc=0
+                else
+                    rc=1
+                fi
+        else
+                rc=1
+        fi
+        return $rc
+}
+
+stop () {
+	local rc
+
+	start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE "$@"
+
+	rc=$?
+	[ -e $PIDFILE ] && rm $PIDFILE || true
+
+	return $rc
+}
+
+case "$1" in
+start)
+	check_privsep_dir
+	log_daemon_msg "Starting Zebra RPC Daemon for Quagga Framework " "$BASENAME" || true
+	if start; then
+		log_end_msg 0 || true
+	else
+		log_end_msg 1 || true
+	fi
+	;;
+stop)
+	log_daemon_msg "Stopping  Zebra RPC Daemon for Quagga Framework " "$BASENAME" || true
+	if stop --retry=TERM/5; then
+		log_end_msg 0 || true
+	else
+		log_end_msg 1 || true
+	fi
+	;;
+
+force-stop)
+	log_daemon_msg "Stopping  Zebra RPC Daemon for Quagga Framework " "$BASENAME" || true
+	if stop --retry=KILL/1; then
+		log_end_msg 0 || true
+	else
+		log_end_msg 1 || true
+	fi
+	;;
+
+restart)
+	check_privsep_dir
+	log_daemon_msg "Restarting  Zebra RPC Daemon for Quagga Framework " "$BASENAME" || true
+	stop --retry=TERM/5/KILL/5
+	if start; then
+		log_end_msg 0 || true
+	else
+		log_end_msg 1 || true
+	fi
+	;;
+
+status)
+	status_of_proc -p $PIDFILE $BIN $BASENAME && exit 0 || exit $?
+	;;
+
+*)
+	log_action_msg "Usage: $0 {start|stop|force-stop|restart|status}" || true
+	exit 1
+esac
+
+exit 0
