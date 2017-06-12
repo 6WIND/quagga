@@ -69,7 +69,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
   uint8_t route_type, route_length;
   uint32_t labels[BGP_MAX_LABELS];
   size_t nlabels;
-
+  int route_current_length_remain;
   /* Check peer status. */
   if (peer->status != Established)
     return 0;
@@ -107,18 +107,17 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
 	  pnt += route_length;
 	  continue;
 	}
-
+      route_current_length_remain = route_length;
       /* Fetch RD */
       if (pnt + 8 > lim)
         {
           zlog_err ("not enough bytes for RD left in NLRI?");
           return -1;
         }
-
       /* Copy routing distinguisher to rd. */
       memcpy (&prd.val, pnt, 8);
       pnt += 8;
-
+      route_current_length_remain-=8;
       /* Fetch ESI */
       if (pnt + 10 > lim)
         {
@@ -127,7 +126,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
         }
       memcpy(&evpn.eth_s_id.val, pnt, 10);
       pnt += 10;
-
+      route_current_length_remain-=10;
       /* Fetch Ethernet Tag */
       if (pnt + 4 > lim)
         {
@@ -142,6 +141,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           memcpy(&p.u.prefix_macip.eth_tag_id, pnt, 4);
           p.u.prefix_macip.eth_tag_id = ntohl(p.u.prefix_macip.eth_tag_id);
           pnt += 4;
+          route_current_length_remain-=4;
         }
       if (route_type == EVPN_MACIP_ADVERTISEMENT)
         {
@@ -158,6 +158,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           /* MAC address */
           memcpy(&p.u.prefix_macip.mac, pnt, ETHER_ADDR_LEN);
           pnt += ETHER_ADDR_LEN;
+          route_current_length_remain-=(ETHER_ADDR_LEN+1);
 
           /* IP Address lenght in bits */
           p.u.prefix_macip.ip_len = *pnt++;
@@ -167,6 +168,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
               memcpy (&p.u.prefix_macip.ip.in4, pnt, 4);
               pnt += 4;
               p.prefixlen = L2VPN_MAX_PREFIXLEN - IPV6_MAX_PREFIXLEN + IPV4_MAX_PREFIXLEN;
+              route_current_length_remain-=5;
             }
           else if (p.u.prefix_macip.ip_len == IPV6_MAX_PREFIXLEN)
             {
@@ -174,9 +176,13 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
               memcpy (&p.u.prefix_macip.ip.in6, pnt, 16);
               pnt += 16;
               p.prefixlen = L2VPN_MAX_PREFIXLEN;
+              route_current_length_remain-=17;
             }
           else if (p.u.prefix_macip.ip_len == 0)
-            p.prefixlen = L2VPN_MAX_PREFIXLEN - IPV6_MAX_PREFIXLEN + IPV4_MAX_PREFIXLEN;
+            {
+              p.prefixlen = L2VPN_MAX_PREFIXLEN - IPV6_MAX_PREFIXLEN + IPV4_MAX_PREFIXLEN;
+              route_current_length_remain-=1;
+            }
           else
             {
               zlog_err ("invalid IP length %d in RT2 NLRI, should be 0, 32 or 128",
@@ -189,6 +195,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           memcpy(&evpn.eth_t_id, pnt, 4);
           evpn.eth_t_id = ntohl(evpn.eth_t_id);
           pnt += 4;
+          route_current_length_remain-=4;
 
            /* Fetch prefix length. */
           p.prefixlen = *pnt++;
@@ -206,6 +213,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
               pnt += 16;
               memcpy(&evpn.gw_ip.ipv6, pnt, 16);
               pnt += 16;
+              route_current_length_remain-=33;
             }
           else
             {
@@ -214,6 +222,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
               pnt += 4;
               memcpy(&evpn.gw_ip.ipv4, pnt, 4);
               pnt += 4;
+              route_current_length_remain-=9;
             }
         }
 
@@ -227,8 +236,9 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
       nlabels = 1;
 
       pnt += 3;
+      route_current_length_remain-=3;
 
-      if (route_type == EVPN_MACIP_ADVERTISEMENT)
+      if (route_current_length_remain != 0 && route_type == EVPN_MACIP_ADVERTISEMENT)
         {
           if (pnt + 3 > lim)
             {
@@ -237,9 +247,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
             }
           labels[1] = (pnt[0] << 16) + (pnt[1] << 8) + pnt[2];
           nlabels = 2;
-
           pnt += 3;
-
           if((pnt - route_length != pnt2))
             {
               plog_err (peer->log,
