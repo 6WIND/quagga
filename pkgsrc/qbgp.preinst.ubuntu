@@ -1,0 +1,44 @@
+#!/bin/bash
+
+if [ -n "$DEBIAN_SCRIPT_DEBUG" ]; then set -v -x; DEBIAN_SCRIPT_TRACE=1; fi
+${DEBIAN_SCRIPT_TRACE:+ echo "#42#DEBUG# RUNNING $0 $*"}
+set -e
+set -u
+
+PREFIX=/opt/quagga
+
+# creating quagga group if it isn't already there
+if ! getent group quagga >/dev/null; then
+        addgroup --system quagga >/dev/null
+fi
+
+# creating quagga user if he isn't already there
+if ! getent passwd quagga >/dev/null; then
+        adduser \
+          --system \
+          --ingroup quagga \
+          --home $PREFIX/var/run/quagga \
+          --gecos "Quagga-BGP routing suite" \
+          --shell /bin/false \
+          quagga  >/dev/null
+fi
+
+# Do not change permissions when upgrading as it would violate policy.
+if [ "$1" = "install" ]; then
+  # Logfiles are group readable in case users were put into the quagga group.
+  d=$PREFIX/var/log/quagga/
+    mkdir -p $d
+    touch $PREFIX/var/log/quagga/qthriftd.init.log
+    chown -R quagga:quagga $d
+    chmod u=rwx,go=rx $d
+    find $d -type f -print0 | xargs -0 --no-run-if-empty   chmod u=rw,g=r,o=
+
+  # Strict permissions for the sockets.
+  d=$PREFIX/var/run/quagga/
+    mkdir -p $d
+    chown -R quagga:quagga $d
+    chmod u=rwx,go=rx $d
+    find $d -type f -print0 | xargs -0 --no-run-if-empty   chmod u=rw,go=
+fi
+
+#DEBHELPER#
