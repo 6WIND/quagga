@@ -113,6 +113,12 @@ instance_bgp_configurator_handler_disable_multipath(BgpConfiguratorIf *iface, gi
 gboolean
 instance_bgp_configurator_handler_multipaths(BgpConfiguratorIf *iface, gint32* _return,
                                              const gchar * rd, const gint32 maxPath, GError **error);
+
+gboolean
+instance_bgp_configurator_enable_eor_delay(BgpConfiguratorIf *iface, gint32* _return,
+                                           const gint32 delay, GError **error);
+gboolean
+instance_bgp_configurator_send_eor(BgpConfiguratorIf *iface, gint32* _return, GError **error);
 static void instance_bgp_configurator_handler_finalize(GObject *object);
 
 /*
@@ -180,6 +186,7 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
 #define ERROR_BGP_NO_ROUTES_FOUND g_error_new(1, 6, "BGP GetRoutes: no routes");
 #define ERROR_BGP_INVALID_MAXPATH g_error_new(1, BGP_ERR_PARAM, "BGP maxpaths: out of range value 0 < %d < 8", maxPath);
 #define ERROR_BGP_INTERNAL g_error_new(1, BGP_ERR_FAILED, "Error reported by BGP, check log file");
+#define ERROR_BGP_INVALID_UPDATE_DELAY g_error_new(1, BGP_ERR_PARAM, "BGP EOR update delay: out of range value 0 <= %d <= %d", delay, MAX_EOR_UPDATE_DELAY);
 #define BGP_ERR_INTERNAL 110
 
 /*
@@ -766,7 +773,27 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     struct capn_ptr bgp;
     struct capn rc;
     struct capn_segment *cs;
+    struct QZCGetRep *grep;
 
+    /* get bgp_master configuration */
+    grep = qzcclient_getelem (ctxt->qzc_sock, &bgp_inst_nid, 1, NULL, NULL, NULL, NULL);
+    if(grep == NULL)
+      {
+        *_return = BGP_ERR_FAILED;
+        return FALSE;
+      }
+    memset(&inst, 0, sizeof(struct bgp));
+    qcapn_BGP_read(&inst, grep->data);
+    qzcclient_qzcgetrep_free( grep);
+
+    if (inst.notify_zmq_url)
+      free (inst.notify_zmq_url);
+    if (inst.logFile)
+      free (inst.logFile);
+    if (inst.logLevel)
+      free (inst.logLevel);
+
+    /* set new configuration */
     inst.as = (as_t)asNumber;
     if(routerId)
       inet_aton (routerId, &inst.router_id_static);
@@ -2178,6 +2205,119 @@ instance_bgp_configurator_handler_multipaths(BgpConfiguratorIf *iface, gint32* _
   return TRUE;
 }
 
+/*
+ * Enable eor and configure the update delay time.
+ */
+gboolean
+instance_bgp_configurator_enable_eor_delay(BgpConfiguratorIf *iface, gint32* _return,
+                                           const gint32 delay, GError **error)
+{
+  struct qthrift_vpnservice *ctxt = NULL;
+  struct capn_ptr bgp;
+  struct capn rc;
+  struct capn_segment *cs;
+  struct bgp inst;
+   struct QZCGetRep *grep;
+  int ret;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+  {
+    *_return = BGP_ERR_FAILED;
+    return FALSE;
+  }
+
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+
+  /* get bgp_master configuration */
+  grep = qzcclient_getelem (ctxt->qzc_sock, &bgp_inst_nid, 1, NULL, NULL, NULL, NULL);
+  if(grep == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+
+  if (delay < 0 || delay > MAX_EOR_UPDATE_DELAY)
+    {
+      *_return = BGP_ERR_PARAM;
+      *error = ERROR_BGP_INVALID_UPDATE_DELAY;
+      return FALSE;
+    }
+
+  memset(&inst, 0, sizeof(struct bgp));
+  qcapn_BGP_read(&inst, grep->data);
+  qzcclient_qzcgetrep_free( grep);
+
+  if (inst.v_update_delay == delay)
+    return TRUE;
+
+  /* update bgp configuration with graceful status */
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  bgp = qcapn_new_BGP(cs);
+  inst.v_update_delay = delay;
+  qcapn_BGP_write(&inst, bgp);
+  qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 1,            \
+                     &bgp, &bgp_datatype_bgp, NULL, NULL);
+  capn_free(&rc);
+  if (inst.notify_zmq_url)
+    free (inst.notify_zmq_url);
+  if (inst.logFile)
+    free (inst.logFile);
+  if (inst.logLevel)
+    free (inst.logLevel);
+  
+  if(IS_QTHRIFT_DEBUG)
+      zlog_info ("enableEORDelay (%d) OK", delay);
+  return TRUE;
+}
+
+/* Send EoR message */
+gboolean
+instance_bgp_configurator_send_eor(BgpConfiguratorIf *iface, gint32* _return, GError **error)
+{
+  struct qthrift_vpnservice *ctxt = NULL;
+   struct QZCGetRep *grep;
+  int ret;
+
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+  {
+    *_return = BGP_ERR_FAILED;
+    return FALSE;
+  }
+
+  if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_AS_NOT_STARTED;
+      return FALSE;
+    }
+
+  /* get bgp_master configuration */
+  grep = qzcclient_getelem (ctxt->qzc_sock, &bgp_inst_nid, 1, NULL, NULL, NULL, NULL);
+  if(grep == NULL)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+
+  /* notify bgp to send EOR */
+  qzcclient_setelem (ctxt->qzc_sock, &bgp_inst_nid, 3,            \
+                     &grep->data, &bgp_datatype_bgp, NULL, NULL);
+  qzcclient_qzcgetrep_free( grep);
+
+  if (IS_QTHRIFT_DEBUG)
+    zlog_info ("send EOR() OK");
+
+  return TRUE;
+}
+
 static void
   instance_bgp_configurator_handler_finalize(GObject *object)
 {
@@ -2257,6 +2397,12 @@ instance_bgp_configurator_handler_class_init (InstanceBgpConfiguratorHandlerClas
 
  bgp_configurator_handler_class->multipaths =
    instance_bgp_configurator_handler_multipaths;
+
+ bgp_configurator_handler_class->enable_e_o_r_delay =
+   instance_bgp_configurator_enable_eor_delay;
+
+ bgp_configurator_handler_class->send_e_o_r =
+   instance_bgp_configurator_send_eor;
 }
 
 /* InstanceBgpConfiguratorHandler's instance initializer (constructor) */

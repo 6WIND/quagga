@@ -1210,6 +1210,104 @@ GType bgp_configurator_multipaths_result_get_type (void);
 #define IS_BGP_CONFIGURATOR_MULTIPATHS_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_MULTIPATHS_RESULT))
 #define BGP_CONFIGURATOR_MULTIPATHS_RESULT_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_MULTIPATHS_RESULT, BgpConfiguratorMultipathsResultClass))
 
+/* struct BgpConfiguratorEnableEORDelayArgs */
+struct _BgpConfiguratorEnableEORDelayArgs
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+  gint32 delay;
+  gboolean __isset_delay;
+};
+typedef struct _BgpConfiguratorEnableEORDelayArgs BgpConfiguratorEnableEORDelayArgs;
+
+struct _BgpConfiguratorEnableEORDelayArgsClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorEnableEORDelayArgsClass BgpConfiguratorEnableEORDelayArgsClass;
+
+GType bgp_configurator_enable_e_o_r_delay_args_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS (bgp_configurator_enable_e_o_r_delay_args_get_type())
+#define BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS, BgpConfiguratorEnableEORDelayArgs))
+#define BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS, BgpConfiguratorEnableEORDelayArgsClass))
+#define IS_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS))
+#define IS_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS))
+#define BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS, BgpConfiguratorEnableEORDelayArgsClass))
+
+/* struct BgpConfiguratorEnableEORDelayResult */
+struct _BgpConfiguratorEnableEORDelayResult
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+  gint32 success;
+  gboolean __isset_success;
+};
+typedef struct _BgpConfiguratorEnableEORDelayResult BgpConfiguratorEnableEORDelayResult;
+
+struct _BgpConfiguratorEnableEORDelayResultClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorEnableEORDelayResultClass BgpConfiguratorEnableEORDelayResultClass;
+
+GType bgp_configurator_enable_e_o_r_delay_result_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT (bgp_configurator_enable_e_o_r_delay_result_get_type())
+#define BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT, BgpConfiguratorEnableEORDelayResult))
+#define BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT, BgpConfiguratorEnableEORDelayResultClass))
+#define IS_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT))
+#define IS_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT))
+#define BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT, BgpConfiguratorEnableEORDelayResultClass))
+
+/* struct BgpConfiguratorSendEORArgs */
+struct _BgpConfiguratorSendEORArgs
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+};
+typedef struct _BgpConfiguratorSendEORArgs BgpConfiguratorSendEORArgs;
+
+struct _BgpConfiguratorSendEORArgsClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorSendEORArgsClass BgpConfiguratorSendEORArgsClass;
+
+GType bgp_configurator_send_e_o_r_args_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_SEND_E_O_R_ARGS (bgp_configurator_send_e_o_r_args_get_type())
+#define BGP_CONFIGURATOR_SEND_E_O_R_ARGS(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_SEND_E_O_R_ARGS, BgpConfiguratorSendEORArgs))
+#define BGP_CONFIGURATOR_SEND_E_O_R_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_SEND_E_O_R_ARGS, BgpConfiguratorSendEORArgsClass))
+#define IS_BGP_CONFIGURATOR_SEND_E_O_R_ARGS(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_SEND_E_O_R_ARGS))
+#define IS_BGP_CONFIGURATOR_SEND_E_O_R_ARGS_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_SEND_E_O_R_ARGS))
+#define BGP_CONFIGURATOR_SEND_E_O_R_ARGS_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_SEND_E_O_R_ARGS, BgpConfiguratorSendEORArgsClass))
+
+/* struct BgpConfiguratorSendEORResult */
+struct _BgpConfiguratorSendEORResult
+{ 
+  ThriftStruct parent; 
+
+  /* public */
+  gint32 success;
+  gboolean __isset_success;
+};
+typedef struct _BgpConfiguratorSendEORResult BgpConfiguratorSendEORResult;
+
+struct _BgpConfiguratorSendEORResultClass
+{
+  ThriftStructClass parent;
+};
+typedef struct _BgpConfiguratorSendEORResultClass BgpConfiguratorSendEORResultClass;
+
+GType bgp_configurator_send_e_o_r_result_get_type (void);
+#define TYPE_BGP_CONFIGURATOR_SEND_E_O_R_RESULT (bgp_configurator_send_e_o_r_result_get_type())
+#define BGP_CONFIGURATOR_SEND_E_O_R_RESULT(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_BGP_CONFIGURATOR_SEND_E_O_R_RESULT, BgpConfiguratorSendEORResult))
+#define BGP_CONFIGURATOR_SEND_E_O_R_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_CAST ((c), _TYPE_BGP_CONFIGURATOR_SEND_E_O_R_RESULT, BgpConfiguratorSendEORResultClass))
+#define IS_BGP_CONFIGURATOR_SEND_E_O_R_RESULT(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_BGP_CONFIGURATOR_SEND_E_O_R_RESULT))
+#define IS_BGP_CONFIGURATOR_SEND_E_O_R_RESULT_CLASS(c) (G_TYPE_CHECK_CLASS_TYPE ((c), TYPE_BGP_CONFIGURATOR_SEND_E_O_R_RESULT))
+#define BGP_CONFIGURATOR_SEND_E_O_R_RESULT_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_BGP_CONFIGURATOR_SEND_E_O_R_RESULT, BgpConfiguratorSendEORResultClass))
+
 /* struct BgpUpdaterOnUpdatePushRouteArgs */
 struct _BgpUpdaterOnUpdatePushRouteArgs
 { 

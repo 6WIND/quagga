@@ -135,6 +135,18 @@ bgp_configurator_if_multipaths (BgpConfiguratorIf *iface, gint32* _return, const
   return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->multipaths (iface, _return, rd, maxPath, error);
 }
 
+gboolean
+bgp_configurator_if_enable_e_o_r_delay (BgpConfiguratorIf *iface, gint32* _return, const gint32 delay, GError **error)
+{
+  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->enable_e_o_r_delay (iface, _return, delay, error);
+}
+
+gboolean
+bgp_configurator_if_send_e_o_r (BgpConfiguratorIf *iface, gint32* _return, GError **error)
+{
+  return BGP_CONFIGURATOR_IF_GET_INTERFACE (iface)->send_e_o_r (iface, _return, error);
+}
+
 GType
 bgp_configurator_if_get_type (void)
 {
@@ -4166,6 +4178,348 @@ gboolean bgp_configurator_client_multipaths (BgpConfiguratorIf * iface, gint32* 
   return TRUE;
 }
 
+gboolean bgp_configurator_client_send_enable_e_o_r_delay (BgpConfiguratorIf * iface, const gint32 delay, GError ** error)
+{
+  gint32 cseqid = 0;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
+
+  if (thrift_protocol_write_message_begin (protocol, "enableEORDelay", T_CALL, cseqid, error) < 0)
+    return FALSE;
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+
+    
+    if ((ret = thrift_protocol_write_struct_begin (protocol, "enableEORDelay_args", error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_begin (protocol, "delay", T_I32, 1, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_i32 (protocol, delay, error)) < 0)
+      return 0;
+    xfer += ret;
+
+    if ((ret = thrift_protocol_write_field_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_write_message_end (protocol, error) < 0)
+    return FALSE;
+  if (!thrift_transport_flush (protocol->transport, error))
+    return FALSE;
+  if (!thrift_transport_write_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_recv_enable_e_o_r_delay (BgpConfiguratorIf * iface, gint32* _return, GError ** error)
+{
+  gint32 rseqid;
+  gchar * fname = NULL;
+  ThriftMessageType mtype;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->input_protocol;
+  ThriftApplicationException *xception;
+
+  if (thrift_protocol_read_message_begin (protocol, &fname, &mtype, &rseqid, error) < 0) {
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+
+  if (mtype == T_EXCEPTION) {
+    if (fname) g_free (fname);
+    xception = g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION, NULL);
+    thrift_struct_read (THRIFT_STRUCT (xception), protocol, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR,xception->type, "application error: %s", xception->message);
+    g_object_unref (xception);
+    return FALSE;
+  } else if (mtype != T_REPLY) {
+    if (fname) g_free (fname);
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_INVALID_MESSAGE_TYPE, "invalid message type %d, expected T_REPLY", mtype);
+    return FALSE;
+  } else if (strncmp (fname, "enableEORDelay", 14) != 0) {
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol,error);
+    thrift_transport_read_end (protocol->transport, error);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_WRONG_METHOD_NAME, "wrong method name %s, expected enableEORDelay", fname);
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+  if (fname) g_free (fname);
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+    gchar *name = NULL;
+    ThriftType ftype;
+    gint16 fid;
+    guint32 len = 0;
+    gpointer data = NULL;
+    
+
+    /* satisfy -Wall in case these aren't used */
+    THRIFT_UNUSED_VAR (len);
+    THRIFT_UNUSED_VAR (data);
+
+    /* read the struct begin marker */
+    if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+    {
+      if (name) g_free (name);
+      return 0;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* read the struct fields */
+    while (1)
+    {
+      /* read the beginning of a field */
+      if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+      {
+        if (name) g_free (name);
+        return 0;
+      }
+      xfer += ret;
+      if (name) g_free (name);
+      name = NULL;
+
+      /* break if we get a STOP field */
+      if (ftype == T_STOP)
+      {
+        break;
+      }
+
+      switch (fid)
+      {
+        case 0:
+          if (ftype == T_I32)
+          {
+            if ((ret = thrift_protocol_read_i32 (protocol, &*_return, error)) < 0)
+              return 0;
+            xfer += ret;
+          } else {
+            if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+              return 0;
+            xfer += ret;
+          }
+          break;
+        default:
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return 0;
+          xfer += ret;
+          break;
+      }
+      if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+        return 0;
+      xfer += ret;
+    }
+
+    if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_read_message_end (protocol, error) < 0)
+    return FALSE;
+
+  if (!thrift_transport_read_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_enable_e_o_r_delay (BgpConfiguratorIf * iface, gint32* _return, const gint32 delay, GError ** error)
+{
+  if (!bgp_configurator_client_send_enable_e_o_r_delay (iface, delay, error))
+    return FALSE;
+  if (!bgp_configurator_client_recv_enable_e_o_r_delay (iface, _return, error))
+    return FALSE;
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_send_send_e_o_r (BgpConfiguratorIf * iface, GError ** error)
+{
+  gint32 cseqid = 0;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->output_protocol;
+
+  if (thrift_protocol_write_message_begin (protocol, "sendEOR", T_CALL, cseqid, error) < 0)
+    return FALSE;
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+
+    
+    if ((ret = thrift_protocol_write_struct_begin (protocol, "sendEOR_args", error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_field_stop (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+    if ((ret = thrift_protocol_write_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_write_message_end (protocol, error) < 0)
+    return FALSE;
+  if (!thrift_transport_flush (protocol->transport, error))
+    return FALSE;
+  if (!thrift_transport_write_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_recv_send_e_o_r (BgpConfiguratorIf * iface, gint32* _return, GError ** error)
+{
+  gint32 rseqid;
+  gchar * fname = NULL;
+  ThriftMessageType mtype;
+  ThriftProtocol * protocol = BGP_CONFIGURATOR_CLIENT (iface)->input_protocol;
+  ThriftApplicationException *xception;
+
+  if (thrift_protocol_read_message_begin (protocol, &fname, &mtype, &rseqid, error) < 0) {
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+
+  if (mtype == T_EXCEPTION) {
+    if (fname) g_free (fname);
+    xception = g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION, NULL);
+    thrift_struct_read (THRIFT_STRUCT (xception), protocol, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR,xception->type, "application error: %s", xception->message);
+    g_object_unref (xception);
+    return FALSE;
+  } else if (mtype != T_REPLY) {
+    if (fname) g_free (fname);
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol, NULL);
+    thrift_transport_read_end (protocol->transport, NULL);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_INVALID_MESSAGE_TYPE, "invalid message type %d, expected T_REPLY", mtype);
+    return FALSE;
+  } else if (strncmp (fname, "sendEOR", 7) != 0) {
+    thrift_protocol_skip (protocol, T_STRUCT, NULL);
+    thrift_protocol_read_message_end (protocol,error);
+    thrift_transport_read_end (protocol->transport, error);
+    g_set_error (error, THRIFT_APPLICATION_EXCEPTION_ERROR, THRIFT_APPLICATION_EXCEPTION_ERROR_WRONG_METHOD_NAME, "wrong method name %s, expected sendEOR", fname);
+    if (fname) g_free (fname);
+    return FALSE;
+  }
+  if (fname) g_free (fname);
+
+  {
+    gint32 ret;
+    gint32 xfer = 0;
+    gchar *name = NULL;
+    ThriftType ftype;
+    gint16 fid;
+    guint32 len = 0;
+    gpointer data = NULL;
+    
+
+    /* satisfy -Wall in case these aren't used */
+    THRIFT_UNUSED_VAR (len);
+    THRIFT_UNUSED_VAR (data);
+
+    /* read the struct begin marker */
+    if ((ret = thrift_protocol_read_struct_begin (protocol, &name, error)) < 0)
+    {
+      if (name) g_free (name);
+      return 0;
+    }
+    xfer += ret;
+    if (name) g_free (name);
+    name = NULL;
+
+    /* read the struct fields */
+    while (1)
+    {
+      /* read the beginning of a field */
+      if ((ret = thrift_protocol_read_field_begin (protocol, &name, &ftype, &fid, error)) < 0)
+      {
+        if (name) g_free (name);
+        return 0;
+      }
+      xfer += ret;
+      if (name) g_free (name);
+      name = NULL;
+
+      /* break if we get a STOP field */
+      if (ftype == T_STOP)
+      {
+        break;
+      }
+
+      switch (fid)
+      {
+        case 0:
+          if (ftype == T_I32)
+          {
+            if ((ret = thrift_protocol_read_i32 (protocol, &*_return, error)) < 0)
+              return 0;
+            xfer += ret;
+          } else {
+            if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+              return 0;
+            xfer += ret;
+          }
+          break;
+        default:
+          if ((ret = thrift_protocol_skip (protocol, ftype, error)) < 0)
+            return 0;
+          xfer += ret;
+          break;
+      }
+      if ((ret = thrift_protocol_read_field_end (protocol, error)) < 0)
+        return 0;
+      xfer += ret;
+    }
+
+    if ((ret = thrift_protocol_read_struct_end (protocol, error)) < 0)
+      return 0;
+    xfer += ret;
+
+  }
+
+  if (thrift_protocol_read_message_end (protocol, error) < 0)
+    return FALSE;
+
+  if (!thrift_transport_read_end (protocol->transport, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+gboolean bgp_configurator_client_send_e_o_r (BgpConfiguratorIf * iface, gint32* _return, GError ** error)
+{
+  if (!bgp_configurator_client_send_send_e_o_r (iface, error))
+    return FALSE;
+  if (!bgp_configurator_client_recv_send_e_o_r (iface, _return, error))
+    return FALSE;
+  return TRUE;
+}
+
 static void
 bgp_configurator_if_interface_init (BgpConfiguratorIfInterface *iface)
 {
@@ -4190,6 +4544,8 @@ bgp_configurator_if_interface_init (BgpConfiguratorIfInterface *iface)
   iface->enable_multipath = bgp_configurator_client_enable_multipath;
   iface->disable_multipath = bgp_configurator_client_disable_multipath;
   iface->multipaths = bgp_configurator_client_multipaths;
+  iface->enable_e_o_r_delay = bgp_configurator_client_enable_e_o_r_delay;
+  iface->send_e_o_r = bgp_configurator_client_send_e_o_r;
 }
 
 static void
@@ -4381,6 +4737,20 @@ gboolean bgp_configurator_handler_multipaths (BgpConfiguratorIf * iface, gint32*
   return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->multipaths (iface, _return, rd, maxPath, error);
 }
 
+gboolean bgp_configurator_handler_enable_e_o_r_delay (BgpConfiguratorIf * iface, gint32* _return, const gint32 delay, GError ** error)
+{
+  g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
+
+  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->enable_e_o_r_delay (iface, _return, delay, error);
+}
+
+gboolean bgp_configurator_handler_send_e_o_r (BgpConfiguratorIf * iface, gint32* _return, GError ** error)
+{
+  g_return_val_if_fail (IS_BGP_CONFIGURATOR_HANDLER (iface), FALSE);
+
+  return BGP_CONFIGURATOR_HANDLER_GET_CLASS (iface)->send_e_o_r (iface, _return, error);
+}
+
 static void
 bgp_configurator_handler_bgp_configurator_if_interface_init (BgpConfiguratorIfInterface *iface)
 {
@@ -4405,6 +4775,8 @@ bgp_configurator_handler_bgp_configurator_if_interface_init (BgpConfiguratorIfIn
   iface->enable_multipath = bgp_configurator_handler_enable_multipath;
   iface->disable_multipath = bgp_configurator_handler_disable_multipath;
   iface->multipaths = bgp_configurator_handler_multipaths;
+  iface->enable_e_o_r_delay = bgp_configurator_handler_enable_e_o_r_delay;
+  iface->send_e_o_r = bgp_configurator_handler_send_e_o_r;
 }
 
 static void
@@ -4437,6 +4809,8 @@ bgp_configurator_handler_class_init (BgpConfiguratorHandlerClass *cls)
   cls->enable_multipath = NULL;
   cls->disable_multipath = NULL;
   cls->multipaths = NULL;
+  cls->enable_e_o_r_delay = NULL;
+  cls->send_e_o_r = NULL;
 }
 
 enum _BgpConfiguratorProcessorProperties
@@ -4587,9 +4961,21 @@ bgp_configurator_processor_process_multipaths (BgpConfiguratorProcessor *,
                                                ThriftProtocol *,
                                                ThriftProtocol *,
                                                GError **);
+static gboolean
+bgp_configurator_processor_process_enable_e_o_r_delay (BgpConfiguratorProcessor *,
+                                                       gint32,
+                                                       ThriftProtocol *,
+                                                       ThriftProtocol *,
+                                                       GError **);
+static gboolean
+bgp_configurator_processor_process_send_e_o_r (BgpConfiguratorProcessor *,
+                                               gint32,
+                                               ThriftProtocol *,
+                                               ThriftProtocol *,
+                                               GError **);
 
 static bgp_configurator_processor_process_function_def
-bgp_configurator_processor_process_function_defs[21] = {
+bgp_configurator_processor_process_function_defs[23] = {
   {
     "startBgp",
     bgp_configurator_processor_process_start_bgp
@@ -4673,6 +5059,14 @@ bgp_configurator_processor_process_function_defs[21] = {
   {
     "multipaths",
     bgp_configurator_processor_process_multipaths
+  },
+  {
+    "enableEORDelay",
+    bgp_configurator_processor_process_enable_e_o_r_delay
+  },
+  {
+    "sendEOR",
+    bgp_configurator_processor_process_send_e_o_r
   }
 };
 
@@ -6763,6 +7157,188 @@ bgp_configurator_processor_process_multipaths (BgpConfiguratorProcessor *self,
 }
 
 static gboolean
+bgp_configurator_processor_process_enable_e_o_r_delay (BgpConfiguratorProcessor *self,
+                                                       gint32 sequence_id,
+                                                       ThriftProtocol *input_protocol,
+                                                       ThriftProtocol *output_protocol,
+                                                       GError **error)
+{
+  gboolean result = TRUE;
+  ThriftTransport * transport;
+  ThriftApplicationException *xception;
+  BgpConfiguratorEnableEORDelayArgs * args =
+    g_object_new (TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_ARGS, NULL);
+
+  g_object_get (input_protocol, "transport", &transport, NULL);
+
+  if ((thrift_struct_read (THRIFT_STRUCT (args), input_protocol, error) != -1) &&
+      (thrift_protocol_read_message_end (input_protocol, error) != -1) &&
+      (thrift_transport_read_end (transport, error) != FALSE))
+  {
+    gint delay;
+    gint return_value;
+    BgpConfiguratorEnableEORDelayResult * result_struct;
+
+    g_object_get (args,
+                  "delay", &delay,
+                  NULL);
+
+    g_object_unref (transport);
+    g_object_get (output_protocol, "transport", &transport, NULL);
+
+    result_struct = g_object_new (TYPE_BGP_CONFIGURATOR_ENABLE_E_O_R_DELAY_RESULT, NULL);
+    g_object_get (result_struct, "success", &return_value, NULL);
+
+    if (bgp_configurator_handler_enable_e_o_r_delay (BGP_CONFIGURATOR_IF (self->handler),
+                                                     (gint32 *)&return_value,
+                                                     delay,
+                                                     error) == TRUE)
+    {
+      g_object_set (result_struct, "success", (gint)(gint32)return_value, NULL);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "enableEORDelay",
+                                               T_REPLY,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (result_struct),
+                               output_protocol,
+                               error) != -1));
+    }
+    else
+    {
+      if (*error == NULL)
+        g_warning ("BgpConfigurator.enableEORDelay implementation returned FALSE "
+                   "but did not set an error");
+
+      xception =
+        g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION,
+                      "type",    *error != NULL ? (*error)->code :
+                                 THRIFT_APPLICATION_EXCEPTION_ERROR_UNKNOWN,
+                      "message", *error != NULL ? (*error)->message : NULL,
+                      NULL);
+      g_clear_error (error);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "enableEORDelay",
+                                               T_EXCEPTION,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (xception),
+                               output_protocol,
+                               error) != -1));
+
+      g_object_unref (xception);
+    }
+
+    g_object_unref (result_struct);
+
+    if (result == TRUE)
+      result =
+        ((thrift_protocol_write_message_end (output_protocol, error) != -1) &&
+         (thrift_transport_write_end (transport, error) != FALSE) &&
+         (thrift_transport_flush (transport, error) != FALSE));
+  }
+  else
+    result = FALSE;
+
+  g_object_unref (transport);
+  g_object_unref (args);
+
+  return result;
+}
+
+static gboolean
+bgp_configurator_processor_process_send_e_o_r (BgpConfiguratorProcessor *self,
+                                               gint32 sequence_id,
+                                               ThriftProtocol *input_protocol,
+                                               ThriftProtocol *output_protocol,
+                                               GError **error)
+{
+  gboolean result = TRUE;
+  ThriftTransport * transport;
+  ThriftApplicationException *xception;
+  BgpConfiguratorSendEORArgs * args =
+    g_object_new (TYPE_BGP_CONFIGURATOR_SEND_E_O_R_ARGS, NULL);
+
+  g_object_get (input_protocol, "transport", &transport, NULL);
+
+  if ((thrift_struct_read (THRIFT_STRUCT (args), input_protocol, error) != -1) &&
+      (thrift_protocol_read_message_end (input_protocol, error) != -1) &&
+      (thrift_transport_read_end (transport, error) != FALSE))
+  {
+    gint return_value;
+    BgpConfiguratorSendEORResult * result_struct;
+
+    g_object_unref (transport);
+    g_object_get (output_protocol, "transport", &transport, NULL);
+
+    result_struct = g_object_new (TYPE_BGP_CONFIGURATOR_SEND_E_O_R_RESULT, NULL);
+    g_object_get (result_struct, "success", &return_value, NULL);
+
+    if (bgp_configurator_handler_send_e_o_r (BGP_CONFIGURATOR_IF (self->handler),
+                                             (gint32 *)&return_value,
+                                             error) == TRUE)
+    {
+      g_object_set (result_struct, "success", (gint)(gint32)return_value, NULL);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "sendEOR",
+                                               T_REPLY,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (result_struct),
+                               output_protocol,
+                               error) != -1));
+    }
+    else
+    {
+      if (*error == NULL)
+        g_warning ("BgpConfigurator.sendEOR implementation returned FALSE "
+                   "but did not set an error");
+
+      xception =
+        g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION,
+                      "type",    *error != NULL ? (*error)->code :
+                                 THRIFT_APPLICATION_EXCEPTION_ERROR_UNKNOWN,
+                      "message", *error != NULL ? (*error)->message : NULL,
+                      NULL);
+      g_clear_error (error);
+
+      result =
+        ((thrift_protocol_write_message_begin (output_protocol,
+                                               "sendEOR",
+                                               T_EXCEPTION,
+                                               sequence_id,
+                                               error) != -1) &&
+         (thrift_struct_write (THRIFT_STRUCT (xception),
+                               output_protocol,
+                               error) != -1));
+
+      g_object_unref (xception);
+    }
+
+    g_object_unref (result_struct);
+
+    if (result == TRUE)
+      result =
+        ((thrift_protocol_write_message_end (output_protocol, error) != -1) &&
+         (thrift_transport_write_end (transport, error) != FALSE) &&
+         (thrift_transport_flush (transport, error) != FALSE));
+  }
+  else
+    result = FALSE;
+
+  g_object_unref (transport);
+  g_object_unref (args);
+
+  return result;
+}
+
+static gboolean
 bgp_configurator_processor_dispatch_call (ThriftDispatchProcessor *dispatch_processor,
                                           ThriftProtocol *input_protocol,
                                           ThriftProtocol *output_protocol,
@@ -6873,7 +7449,7 @@ bgp_configurator_processor_init (BgpConfiguratorProcessor *self)
   self->handler = NULL;
   self->process_map = g_hash_table_new (g_str_hash, g_str_equal);
 
-  for (index = 0; index < 21; index += 1)
+  for (index = 0; index < 23; index += 1)
     g_hash_table_insert (self->process_map,
                          bgp_configurator_processor_process_function_defs[index].name,
                          &bgp_configurator_processor_process_function_defs[index]);
