@@ -204,6 +204,7 @@ sigchild (void)
       if(asNumber)
         zlog_err ("stopBgp(AS %u) OK", (as_t)asNumber);
       qthrift_kill_in_progress = 0;
+      sigint();
     }
 }
 
