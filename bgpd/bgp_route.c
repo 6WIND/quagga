@@ -1858,7 +1858,12 @@ static void bgp_vrf_update_labels (struct bgp_vrf *vrf, struct bgp_node *rn,
               if(rn->table && bgp_node_table (rn) && bgp_node_table (rn)->type == BGP_TABLE_VRF)
                 *l3label = selected->extra->labels[0] >> 4;
               else
-                *l3label = selected->extra->labels[1] >> 4;
+                {
+                  if (selected->extra->labels[1])
+                    *l3label = selected->extra->labels[1] >> 4;
+                  else
+                    *l3label = 0;
+                }
               *l2label = 0;
             }
           else
