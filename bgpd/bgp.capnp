@@ -115,8 +115,9 @@ struct BGP $ctype("struct bgp") $cgen
 
 	restartTime		@25 :UInt32;
 	stalepathTime		@26 :UInt32 $csetwrite;
+	eorDelay		@27 :UInt32 $csetwrite;
 
-	notifyZMQUrl		@27 :Text;
+	notifyZMQUrl		@28 :Text;
 }
 
 struct BGPAfiSafi $ctype("struct bgp") $cgen $carraykey("AfiSafiKey") {
