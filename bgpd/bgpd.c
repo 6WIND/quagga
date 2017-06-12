@@ -6201,6 +6201,19 @@ bgp_init (void)
 #endif /* HAVE_SNMP */
 }
 
+void bgp_send_eor_to_peers(struct bgp *bgp)
+{
+  struct peer *peer;
+  struct listnode *node, *nnode;
+
+  /* Send EOR to all peers */
+  for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
+    {
+      if (peer->status == Established)
+        bgp_send_eor(peer);
+    }
+}
+
 void bgp_send_eor (struct peer *peer)
 {
   afi_t afi;

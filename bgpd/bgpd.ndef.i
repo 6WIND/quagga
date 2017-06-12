@@ -265,6 +265,18 @@ _qzc_set_bgp_2(struct bgp *p,
     qcapn_BGPAfiSafi_set(p, req->data, afi, safi);
 }
 
+static void
+_qzc_set_bgp_3(struct bgp *p,
+        struct QZCSetReq *req,
+        struct capn_segment *seg)
+{
+    if (req->datatype != 0xfd0316f1800ae916)
+        /* error */
+        return;
+
+    bgp_send_eor_to_peers(p);
+}
+
 /* [3fafaa5ff15d4317] bgp <> bgp */
 static void
 _qzc_get_bgp(void *entity, struct QZCGetReq *req, struct QZCGetRep *rep,
@@ -317,6 +329,9 @@ _qzc_set_bgp(void *entity,
         return;
     case 2:
         _qzc_set_bgp_2(p, req, seg);
+        return;
+    case 3:
+        _qzc_set_bgp_3(p, req, seg);
         return;
     default:
         return;

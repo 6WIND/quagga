@@ -1132,5 +1132,6 @@ extern void bgp_vrf_clean_tables (struct bgp_vrf *vrf);
 extern void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf);
 extern void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, u_int16_t maxpaths);
 extern void bgp_send_eor (struct peer *peer);
+extern void bgp_send_eor_to_peers(struct bgp *bgp);
 
 #endif /* _QUAGGA_BGPD_H */

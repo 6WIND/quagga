@@ -207,6 +207,7 @@ void qcapn_BGP_set(struct bgp *s, capn_ptr p)
     s->distance_local = capn_read8(p, 8);
     s->stalepath_time = capn_read32(p, 28);
     s->restart_time = capn_read32(p, 24);
+    s->v_update_delay = capn_read16(p, 32);
 }
 
 
