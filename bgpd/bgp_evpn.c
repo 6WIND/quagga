@@ -305,8 +305,8 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
 
       /* Fetch Route Type */ 
       route_type = *pnt++;
-      pnt2 = pnt;
       route_length = *pnt++;
+      pnt2 = pnt; // point to start of route
       /* simply ignore. goto next route type if any */
       if(route_type != EVPN_IP_PREFIX && route_type != EVPN_MACIP_ADVERTISEMENT
          && route_type != EVPN_ETHERNET_AUTO_DISCOVERY)
@@ -441,26 +441,34 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
 
       if (route_type == EVPN_MACIP_ADVERTISEMENT)
         {
-          if (pnt + 3 > lim)
+          if ((pnt - route_length) != pnt2 && 
+              (pnt + 3 - route_length) != pnt2)
             {
-              zlog_err ("not enough bytes for Label left in NLRI?");
+              zlog_err ("Route Type 2, NLRI length mismatch %d observed %u", route_length, pnt - pnt2);
               return -1;
             }
-          labels[1] = (pnt[0] << 16) + (pnt[1] << 8) + pnt[2];
-          nlabels = 2;
-
-          pnt += 3;
-
+          if ( (pnt + 3 - route_length) == pnt2)
+            {
+              if (pnt + 3 > lim)
+                {
+                  zlog_err("not enough bytes for Label#2 left in NLRI");
+                  return -1;
+                }
+              labels[1] = (pnt[0] << 16) + (pnt[1] << 8) + pnt[2];
+              nlabels = 2;
+              pnt+=3;
+            }
+        }
+      else
+        {
           if((pnt - route_length != pnt2))
             {
-              plog_err (peer->log,
-                        "%s [Error] Update packet error / EVPN?"
-                        " (NLRI length mismatch %d observed %ld)",
-                        peer->host, route_length, pnt - pnt2);
+              zlog_err ("Route Type %u, NLRI length mismatch %d observed %ld)",
+                        route_type, route_length, pnt - pnt2);
               return -1;
             }
         }
-      else if (route_type == EVPN_ETHERNET_AUTO_DISCOVERY)
+      if (route_type == EVPN_ETHERNET_AUTO_DISCOVERY)
         {
           if (p.u.prefix_macip.eth_tag_id == MAX_ET && (labels[0] >> 4) == 0)
             evpn.auto_discovery_type = EVPN_ETHERNET_AD_PER_ESI;
