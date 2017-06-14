@@ -49,5 +49,6 @@ extern struct qthrift_master *tm;
 
 extern int qthrift_kill_in_progress;
 extern int qthrift_disable_stdout;
+extern int qthrift_stopbgp_called;
 
 #endif /* _QTHRIFT_MASTER_H_ */

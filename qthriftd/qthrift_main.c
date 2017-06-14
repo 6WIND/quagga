@@ -102,6 +102,7 @@ int vty_port = 0;
 char *vty_addr = NULL;
 int qthrift_kill_in_progress = 0;
 int qthrift_disable_stdout = 0;
+int qthrift_stopbgp_called = 0;
 
 /* privileges */
 static zebra_capabilities_t _caps_p [] =  
@@ -204,7 +205,10 @@ sigchild (void)
       if(asNumber)
         zlog_err ("stopBgp(AS %u) OK", (as_t)asNumber);
       qthrift_kill_in_progress = 0;
-      sigint();
+      if (qthrift_stopbgp_called == 0)
+        sigint();
+      else
+        qthrift_stopbgp_called = 0;
     }
 }
 
