@@ -1121,8 +1121,14 @@ bgp_write_packet (struct peer *peer)
 	    if (peer->afc_nego[afi][safi] && peer->synctime
 		&& ! CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND))
 	      {
-		if (peer->bgp->v_update_delay == 0)
+		if (peer->bgp->v_update_delay == 0
+                    || peer->bgp->eor_request == true)
                   {
+                    if (peer->bgp->eor_request == true)
+                      {
+                        if (bgp_update_delay_active (peer, afi, safi))
+                          bgp_update_delay_end(peer, afi, safi);
+                      }
                     SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND);
                     return bgp_update_packet_eor (peer, afi, safi);
                   }
