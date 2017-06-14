@@ -1316,6 +1316,7 @@ instance_bgp_configurator_handler_stop_bgp(BgpConfiguratorIf *iface, gint32* _re
   if(IS_QTHRIFT_DEBUG)
     zlog_info ("stopBgp(AS %u) OK", (as_t)asNumber);
   qthrift_kill_in_progress = 0;
+  qthrift_stopbgp_called = 1;
   return TRUE;
 }
 
