@@ -2696,13 +2696,7 @@ bgp_delete (struct bgp *bgp)
                              BGP_NOTIFY_CEASE_PEER_UNCONFIG);
         }
     }
-  if(bgp->vrfs)
-    list_delete (bgp->vrfs);
-  if(bgp->rt_subscribers)
-    {
-      hash_clean (bgp->rt_subscribers, NULL);
-      hash_free (bgp->rt_subscribers);
-    }
+
   /* Delete static route. */
   bgp_static_delete (bgp);
 
@@ -2758,6 +2752,14 @@ bgp_delete (struct bgp *bgp)
     peer_delete(bgp->peer_self);
     bgp->peer_self = NULL;
   }
+
+  if(bgp->vrfs)
+    list_delete (bgp->vrfs);
+  if(bgp->rt_subscribers)
+    {
+      hash_clean (bgp->rt_subscribers, NULL);
+      hash_free (bgp->rt_subscribers);
+    }
 
   /* Remove visibility via the master list - there may however still be
    * routes to be processed still referencing the struct bgp.
