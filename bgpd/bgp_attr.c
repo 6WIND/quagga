@@ -2597,7 +2597,7 @@ bgp_packet_mpattr_route_type_2 (struct stream *s,
                                 uint32_t *labels, size_t nlabels, struct attr *attr)
 {
       int len;
-      uint8_t ip_len;
+      uint8_t ip_len, len_label = 3;
       char temp[16];
       size_t i;
 
@@ -2611,8 +2611,12 @@ bgp_packet_mpattr_route_type_2 (struct stream *s,
       else
         len = 0; /* No Ip address in prefix */
       stream_putc (s, EVPN_MACIP_ADVERTISEMENT);
+      if (nlabels == 2)
+        len_label = 6;
+      else if (nlabels == 0)
+        nlabels == 3;
       stream_putc (s, 8 /* RD */ + 10 /* ESI */  + 4 /* EthTag */ + 1 /* MAC len */
-                   + 6 /* MAC */ + 1 + len + 3 /* label 1 */ + 3 /* label 2*/ + 1 /* len from TLV */);
+                   + 6 /* MAC */ + 1 + len + len_label);
       /* route distinguisher */
       stream_put (s, prd->val, 8);
 
@@ -2641,8 +2645,12 @@ bgp_packet_mpattr_route_type_2 (struct stream *s,
         stream_put (s, &p->u.prefix_macip.ip.in6, 16);
 
       /* labels */
-      for (i = 0; i < nlabels; i++)
-        stream_put3 (s, labels[i]);
+      if (nlabels == 0)
+        stream_put3 (s, 0);
+      else
+        stream_put3 (s, labels[0]);
+      if (nlabels == 2)
+        stream_put3 (s, labels[1]);
 }
 
 static void
