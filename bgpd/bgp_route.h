@@ -332,6 +332,9 @@ bgp_vrf_delete_vrf_update_global_rib (struct prefix *p, struct bgp_info *vrf_ri,
 extern void
 bgp_vrf_update_global_rib_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi);
 
+extern void
+bgp_vrf_update_global_rib_l2vpn (struct bgp_vrf *vrf, afi_t afi);
+
 void bgp_vrf_process_entry (struct bgp_info *iter, 
                             int action, afi_t afi, safi_t safi);
 extern int

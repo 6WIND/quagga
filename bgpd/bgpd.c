@@ -2465,7 +2465,7 @@ bgp_vrf_enable(struct bgp_vrf *vrf, afi_t afi, safi_t safi)
   if (! vrf->afc[afi][safi])
     {
       vrf->afc[afi][safi] = 1;
-      bgp_vrf_update_global_rib_perafisafi(vrf, afi, safi);
+      bgp_vrf_enable_perafisafi(vrf, afi, safi);
     }
 }
 

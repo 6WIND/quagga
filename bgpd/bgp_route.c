@@ -1838,6 +1838,23 @@ void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
     }
 }
 
+void bgp_vrf_enable_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi)
+{
+  if (! vrf)
+    return;
+
+  if (afi != AFI_IP && afi != AFI_IP6)
+    return;
+
+  if (safi != SAFI_MPLS_VPN && safi != SAFI_EVPN)
+    return;
+
+  if (safi == SAFI_MPLS_VPN)
+      bgp_vrf_update_global_rib_perafisafi(vrf, afi, safi);
+  else
+      bgp_vrf_update_global_rib_l2vpn(vrf, afi);
+}
+
 static void bgp_vrf_disable_perafi (struct bgp_vrf *vrf, afi_t afi)
 {
   struct bgp_info *ri, *ri_next;
@@ -1850,13 +1867,16 @@ static void bgp_vrf_disable_perafi (struct bgp_vrf *vrf, afi_t afi)
     for (ri = rn->info; ri; ri = ri_next)
       {
         ri_next = ri->next;
-        bgp_vrf_update(vrf, afi, rn, ri, false);
-        bgp_info_reap (rn, ri);
-        bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, afi);
+        if (!CHECK_FLAG (ri->flags, BGP_INFO_ORIGIN_EVPN))
+          {
+            bgp_vrf_update(vrf, afi, rn, ri, false);
+            bgp_info_reap (rn, ri);
+            bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, afi);
+          }
       }
 }
 
-static void bgp_vrf_disable_l2vpn (struct bgp_vrf *vrf)
+static void bgp_vrf_disable_l2vpn (struct bgp_vrf *vrf, afi_t afi)
 {
   struct bgp_info *ri, *ri_next;
   struct bgp_node *rn;
@@ -1864,60 +1884,67 @@ static void bgp_vrf_disable_l2vpn (struct bgp_vrf *vrf)
   if (! vrf)
     return;
 
-  for (rn = bgp_table_top (vrf->rib[AFI_IP]); rn; rn = bgp_route_next (rn))
+  for (rn = bgp_table_top (vrf->rib[afi]); rn; rn = bgp_route_next (rn))
     for (ri = rn->info; ri; ri = ri_next)
       {
         ri_next = ri->next;
-        bgp_vrf_update(vrf, AFI_IP, rn, ri, false);
-        bgp_info_reap (rn, ri);
-        bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, AFI_L2VPN);
-      }
-
-  for (rn = bgp_table_top (vrf->rib[AFI_IP6]); rn; rn = bgp_route_next (rn))
-    for (ri = rn->info; ri; ri = ri_next)
-      {
-        ri_next = ri->next;
-        bgp_vrf_update(vrf, AFI_IP6, rn, ri, false);
-        bgp_info_reap (rn, ri);
-        bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, AFI_L2VPN);
+        if (CHECK_FLAG (ri->flags, BGP_INFO_ORIGIN_EVPN))
+          {
+            bgp_vrf_update(vrf, afi, rn, ri, false);
+            bgp_info_reap (rn, ri);
+            bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, AFI_L2VPN);
+          }
       }
 }
 
 void bgp_vrf_disable_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi)
 {
-  struct bgp_node *rn;
-
   if (! vrf)
     return;
 
-  if (afi != AFI_IP && afi != AFI_IP6 && afi != AFI_L2VPN)
-    return;
-  if ((afi == AFI_IP || afi == AFI_IP6) && safi != SAFI_MPLS_VPN)
+  if (afi != AFI_IP && afi != AFI_IP6)
     return;
 
-  if (afi == AFI_L2VPN && safi != SAFI_EVPN)
+  if (safi != SAFI_MPLS_VPN && safi != SAFI_EVPN)
     return;
 
-  if (afi == AFI_IP || afi == AFI_IP6)
+  if (safi == SAFI_MPLS_VPN)
       bgp_vrf_disable_perafi (vrf, afi);
   else
-      bgp_vrf_disable_l2vpn(vrf);
+      bgp_vrf_disable_l2vpn(vrf, afi);
+}
 
-  /* static route */
-  for (rn = bgp_table_top (vrf->route[afi]); rn; rn = bgp_route_next (rn))
-    if (rn->info)
-      {
-        struct bgp_static *bs = rn->info;
-        if (afi == AFI_L2VPN)
-          bgp_static_withdraw_safi (vrf->bgp, &rn->p, afi, SAFI_EVPN,
-                                    &vrf->outbound_rd, NULL, 0);
-        else
-          bgp_static_withdraw_safi (vrf->bgp, &rn->p, afi, SAFI_MPLS_VPN,
-                                    &vrf->outbound_rd, NULL, 0);
-        bgp_static_free (bs);
-        rn->info = NULL;
-        bgp_unlock_node (rn);
-      }
+/* Check if VRF route table is enabled for a given prefix */
+static int check_vrf_enabled(struct bgp_vrf *vrf, afi_t afi, safi_t safi,
+                             struct prefix *p)
+{
+
+  if (!vrf || !p)
+    return 0;
+
+  if (safi == SAFI_MPLS_VPN)
+    return vrf->afc[afi][safi];
+
+  if (safi == SAFI_EVPN)
+    {
+      afi_t afi_int = AFI_IP;
+
+      if (p->family == AF_INET)
+        afi_int = AFI_IP;
+      else if (p->family == AF_INET6)
+        afi_int = AFI_IP6;
+      else if (p->family == AF_L2VPN)
+        {
+          if (p->prefixlen == L2VPN_IPV6_PREFIX_LEN)
+            afi_int = AFI_IP6;
+          else
+            afi_int = AFI_IP;
+        }
+
+      return vrf->afc[afi_int][safi];
+    }
+
+  return 0;
 }
 
 /* from draft-ietf-bess-evpn-inter-subnet-forwarding-01,
@@ -2488,7 +2515,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
 
   if (vrf)
     {
-      if (! vrf->afc[afi][safi])
+      if (! check_vrf_enabled(vrf, afi, safi, p))
         return -1;
 
       rn = bgp_node_get (vrf->route[afi], p);
@@ -2651,7 +2678,7 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
 
   if (vrf)
     {
-      if (! vrf->afc[afi][safi])
+      if (! check_vrf_enabled(vrf, afi, safi, p))
         return -1;
 
       rn = bgp_node_lookup (vrf->route[afi], p);
@@ -2858,10 +2885,10 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
                 action == ROUTE_INFO_TO_REMOVE? "withdrawing" : "updating");
     }  
 
-  if (!vrf->afc[afi][safi])
+  if (!vrf->afc[afi_int][safi])
     {
       zlog_info ("ignore vrf processing because VRF table is disabled (afi %d safi %d)",
-                  afi, safi);
+                  afi_int, safi);
       return;
     }
 
@@ -2977,7 +3004,7 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
   struct prefix_rd *prd;
   int action;
   struct bgp_info *ri;
-  int action_add_done = 0;
+  int action_add_done = 0, vrf_enabled = 0;
 
   if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_EVPN))
     return;
@@ -3017,7 +3044,8 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
                       (struct prefix*)prd))
         {
           bgp_vrf_process_one(vrf, afi, safi, rn, ri, action);
-          if (action == ROUTE_INFO_TO_ADD && vrf->afc[afi][safi])
+          vrf_enabled = check_vrf_enabled(vrf, afi, safi, &rn->p);
+          if (action == ROUTE_INFO_TO_ADD && vrf_enabled)
             action_add_done = 1;
         }
   if (old_ecom)
@@ -3081,7 +3109,8 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
           for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
             {
               bgp_vrf_process_one (vrf, afi, safi, rn, ri, action);
-              if (action == ROUTE_INFO_TO_ADD && vrf->afc[afi][safi])
+              vrf_enabled = check_vrf_enabled(vrf, afi, safi, &rn->p);
+              if (action == ROUTE_INFO_TO_ADD && vrf_enabled)
                 action_add_done = 1;
             }
       }
@@ -3094,7 +3123,8 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
                       (struct prefix*)prd))
         {
           bgp_vrf_process_one(vrf, afi, safi, rn, ri, action);
-          if (action == ROUTE_INFO_TO_ADD && vrf->afc[afi][safi])
+          vrf_enabled = check_vrf_enabled(vrf, afi, safi, &rn->p);
+          if (action == ROUTE_INFO_TO_ADD && vrf_enabled)
             action_add_done = 1;
         }
   if (ri && (ri->sub_type != BGP_ROUTE_STATIC) &&
@@ -3146,6 +3176,57 @@ void bgp_vrf_added_vrf_update_global_rib (struct bgp_vrf *vrf)
   bgp_vrf_update_global_rib_perafisafi (vrf, AFI_IP, SAFI_MPLS_VPN);
   bgp_vrf_update_global_rib_perafisafi (vrf, AFI_IP6, SAFI_MPLS_VPN);
   bgp_vrf_update_global_rib_perafisafi (vrf, AFI_L2VPN, SAFI_EVPN);
+}
+
+void
+bgp_vrf_update_global_rib_l2vpn (struct bgp_vrf *vrf, afi_t afi)
+{
+  struct bgp *bgp;
+  struct bgp_table *table;
+  struct bgp_node *rn;
+  struct bgp_node *rm;
+  struct bgp_info *ri;
+
+  bgp = bgp_get_default ();
+  if (bgp == NULL)
+    return ;
+
+  for (rn = bgp_table_top (bgp->rib[AFI_L2VPN][SAFI_EVPN]); rn; rn = bgp_route_next (rn))
+    {
+      if ((table = rn->info) != NULL)
+	{
+	  for (rm = bgp_table_top (table); rm; rm = bgp_route_next (rm))
+            {
+              afi_t afi_int = AFI_IP;
+              struct prefix *p = &rm->p;
+
+              if (p->family == AF_INET)
+                afi_int = AFI_IP;
+              else if (p->family == AF_INET6)
+                afi_int = AFI_IP6;
+              else if (p->family == AF_L2VPN)
+                {
+                  if (p->prefixlen == L2VPN_IPV6_PREFIX_LEN)
+                    afi_int = AFI_IP6;
+                  else
+                    afi_int = AFI_IP;
+                }
+              if (afi_int != afi)
+                continue;
+
+              for (ri = rm->info; ri; ri = ri->next)
+                {
+                  /* a new vrf just has been added. check hidden vpn information */
+                  if (CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+                    {
+                      bgp_vrf_process_imports(bgp, AFI_L2VPN, SAFI_EVPN, rm, NULL, ri);
+                      if (!CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+                        bgp_process (bgp, rm, AFI_L2VPN, SAFI_EVPN);
+                    }
+                }
+            }
+        }
+    }
 }
 
 /* set to hidden entry from global RIB */

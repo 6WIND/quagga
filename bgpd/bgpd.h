@@ -1180,6 +1180,7 @@ extern void bgp_vrf_rt_import_unset (struct bgp_vrf *vrf);
 extern void bgp_vrf_rt_export_unset (struct bgp_vrf *vrf);
 extern void bgp_vrf_enable(struct bgp_vrf *vrf, afi_t afi, safi_t safi);
 extern void bgp_vrf_disable(struct bgp_vrf *vrf, afi_t afi, safi_t safi);
+extern void bgp_vrf_enable_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi);
 extern void bgp_vrf_disable_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi);
 extern int bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
 extern int bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *route);
