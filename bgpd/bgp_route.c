@@ -4774,7 +4774,9 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
             new->attr->extra->eth_t_id = 0;
         }
     }
-  memcpy (&(bgp_info_extra_get (new)->vrf_rd), prd,sizeof(struct prefix_rd));
+
+  if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_EVPN))
+    memcpy (&(bgp_info_extra_get (new)->vrf_rd), prd,sizeof(struct prefix_rd));
   /* Nexthop reachability check. */
   if ((afi == AFI_IP || afi == AFI_IP6) && safi == SAFI_UNICAST)
     {
