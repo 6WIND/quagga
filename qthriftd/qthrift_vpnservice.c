@@ -590,7 +590,7 @@ gboolean qthrift_vpnservice_set_bgp_context_multipath (struct qthrift_vpnservice
       *error = ERROR_BGP_MULTIPATH_UNSET;
       return FALSE;
     }
-  bgp->multipath_on[afi][safi] = 1;
+  bgp->multipath_on[afi][safi] = on;
   return TRUE;
 }
 

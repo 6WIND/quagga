@@ -2494,15 +2494,33 @@ qthrift_bgp_set_multipath(struct qthrift_vpnservice *ctxt,  gint32* _return, con
   ret = qthrift_vpnservice_set_bgp_context_multipath (qthrift_vpnservice_get_bgp_context(ctxt),
                                                       afi, safi, (uint8_t) enable, _return, error);
   /* silently leave command if bgp did not start */
-  if((ret == TRUE) && IS_QTHRIFT_DEBUG)
+  if (ret == TRUE)
     {
-      if(enable)
-        zlog_info ("enableMultipath config for afi:%d safi:%d OK",
-                   afi, safi);
-      else
-        zlog_info ("disableMultipath config for afi:%d safi:%d OK",
-                   afi, safi);
+      if (IS_QTHRIFT_DEBUG)
+        {
+          if(enable)
+            zlog_info ("enableMultipath config for afi:%d safi:%d OK",
+                       afi, safi);
+          else
+            zlog_info ("disableMultipath config for afi:%d safi:%d OK",
+                       afi, safi);
+        }
     }
+  else
+    {
+      if (IS_QTHRIFT_DEBUG)
+        {
+          if(enable)
+            zlog_info ("enableMultipath config for afi:%d safi:%d NOK",
+                       afi, safi);
+          else
+            zlog_info ("disableMultipath config for afi:%d safi:%d NOK",
+                       afi, safi);
+        }
+
+      return ret;
+    }
+
   if (qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
     {
       return ret;
