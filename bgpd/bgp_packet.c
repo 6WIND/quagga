@@ -55,6 +55,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_lu.h"
 
 int stream_put_prefix (struct stream *, struct prefix *);
+int bgp_packet_send_eor[AFI_MAX][SAFI_MAX];
+int bgp_packet_bgp_info_sent[AFI_MAX][SAFI_MAX];
 
 /* Set up BGP packet marker and packet type. */
 static int
@@ -167,7 +169,6 @@ bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
   stream_reset (snlri);
 
   adv = BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->update);
-
   while (adv)
     {
       assert (adv->rn);
@@ -282,8 +283,29 @@ bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
 	peer->scount[afi][safi]++;
 
       adj->attr = bgp_attr_intern (adv->baa->attr);
-
       adv = bgp_advertise_clean (peer, adj, afi, safi);
+      if (bgp_order_send_eor == 1)
+        {
+          if ( (bgp_last_bgp_info_configured[afi][safi]) &&
+               ( bgp_last_bgp_info_configured[afi][safi] == binfo))
+            {
+              bgp_packet_send_eor[afi][safi] = 1;
+              break;
+            } else if (bgp_packet_bgp_info_sent[afi][safi])
+            {
+              bgp_packet_send_eor[afi][safi] = 1;
+            }
+        }
+        else if (bgp_last_bgp_info_configured[afi][safi] == binfo)
+          {
+          bgp_last_bgp_info_configured[afi][safi] = NULL;
+          bgp_packet_bgp_info_sent[afi][safi] = 1;
+        }
+    }
+  if (bgp_last_bgp_info_configured[afi][safi] == NULL)
+    {
+      /* case no entries */
+      bgp_packet_bgp_info_sent[afi][safi] = 1;
     }
 
   if (! stream_empty (s))
@@ -1121,19 +1143,24 @@ bgp_write_packet (struct peer *peer)
 	    if (peer->afc_nego[afi][safi] && peer->synctime
 		&& ! CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND))
 	      {
-		if (peer->bgp->v_update_delay == 0
-                    || peer->bgp->eor_request == true)
+                /* default case */
+		if (peer->bgp->v_update_delay == 0)
                   {
-                    if (peer->bgp->eor_request == true)
-                      {
-                        if (bgp_update_delay_active (peer, afi, safi))
-                          bgp_update_delay_end(peer, afi, safi);
-                      }
                     SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND);
+                    return bgp_update_packet_eor (peer, afi, safi);
+                  } else if ((bgp_order_send_eor) &&
+                             bgp_packet_send_eor[afi][safi])
+                  {
+                    /* case EOR request has been done */
+                    if (bgp_update_delay_active (peer, afi, safi))
+                      bgp_update_delay_end(peer, afi, safi);
+                    SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_SEND);
+                    bgp_packet_send_eor[afi][safi] = 0; /* in case reconnection */
+                    bgp_packet_bgp_info_sent[afi][safi] = 0; /* in case reconnection */
                     return bgp_update_packet_eor (peer, afi, safi);
                   }
                 /* do not send eor if job already in progress */
-                if (!bgp_update_delay_active (peer, afi, safi))
+                if (peer->bgp->v_update_delay && !bgp_update_delay_active (peer, afi, safi))
                   bgp_update_delay_begin (peer, afi, safi);
               }
           }

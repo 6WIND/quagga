@@ -66,6 +66,9 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 extern const char *bgp_origin_str[];
 extern const char *bgp_origin_long_str[];
 
+uint32_t bgp_process_main_lost, bgp_process_vrf_lost;
+struct bgp_info *bgp_last_bgp_info_configured[AFI_MAX][SAFI_MAX];
+
 static struct bgp_static * bgp_static_new (void);
 static void bgp_static_free (struct bgp_static *bgp_static);
 static void
@@ -6566,6 +6569,8 @@ bgp_static_withdraw_safi (struct bgp *bgp, struct prefix *p, afi_t afi,
   /* Withdraw static BGP route from routing table. */
   if (ri)
     {
+      if (bgp_last_bgp_info_configured[afi][safi] == ri)
+        bgp_last_bgp_info_configured[afi][safi] = NULL;
       bgp_aggregate_decrement (bgp, p, ri, afi, safi);
       bgp_info_delete (rn, ri);
       bgp_vrf_process_imports(bgp, afi, safi, rn, ri, NULL);
@@ -6735,6 +6740,11 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
           bgp_unlock_node (rn);
           aspath_unintern (&attr.aspath);
           bgp_attr_extra_free (&attr);
+          if (bgp_order_send_eor == 0)
+            {
+              bgp_last_bgp_info_configured[afi][safi] = ri;
+              bgp_packet_bgp_info_sent[afi][safi] = 0;
+            }
           return;
         }
     }
@@ -6755,7 +6765,11 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
 
   /* Register new BGP information. */
   bgp_info_add (rn, new);
-
+  if (bgp_order_send_eor == 0)
+    {
+      bgp_last_bgp_info_configured[afi][safi] = new;
+      bgp_packet_bgp_info_sent[afi][safi] = 0;
+    }
   /* route_node_get lock */
   bgp_unlock_node (rn);
 

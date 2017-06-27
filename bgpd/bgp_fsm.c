@@ -62,6 +62,10 @@ static int bgp_connect_timer (struct thread *);
 static int bgp_holdtime_timer (struct thread *);
 static int bgp_keepalive_timer (struct thread *);
 
+
+/* End of RIB support */
+extern int bgp_order_send_eor;
+
 /* BGP FSM functions. */
 static int bgp_start (struct peer *);
 
@@ -508,7 +512,6 @@ bgp_stop (struct peer *peer)
       /* Reset peer synctime */
       peer->synctime = 0;
     }
-
   /* Stop read and write threads when exists. */
   BGP_READ_OFF (peer->t_read);
   BGP_WRITE_OFF (peer->t_write);

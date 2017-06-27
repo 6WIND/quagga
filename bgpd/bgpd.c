@@ -89,6 +89,8 @@ int bgp_exit_procedure = 0;
 /* BGP community-list.  */
 struct community_list_handler *bgp_clist;
 
+int  bgp_order_send_eor = 0;
+
 /* BGP global flag manipulation.  */
 int
 bgp_option_set (int flag)
@@ -6607,14 +6609,8 @@ void bgp_send_eor_to_peers(struct bgp *bgp)
   struct peer *peer;
   struct listnode *node, *nnode;
 
-  bgp->eor_request = true;
-
-  /* Send EOR to all peers */
-  for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
-    {
-      if (peer->status == Established)
-        bgp_send_eor(peer);
-    }
+  bgp_order_send_eor = 1;
+  /* the bgp_process workgroup should care about EOR emission for all peers */
 }
 
 void bgp_send_eor (struct peer *peer)
@@ -6622,10 +6618,6 @@ void bgp_send_eor (struct peer *peer)
   afi_t afi;
   safi_t safi;
 
-  /* emission in progress */
-  if (peer->order_send_eor)
-    return;
-  peer->order_send_eor = 1;
   /* cancel threads */
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
@@ -6635,8 +6627,6 @@ void bgp_send_eor (struct peer *peer)
       }
   /* send EOR */
   bgp_eor_send (peer);
-
-  peer->order_send_eor = 0;
 }
 
 void

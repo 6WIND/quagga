@@ -258,7 +258,6 @@ bgp_adj_out_set (struct bgp_node *rn, struct peer *peer, struct prefix *p,
   
   assert (adv->binfo == NULL);
   adv->binfo = bgp_info_lock (binfo); /* bgp_info adj_out reference */
-  
   if (attr)
     adv->baa = bgp_advertise_intern (peer->hash[afi][safi], attr);
   else

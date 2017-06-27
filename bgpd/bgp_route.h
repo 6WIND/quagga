@@ -161,6 +161,8 @@ struct bgp_static
   struct prefix gatewayIp;
 };
 
+extern struct bgp_info *bgp_last_bgp_info_configured[AFI_MAX][SAFI_MAX];
+
 #define BGP_INFO_COUNTABLE(BI) \
   (! CHECK_FLAG ((BI)->flags, BGP_INFO_HISTORY) \
    && ! CHECK_FLAG ((BI)->flags, BGP_INFO_REMOVED))
