@@ -210,7 +210,6 @@ struct bgp
 
 #define MAX_EOR_UPDATE_DELAY 3600
   u_int16_t v_update_delay;
-  bool eor_request;
 
   QZC_NODE
 };
@@ -676,7 +675,6 @@ struct peer
 #define PEER_RMAP_TYPE_IMPORT         (1 << 6) /* neighbor route-map import */
 #define PEER_RMAP_TYPE_EXPORT         (1 << 7) /* neighbor route-map export */
 
-  u_int16_t order_send_eor;
   struct thread *t_update_delay[AFI_MAX][SAFI_MAX];
 
   QZC_NODE
@@ -939,6 +937,7 @@ enum bgp_clear_type
 
 extern struct bgp_master *bm;
 extern int bgp_exit_procedure;
+extern int  bgp_order_send_eor;
 
 /* Prototypes. */
 extern void bgp_terminate (void);

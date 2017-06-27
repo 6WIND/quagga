@@ -136,6 +136,7 @@ struct bgp_static
   size_t nlabels;
 };
 
+extern struct bgp_info *bgp_last_bgp_info_configured[AFI_MAX][SAFI_MAX];
 /* Flags which indicate a route is unuseable in some form */
 #define BGP_INFO_UNUSEABLE \
   (BGP_INFO_HISTORY|BGP_INFO_DAMPED|BGP_INFO_REMOVED)

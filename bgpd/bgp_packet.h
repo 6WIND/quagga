@@ -37,6 +37,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #define ORF_COMMON_PART_PERMIT     0x00 
 #define ORF_COMMON_PART_DENY       0x20 
 
+extern int bgp_packet_bgp_info_sent[AFI_MAX][SAFI_MAX];
 /* Packet send and receive function prototypes. */
 extern int bgp_read (struct thread *);
 extern int bgp_write (struct thread *);
