@@ -842,7 +842,10 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
         if (qthrift_vpnservice_get_bgp_context(ctxt)->multipath_on[i][j])
           ret = qthrift_bgp_set_multipath_internal (ctxt, _return, i, j, 1, error);
   }
-  return ret;
+  if (ret)
+    return TRUE;
+  else
+    return FALSE;
 }
 
 /*
@@ -955,7 +958,10 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
         zlog_info ("pushRoute(prefix %s, nexthop %s, rd %s, label %d) OK", prefix, nexthop, rd, label);
     }
   capn_free(&rc);
-  return ret;
+  if (ret)
+    return TRUE;
+  else
+    return FALSE;
 }
 
 /*
@@ -1022,7 +1028,10 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
         zlog_info ("withdrawRoute(prefix %s, rd %s) OK", prefix, rd);
     }
   capn_free(&rc);
-  return ret;
+  if (ret)
+    return TRUE;
+  else
+    return FALSE;
 }
 
 /* 
@@ -1178,7 +1187,10 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
         zlog_info ("createPeer(%s,%u) NOK (capnproto error 3)", routerId, (as_t)asNumber);
       return FALSE;
     }
-  return ret;
+  if (ret)
+    return TRUE;
+  else
+    return FALSE;
 }
 
 /*
@@ -1355,13 +1367,18 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
                            &bgpvrf, &bgp_datatype_bgpvrf,\
                            NULL, NULL);
   if(ret == 0)
+    {
       *_return = BGP_ERR_FAILED;
+    }
   if (bgpvrf_ptr->rt_import)
     ecommunity_free (&bgpvrf_ptr->rt_import);
   if (bgpvrf_ptr->rt_export)
     ecommunity_free (&bgpvrf_ptr->rt_export);
   capn_free(&rc);
-  return ret;
+  if (ret)
+    return TRUE;
+  else
+    return FALSE;
 }
 
 /*
@@ -1565,7 +1582,10 @@ gboolean instance_bgp_configurator_handler_enable_address_family(BgpConfigurator
       if(IS_QTHRIFT_DEBUG)
         zlog_info ("enableAddressFamily(%s, %u, %u) NOK (capnproto error)", peerIp, afi, safi);
     }
-  return ret;
+  if (ret)
+    return TRUE;
+  else
+    return FALSE;
 }
 
 /*
@@ -1594,7 +1614,10 @@ instance_bgp_configurator_handler_disable_address_family(BgpConfiguratorIf *ifac
       if(IS_QTHRIFT_DEBUG)
         zlog_info ("disableAddressFamily(%s, %u, %u) NOK (capnproto error)", peerIp, afi, safi);
     }
-  return ret;
+  if (ret)
+    return TRUE;
+  else
+    return FALSE;
 }
 
 gboolean
@@ -2078,11 +2101,17 @@ qthrift_bgp_set_multipath(struct qthrift_vpnservice *ctxt,  gint32* _return, con
     }
   if (qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
     {
-      return ret;
+      if (ret)
+        return TRUE;
+      else
+        return FALSE;
     }
   ret = qthrift_bgp_set_multipath_internal (ctxt, _return, af, saf,
                                             enable, error);
-  return ret;
+  if (ret)
+    return TRUE;
+  else
+    return FALSE;
 }
 
 gboolean
