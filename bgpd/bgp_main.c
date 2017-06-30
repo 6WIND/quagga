@@ -346,6 +346,9 @@ bgp_exit (int status)
   qzc_finish ();
 #endif /* HAVE_CCAPNPROTO */
 
+  if (bm->bgp_monitor_thread)
+    THREAD_OFF (bm->bgp_monitor_thread);
+
   /* reverse bgp_master_init */
   if (bm->master)
     thread_master_free (bm->master);
@@ -357,6 +360,30 @@ bgp_exit (int status)
     log_memstats_stderr ("bgpd");
 
   exit (status);
+}
+
+static int bgp_monitor_timer (struct thread *t)
+{
+  if (getppid() == 1)
+    {
+      zlog_notice ("sdnc program has exited, force bgpd to exit");
+      if (! retain_mode)
+        {
+          bgp_terminate ();
+          zprivs_terminate (&bgpd_privs);
+        }
+      bgp_exit (0);
+      return 1;
+    }
+  bm->bgp_monitor_thread = thread_add_timer (bm->master, bgp_monitor_timer,
+                                             NULL, BGP_MONITOR_INTERVAL);
+  return 0;
+}
+
+static void bgp_monitor_start()
+{
+  bm->bgp_monitor_thread = thread_add_timer (bm->master, bgp_monitor_timer,
+                                             NULL, BGP_MONITOR_INTERVAL);
 }
 
 /* Main routine of bgpd. Treatment of argument and start bgp finite
@@ -512,6 +539,12 @@ main (int argc, char **argv)
 
   /* Make bgp vty socket. */
   vty_serv_sock (vty_addr, vty_port, BGP_VTYSH_PATH);
+
+  /* start a timer to monitor thriftd
+   * only if it is called from zmq daemon 
+   */
+  if (zmq_sock)
+    bgp_monitor_start();
 
   /* Print banner. */
   zlog_notice ("BGPd %s starting: vty@%d, bgp@%s:%d pid %d", QUAGGA_VERSION,
