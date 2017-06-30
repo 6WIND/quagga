@@ -54,6 +54,10 @@ struct bgp_master
   /* BGP thread master.  */
   struct thread_master *master;
 
+  /* Monitor thriftd. If thriftd dies, force bgpd to exit. */
+  struct thread *bgp_monitor_thread;
+#define BGP_MONITOR_INTERVAL   5
+
   /* work queues */
   struct work_queue *process_main_queue;
   struct work_queue *process_rsclient_queue;
