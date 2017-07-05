@@ -402,6 +402,13 @@ void qthrift_vpnservice_terminate_client(struct qthrift_vpnservice_client *peer)
   if(peer == NULL)
     return;
   /* peer destroy */
+  thrift_transport_flush(peer->transport, &error);
+  if (error != NULL)
+    {
+      zlog_err("Unable to flush thrift socket: %s\n", error->message);
+      g_error_free (error);
+      error = NULL;
+    }
   thrift_transport_close(peer->transport, &error);
   if (error != NULL)
     {
