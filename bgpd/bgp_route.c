@@ -746,7 +746,6 @@ bgp_input_modifier (struct peer *peer, struct prefix *p, struct attr *attr,
   /* Apply default weight value. */
   if (peer->weight)
     (bgp_attr_extra_get (attr))->weight = peer->weight;
-
   /* Route map apply. */
   if (ROUTE_MAP_IN_NAME (filter))
     {
