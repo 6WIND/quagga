@@ -89,6 +89,19 @@ struct community_list_handler *bgp_clist;
 
 int  bgp_order_send_eor = 0;
 
+/* peer_flag_change_type. */
+enum peer_change_type
+{
+  peer_change_none,
+  peer_change_reset,
+  peer_change_reset_in,
+  peer_change_reset_out,
+};
+
+static void
+peer_change_action (struct peer *peer, afi_t afi, safi_t safi,
+		    enum peer_change_type type);
+
 /* BGP global flag manipulation.  */
 int
 bgp_option_set (int flag)
@@ -2186,7 +2199,6 @@ void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, u_int16_t maxpaths)
 void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf)
 {
   afi_t afi;
-  safi_t safi;
 
   if (! vrf)
     return;
@@ -2195,6 +2207,22 @@ void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf)
     {
       if (bgp_mpath_is_configured(vrf->bgp, afi, SAFI_MPLS_VPN))
         {
+          if (vrf->max_mpath[afi] != vrf->max_mpath_configured)
+            {
+              struct listnode *node, *next;
+              struct peer *peer;
+              for (ALL_LIST_ELEMENTS (vrf->bgp->peer, node, next, peer))
+                {
+                  if (peer->status != Established)
+                    continue;
+                  if (! peer->afc[afi][SAFI_MPLS_VPN])
+                    continue;
+                  zlog_err("vrf mpath (%u->%u) : peer %s refreshing afi %u %u",
+                           vrf->max_mpath[afi], vrf->max_mpath_configured,
+                           peer->host, afi, SAFI_MPLS_VPN);
+                  peer_change_action (peer, afi, SAFI_MPLS_VPN, peer_change_reset_in);
+                }
+            }
           vrf->max_mpath[afi] = vrf->max_mpath_configured;
         }
       else
@@ -2713,15 +2741,6 @@ peer_active_nego (struct peer *peer)
     return 1;
   return 0;
 }
-
-/* peer_flag_change_type. */
-enum peer_change_type
-{
-  peer_change_none,
-  peer_change_reset,
-  peer_change_reset_in,
-  peer_change_reset_out,
-};
 
 static void
 peer_change_action (struct peer *peer, afi_t afi, safi_t safi,
