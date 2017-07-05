@@ -481,10 +481,16 @@ void qthrift_vpnservice_set_thrift_bgp_updater_client_port (struct qthrift_vpnse
 
 void qthrift_vpnservice_terminate_client(struct qthrift_vpnservice_client *peer)
 {
+  GError *error = NULL;
   if(peer == NULL)
     return;
   /* peer destroy */
-  thrift_transport_close(peer->transport, NULL);
+  thrift_transport_close(peer->transport, &error);
+  if (error != NULL)
+    {
+      zlog_err("Unable to close thrift socket: %s\n", error->message);
+      g_error_free (error);
+    }
   g_object_unref(peer->transport_buffered);
   g_object_unref(peer->protocol);
   peer->protocol = NULL;
