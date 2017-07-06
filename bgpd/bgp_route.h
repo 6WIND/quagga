@@ -209,7 +209,8 @@ extern struct bgp_info *bgp_last_bgp_info_configured[AFI_MAX][SAFI_MAX];
 enum bgp_clear_route_type
 {
   BGP_CLEAR_ROUTE_NORMAL,
-  BGP_CLEAR_ROUTE_MY_RSCLIENT
+  BGP_CLEAR_ROUTE_MY_RSCLIENT,
+  BGP_CLEAR_ROUTE_REFRESH
 };
 
 enum bgp_path_type

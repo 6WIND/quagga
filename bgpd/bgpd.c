@@ -2966,7 +2966,7 @@ peer_change_action (struct peer *peer, afi_t afi, safi_t safi,
     {
       if (CHECK_FLAG (peer->cap, PEER_CAP_REFRESH_OLD_RCV)
 	  || CHECK_FLAG (peer->cap, PEER_CAP_REFRESH_NEW_RCV))
-	bgp_route_refresh_send (peer, afi, safi, 0, 0, 0);
+	bgp_route_refresh_send (peer, afi, safi, 0, 0, 0, 0);
       else
 	bgp_notify_send (peer, BGP_NOTIFY_CEASE,
 			 BGP_NOTIFY_CEASE_CONFIG_CHANGE);
@@ -5583,17 +5583,17 @@ peer_clear_soft (struct peer *peer, afi_t afi, safi_t safi,
 	    {
 	      if (CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_ORF_PREFIX_SEND))
 		bgp_route_refresh_send (peer, afi, safi,
-					prefix_type, REFRESH_DEFER, 1);
+					prefix_type, REFRESH_DEFER, 1, 0);
 	      bgp_route_refresh_send (peer, afi, safi, prefix_type,
-				      REFRESH_IMMEDIATE, 0);
+				      REFRESH_IMMEDIATE, 0, 0);
 	    }
 	  else
 	    {
 	      if (CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_ORF_PREFIX_SEND))
 		bgp_route_refresh_send (peer, afi, safi,
-					prefix_type, REFRESH_IMMEDIATE, 1);
+					prefix_type, REFRESH_IMMEDIATE, 1, 0);
 	      else
-		bgp_route_refresh_send (peer, afi, safi, 0, 0, 0);
+		bgp_route_refresh_send (peer, afi, safi, 0, 0, 0, 0);
 	    }
 	  return 0;
 	}
@@ -5612,7 +5612,7 @@ peer_clear_soft (struct peer *peer, afi_t afi, safi_t safi,
 	     message to the peer. */
 	  if (CHECK_FLAG (peer->cap, PEER_CAP_REFRESH_OLD_RCV)
 	      || CHECK_FLAG (peer->cap, PEER_CAP_REFRESH_NEW_RCV))
-	    bgp_route_refresh_send (peer, afi, safi, 0, 0, 0);
+	    bgp_route_refresh_send (peer, afi, safi, 0, 0, 0, 0);
 	  else
 	    return BGP_ERR_SOFT_RECONFIG_UNCONFIGURED;
 	}

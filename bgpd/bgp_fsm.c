@@ -913,10 +913,10 @@ bgp_establish (struct peer *peer)
 	{
 	  if (CHECK_FLAG (peer->af_cap[afi][safi], PEER_CAP_ORF_PREFIX_RM_RCV))
 	    bgp_route_refresh_send (peer, afi, safi, ORF_TYPE_PREFIX,
-				    REFRESH_IMMEDIATE, 0);
+				    REFRESH_IMMEDIATE, 0, 0);
 	  else if (CHECK_FLAG (peer->af_cap[afi][safi], PEER_CAP_ORF_PREFIX_RM_OLD_RCV))
 	    bgp_route_refresh_send (peer, afi, safi, ORF_TYPE_PREFIX_OLD,
-				    REFRESH_IMMEDIATE, 0);
+				    REFRESH_IMMEDIATE, 0, 0);
 	}
 
   if (peer->v_keepalive)

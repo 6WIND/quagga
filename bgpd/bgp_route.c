@@ -5493,10 +5493,11 @@ bgp_clear_route_node (struct work_queue *wq, void *data)
     if (ri->peer == peer || cnq->purpose == BGP_CLEAR_ROUTE_MY_RSCLIENT)
       {
         /* graceful restart STALE flag set. */
-        if (CHECK_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT)
-            && peer->nsf[afi][safi]
-            && ! CHECK_FLAG (ri->flags, BGP_INFO_STALE)
-            && ! CHECK_FLAG (ri->flags, BGP_INFO_UNUSEABLE))
+        if ((CHECK_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT)
+             && peer->nsf[afi][safi]
+             && ! CHECK_FLAG (ri->flags, BGP_INFO_STALE)
+             && ! CHECK_FLAG (ri->flags, BGP_INFO_UNUSEABLE))
+            || (cnq->purpose == BGP_CLEAR_ROUTE_REFRESH))
           bgp_info_set_flag (rn, ri, BGP_INFO_STALE);
         else
           bgp_rib_remove (rn, ri, peer, afi, safi);
@@ -5670,6 +5671,7 @@ bgp_clear_route (struct peer *peer, afi_t afi, safi_t safi,
     peer_lock (peer); /* bgp_clear_node_complete */
   switch (purpose)
     {
+    case BGP_CLEAR_ROUTE_REFRESH:
     case BGP_CLEAR_ROUTE_NORMAL:
       if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_ENCAP) &&
           (safi != SAFI_EVPN))
