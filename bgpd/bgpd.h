@@ -600,6 +600,8 @@ struct peer
 #define PEER_STATUS_PREFIX_LIMIT      (1 << 4) /* exceed prefix-limit */
 #define PEER_STATUS_EOR_SEND          (1 << 5) /* end-of-rib send to peer */
 #define PEER_STATUS_EOR_RECEIVED      (1 << 6) /* end-of-rib received from peer */
+#define PEER_STATUS_EORR_READY_TO_SEND (1 << 7) /* end-of-rib marker for sender */
+
 
   /* Default attribute value for the peer. */
   u_int32_t config;
@@ -621,7 +623,8 @@ struct peer
   u_int32_t v_routeadv;
   u_int32_t v_pmax_restart;
   u_int32_t v_gr_restart;
-
+  u_int32_t v_refresh_expire;
+  struct peer_afi_safi *v_refresh_ctxt[AFI_MAX][SAFI_MAX];
   /* Threads. */
   struct thread *t_read;
   struct thread *t_write;
@@ -633,6 +636,7 @@ struct peer
   struct thread *t_pmax_restart;
   struct thread *t_gr_restart;
   struct thread *t_gr_stale;
+  struct thread *t_refresh_expire[AFI_MAX][SAFI_MAX];
   
   /* workqueues */
   struct work_queue *clear_node_queue;
@@ -728,6 +732,13 @@ struct peer
 
 
   QZC_NODE
+};
+
+struct peer_afi_safi
+{
+  struct peer *peer;
+  afi_t afi;
+  safi_t safi;
 };
 
 #define PEER_PASSWORD_MINLEN	(1)
@@ -868,6 +879,10 @@ struct bgp_nlri
 #define BGP_NOTIFY_CAPABILITY_INVALID_LENGTH     2
 #define BGP_NOTIFY_CAPABILITY_MALFORMED_CODE     3
 #define BGP_NOTIFY_CAPABILITY_MAX                4
+
+/* BGP refresh optional parameter.  */
+#define BGP_REFRESH_BORR                         1
+#define BGP_REFRESH_EORR                         2
 
 /* BGP finite state machine status.  */
 #define Idle                                     1

@@ -203,7 +203,8 @@ struct bgp_route_evpn
 enum bgp_clear_route_type
 {
   BGP_CLEAR_ROUTE_NORMAL,
-  BGP_CLEAR_ROUTE_MY_RSCLIENT
+  BGP_CLEAR_ROUTE_MY_RSCLIENT,
+  BGP_CLEAR_ROUTE_REFRESH
 };
 
 #define ROUTE_INFO_TO_UPDATE 2
