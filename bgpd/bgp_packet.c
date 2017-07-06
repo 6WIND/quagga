@@ -831,6 +831,11 @@ bgp_write_packet (struct peer *peer)
                 if (peer->bgp->v_update_delay && !bgp_update_delay_active (peer, afi, safi))
                   bgp_update_delay_begin (peer, afi, safi);
               }
+	  }
+	if (CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EORR_READY_TO_SEND))
+          {
+            UNSET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EORR_READY_TO_SEND);
+            bgp_route_refresh_send (peer, afi, safi, 0, 0, 0, BGP_REFRESH_EORR);
           }
       }
   return NULL;
@@ -1338,7 +1343,7 @@ bgp_notify_send (struct peer *peer, u_char code, u_char sub_code)
 /* Send route refresh message to the peer. */
 void
 bgp_route_refresh_send (struct peer *peer, afi_t afi, safi_t safi,
-			u_char orf_type, u_char when_to_refresh, int remove)
+			u_char orf_type, u_char when_to_refresh, int remove, u_char option)
 {
   struct stream *s;
   int length;
@@ -1364,7 +1369,10 @@ bgp_route_refresh_send (struct peer *peer, afi_t afi, safi_t safi,
 
   /* Encode Route Refresh message. */
   stream_putw (s, afi);
-  stream_putc (s, 0);
+  if (option)
+    stream_putc (s, option);
+  else
+    stream_putc (s, 0);
   stream_putc (s, safi);
  
   if (orf_type == ORF_TYPE_PREFIX
@@ -2310,6 +2318,35 @@ bgp_keepalive_receive (struct peer *peer, bgp_size_t size)
   BGP_EVENT_ADD (peer, Receive_KEEPALIVE_message);
 }
 
+static int
+bgp_refresh_timer_expire (struct thread *thread)
+{
+  struct peer_afi_safi *peer_afi_safi;
+  afi_t afi;
+  safi_t safi;
+  struct peer *peer;
+
+  peer_afi_safi = THREAD_ARG (thread);
+  if (peer_afi_safi == NULL)
+    return 0;
+  peer = peer_afi_safi->peer;
+  afi = peer_afi_safi->afi;
+  safi = peer_afi_safi->safi;
+
+  XFREE (MTYPE_BGP_REFRESH_CTXT, peer->v_refresh_ctxt[afi][safi]);
+  peer->v_refresh_ctxt[afi][safi] = NULL;
+  peer->t_refresh_expire[afi][safi] = NULL;
+
+  bgp_clear_stale_route (peer, afi, safi);
+
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      zlog_debug("%s: %d/%d, BORR timer expired",
+                 peer->host, afi, safi);
+    }
+  return 0;
+}
+
 /* Route refresh message is received. */
 static void
 bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
@@ -2317,6 +2354,7 @@ bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
   afi_t afi;
   safi_t safi;
   struct stream *s;
+  char option;
 
   /* If peer does not have the capability, send notification. */
   if (! CHECK_FLAG (peer->cap, PEER_CAP_REFRESH_ADV))
@@ -2344,7 +2382,7 @@ bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
   /* Parse packet. */
   afi = stream_getw (s);
   /* reserved byte */
-  stream_getc (s);
+  option = stream_getc (s);
   safi = stream_getc (s);
 
   if (BGP_DEBUG (normal, NORMAL))
@@ -2514,9 +2552,64 @@ bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
   /* First update is deferred until ORF or ROUTE-REFRESH is received */
   if (CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_ORF_WAIT_REFRESH))
     UNSET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_ORF_WAIT_REFRESH);
+#if 0 /* rfc 7313 partially supported */
+  if (option & BGP_REFRESH_BORR)
+    {
+      if (peer->t_refresh_expire[afi][safi] || peer->v_refresh_ctxt[afi][safi])
+        {
+          zlog_err("%s: %d/%d, BORR msg received, whereas BORR already received. ignoring it",
+                   peer->host, afi, safi);
+          return;
+        }
+      /* Set to STALE route entries from peer */
+      bgp_clear_route (peer, afi, safi, BGP_CLEAR_ROUTE_REFRESH);
 
-  /* Perform route refreshment to the peer */
-  bgp_announce_route (peer, afi, safi);
+      /* Set to STALE route entries from peer */
+      if (peer->status == Established)
+        {
+          peer->v_refresh_ctxt[afi][safi] = XCALLOC (MTYPE_BGP_REFRESH_CTXT, sizeof (struct peer_afi_safi));
+          peer->v_refresh_ctxt[afi][safi]->peer = peer;
+          peer->v_refresh_ctxt[afi][safi]->afi = afi;
+          peer->v_refresh_ctxt[afi][safi]->safi = safi;
+          THREAD_TIMER_ON (bm->master, peer->t_refresh_expire[afi][safi], bgp_refresh_timer_expire,
+                           peer->v_refresh_ctxt[afi][safi], peer->v_refresh_expire);
+        }
+      peer->v_refresh_ctxt[afi][safi] = NULL;
+
+      if (BGP_DEBUG (events, EVENTS))
+        {
+          zlog_debug("%s: %d/%d, BORR msg received, triggering timer for %u seconds",
+                     peer->host, afi, safi, peer->v_refresh_expire);
+        }
+
+    } else if (option & BGP_REFRESH_EORR)
+    {
+      if (!peer->t_refresh_expire[afi][safi])
+        {
+          zlog_err("%s: %d/%d, EORR msg received, whereas no BORR received. ignoring it",
+                   peer->host, afi, safi);
+          return;
+        }
+      else
+        {
+          THREAD_TIMER_OFF (peer->t_refresh_expire[afi][safi]);
+          peer->t_refresh_expire[afi][safi] = NULL;
+          XFREE (MTYPE_BGP_REFRESH_CTXT, peer->v_refresh_ctxt[afi][safi]);
+          peer->v_refresh_ctxt[afi][safi] = NULL;
+          peer->t_refresh_expire[afi][safi] = NULL;
+        }
+      /* Clear STALE route entries from peer */
+      bgp_clear_stale_route (peer, afi, safi);
+    } else
+    {
+      /* Send REFRESH MSG back with BORR marker */
+      bgp_route_refresh_send (peer, afi, safi, 0, 0, 0, BGP_REFRESH_BORR);
+      /* Perform route refreshment to the peer */
+      bgp_announce_route (peer, afi, safi);
+      /* Send REFRESH MSG back with EORR marker */
+      SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EORR_READY_TO_SEND);
+    }
+#endif /* rfc 7313 partially supported */
 }
 
 static int
