@@ -8050,6 +8050,19 @@ DEFUN (show_ip_bgp_vpnv4_all_summary,
   return bgp_show_summary_vty (vty, NULL, AFI_IP, SAFI_MPLS_VPN);
 }
 
+DEFUN (show_ip_bgp_vpnv6_all_summary,
+       show_ip_bgp_vpnv6_all_summary_cmd,
+       "show ip bgp vpnv6 all summary",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "Display VPNv6 NLRI specific information\n"
+       "Display information about all VPNv6 NLRIs\n"
+       "Summary of BGP neighbor status\n")
+{
+  return bgp_show_summary_vty (vty, NULL, AFI_IP6, SAFI_MPLS_VPN);
+}
+
 DEFUN (show_ip_bgp_vpnv4_rd_summary,
        show_ip_bgp_vpnv4_rd_summary_cmd,
        "show ip bgp vpnv4 rd ASN:nn_or_IP-address:nn summary",
@@ -8072,6 +8085,30 @@ DEFUN (show_ip_bgp_vpnv4_rd_summary,
     }
 
   return bgp_show_summary_vty (vty, NULL, AFI_IP, SAFI_MPLS_VPN);
+}
+
+DEFUN (show_ip_bgp_vpnv6_rd_summary,
+       show_ip_bgp_vpnv6_rd_summary_cmd,
+       "show ip bgp vpnv6 rd ASN:nn_or_IP-address:nn summary",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "Display VPNv6 NLRI specific information\n"
+       "Display information for a route distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "Summary of BGP neighbor status\n")
+{
+  int ret;
+  struct prefix_rd prd;
+
+  ret = str2prefix_rd (argv[0], &prd);
+  if (! ret)
+    {
+      vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  return bgp_show_summary_vty (vty, NULL, AFI_IP6, SAFI_MPLS_VPN);
 }
 
 DEFUN (show_bgp_ipv4_safi_summary,
@@ -12060,7 +12097,9 @@ bgp_vty_init (void)
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_summary_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_instance_ipv4_summary_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_all_summary_cmd);
+  install_element (VIEW_NODE, &show_ip_bgp_vpnv6_all_summary_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vpnv4_rd_summary_cmd);
+  install_element (VIEW_NODE, &show_ip_bgp_vpnv6_rd_summary_cmd);
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_summary_cmd);
   install_element (VIEW_NODE, &show_bgp_ipv6_summary_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_summary_cmd);
@@ -12069,6 +12108,8 @@ bgp_vty_init (void)
   install_element (RESTRICTED_NODE, &show_ip_bgp_instance_ipv4_summary_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv4_all_summary_cmd);
   install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv4_rd_summary_cmd);
+  install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv6_all_summary_cmd);
+  install_element (RESTRICTED_NODE, &show_ip_bgp_vpnv6_rd_summary_cmd);
   install_element (RESTRICTED_NODE, &show_bgp_l2vpn_evpn_all_summary_cmd);
   install_element (RESTRICTED_NODE, &show_bgp_ipv6_summary_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_neighbors_cmd);
