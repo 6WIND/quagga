@@ -176,13 +176,6 @@ extern struct bgp_info *bgp_last_bgp_info_configured[AFI_MAX][SAFI_MAX];
 #define UNSUPPRESS_MAP_NAME(F)  ((F)->usmap.name)
 #define UNSUPPRESS_MAP(F)       ((F)->usmap.map)
 
-enum bgp_clear_route_type
-{
-  BGP_CLEAR_ROUTE_NORMAL,
-  BGP_CLEAR_ROUTE_MY_RSCLIENT,
-  BGP_CLEAR_ROUTE_REFRESH
-};
-
 /* Prototypes. */
 extern void bgp_route_init (void);
 extern void bgp_route_finish (void);

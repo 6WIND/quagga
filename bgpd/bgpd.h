@@ -374,6 +374,13 @@ typedef enum
   BGP_PEER_CONFED,
 } bgp_peer_sort_t;
 
+enum bgp_clear_route_type
+{
+  BGP_CLEAR_ROUTE_NORMAL,
+  BGP_CLEAR_ROUTE_MY_RSCLIENT,
+  BGP_CLEAR_ROUTE_REFRESH
+};
+
 /* BGP neighbor structure. */
 struct peer
 {
@@ -496,7 +503,6 @@ struct peer
 #define PEER_FLAG_LOCAL_AS_NO_PREPEND       (1 << 7) /* local-as no-prepend */
 #define PEER_FLAG_LOCAL_AS_REPLACE_AS       (1 << 8) /* local-as no-prepend replace-as */
 #define PEER_FLAG_USE_CONFIGURED_SOURCE     (1 << 9) /* use configured source-only */
-
   /* NSF mode (graceful restart) */
   u_char nsf[AFI_MAX][SAFI_MAX];
 
@@ -684,6 +690,8 @@ struct peer
 #define PEER_RMAP_TYPE_EXPORT         (1 << 7) /* neighbor route-map export */
 
   struct thread *t_update_delay[AFI_MAX][SAFI_MAX];
+  /* Clear purposeconfiguration flags. */
+  enum bgp_clear_route_type clear_purpose;
 
   QZC_NODE
 };

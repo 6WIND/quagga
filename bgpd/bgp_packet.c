@@ -2318,7 +2318,7 @@ bgp_keepalive_receive (struct peer *peer, bgp_size_t size)
   BGP_EVENT_ADD (peer, Receive_KEEPALIVE_message);
 }
 
-static int
+int
 bgp_refresh_timer_expire (struct thread *thread)
 {
   struct peer_afi_safi *peer_afi_safi;
@@ -2341,7 +2341,7 @@ bgp_refresh_timer_expire (struct thread *thread)
 
   if (BGP_DEBUG (events, EVENTS))
     {
-      zlog_debug("%s: %d/%d, BORR timer expired",
+      zlog_debug("%s: %d/%d, refresh timer expired",
                  peer->host, afi, safi);
     }
   return 0;
