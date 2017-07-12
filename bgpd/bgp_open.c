@@ -382,6 +382,7 @@ bgp_capability_restart (struct peer *peer, struct capability_header *caphdr)
   
   UNSET_FLAG (restart_flag_time, 0xF000);
   peer->v_gr_restart = restart_flag_time;
+  peer->v_refresh_expire = peer->v_gr_restart;
 
   if (BGP_DEBUG (normal, NORMAL))
     {

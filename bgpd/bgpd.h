@@ -417,6 +417,13 @@ typedef enum
 
 #define BGP_MAX_PACKET_SIZE_OVERFLOW          1024
 
+enum bgp_clear_route_type
+{
+  BGP_CLEAR_ROUTE_NORMAL,
+  BGP_CLEAR_ROUTE_MY_RSCLIENT,
+  BGP_CLEAR_ROUTE_REFRESH
+};
+
 /* BGP neighbor structure. */
 struct peer
 {
@@ -539,7 +546,6 @@ struct peer
 #define PEER_FLAG_LOCAL_AS_NO_PREPEND       (1 << 7) /* local-as no-prepend */
 #define PEER_FLAG_LOCAL_AS_REPLACE_AS       (1 << 8) /* local-as no-prepend replace-as */
 #define PEER_FLAG_USE_CONFIGURED_SOURCE     (1 << 9) /* use configured source-only */
-
   /* NSF mode (graceful restart) */
   u_char nsf[AFI_MAX][SAFI_MAX];
 
@@ -732,6 +738,8 @@ struct peer
 #define PEER_RMAP_TYPE_EXPORT         (1 << 7) /* neighbor route-map export */
 
   struct thread *t_update_delay[AFI_MAX][SAFI_MAX];
+  /* Clear purpose configuration flags. */
+  enum bgp_clear_route_type clear_purpose;
 
   QZC_NODE
 };
@@ -1217,5 +1225,6 @@ extern void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf);
 extern void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi, u_int16_t maxpaths);
 extern void bgp_send_eor (struct peer *peer);
 extern void bgp_send_eor_to_peers(struct bgp *bgp);
+extern int bgp_refresh_timer_expire (struct thread *thread);
 
 #endif /* _QUAGGA_BGPD_H */
