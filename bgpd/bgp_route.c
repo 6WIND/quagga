@@ -4116,6 +4116,7 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 		{
 		  bgp_info_unset_flag (rn, ri, BGP_INFO_STALE);
 		  bgp_process (bgp, rn, afi, safi);
+		  bgp_vrf_process_imports2(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri, attr);
 		}
 	    }
 
@@ -4954,9 +4955,11 @@ bgp_clear_node_complete (struct work_queue *wq)
 {
   struct peer *peer = wq->spec.data;
   
-  /* Tickle FSM to start moving again */
-  BGP_EVENT_ADD (peer, Clearing_Completed);
-
+  if (peer->clear_purpose != BGP_CLEAR_ROUTE_REFRESH)
+    {
+      /* Tickle FSM to start moving again */
+      BGP_EVENT_ADD (peer, Clearing_Completed);
+    }
   peer_unlock (peer); /* bgp_clear_route */
 }
 
@@ -5077,7 +5080,7 @@ bgp_clear_route (struct peer *peer, afi_t afi, safi_t safi,
   struct bgp_table *table;
   struct peer *rsclient;
   struct listnode *node, *nnode;
-
+  peer->clear_purpose = purpose;
   if (peer->clear_node_queue == NULL)
     bgp_clear_node_queue_init (peer);
   
@@ -5112,7 +5115,6 @@ bgp_clear_route (struct peer *peer, afi_t afi, safi_t safi,
              rn = bgp_route_next (rn))
           if ((table = rn->info) != NULL)
             bgp_clear_route_table (peer, afi, safi, table, NULL, purpose);
-
       for (ALL_LIST_ELEMENTS (peer->bgp->rsclient, node, nnode, rsclient))
         if (CHECK_FLAG(rsclient->af_flags[afi][safi],
                        PEER_FLAG_RSERVER_CLIENT))

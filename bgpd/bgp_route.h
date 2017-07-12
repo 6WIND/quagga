@@ -200,13 +200,6 @@ struct bgp_route_evpn
 #define UNSUPPRESS_MAP_NAME(F)  ((F)->usmap.name)
 #define UNSUPPRESS_MAP(F)       ((F)->usmap.map)
 
-enum bgp_clear_route_type
-{
-  BGP_CLEAR_ROUTE_NORMAL,
-  BGP_CLEAR_ROUTE_MY_RSCLIENT,
-  BGP_CLEAR_ROUTE_REFRESH
-};
-
 #define ROUTE_INFO_TO_UPDATE 2
 #define ROUTE_INFO_TO_REMOVE 1
 #define ROUTE_INFO_TO_ADD    0

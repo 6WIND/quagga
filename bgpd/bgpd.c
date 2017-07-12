@@ -98,6 +98,9 @@ enum peer_change_type
   peer_change_reset_out,
 };
 
+extern int
+bgp_refresh_timer_expire (struct thread *thread);
+
 static void
 peer_change_action (struct peer *peer, afi_t afi, safi_t safi,
 		    enum peer_change_type type);
@@ -2850,10 +2853,31 @@ peer_change_action (struct peer *peer, afi_t afi, safi_t safi,
     {
       if (CHECK_FLAG (peer->cap, PEER_CAP_REFRESH_OLD_RCV)
 	  || CHECK_FLAG (peer->cap, PEER_CAP_REFRESH_NEW_RCV))
-	bgp_route_refresh_send (peer, afi, safi, 0, 0, 0, 0);
+        {
+          bgp_route_refresh_send (peer, afi, safi, 0, 0, 0, 0);
+          /* Set to STALE route entries from peer */
+          bgp_clear_route (peer, afi, safi, BGP_CLEAR_ROUTE_REFRESH);
+          /* Set to STALE route entries from peer */
+          if (peer->status == Established)
+            {
+              peer->v_refresh_ctxt[afi][safi] = XCALLOC (MTYPE_BGP_REFRESH_CTXT, sizeof (struct peer_afi_safi));
+              peer->v_refresh_ctxt[afi][safi]->peer = peer;
+              peer->v_refresh_ctxt[afi][safi]->afi = afi;
+              peer->v_refresh_ctxt[afi][safi]->safi = safi;
+              THREAD_TIMER_ON (bm->master, peer->t_refresh_expire[afi][safi], bgp_refresh_timer_expire,
+                               peer->v_refresh_ctxt[afi][safi], peer->v_refresh_expire);
+              if (BGP_DEBUG (events, EVENTS))
+                {
+                  zlog_debug("%s: refresh request, triggering timer for %u seconds",
+                             peer->host, peer->v_refresh_expire);
+                }
+            }
+        }
       else
-	bgp_notify_send (peer, BGP_NOTIFY_CEASE,
-			 BGP_NOTIFY_CEASE_CONFIG_CHANGE);
+        {
+          bgp_notify_send (peer, BGP_NOTIFY_CEASE,
+                           BGP_NOTIFY_CEASE_CONFIG_CHANGE);
+        }
     }
   else if (type == peer_change_reset_out)
     bgp_announce_route (peer, afi, safi);
