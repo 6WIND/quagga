@@ -358,7 +358,7 @@ bgp_graceful_restart_timer_expire (struct thread *thread)
   for (afi = AFI_IP ; afi < AFI_MAX ; afi++)
     for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_5 ; safi++)
       if (peer->nsf[afi][safi])
-	bgp_clear_stale_route (peer, afi, safi);
+	bgp_clear_stale_route (peer, afi, safi, BGP_INFO_STALE);
 
   UNSET_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT);
   BGP_TIMER_OFF (peer->t_gr_stale);
@@ -391,7 +391,7 @@ bgp_graceful_stale_timer_expire (struct thread *thread)
   for (afi = AFI_IP ; afi < AFI_MAX ; afi++)
     for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_5 ; safi++)
       if (peer->nsf[afi][safi])
-	bgp_clear_stale_route (peer, afi, safi);
+	bgp_clear_stale_route (peer, afi, safi, BGP_INFO_STALE);
 
   return 0;
 }
@@ -866,7 +866,7 @@ bgp_establish (struct peer *peer)
 	  {
 	    if (peer->nsf[afi][safi]
 		&& ! CHECK_FLAG (peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_PRESERVE_RCV))
-	      bgp_clear_stale_route (peer, afi, safi);
+	      bgp_clear_stale_route (peer, afi, safi, BGP_INFO_STALE);
 
 	    peer->nsf[afi][safi] = 1;
 	    nsf_af_count++;
@@ -874,7 +874,7 @@ bgp_establish (struct peer *peer)
 	else
 	  {
 	    if (peer->nsf[afi][safi])
-	      bgp_clear_stale_route (peer, afi, safi);
+	      bgp_clear_stale_route (peer, afi, safi, BGP_INFO_STALE);
 	    peer->nsf[afi][safi] = 0;
 	  }
       }
