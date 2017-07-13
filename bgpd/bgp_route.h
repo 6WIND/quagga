@@ -71,7 +71,7 @@ struct bgp_info
   int lock;
   
   /* BGP information status.  */
-  u_int16_t flags;
+  u_int32_t flags;
 #define BGP_INFO_IGP_CHANGED    (1 << 0)
 #define BGP_INFO_DAMPED         (1 << 1)
 #define BGP_INFO_HISTORY        (1 << 2)
@@ -88,6 +88,7 @@ struct bgp_info
 #define BGP_INFO_UPDATE_SENT    (1 << 13)
 #define BGP_INFO_WITHDRAW_SENT  (1 << 14)
 #define BGP_INFO_VPN_HIDEN      (1 << 15)
+#define BGP_INFO_STALE_REFRESH  (1 << 16)
 
   /* BGP route type.  This can be static, RIP, OSPF, BGP etc.  */
   u_char type;
@@ -194,7 +195,7 @@ extern void bgp_clear_route (struct peer *, afi_t, safi_t,
                              enum bgp_clear_route_type);
 extern void bgp_clear_route_all (struct peer *);
 extern void bgp_clear_adj_in (struct peer *, afi_t, safi_t);
-extern void bgp_clear_stale_route (struct peer *, afi_t, safi_t);
+extern void bgp_clear_stale_route (struct peer *, afi_t, safi_t, int);
 
 extern struct bgp_info *bgp_info_lock (struct bgp_info *);
 extern struct bgp_info *bgp_info_unlock (struct bgp_info *);

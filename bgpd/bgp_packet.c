@@ -2201,7 +2201,7 @@ bgp_update_receive (struct peer *peer, bgp_size_t size)
 
 	  /* NSF delete stale route */
 	  if (peer->nsf[afi][safi])
-	    bgp_clear_stale_route (peer, afi, safi);
+	    bgp_clear_stale_route (peer, afi, safi, BGP_INFO_STALE);
 
 	  if (BGP_DEBUG (normal, NORMAL))
 	    zlog (peer->log, LOG_DEBUG, "rcvd End-of-RIB for %s from %s",
@@ -2337,7 +2337,7 @@ bgp_refresh_timer_expire (struct thread *thread)
   peer->v_refresh_ctxt[afi][safi] = NULL;
   peer->t_refresh_expire[afi][safi] = NULL;
 
-  bgp_clear_stale_route (peer, afi, safi);
+  bgp_clear_stale_route (peer, afi, safi, BGP_INFO_STALE_REFRESH);
 
   if (BGP_DEBUG (events, EVENTS))
     {
@@ -2599,7 +2599,7 @@ bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
           peer->t_refresh_expire[afi][safi] = NULL;
         }
       /* Clear STALE route entries from peer */
-      bgp_clear_stale_route (peer, afi, safi);
+      bgp_clear_stale_route (peer, afi, safi, BGP_INFO_STALE_REFRESH);
     } else
     {
       /* Send REFRESH MSG back with BORR marker */
