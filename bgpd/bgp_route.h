@@ -99,6 +99,7 @@ struct bgp_info
  */
 #define BGP_INFO_EVPN_AD        (1 << 16)
 #define BGP_INFO_VPN_HIDEN      (1 << 17)
+#define BGP_INFO_STALE_REFRESH  (1 << 18)
 
   /* BGP route type.  This can be static, RIP, OSPF, BGP etc.  */
   u_char type;
@@ -225,7 +226,7 @@ extern void bgp_clear_route (struct peer *, afi_t, safi_t,
                              enum bgp_clear_route_type);
 extern void bgp_clear_route_all (struct peer *);
 extern void bgp_clear_adj_in (struct peer *, afi_t, safi_t);
-extern void bgp_clear_stale_route (struct peer *, afi_t, safi_t);
+extern void bgp_clear_stale_route (struct peer *, afi_t, safi_t, int);
 
 extern struct bgp_info *bgp_info_lock (struct bgp_info *);
 extern struct bgp_info *bgp_info_unlock (struct bgp_info *);

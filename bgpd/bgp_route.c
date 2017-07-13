@@ -4112,9 +4112,13 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
                     zlog (peer->log, LOG_DEBUG, "    : label[%lu]=%x", i, labels[i]);
                 }
 	      /* graceful restart STALE flag unset. */
-	      if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
+	      if (CHECK_FLAG (ri->flags, BGP_INFO_STALE) || 
+                  CHECK_FLAG (ri->flags, BGP_INFO_STALE))
 		{
-		  bgp_info_unset_flag (rn, ri, BGP_INFO_STALE);
+                  if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
+                      bgp_info_unset_flag (rn, ri, BGP_INFO_STALE);
+                  else if (CHECK_FLAG (ri->flags, BGP_INFO_STALE_REFRESH))
+                    bgp_info_unset_flag (rn, ri, BGP_INFO_STALE_REFRESH);
 		  bgp_process (bgp, rn, afi, safi);
 		  bgp_vrf_process_imports2(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri, attr);
 		}
@@ -4147,6 +4151,10 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       /* graceful restart STALE flag unset. */
       if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
 	bgp_info_unset_flag (rn, ri, BGP_INFO_STALE);
+
+      /* BGP route refresh  STALE_REFRESH flag unset. */
+      if (CHECK_FLAG (ri->flags, BGP_INFO_STALE_REFRESH))
+	bgp_info_unset_flag (rn, ri, BGP_INFO_STALE_REFRESH);
 
       /* The attribute is changed. */
       bgp_info_set_flag (rn, ri, BGP_INFO_ATTR_CHANGED);
@@ -4928,10 +4936,11 @@ bgp_clear_route_node (struct work_queue *wq, void *data)
         if ((CHECK_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT)
              && peer->nsf[afi][safi]
              && ! CHECK_FLAG (ri->flags, BGP_INFO_STALE)
-             && ! CHECK_FLAG (ri->flags, BGP_INFO_UNUSEABLE))
-            || (cnq->purpose == BGP_CLEAR_ROUTE_REFRESH))
+             && ! CHECK_FLAG (ri->flags, BGP_INFO_UNUSEABLE))) {
           bgp_info_set_flag (rn, ri, BGP_INFO_STALE);
-        else
+        } else if (cnq->purpose == BGP_CLEAR_ROUTE_REFRESH) {
+          bgp_info_set_flag (rn, ri, BGP_INFO_STALE_REFRESH);
+        }
           bgp_rib_remove (rn, ri, peer, afi, safi);
         break;
       }
@@ -5243,7 +5252,7 @@ bgp_vrf_clear_adj_in (struct peer *peer, struct bgp_vrf *vrf, afi_t afi)
 }
 
 void
-bgp_clear_stale_route (struct peer *peer, afi_t afi, safi_t safi)
+bgp_clear_stale_route (struct peer *peer, afi_t afi, safi_t safi, int status)
 {
   struct bgp_node *rn;
   struct bgp_info *ri;
@@ -5263,7 +5272,7 @@ bgp_clear_stale_route (struct peer *peer, afi_t afi, safi_t safi)
                 for (ri = rm->info; ri; ri = ri->next)
                   if (ri->peer == peer)
                     {
-                      if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
+                      if (CHECK_FLAG (ri->flags, status))
                         bgp_rib_remove (rm, ri, peer, afi, safi);
                       break;
                     }
@@ -5276,7 +5285,7 @@ bgp_clear_stale_route (struct peer *peer, afi_t afi, safi_t safi)
         for (ri = rn->info; ri; ri = ri->next)
           if (ri->peer == peer)
             {
-              if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
+              if (CHECK_FLAG (ri->flags, status))
                 bgp_rib_remove (rn, ri, peer, afi, safi);
               break;
             }
