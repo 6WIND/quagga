@@ -3507,8 +3507,8 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 		p->prefixlen);
 
 	      /* graceful restart STALE flag unset. */
-	      if (CHECK_FLAG (ri->flags, BGP_INFO_STALE) || 
-                  CHECK_FLAG (ri->flags, BGP_INFO_STALE))
+	      if (CHECK_FLAG (ri->flags, BGP_INFO_STALE) ||
+                  CHECK_FLAG (ri->flags, BGP_INFO_STALE_REFRESH))
 		{
                   if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
                       bgp_info_unset_flag (rn, ri, BGP_INFO_STALE);
@@ -4223,7 +4223,7 @@ bgp_clear_route_node (struct work_queue *wq, void *data)
           bgp_info_set_flag (rn, ri, BGP_INFO_STALE);
         } else if (cnq->purpose == BGP_CLEAR_ROUTE_REFRESH) {
           bgp_info_set_flag (rn, ri, BGP_INFO_STALE_REFRESH);
-        }
+        } else
           bgp_rib_remove (rn, ri, peer, afi, safi);
         break;
       }

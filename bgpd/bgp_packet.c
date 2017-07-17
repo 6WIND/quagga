@@ -2563,6 +2563,7 @@ bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
         }
       /* Set to STALE route entries from peer */
       bgp_clear_route (peer, afi, safi, BGP_CLEAR_ROUTE_REFRESH);
+      bgp_peer_clear_node_queue_drain_immediate(peer);
 
       /* Set to STALE route entries from peer */
       if (peer->status == Established)
@@ -2574,7 +2575,6 @@ bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
           THREAD_TIMER_ON (bm->master, peer->t_refresh_expire[afi][safi], bgp_refresh_timer_expire,
                            peer->v_refresh_ctxt[afi][safi], peer->v_refresh_expire);
         }
-      peer->v_refresh_ctxt[afi][safi] = NULL;
 
       if (BGP_DEBUG (events, EVENTS))
         {
@@ -2596,7 +2596,6 @@ bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
           peer->t_refresh_expire[afi][safi] = NULL;
           XFREE (MTYPE_BGP_REFRESH_CTXT, peer->v_refresh_ctxt[afi][safi]);
           peer->v_refresh_ctxt[afi][safi] = NULL;
-          peer->t_refresh_expire[afi][safi] = NULL;
         }
       /* Clear STALE route entries from peer */
       bgp_clear_stale_route (peer, afi, safi, BGP_INFO_STALE_REFRESH);

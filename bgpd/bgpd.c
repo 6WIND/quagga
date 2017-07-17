@@ -2763,10 +2763,10 @@ peer_change_action (struct peer *peer, afi_t afi, safi_t safi,
       if (CHECK_FLAG (peer->cap, PEER_CAP_REFRESH_OLD_RCV)
 	  || CHECK_FLAG (peer->cap, PEER_CAP_REFRESH_NEW_RCV))
         {
-          bgp_route_refresh_send (peer, afi, safi, 0, 0, 0, 0);
           /* Set to STALE route entries from peer */
           bgp_clear_route (peer, afi, safi, BGP_CLEAR_ROUTE_REFRESH);
-          /* Set to STALE route entries from peer */
+          bgp_peer_clear_node_queue_drain_immediate(peer);
+          bgp_route_refresh_send (peer, afi, safi, 0, 0, 0, 0);
           if (peer->status == Established)
             {
               peer->v_refresh_ctxt[afi][safi] = XCALLOC (MTYPE_BGP_REFRESH_CTXT, sizeof (struct peer_afi_safi));

@@ -559,6 +559,18 @@ bgp_stop (struct peer *peer)
         /* ORF received prefix-filter pnt */
         sprintf (orf_name, "%s.%d.%d", peer->host, afi, safi);
         prefix_bgp_orf_remove_all (afi, orf_name);
+
+	/* Cancel refresh timer */
+	if (peer->t_refresh_expire[afi][safi])
+          {
+	    THREAD_TIMER_OFF (peer->t_refresh_expire[afi][safi]);
+            peer->t_refresh_expire[afi][safi] = NULL;
+          }
+        if (peer->v_refresh_ctxt[afi][safi])
+          {
+            XFREE (MTYPE_BGP_REFRESH_CTXT, peer->v_refresh_ctxt[afi][safi]);
+            peer->v_refresh_ctxt[afi][safi] = NULL;
+          }
       }
 
   /* Reset keepalive and holdtime */
