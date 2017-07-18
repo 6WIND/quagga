@@ -33,6 +33,7 @@
 
 extern gboolean qthrift_transport_current_status;
 extern void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response);
+extern void qthrift_transport_cancel_monitor(struct qthrift_vpnservice *setup);
 /*
  * update push route notification message
  * sent when a vpnv4 route is pushed
@@ -50,11 +51,24 @@ qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix
       return FALSE;
   response = bgp_updater_client_send_on_update_push_route(ctxt->bgp_updater_client, \
                                                             rd, prefix, prefixlen, nexthop, label, &error);
-  if(IS_QTHRIFT_DEBUG_NOTIFICATION)
+  if (error != NULL)
+    {
+      if (error->domain == THRIFT_TRANSPORT_ERROR &&
+          error->code == THRIFT_TRANSPORT_ERROR_SEND)
+        {
+          ctxt->bgp_update_thrift_lost_msgs++;
+          zlog_info ("onUpdatePushRoute(): sent error %s", error->message);
+          qthrift_transport_cancel_monitor(ctxt);
+          response = FALSE;
+          qthrift_transport_check_response(ctxt, FALSE);
+        }
+      g_clear_error (&error);
+      error = NULL;
+    }
+  if(IS_QTHRIFT_DEBUG_NOTIFICATION && response == TRUE)
     zlog_info ("onUpdatePushRoute(rd %s, pfx %s, nh %s, label %d)", \
                rd, prefix, nexthop, label);
-  if (response == FALSE)
-    ctxt->bgp_update_thrift_lost_msgs++;
+
   return response;
 }
 
@@ -75,11 +89,23 @@ qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * pr
   response = bgp_updater_client_on_update_withdraw_route(ctxt->bgp_updater_client, \
                                                          rd, prefix, prefixlen, nexthop,
                                                          label, &error);
-  if(IS_QTHRIFT_DEBUG_NOTIFICATION)
+  if (error != NULL)
+    {
+      if (error->domain == THRIFT_TRANSPORT_ERROR &&
+          error->code == THRIFT_TRANSPORT_ERROR_SEND)
+        {
+          ctxt->bgp_update_thrift_lost_msgs++;
+          zlog_info ("onUpdateWithdrawRoute(): sent error %s", error->message);
+          qthrift_transport_cancel_monitor(ctxt);
+          response = FALSE;
+          qthrift_transport_check_response(ctxt, FALSE);
+        }
+      g_clear_error (&error);
+      error = NULL;
+    }
+  if(IS_QTHRIFT_DEBUG_NOTIFICATION && response == TRUE)
     zlog_info ("onUpdateWithdrawRoute(rd %s, pfx %s/%d, nh %s, label %d)", \
                 rd, prefix, prefixlen, nexthop, label);
-  if (response == FALSE)
-    ctxt->bgp_update_thrift_lost_msgs++;
   return response;
 }
 
@@ -110,14 +136,25 @@ qthrift_bgp_updater_on_start_config_resync_notification (void)
         {
           if(IS_QTHRIFT_DEBUG_NOTIFICATION)
             zlog_debug ("bgp->sdnc message failed to be sent");
-          zlog_info ("onStartConfigResyncNotification() NOK");
-          ctxt->bgp_update_lost_msgs++;
-          return;
         }
     }
   response = bgp_updater_client_on_start_config_resync_notification(ctxt->bgp_updater_client, &error);
+  if (error != NULL)
+    {
+      if (error->domain == THRIFT_TRANSPORT_ERROR &&
+          error->code == THRIFT_TRANSPORT_ERROR_SEND)
+        {
+          zlog_info ("onStartConfigResyncNotification(): sent error %s", error->message);
+          response = FALSE;
+          ctxt->bgp_update_lost_msgs++;
+          qthrift_transport_cancel_monitor(ctxt);
+          qthrift_transport_check_response(ctxt, FALSE);
+        }
+      g_clear_error (&error);
+      error = NULL;
+    }
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_info ("onStartConfigResyncNotification() OK");
+    zlog_info ("onStartConfigResyncNotification() %s", response == FALSE?"NOK":"OK");
   return response;
 }
 
@@ -136,10 +173,22 @@ qthrift_bgp_updater_on_notification_send_event (const gchar * prefix, const gint
       return FALSE;
   response = bgp_updater_client_on_notification_send_event(ctxt->bgp_updater_client, \
                                                            prefix, errCode, errSubcode, &error); 
+  if (error != NULL)
+    {
+      if (error->domain == THRIFT_TRANSPORT_ERROR &&
+          error->code == THRIFT_TRANSPORT_ERROR_SEND)
+        {
+          ctxt->bgp_update_thrift_lost_msgs++;
+          zlog_info ("onNotificationSendEvent(): sent error %s", error->message);
+          response = FALSE;
+          qthrift_transport_cancel_monitor(ctxt);
+          qthrift_transport_check_response(ctxt, response);
+        }
+      g_clear_error (&error);
+      error = NULL;
+    }
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_info ("onNotificationSendEvent(%s, errCode %d, errSubCode %d)", \
-                prefix, errCode, errSubcode);
-  if (response == FALSE)
-    ctxt->bgp_update_thrift_lost_msgs++;
+    zlog_info ("onNotificationSendEvent(%s, errCode %d, errSubCode %d) %s",
+               prefix, errCode, errSubcode, response == FALSE?"NOK":"OK");
   return response;
 }
