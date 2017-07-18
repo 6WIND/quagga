@@ -46,23 +46,39 @@
 static void qthrift_vpnservice_callback (void *arg, void *zmqsock, struct zmq_msg_t *message);
 
 void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response);
+void qthrift_transport_cancel_monitor(struct qthrift_vpnservice *setup);
+void qthrift_transport_change_status(struct qthrift_vpnservice *setup, gboolean response);
 static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thread);
 static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *thread);
 int qthrift_monitor_retry_job_in_progress;
 gboolean qthrift_transport_current_status = FALSE;
 
-void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response)
+void qthrift_transport_change_status(struct qthrift_vpnservice *setup, gboolean response)
 {
-  if(qthrift_monitor_retry_job_in_progress)
-    return;
   if (qthrift_transport_current_status != response)
     {
-      zlog_debug("bgpUpdater check connection with %s:%u %s",
+      zlog_info("bgpUpdater check connection with %s:%u %s",
                  tm->qthrift_notification_address,
                  setup->qthrift_notification_port,
                  response == TRUE?"OK":"NOK");
     }
   qthrift_transport_current_status = response;
+}
+void qthrift_transport_cancel_monitor(struct qthrift_vpnservice *setup)
+{
+  if (setup->bgp_updater_client_thread)
+    {
+      THREAD_TIMER_OFF(setup->bgp_updater_client_thread);
+      setup->bgp_updater_client_thread = NULL;
+    }
+  qthrift_monitor_retry_job_in_progress = 0;
+}
+
+void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response)
+{
+  if(qthrift_monitor_retry_job_in_progress)
+    return;
+  qthrift_transport_change_status (setup, response);
   if(response == FALSE)
     {
       setup->bgp_update_retries++;
