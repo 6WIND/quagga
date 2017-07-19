@@ -2552,6 +2552,7 @@ bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
   /* First update is deferred until ORF or ROUTE-REFRESH is received */
   if (CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_ORF_WAIT_REFRESH))
     UNSET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_ORF_WAIT_REFRESH);
+
 #if 0 /* rfc 7313 partially supported */
   if (option & BGP_REFRESH_BORR)
     {
@@ -2609,6 +2610,9 @@ bgp_route_refresh_receive (struct peer *peer, bgp_size_t size)
       SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EORR_READY_TO_SEND);
     }
 #endif /* rfc 7313 partially supported */
+
+  /* Perform route refreshment to the peer */
+  bgp_announce_route (peer, afi, safi);
 }
 
 static int
