@@ -6248,8 +6248,6 @@ bgp_init (void)
 
 void bgp_send_eor_to_peers(struct bgp *bgp)
 {
-  struct peer *peer;
-  struct listnode *node, *nnode;
   bgp_order_send_eor = 1;
   /* the bgp_process workgroup should care about EOR emission for all peers */
 }

@@ -1031,7 +1031,6 @@ int bgp_eor_send_afi_safi (struct thread *t)
 {
   struct bgp_eor *ctxt = THREAD_ARG(t);
   struct stream *s;
-  int length;
   struct peer *peer;
   afi_t afi;
   safi_t safi;
@@ -1052,9 +1051,6 @@ int bgp_eor_send_afi_safi (struct thread *t)
 
   /* Make keepalive packet. */
   bgp_packet_set_marker (s, BGP_MSG_UPDATE);
-
-  /* Set packet size. */
-  length = bgp_packet_set_size (s);
 
   /* Dump packet if debug option is set. */
   /* bgp_packet_dump (s); */
@@ -1090,7 +1086,6 @@ int bgp_eor_send_afi_safi (struct thread *t)
 void bgp_eor_send (struct peer *peer)
 {
   struct stream *s;
-  int length;
   afi_t afi;
   safi_t safi;
 
@@ -1098,9 +1093,6 @@ void bgp_eor_send (struct peer *peer)
 
   /* Make keepalive packet. */
   bgp_packet_set_marker (s, BGP_MSG_UPDATE);
-
-  /* Set packet size. */
-  length = bgp_packet_set_size (s);
 
   /* Dump packet if debug option is set. */
   /* bgp_packet_dump (s); */
