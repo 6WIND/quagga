@@ -122,6 +122,14 @@ struct qthrift_vpnservice
   u_int32_t bgp_update_total;
 };
 
+enum _qthrift_status
+  {
+    QTHRIFT_TO_SDN_UNKNOWN,
+    QTHRIFT_TO_SDN_TRUE,
+    QTHRIFT_TO_SDN_FALSE
+  };
+typedef enum _qthrift_status qthrift_status;
+
 void qthrift_vpnservice_terminate(struct qthrift_vpnservice *setup);
 void qthrift_vpnservice_terminate_thrift_bgp_configurator_server(struct qthrift_vpnservice *setup);
 void qthrift_vpnservice_terminate_thrift_bgp_updater_client(struct qthrift_vpnservice *setup);

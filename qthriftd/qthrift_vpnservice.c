@@ -50,19 +50,26 @@ void qthrift_transport_cancel_monitor(struct qthrift_vpnservice *setup);
 void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response);
 static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thread);
 static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *thread);
-int qthrift_monitor_retry_job_in_progress;
-gboolean qthrift_transport_current_status = FALSE;
+int qthrift_monitor_retry_job_in_progress = 0;
+qthrift_status qthrift_transport_current_status;
 
 void qthrift_transport_change_status(struct qthrift_vpnservice *setup, gboolean response)
 {
-  if (qthrift_transport_current_status != response)
+  if ((qthrift_transport_current_status == QTHRIFT_TO_SDN_UNKNOWN) ||
+      ((response == TRUE) && (qthrift_transport_current_status == QTHRIFT_TO_SDN_FALSE)) ||
+      ((response == FALSE) && (qthrift_transport_current_status == QTHRIFT_TO_SDN_TRUE)))
     {
       zlog_info("bgpUpdater check connection with %s:%u %s",
-                 tm->qthrift_notification_address,
-                 setup->qthrift_notification_port,
-                 response == TRUE?"OK":"NOK");
+                tm->qthrift_notification_address,
+                setup->qthrift_notification_port,
+                response == TRUE?"OK":"NOK");
+      if (response == TRUE) {
+        qthrift_transport_current_status = QTHRIFT_TO_SDN_TRUE;
+        qthrift_bgp_updater_on_start_config_resync_notification_quick (setup, FALSE);
+      } else {
+        qthrift_transport_current_status = QTHRIFT_TO_SDN_FALSE;
+      }
     }
-  qthrift_transport_current_status = response;
 }
 void qthrift_transport_cancel_monitor(struct qthrift_vpnservice *setup)
 {
@@ -195,7 +202,9 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
     }
   ctxt->bgp_update_total++;
   /* if first time or previous failure, try to reconnect to client */
-  if((ctxt->bgp_updater_client == NULL) || (qthrift_transport_current_status == FALSE))
+  if((ctxt->bgp_updater_client == NULL) ||
+     (qthrift_transport_current_status == QTHRIFT_TO_SDN_UNKNOWN) ||
+     (qthrift_transport_current_status == QTHRIFT_TO_SDN_FALSE))
     {
       if(ctxt->bgp_updater_client)
         qthrift_vpnservice_terminate_thrift_bgp_updater_client(ctxt);

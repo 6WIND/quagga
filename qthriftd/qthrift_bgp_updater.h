@@ -22,6 +22,7 @@
 #ifndef _QTHRIFT_BGP_UPDATER_H
 #define _QTHRIFT_BGP_UPDATER_H
 
+struct qthrift_vpnservice;
 
 gboolean
 qthrift_bgp_updater_on_notification_send_event (const gchar * prefix, const gint8 errCode, const gint8 errSubcode);
@@ -36,5 +37,8 @@ qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * pr
 gboolean
 qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix, \
                                           const gint32 prefixlen, const gchar * nexthop, const gint32 label);
+
+gboolean
+qthrift_bgp_updater_on_start_config_resync_notification_quick (struct qthrift_vpnservice *ctxt, gboolean restart);
 
 #endif /* _QTHRIFT_BGP_UPDATER_H */
