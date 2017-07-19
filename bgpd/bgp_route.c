@@ -568,9 +568,9 @@ bgp_info_cmp (struct bgp *bgp, struct bgp_info *new, struct bgp_info *exist,
   /* Do this only if neither path is "stale" as stale paths do not have
    * valid peer information (as the connection may or may not be up).
    */
-  if (CHECK_FLAG (exist->flags, BGP_INFO_STALE))
+  if (CHECK_FLAG (exist->flags, BGP_INFO_STALE|BGP_INFO_STALE_REFRESH))
     return -1;
-  if (CHECK_FLAG (new->flags, BGP_INFO_STALE))
+  if (CHECK_FLAG (new->flags, BGP_INFO_STALE|BGP_INFO_STALE_REFRESH))
     return 1;
   /* locally configured routes to advertise do not have su_remote */
   if (new->peer->su_remote == NULL)
@@ -8058,7 +8058,7 @@ route_vty_short_status_out (struct vty *vty, struct bgp_info *binfo)
  /* Route status display. */
   if (CHECK_FLAG (binfo->flags, BGP_INFO_REMOVED))
     vty_out (vty, "R");
-  else if (CHECK_FLAG (binfo->flags, BGP_INFO_STALE))
+  else if (CHECK_FLAG (binfo->flags, BGP_INFO_STALE|BGP_INFO_STALE_REFRESH))
     vty_out (vty, "S");
   else if (binfo->extra && binfo->extra->suppress)
     vty_out (vty, "s");
@@ -8547,7 +8547,7 @@ route_vty_out_detail (struct vty *vty, struct bgp *bgp, struct prefix *p,
 
       if (CHECK_FLAG (binfo->flags, BGP_INFO_REMOVED))
         vty_out (vty, ", (removed)");
-      if (CHECK_FLAG (binfo->flags, BGP_INFO_STALE))
+      if (CHECK_FLAG (binfo->flags, BGP_INFO_STALE|BGP_INFO_STALE_REFRESH))
 	vty_out (vty, ", (stale)");
       if (CHECK_FLAG (attr->flag, ATTR_FLAG_BIT (BGP_ATTR_AGGREGATOR)))
 	vty_out (vty, ", (aggregated by %u %s)", 
@@ -14705,7 +14705,7 @@ bgp_peer_count_walker (struct thread *t)
             pc->count[PCOUNT_HISTORY]++;
           if (CHECK_FLAG (ri->flags, BGP_INFO_REMOVED))
             pc->count[PCOUNT_REMOVED]++;
-          if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
+          if (CHECK_FLAG (ri->flags, BGP_INFO_STALE|BGP_INFO_STALE_REFRESH))
             pc->count[PCOUNT_STALE]++;
           if (CHECK_FLAG (ri->flags, BGP_INFO_VALID))
             pc->count[PCOUNT_VALID]++;
