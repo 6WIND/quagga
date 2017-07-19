@@ -31,7 +31,7 @@
 #include "qthriftd/qthrift_vpnservice.h"
 #include "qthriftd/qthrift_debug.h"
 
-extern gboolean qthrift_transport_current_status;
+extern qthrift_status qthrift_transport_current_status;
 extern void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response);
 extern void qthrift_transport_cancel_monitor(struct qthrift_vpnservice *setup);
 /*
@@ -130,6 +130,36 @@ qthrift_bgp_updater_on_update_withdraw_route (const protocol_type p_type, const 
   return response;
 }
 
+
+
+gboolean
+qthrift_bgp_updater_on_start_config_resync_notification_quick (struct qthrift_vpnservice *ctxt, gboolean restart)
+{
+  gboolean response;
+  GError *error = NULL;
+  response = bgp_updater_client_on_start_config_resync_notification(ctxt->bgp_updater_client, &error);
+  if (error != NULL)
+    {
+      if (error->domain == THRIFT_TRANSPORT_ERROR &&
+          error->code == THRIFT_TRANSPORT_ERROR_SEND)
+        {
+          zlog_info ("onStartConfigResyncNotification(): sent error %s", error->message);
+          response = FALSE;
+          ctxt->bgp_update_lost_msgs++;
+          if (restart == TRUE)
+            {
+              qthrift_transport_cancel_monitor(ctxt);
+              qthrift_transport_check_response(ctxt, FALSE);
+            }
+        }
+      g_clear_error (&error);
+      error = NULL;
+    }
+  if(IS_QTHRIFT_DEBUG_NOTIFICATION)
+    zlog_info ("onStartConfigResyncNotification() %s", response == FALSE?"NOK":"OK");
+  return response;
+}
+
 /*
  * start config resync notification message sent
  * when qthriftd has started and is ready and
@@ -138,15 +168,15 @@ qthrift_bgp_updater_on_update_withdraw_route (const protocol_type p_type, const 
 gboolean
 qthrift_bgp_updater_on_start_config_resync_notification (void)
 {
-  GError *error = NULL;
-  gboolean response;
   struct qthrift_vpnservice *ctxt = NULL;
   static gboolean client_ready;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
       return FALSE;
-  if ((!ctxt->bgp_updater_client) || (qthrift_transport_current_status == FALSE))
+  if((ctxt->bgp_updater_client == NULL) ||
+     (qthrift_transport_current_status == QTHRIFT_TO_SDN_UNKNOWN) ||
+     (qthrift_transport_current_status == QTHRIFT_TO_SDN_FALSE))
     {
       if(ctxt->bgp_updater_client)
         qthrift_vpnservice_terminate_thrift_bgp_updater_client(ctxt);
@@ -159,24 +189,7 @@ qthrift_bgp_updater_on_start_config_resync_notification (void)
             zlog_debug ("bgp->sdnc message failed to be sent");
         }
     }
-  response = bgp_updater_client_on_start_config_resync_notification(ctxt->bgp_updater_client, &error);
-  if (error != NULL)
-    {
-      if (error->domain == THRIFT_TRANSPORT_ERROR &&
-          error->code == THRIFT_TRANSPORT_ERROR_SEND)
-        {
-          zlog_info ("onStartConfigResyncNotification(): sent error %s", error->message);
-          response = FALSE;
-          ctxt->bgp_update_lost_msgs++;
-          qthrift_transport_cancel_monitor(ctxt);
-          qthrift_transport_check_response(ctxt, FALSE);
-        }
-      g_clear_error (&error);
-      error = NULL;
-    }
-  if(IS_QTHRIFT_DEBUG_NOTIFICATION)
-    zlog_info ("onStartConfigResyncNotification() %s", response == FALSE?"NOK":"OK");
-  return response;
+  return;
 }
 
 /*
