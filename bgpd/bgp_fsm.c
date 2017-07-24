@@ -429,7 +429,7 @@ bgp_fsm_change_status (struct peer *peer, int status)
   peer->ostatus = peer->status;
   peer->status = status;
   
-  if (BGP_DEBUG (normal, NORMAL))
+  if (BGP_DEBUG (normal, FSM))
     zlog_debug ("%s went from %s to %s",
 		peer->host,
 		LOOKUP (bgp_status_msg, peer->ostatus),
