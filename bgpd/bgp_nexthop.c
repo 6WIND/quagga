@@ -499,7 +499,7 @@ bgp_scan (afi_t afi, safi_t safi)
   else
     bgp_nexthop_cache_reset (cache1_table[afi]);
 
-  if (BGP_DEBUG (events, EVENTS))
+  if (BGP_DEBUG (nexthop, BGP_NEXTHOP))
     {
       if (afi == AFI_IP)
 	zlog_debug ("scanning IPv4 Unicast routing tables");
@@ -525,7 +525,7 @@ bgp_scan_timer (struct thread *t)
   bgp_scan_thread =
     thread_add_timer (bm->master, bgp_scan_timer, NULL, bgp_scan_interval);
 
-  if (BGP_DEBUG (events, EVENTS))
+  if (BGP_DEBUG (nexthop, BGP_NEXTHOP))
     zlog_debug ("Performing BGP general scanning");
 
   bgp_scan (AFI_IP, SAFI_UNICAST);
@@ -1102,7 +1102,7 @@ bgp_import (struct thread *t)
   bgp_import_thread = 
     thread_add_timer (bm->master, bgp_import, NULL, bgp_import_interval);
 
-  if (BGP_DEBUG (events, EVENTS))
+  if (BGP_DEBUG (nexthop, BGP_NEXTHOP))
     zlog_debug ("Import timer expired.");
 
   for (ALL_LIST_ELEMENTS (bm->bgp, node, nnode, bgp))
