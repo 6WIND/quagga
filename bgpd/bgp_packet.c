@@ -1156,12 +1156,12 @@ bgp_keepalive_send (struct peer *peer)
   /* Dump packet if debug option is set. */
   /* bgp_packet_dump (s); */
  
-  if (BGP_DEBUG (keepalive, KEEPALIVE))  
+  if (BGP_DEBUG (keepalive, KEEPALIVE)){
     zlog_debug ("%s sending KEEPALIVE", peer->host); 
-  if (BGP_DEBUG (normal, NORMAL))
-    zlog_debug ("%s send message type %d, length (incl. header) %d",
-               peer->host, BGP_MSG_KEEPALIVE, length);
-
+    if (BGP_DEBUG (normal, NORMAL))
+      zlog_debug ("%s send message type %d, length (incl. header) %d",
+                  peer->host, BGP_MSG_KEEPALIVE, length);
+  }
   /* Add packet to the peer. */
   bgp_packet_add (peer, s);
 
@@ -2890,10 +2890,10 @@ bgp_read (struct thread *thread)
       memcpy (notify_data_length, stream_pnt (peer->ibuf), 2);
       size = stream_getw (peer->ibuf);
       type = stream_getc (peer->ibuf);
-
-      if (BGP_DEBUG (normal, NORMAL) && type != 2 && type != 0)
+      if ( ((type == BGP_MSG_KEEPALIVE) && BGP_DEBUG (keepalive, KEEPALIVE))
+           || (BGP_DEBUG (normal, NORMAL) && type != 2 && type != 0 && type != BGP_MSG_KEEPALIVE))
 	zlog_debug ("%s rcv message type %d, length (excl. header) %d",
-		   peer->host, type, size - BGP_HEADER_SIZE);
+                    peer->host, type, size - BGP_HEADER_SIZE);
 
       /* Marker check */
       if (((type == BGP_MSG_OPEN) || (type == BGP_MSG_KEEPALIVE))

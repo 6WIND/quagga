@@ -46,6 +46,7 @@ unsigned long conf_bgp_debug_keepalive;
 unsigned long conf_bgp_debug_update;
 unsigned long conf_bgp_debug_normal;
 unsigned long conf_bgp_debug_zebra;
+unsigned long conf_bgp_debug_nexthop;
 
 unsigned long term_bgp_debug_as4;
 unsigned long term_bgp_debug_fsm;
@@ -56,6 +57,7 @@ unsigned long term_bgp_debug_keepalive;
 unsigned long term_bgp_debug_update;
 unsigned long term_bgp_debug_normal;
 unsigned long term_bgp_debug_zebra;
+unsigned long term_bgp_debug_nexthop;
 
 /* messages for BGP-4 status */
 const struct message bgp_status_msg[] = 
@@ -734,6 +736,48 @@ ALIAS (no_debug_bgp_zebra,
        BGP_STR
        "BGP Zebra messages\n")
 
+DEFUN (debug_bgp_nexthop,
+       debug_bgp_nexthop_cmd,
+       "debug bgp nexthop",
+       DEBUG_STR
+       BGP_STR
+       "BGP Nexthop\n")
+{
+  if (vty->node == CONFIG_NODE)
+    DEBUG_ON (nexthop, BGP_NEXTHOP);
+  else
+    {
+      TERM_DEBUG_ON (nexthop, BGP_NEXTHOP);
+      vty_out (vty, "BGP nexthop debugging is on%s", VTY_NEWLINE);
+    }
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_debug_bgp_nexthop,
+       no_debug_bgp_nexthop_cmd,
+       "no debug bgp nexthop",
+       NO_STR
+       DEBUG_STR
+       BGP_STR
+       "BGP nexthop\n")
+{
+  if (vty->node == CONFIG_NODE)
+    DEBUG_OFF (nexthop, BGP_NEXTHOP);
+  else
+    {
+      TERM_DEBUG_OFF (nexthop, BGP_NEXTHOP);
+      vty_out (vty, "BGP nexthop debugging is off%s", VTY_NEWLINE);
+    }
+  return CMD_SUCCESS;
+}
+
+ALIAS (no_debug_bgp_nexthop,
+       undebug_bgp_nexthop_cmd,
+       "undebug bgp nexthop",
+       UNDEBUG_STR
+       BGP_STR
+       "BGP nexthop\n")
+
 DEFUN (no_debug_bgp_all,
        no_debug_bgp_all_cmd,
        "no debug all bgp",
@@ -750,6 +794,7 @@ DEFUN (no_debug_bgp_all,
   TERM_DEBUG_OFF (as4, AS4);
   TERM_DEBUG_OFF (as4, AS4_SEGMENT);
   TERM_DEBUG_OFF (fsm, FSM);
+  TERM_DEBUG_OFF (nexthop, BGP_NEXTHOP);
   TERM_DEBUG_OFF (filter, FILTER);
   TERM_DEBUG_OFF (zebra, ZEBRA);
   vty_out (vty, "All possible debugging has been turned off%s", VTY_NEWLINE);
@@ -786,6 +831,8 @@ DEFUN (show_debugging_bgp,
   else if (BGP_DEBUG (update, UPDATE_OUT))
     vty_out (vty, "  BGP updates debugging is on (outbound)%s", VTY_NEWLINE);
   if (BGP_DEBUG (fsm, FSM))
+    vty_out (vty, "  BGP fsm debugging is on%s", VTY_NEWLINE);
+  if (BGP_DEBUG (fsm, BGP_NEXTHOP))
     vty_out (vty, "  BGP fsm debugging is on%s", VTY_NEWLINE);
   if (BGP_DEBUG (filter, FILTER))
     vty_out (vty, "  BGP filter debugging is on%s", VTY_NEWLINE);
@@ -849,10 +896,16 @@ bgp_config_write_debug (struct vty *vty)
       vty_out (vty, "debug bgp updates out%s", VTY_NEWLINE);
       write++;
     }
-
+ 
   if (CONF_BGP_DEBUG (fsm, FSM))
     {
       vty_out (vty, "debug bgp fsm%s", VTY_NEWLINE);
+      write++;
+    }
+
+  if (CONF_BGP_DEBUG (fsm, BGP_NEXTHOP))
+    {
+      vty_out (vty, "debug bgp nexthop%s", VTY_NEWLINE);
       write++;
     }
 
@@ -892,6 +945,8 @@ bgp_debug_init (void)
 
   install_element (ENABLE_NODE, &debug_bgp_fsm_cmd);
   install_element (CONFIG_NODE, &debug_bgp_fsm_cmd);
+  install_element (ENABLE_NODE, &debug_bgp_nexthop_cmd);
+  install_element (CONFIG_NODE, &debug_bgp_nexthop_cmd);
   install_element (ENABLE_NODE, &debug_bgp_events_cmd);
   install_element (CONFIG_NODE, &debug_bgp_events_cmd);
   install_element (ENABLE_NODE, &debug_bgp_filter_cmd);
@@ -917,6 +972,9 @@ bgp_debug_init (void)
   install_element (ENABLE_NODE, &no_debug_bgp_fsm_cmd);
   install_element (ENABLE_NODE, &undebug_bgp_fsm_cmd);
   install_element (CONFIG_NODE, &no_debug_bgp_fsm_cmd);
+  install_element (ENABLE_NODE, &no_debug_bgp_nexthop_cmd);
+  install_element (ENABLE_NODE, &undebug_bgp_nexthop_cmd);
+  install_element (CONFIG_NODE, &no_debug_bgp_nexthop_cmd);
   install_element (ENABLE_NODE, &no_debug_bgp_events_cmd);
   install_element (ENABLE_NODE, &undebug_bgp_events_cmd);
   install_element (CONFIG_NODE, &no_debug_bgp_events_cmd);
