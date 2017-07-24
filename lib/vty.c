@@ -96,6 +96,8 @@ static u_char restricted_mode = 0;
 /* Integrated configuration file path */
 char integrate_default[] = SYSCONFDIR INTEGRATE_DEFAULT_CONFIG;
 
+/* debug vty */
+static int vty_debug = 0;
 
 static void
 vty_buf_assert (struct vty *vty)
@@ -1958,8 +1960,9 @@ vty_accept (struct thread *thread)
     zlog (NULL, LOG_INFO, "can't set sockopt to vty_sock : %s", 
 	  safe_strerror (errno));
 
-  zlog (NULL, LOG_INFO, "Vty connection from %s",
-	sockunion2str (&su, buf, SU_ADDRSTRLEN));
+  if (vty_debug)
+    zlog (NULL, LOG_INFO, "Vty connection from %s",
+          sockunion2str (&su, buf, SU_ADDRSTRLEN));
 
   vty_create (vty_sock, &su);
 
@@ -3035,6 +3038,27 @@ DEFUN (show_history,
   return CMD_SUCCESS;
 }
 
+DEFUN (debug_vty_access,
+       debug_vty_access_cmd,
+       "debug vty",
+       DEBUG_STR
+       "Vty Access\n")
+{
+  vty_debug = 1;
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_debug_vty_access,
+       no_debug_vty_access_cmd,
+       "no debug vty",
+       NO_STR
+       DEBUG_STR
+       "Vty Access\n")
+{
+  vty_debug = 0;
+  return CMD_SUCCESS;
+}
+
 /* Display current configuration. */
 static int
 vty_config_write (struct vty *vty)
@@ -3192,7 +3216,8 @@ vty_init (struct thread_master *master_thread)
   install_element (ENABLE_NODE, &terminal_no_monitor_cmd);
   install_element (ENABLE_NODE, &no_terminal_monitor_cmd);
   install_element (ENABLE_NODE, &show_history_cmd);
-
+  install_element (ENABLE_NODE, &debug_vty_access_cmd);
+  install_element (ENABLE_NODE, &no_debug_vty_access_cmd);
   install_default (VTY_NODE);
   install_element (VTY_NODE, &exec_timeout_min_cmd);
   install_element (VTY_NODE, &exec_timeout_sec_cmd);
