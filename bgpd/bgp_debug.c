@@ -842,6 +842,7 @@ DEFUN (no_debug_bgp_all,
   TERM_DEBUG_OFF (as4, AS4);
   TERM_DEBUG_OFF (as4, AS4_SEGMENT);
   TERM_DEBUG_OFF (fsm, FSM);
+  TERM_DEBUG_OFF (nht, NHT);
   TERM_DEBUG_OFF (filter, FILTER);
   TERM_DEBUG_OFF (zebra, ZEBRA);
   TERM_DEBUG_OFF (allow_martians, ALLOW_MARTIANS);
@@ -946,7 +947,7 @@ bgp_config_write_debug (struct vty *vty)
       vty_out (vty, "debug bgp updates out%s", VTY_NEWLINE);
       write++;
     }
-
+ 
   if (CONF_BGP_DEBUG (fsm, FSM))
     {
       vty_out (vty, "debug bgp fsm%s", VTY_NEWLINE);
