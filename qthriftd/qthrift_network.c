@@ -85,6 +85,7 @@ qthrift_accept (struct thread *thread)
   ThriftTransport *transport;
   ThriftSocket *socket;
   struct listnode *node, *nnode;
+  socklen_t len;
 
   /* Register accept thread. */
   if( THREAD_FD (thread) < 0)
@@ -105,9 +106,23 @@ qthrift_accept (struct thread *thread)
   peer = qthrift_peer_create_accept(qthrift);
   socket = THRIFT_SOCKET (transport);
   peer->fd = socket->sd;
+  len = sizeof(struct sockaddr_storage);
+  getpeername(peer->fd, (struct sockaddr*)&peer->peerIp, &len);
   qthrift_update_sock_send_buffer_size (socket->sd);
-  if(IS_QTHRIFT_DEBUG_NETWORK)
-    zlog_info("qthriftd accept : new connection (fd %d)", socket->sd);
+  if(IS_QTHRIFT_DEBUG){
+    char ipstr[INET6_ADDRSTRLEN];
+    int port;
+    if (peer->peerIp.ss_family == AF_INET) {
+      struct sockaddr_in *s = (struct sockaddr_in *)&peer->peerIp;
+      port = ntohs(s->sin_port);
+      inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
+    } else {
+      struct sockaddr_in6 *s = (struct sockaddr_in6 *)&peer->peerIp;
+      port = ntohs(s->sin6_port);
+      inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
+    }
+    zlog_info("qthrift_accept : new connection (fd %d) from %s:%u", socket->sd, ipstr, port);
+  }
   //set_nonblocking (socket->sd);
   peer->peer = XCALLOC(MTYPE_QTHRIFT, \
                        sizeof(struct qthrift_vpnservice_client));
@@ -122,7 +137,29 @@ qthrift_accept (struct thread *thread)
     {
       if (peer == peer2)
         continue;
-
+      if (peer->peerIp.ss_family == peer2->peerIp.ss_family)
+        {
+          if (peer->peerIp.ss_family == AF_INET)
+            {
+              struct sockaddr_in *update = (struct sockaddr_in *)&peer->peerIp;
+              struct sockaddr_in *orig = (struct sockaddr_in *)&peer2->peerIp;
+              if (update->sin_addr.s_addr == orig->sin_addr.s_addr)
+                {
+                  zlog_info("qthrift_accept : a new connection from same src IP. Ignoring it (fd %d)", peer2->fd);
+                  continue;
+                }
+            } 
+          else
+            {
+              struct sockaddr_in6 *update = (struct sockaddr_in6 *)&peer->peerIp;
+              struct sockaddr_in6 *orig = (struct sockaddr_in6 *)&peer2->peerIp;
+              if (0 == memcpy (&(update->sin6_addr), &(orig->sin6_addr), sizeof (struct sockaddr_in6)))
+                {
+                  zlog_info("qthrift_accept : a new connection from same src IP. Ignoring it (fd %d)", peer2->fd);
+                  continue;
+                }
+            }
+        }
       THREAD_OFF(peer2->t_read);
       list_delete_node (qthrift->peer, node);
       if(peer2->fd)
@@ -155,7 +192,7 @@ qthrift_read_packet (struct thread *thread)
                                      &error);
   if (error != NULL)
     {
-      if(IS_QTHRIFT_DEBUG_NETWORK)
+      if(IS_QTHRIFT_DEBUG)
         zlog_info("qthriftd_read_packet: close connection (fd %d)", peer->fd);
       g_clear_error (&error);
       qthrift_vpnservice_terminate_client(peer->peer); 
