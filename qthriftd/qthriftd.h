@@ -58,6 +58,9 @@ struct qthrift_peer
   
   /* thrift context for one thrift connexion */
   struct qthrift_vpnservice_client *peer;
+
+  /* information about peer */
+  struct sockaddr_storage peerIp;
 };
 
 #include "qthriftd/qthrift_master.h"
