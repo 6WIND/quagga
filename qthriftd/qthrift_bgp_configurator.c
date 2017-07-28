@@ -229,6 +229,8 @@ uint64_t bgp_ctxtype_bgpvrfroute = 0xac25a73c3ff455c0;
 /* functions using this node identifier : get_bgp_vrf_2, get_bgp_vrf_3 */
 uint64_t bgp_itertype_bgpvrfroute = 0xeb8ab4f58b7753ee;
 
+int bgp_eor_update_delay = 0;
+
 static const char* af_flag_str[] = {
   "SendCommunity",
   "SendExtCommunity",
@@ -739,7 +741,6 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     }
   /* check well known number agains node identifier */
   bgp_bm_nid = qzcclient_wkn(ctxt->qzc_sock, &bgp_bm_wkn);
-  qthrift_vpnservice_get_bgp_context(ctxt)->asNumber = (as_t) asNumber;
   if(IS_QTHRIFT_DEBUG)
     zlog_info ("startBgp. bgpd called (AS %u, proc %d, .., stalepath %u, announceFbit %s)", \
                 (as_t)asNumber, pid, stalepathTime, announceFbit == true?"true":"false");
@@ -793,6 +794,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     if (inst.logLevel)
       free (inst.logLevel);
 
+    qthrift_vpnservice_get_bgp_context(ctxt)->asNumber = (as_t) asNumber;
     /* set new configuration */
     inst.as = (as_t)asNumber;
     if(routerId)
@@ -811,6 +813,8 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     else
       bgp_flag_unset(&inst, BGP_FLAG_GR_PRESERVE_FWD);
     bgp_flag_set(&inst, BGP_FLAG_ASPATH_MULTIPATH_RELAX);
+    if (bgp_eor_update_delay)
+      inst.v_update_delay = bgp_eor_update_delay;
     capn_init_malloc(&rc);
     cs = capn_root(&rc).seg;
     bgp = qcapn_new_BGP(cs);
@@ -2256,11 +2260,18 @@ instance_bgp_configurator_enable_eor_delay(BgpConfiguratorIf *iface, gint32* _re
     return FALSE;
   }
 
+  if (delay < 0 || delay > MAX_EOR_UPDATE_DELAY)
+    {
+      *_return = BGP_ERR_PARAM;
+      *error = ERROR_BGP_INVALID_UPDATE_DELAY;
+      return FALSE;
+    }
+
+  bgp_eor_update_delay = delay;
+
   if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL || qthrift_vpnservice_get_bgp_context(ctxt)->asNumber == 0)
     {
-      *_return = BGP_ERR_FAILED;
-      *error = ERROR_BGP_AS_NOT_STARTED;
-      return FALSE;
+      return TRUE;
     }
 
   /* get bgp_master configuration */
@@ -2268,13 +2279,6 @@ instance_bgp_configurator_enable_eor_delay(BgpConfiguratorIf *iface, gint32* _re
   if(grep == NULL)
     {
       *_return = BGP_ERR_FAILED;
-      return FALSE;
-    }
-
-  if (delay < 0 || delay > MAX_EOR_UPDATE_DELAY)
-    {
-      *_return = BGP_ERR_PARAM;
-      *error = ERROR_BGP_INVALID_UPDATE_DELAY;
       return FALSE;
     }
 
