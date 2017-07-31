@@ -927,9 +927,22 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
       *error = ERROR_BGP_AS_NOT_STARTED;
       return FALSE;
     }
+
+  if (!rd)
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
   /* get route distinguisher internal representation */
   memset(&rd_inst, 0, sizeof(struct prefix_rd));
-  prefix_str2rd((char *)rd, &rd_inst);
+  if (!prefix_str2rd((char *)rd, &rd_inst))
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+
   /* if vrf not found, return an error */
   bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
   if(bgpvrf_nid == 0)
@@ -1000,8 +1013,20 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
       *error = ERROR_BGP_AS_NOT_STARTED;
       return FALSE;
     }
+
+  if (!rd)
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
   /* get route distinguisher internal representation */
-  prefix_str2rd((char *)rd, &rd_inst);
+  if (!prefix_str2rd((char *)rd, &rd_inst))
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
   /* if vrf not found, return an error */
   bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
   if(bgpvrf_nid == 0)
@@ -1295,9 +1320,21 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
       *error = ERROR_BGP_AS_NOT_STARTED;
       return FALSE;
     }
+  if(rd == NULL)
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
+
   memset(&instvrf, 0, sizeof(struct bgp_vrf));
   /* get route distinguisher internal representation */
-  prefix_str2rd((char *)rd, &instvrf.outbound_rd);
+  if (!prefix_str2rd((char *)rd, &instvrf.outbound_rd))
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
 
   /* retrive bgpvrf context or create new bgpvrf context */
   bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &instvrf.outbound_rd, _return);
@@ -1410,9 +1447,20 @@ gboolean instance_bgp_configurator_handler_del_vrf(BgpConfiguratorIf *iface, gin
       *error = ERROR_BGP_AS_NOT_STARTED;
       return FALSE;
     }
+  if(rd == NULL)
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
   /* get route distinguisher internal representation */
   memset(&rd_inst, 0, sizeof(struct prefix_rd));
-  prefix_str2rd((char *)rd, &rd_inst);
+  if (!prefix_str2rd((char *)rd, &rd_inst))
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
   /* if vrf not found, return an error */
   bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
   if(bgpvrf_nid == 0)
@@ -2186,10 +2234,21 @@ instance_bgp_configurator_handler_multipaths(BgpConfiguratorIf *iface, gint32* _
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
+  if(rd == NULL)
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
 
   /* get route distinguisher internal representation */
   memset(&rd_inst, 0, sizeof(struct prefix_rd));
-  prefix_str2rd((char *)rd, &rd_inst);
+  if (!prefix_str2rd((char *)rd, &rd_inst))
+    {
+      *error = ERROR_BGP_RD_NOTFOUND;
+      *_return = BGP_ERR_PARAM;
+      return FALSE;
+    }
   /* if vrf not found, return an error */
   bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
   if(bgpvrf_nid == 0)
