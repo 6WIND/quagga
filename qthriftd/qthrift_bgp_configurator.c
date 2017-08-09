@@ -1154,11 +1154,9 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
   peer_nid = qthrift_bgp_configurator_find_peer(ctxt, routerId, _return);
   if (peer_nid)
     {
-      *_return = BGP_ERR_FAILED;
-      *error = ERROR_BGP_INTERNAL;
       if(IS_QTHRIFT_DEBUG)
         zlog_info ("createPeer(%s) already present. do nothing.", routerId);
-      return FALSE;
+      return TRUE;
     }
   memset(&inst, 0, sizeof(struct peer));
   inst.host = XSTRDUP(MTYPE_QTHRIFT, routerId);
