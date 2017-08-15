@@ -523,6 +523,14 @@ bgp_stop (struct peer *peer)
   BGP_TIMER_OFF (peer->t_keepalive);
   BGP_TIMER_OFF (peer->t_routeadv);
 
+  /* cancel eor delay threads */
+  for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
+      {
+        if (bgp_update_delay_active (peer, afi, safi))
+          bgp_update_delay_end (peer, afi, safi);
+      }
+
   /* Stream reset. */
   peer->packet_size = 0;
 
