@@ -665,6 +665,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
                                             const gboolean announceFbit, GError **error)
 {
   struct qthrift_vpnservice *ctxt = NULL;
+  struct qthrift_vpnservice_bgp_context *bgp_ctxt;
   int ret = 0;
   struct bgp inst;
   pid_t pid;
@@ -767,7 +768,6 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
         return FALSE;
       }
   }
-  qthrift_bgp_set_log_config (ctxt, qthrift_vpnservice_get_bgp_context(ctxt), _return, error);
 
   /* from bgp_master, inject configuration, and send zmq message to BGP */
   {
@@ -794,12 +794,22 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
     if (inst.logLevel)
       free (inst.logLevel);
 
-    qthrift_vpnservice_get_bgp_context(ctxt)->asNumber = (as_t) asNumber;
+    bgp_ctxt = qthrift_vpnservice_get_bgp_context(ctxt);
+    bgp_ctxt->asNumber = (as_t) asNumber;
     /* set new configuration */
     inst.as = (as_t)asNumber;
     if(routerId)
       inet_aton (routerId, &inst.router_id_static);
     inst.notify_zmq_url = XSTRDUP(MTYPE_QTHRIFT, ctxt->zmq_subscribe_sock);
+
+    /* log file and log level */
+    if (bgp_ctxt->logLevel)
+      inst.logLevel = XSTRDUP(MTYPE_QTHRIFT, bgp_ctxt->logLevel);
+    else
+      inst.logLevel = NULL;
+    if (bgp_ctxt->logFile)
+      inst.logFile = XSTRDUP(MTYPE_QTHRIFT, bgp_ctxt->logFile);
+
     inst.default_holdtime = holdTime;
     inst.default_keepalive= keepAliveTime;
     if (stalepathTime)
@@ -824,15 +834,29 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
                              NULL, NULL);
     XFREE(MTYPE_QTHRIFT, inst.notify_zmq_url);
     inst.notify_zmq_url = NULL;
+    XFREE(MTYPE_QTHRIFT, inst.logFile);
+    inst.logFile = NULL;
+    if (inst.logLevel)
+      {
+        XFREE(MTYPE_QTHRIFT, inst.logLevel);
+        inst.logLevel = NULL;
+      }
     capn_free(&rc);
   }
+
   if(IS_QTHRIFT_DEBUG)
     {
       if(ret)
-        zlog_info ("startBgp(%u, %s, .., %u, %s) OK",
-                    (as_t)asNumber, routerId,
-                    stalepathTime,
-                    announceFbit == true?"true":"false");
+        {
+          zlog_info ("setLogConfig(%s, %s) OK",
+                      bgp_ctxt->logFile,
+                      bgp_ctxt->logLevel==NULL?"none":
+                      bgp_ctxt->logLevel);
+          zlog_info ("startBgp(%u, %s, .., %u, %s) OK",
+                      (as_t)asNumber, routerId,
+                      stalepathTime,
+                      announceFbit == true?"true":"false");
+        }
       else
         zlog_err ("startBgp(%u, %s, ..., %u, %s) NOK",
                   (as_t)asNumber, routerId,
