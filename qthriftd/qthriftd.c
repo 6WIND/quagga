@@ -172,6 +172,11 @@ void  qthrift_create_context (struct qthrift **qthrift_val)
       if(qthrift_server_listen (qthrift) < 0)
         exit(1);
     }
+
+  /* connect updater server and send notification */
+  qthrift_bgp_updater_on_start_config_resync_notification ();
+  qthrift->qthrift_vpnservice->bgp_update_total++;
+
   return ;
 }
 
