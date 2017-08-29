@@ -1768,6 +1768,17 @@ peer_remote_as_vty (struct vty *vty, const char *peer_str,
 
 DEFUN (neighbor_remote_as,
        neighbor_remote_as_cmd,
+       NEIGHBOR_CMD2 "remote-as " CMD_AS_RANGE,
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "Specify a BGP neighbor\n"
+       AS_STR)
+{
+  return peer_remote_as_vty (vty, argv[0], argv[1], AFI_IP, SAFI_UNICAST);
+}
+
+DEFUN (neighbor_send_remote_as,
+       neighbor_send_remote_as_cmd,
        NEIGHBOR_CMD2 "send-remote-as " CMD_AS_RANGE,
        NEIGHBOR_STR
        NEIGHBOR_ADDR_STR2
@@ -10934,6 +10945,7 @@ bgp_vty_init (void)
 
   /* "neighbor remote-as" commands. */
   install_element (BGP_NODE, &neighbor_remote_as_cmd);
+  install_element (BGP_NODE, &neighbor_send_remote_as_cmd);
   install_element (BGP_NODE, &no_neighbor_cmd);
   install_element (BGP_NODE, &no_neighbor_remote_as_cmd);
 
