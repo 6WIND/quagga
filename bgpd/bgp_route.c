@@ -2666,13 +2666,15 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
             {
               UNSET_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG);
               SET_FLAG (old_select->flags, BGP_INFO_MULTIPATH);
-              for(ri = rn->info; ri; ri = ri->next)
-                {
-                  if(ri == old_select)
-                    continue;
-                  if(!bgp_is_mpath_entry(ri, new_select))
-                    bgp_vrf_update(vrf, afi, rn, ri, false);
-                }
+            }
+          for (ri = rn->info; ri; ri = ri->next)
+            {
+              if (ri == old_select)
+                continue;
+              if (!bgp_is_mpath_entry(ri, new_select))
+                bgp_vrf_update (vrf, afi, rn, ri, false);
+              else
+                bgp_vrf_update (vrf, afi, rn, ri, true);
             }
           /* no zebra announce */
 	  UNSET_FLAG (old_select->flags, BGP_INFO_MULTIPATH_CHG);
