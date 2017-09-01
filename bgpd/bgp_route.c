@@ -1675,6 +1675,24 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
   if(!vrf || (rn && bgp_node_table (rn)->type != BGP_TABLE_VRF))
     return;
 
+  if(selected->type == ZEBRA_ROUTE_BGP
+     && selected->sub_type == BGP_ROUTE_STATIC)
+    return;
+
+  if (announce == true)
+    {
+      if(CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
+        return;
+    }
+  else
+    {
+      /* if not already sent, do nothing */
+      if(!CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
+        return;
+      if(CHECK_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT))
+        return;
+    }
+
   if (selected->extra->nlabels)
     event.label = selected->extra->labels[0] >> 4;
   else
@@ -1722,27 +1740,6 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                     pre_str, vrf_rd_str, pfx_str, post_str, rd_str, event.label, nh_str);
     }
 
-  if(selected->type == ZEBRA_ROUTE_BGP
-     && selected->sub_type == BGP_ROUTE_STATIC)
-    return;
-
-  if (announce == true)
-    {
-      if(CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
-        return;
-      SET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
-      UNSET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
-    }
-  else
-    {
-      /* if not already sent, do nothing */
-      if(!CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
-        return;
-      if(CHECK_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT))
-        return;
-      SET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
-      UNSET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
-    }
   if (afi == AFI_IP)
     {
       if (selected->attr && selected->attr->extra)
@@ -1750,6 +1747,16 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
       bgp_notify_route (vrf->bgp, &event);
     }
 
+  if (announce == true)
+    {
+      SET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
+      UNSET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
+    }
+  else
+    {
+      SET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
+      UNSET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
+    }
 }
 
 int
