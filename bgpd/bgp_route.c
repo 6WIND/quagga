@@ -6627,14 +6627,26 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
     add.ipv4.s_addr = bgp_static->gatewayIp.u.prefix4.s_addr;
   else if (bgp_static->gatewayIp.family == AF_INET6)
     memcpy( &(add.ipv6), &(bgp_static->gatewayIp.u.prefix6), sizeof (struct in6_addr));
-  if(afi == AFI_L2VPN)
+  if(safi == SAFI_EVPN)
     {
       struct bgp_encap_type_vxlan bet;
       struct attr_extra *extra;
 
       memset(&bet, 0, sizeof(struct bgp_encap_type_vxlan));
-      if(bgp_static->eth_t_id)
-        bet.vnid = bgp_static->eth_t_id;
+      if ((PREFIX_FAMILY(p) == AF_INET) || (PREFIX_FAMILY(p) == AF_INET6)) {
+        /* as per https://tools.ietf.org/html/draft-ietf-bess-evpn-prefix-advertisement-05
+         * BGP Encapsulation Extended Community ( as per RFC5512) identifies tunnel type
+         * containing VNI from Label field
+         */
+        if (bgp_static->nlabels > 0)
+          bet.vnid = bgp_static->labels[0];
+      } else {
+        if(bgp_static->eth_t_id)
+          bet.vnid = bgp_static->eth_t_id;
+        else if (PREFIX_FAMILY(p) == AF_L2VPN)
+          if (bgp_static->nlabels > 0)
+            bet.vnid = bgp_static->labels[0];
+      }
       bgp_encap_type_vxlan_to_tlv(&bet, &attr);
       bgp_attr_extra_get (&attr);
 
