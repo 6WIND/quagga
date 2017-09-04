@@ -2503,28 +2503,22 @@ bgp_packet_mpattr_start (struct stream *s, afi_t afi, safi_t safi,
           struct attr_extra *attre = attr->extra;
 
           assert (attr->extra);
+          /* https://tools.ietf.org/rfc/rfc7432.txt#9.2.1
+           * The Next Hop field of the MP_REACH_NLRI attribute of the route MUST
+           * be set to the IPv4 or IPv6 address of the advertising PE.
+           */
           if (attre->mp_nexthop_len == 4) {
-            /* NH as MPLSVPN, and IPv4 */
-            stream_putc (s, 12);
-            stream_putl (s, 0);   /* RD = 0, per RFC */
-            stream_putl (s, 0);
+            stream_putc (s, 4);
             stream_put (s, &attr->extra->mp_nexthop_global_in, 4);
           } else if (attre->mp_nexthop_len == 16) {
-            stream_putc (s, 24);
-            stream_putl (s, 0);   /* RD = 0, per RFC */
-            stream_putl (s, 0);
+            stream_putc (s, 16);
             stream_put (s, &attre->mp_nexthop_global, 16);
           } else if (attre->mp_nexthop_len == 32) {
-            stream_putc (s, 48);
-            stream_putl (s, 0);   /* RD = 0, per RFC */
-            stream_putl (s, 0);
+            stream_putc (s, 32);
             stream_put (s, &attre->mp_nexthop_global, 16);
-            stream_putl (s, 0);   /* RD = 0, per RFC */
-            stream_putl (s, 0);
             stream_put (s, &attre->mp_nexthop_local, 16);
           }
         }
-	  break;
         break;
       default:
         break;
