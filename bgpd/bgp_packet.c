@@ -364,11 +364,16 @@ bgp_update_packet_eor (struct peer *peer, afi_t afi, safi_t safi)
       stream_putc (s, BGP_ATTR_FLAG_OPTIONAL);
       stream_putc (s, BGP_ATTR_MP_UNREACH_NLRI);
       stream_putc (s, 3);
-      stream_putw (s, afi);
+      if (afi == AFI_L2VPN)
+        stream_putw (s, AFI_IANA_L2VPN);
+      else
+        stream_putw (s, afi);
       if (safi == SAFI_MPLS_VPN)
         stream_putc (s, SAFI_MPLS_LABELED_VPN);
       else if (safi == SAFI_LABELED_UNICAST)
         stream_putc (s, SAFI_IANA_LABELED_UNICAST);
+      else if (safi == SAFI_EVPN)
+        stream_putc (s, SAFI_IANA_EVPN);
       else
         stream_putc (s, safi);
     }
@@ -1406,8 +1411,13 @@ int bgp_eor_send_afi_safi (struct thread *t)
           stream_putc (s, BGP_ATTR_FLAG_OPTIONAL);
           stream_putc (s, BGP_ATTR_MP_UNREACH_NLRI);
           stream_putc (s, 3);
-          stream_putw (s, afi);
-          stream_putc (s, (safi == SAFI_MPLS_VPN) ? SAFI_MPLS_LABELED_VPN : safi);
+          stream_putw (s, (afi == AFI_L2VPN) ? AFI_IANA_L2VPN : afi);
+          if (safi == SAFI_MPLS_VPN)
+            stream_putc (s, SAFI_MPLS_LABELED_VPN);
+          else if (safi == SAFI_EVPN)
+            stream_putc (s, SAFI_IANA_EVPN);
+          else
+            stream_putc (s, safi);
         }
     }
   bgp_packet_set_size (s);
