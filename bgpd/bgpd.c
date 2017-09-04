@@ -3895,6 +3895,7 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
   struct prefix_rd* d;
   struct list *list_to_parse = NULL;
   struct bgp_nexthop nh;
+  int label;
 
   prefix_rd2str(rd, rdstr, RD_ADDRSTRLEN);
 
@@ -3930,9 +3931,14 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
          nh.v6_global = route->nexthop.u.prefix6;
        }
     }
+  /* EVPN RT2 encode vni in label. encoding uses full 24 bits */
+  if ( (safi == SAFI_EVPN) && (route->mac_router))
+    label = route->label;
+  else
+    label = route->label << 4 | 1;
   zlog_info("%s: rd=%s, afi=%d, nh=%s, label=%u", __func__,
             rdstr, afi, route?inet_ntop (route->nexthop.family, &route->nexthop.u.prefix, nh_str, BUFSIZ):
-            "<none>", route->label << 4 | 1);
+            "<none>", label);
   if (safi == SAFI_MPLS_VPN)
     {
       if (afi == AFI_IP6)
@@ -3956,7 +3962,7 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
         }
       if (route && route->label)
         {
-          found->labels[0] = route->label << 4 | 1;
+          found->labels[0] = label;
           found->nlabels = 1;
         }
       else
@@ -6134,8 +6140,13 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
                       ptr+=sprintf (ptr, " neighbor %s default-originate rd %s %s ", addr,
                                     rdstr, buf);
                     }
-                  if (vrf->nlabels)
+                  /* EVPN RT2 encode vni in label. decoding uses full 24 bits */
+                  if (vrf->nlabels && !vrf->mac_router)
                     labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
+                  else if (vrf->nlabels == 1)
+                    sprintf(labelstr,"%u", vrf->labels[0]);
+                  else if (vrf->nlabels == 2)
+                    sprintf(labelstr,"%u:%u", vrf->labels[0], vrf->labels[1] >> 4);
                   ptr+=snprintf (ptr, 200," neighbor %s default-originate rd %s %s %s %s %u %s", addr,
                                  rdstr, inet_ntoa(vrf->nh.v4),vrf->nlabels?labelstr:"",
                                  vrf->esi?vrf->esi:"",vrf->ethtag, vrf->mac_router?vrf->mac_router:"");

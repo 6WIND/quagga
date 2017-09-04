@@ -1705,10 +1705,19 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
       /* VRF RIB have one label only */
       if(CHECK_FLAG (sel->flags, BGP_INFO_ORIGIN_EVPN))
         {
-          if(vrf->ltype == BGP_LAYER_TYPE_3)
-            out->label = sel->extra->labels[idx] >> 4;
-          else
-            out->l2label = sel->extra->labels[idx] >> 4;
+          /* EVPN RT2 encode vni in label. encoding uses full 24 bits */
+          if (PREFIX_IS_L2VPN(&bn->p))
+            {
+              if(vrf->ltype == BGP_LAYER_TYPE_3)
+                out->label = sel->extra->labels[idx];
+              else
+                out->l2label = sel->extra->labels[idx];
+            } else {
+              if(vrf->ltype == BGP_LAYER_TYPE_3)
+                out->label = sel->extra->labels[idx] >> 4;
+              else
+                out->l2label = sel->extra->labels[idx] >> 4;
+          }
         }
       else
         {
@@ -1967,7 +1976,7 @@ static void bgp_vrf_update_labels (struct bgp_vrf *vrf, struct bgp_node *rn,
                * or it is part of global rib => 2 labels 
                */
               if(rn->table && bgp_node_table (rn) && bgp_node_table (rn)->type == BGP_TABLE_VRF)
-                *l3label = selected->extra->labels[0] >> 4;
+                *l3label = selected->extra->labels[0];
               else
                 {
                   if (selected->extra->labels[1])
@@ -1979,7 +1988,7 @@ static void bgp_vrf_update_labels (struct bgp_vrf *vrf, struct bgp_node *rn,
             }
           else
             {
-              *l2label = selected->extra->labels[0] >> 4;
+              *l2label = selected->extra->labels[0];
               *l3label = 0;
             }
         }
@@ -2114,8 +2123,10 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
       prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
       prefix_rd2str(&selected->extra->vrf_rd, rd_str, sizeof(rd_str));
       prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
-      labels2str(label_str, sizeof(label_str),
-                      selected->extra->labels, selected->extra->nlabels);
+      if (selected->extra->nlabels == 1)
+        sprintf (label_str, "%d", event.label);
+      else if (selected->extra->nlabels == 2)
+        sprintf (label_str, "%d:%d", event.label, event.l2label);
 
       if (selected->attr && selected->attr->extra)
         {
@@ -2470,8 +2481,14 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   prefix_copy (&(bgp_static->gatewayIp), &(route->gatewayIp)); 
   if (route->label != 0xFFFFFFFF)
     {
-      bgp_static->labels[0] = (route->label << 4) | 1;
-      bgp_static->nlabels = 1;
+      if ((safi == SAFI_EVPN) && PREFIX_IS_L2VPN(p))
+        {
+          /* EVPN RT2 encode vni in label. encoding uses full 24 bits */
+           bgp_static->labels[0] = route->label;
+        } else {
+           bgp_static->labels[0] = (route->label << 4) | 1;
+        }
+       bgp_static->nlabels = 1;
     }
   else
     bgp_static->nlabels = 0;
@@ -2497,16 +2514,16 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
       if(p->family == AF_L2VPN)
         {
           /* case of RT2 route, l2 label must be considered as mpls label 1 in message */
-          if(vrf->ltype == BGP_LAYER_TYPE_3)
+          if ( (vrf->ltype != BGP_LAYER_TYPE_3) && (route->l2label != 0))
             {
-              bgp_static->labels[1] = (route->label << 4) | 1;
+              /* EVPN RT2 encode vni in label. encoding uses full 24 bits */
+              bgp_static->labels[0] = route->l2label;
+              if (route->label && route->label != 0xffffffff)
+                  {
+                     bgp_static->labels[1] = (route->label << 4) | 1;
+                     bgp_static->nlabels++;
+                  }
             }
-          else
-            {
-              bgp_static->labels[0] = (route->l2label << 4) | 1;
-              bgp_static->labels[1] = (route->label << 4) | 1;
-            }
-          bgp_static->nlabels++;
         }
     }
   if (bgp_static->ecomm)
@@ -2726,15 +2743,27 @@ static void bgp_vrf_copy_bgp_info(struct bgp_vrf *vrf, struct bgp_node *rn,
   if(select->extra)
     {
       uint32_t l3label = 0, l2label = 0;
-
+      
       bgp_vrf_update_labels (vrf, rn, select, &l3label, &l2label);
       if(safi == SAFI_EVPN)
         {
           target->extra->nlabels = 1;
-          if(vrf->ltype == BGP_LAYER_TYPE_3)
-            target->extra->labels[0] = (l3label << 4) | 1;
-          else
-            target->extra->labels[0] = (l2label << 4) | 1;
+          if (PREFIX_IS_L2VPN(&rn->p))
+            {
+              if(vrf->ltype == BGP_LAYER_TYPE_3)
+                {
+                  target->extra->labels[0] = l3label;
+                } else {
+                  target->extra->labels[0] = l2label;
+                }
+            } else {
+               if(vrf->ltype == BGP_LAYER_TYPE_3)
+                 {
+                   target->extra->labels[0] = (l3label << 4) | 1;
+                 } else { 
+                    target->extra->labels[0] = (l2label << 4) | 1;
+                 }
+          }
         }
       else
         {
@@ -7045,7 +7074,14 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
           return CMD_WARNING;
         }
     }
-  if (! str2labels (tag_str, labels, &nlabels))
+  int label_encoding_method = LABEL_ENCODING_STANDARD;
+
+  if( safi == SAFI_EVPN && macaddress && str2mac (macaddress, NULL) != 0)
+    {
+      /* EVPN RT2 encode vni in label. encoding uses full 24 bits */
+      label_encoding_method = LABEL_ENCODING_FULL;
+    }
+  if (! str2labels (tag_str, labels, &nlabels, label_encoding_method))
     {
       vty_out (vty, "%% Malformed tag%s", VTY_NEWLINE);
       return CMD_WARNING;
@@ -7100,24 +7136,23 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
         }
       if(l2label)
         {
-         labels[nlabels - 1] &= ~1;
+          if ((safi != SAFI_EVPN) || p.family != AF_L2VPN)
+            labels[nlabels - 1] &= ~1;
          labels[nlabels] = atol(l2label) << 4;
          labels[nlabels] |= 1;
          nlabels++;
         }
       else
         {
-          if(macaddress) /* required to have a second label */
+          if(macaddress) /* not required to have a second label */
             {
               labels[nlabels] &= ~1;
               labels[nlabels] = 0;
-              labels[nlabels] |= 1;
             }
         }
     }
   else
     afi = (p.family == AF_INET) ? AFI_IP : AFI_IP6;
-
   if (rd_str)
     {
       prn = bgp_node_get (bgp->route[afi][safi],
@@ -7233,7 +7268,13 @@ bgp_static_unset_safi(safi_t safi, struct vty *vty, const char *ip_str,
           return CMD_WARNING;
         }
     }
-  if (! str2labels (tag_str, labels, &nlabels))
+  int label_encoding_method = LABEL_ENCODING_STANDARD;
+  if( safi == SAFI_EVPN && mac && str2mac (mac, NULL) != 0)
+    {
+      /* EVPN RT2 encode vni in label. encoding uses full 24 bits */
+      label_encoding_method = LABEL_ENCODING_FULL;
+    }
+  if (! str2labels (tag_str, labels, &nlabels, label_encoding_method))
     {
       vty_out (vty, "%% Malformed tag%s", VTY_NEWLINE);
       return CMD_WARNING;
@@ -9150,9 +9191,20 @@ route_vty_out_tag (struct vty *vty, struct prefix *p,
     }
 
   char buf[BUFSIZ];
-  vty_out (vty, ":/%s", labels2str (buf, sizeof(buf),
-                          binfo->extra->labels, binfo->extra->nlabels));
-
+  /* EVPN RT2 encode vni in label. encoding uses full 24 bits */
+  if (PREFIX_IS_L2VPN(p))
+    {
+      if(binfo->extra->nlabels == 1)
+        sprintf(buf,"%u", binfo->extra->labels[0]);
+      else if (binfo->extra->nlabels == 2)
+        sprintf(buf,"%u:%u", binfo->extra->labels[0], binfo->extra->labels[1] >> 4);
+    }
+  else
+    {
+      labels2str (buf, sizeof(buf),
+                  binfo->extra->labels, binfo->extra->nlabels);
+    }
+  vty_out (vty, ":/%s",buf); 
   vty_out (vty, "%s", VTY_NEWLINE);
 }  
 
@@ -19663,7 +19715,7 @@ bgp_config_write_network_vpn (struct vty *vty, struct bgp *bgp,
 	    /* "network" configuration display.  */
 	    prefix_rd2str (prd, rdbuf, RD_ADDRSTRLEN);
             labels2str (lblbuf, sizeof(lblbuf),
-                          bgp_static->labels, bgp_static->nlabels);
+                        bgp_static->labels, bgp_static->nlabels);
 
 	    vty_out (vty, " network %s/%d rd %s tag %s",
 		     inet_ntop (p->family, &p->u.prefix, buf, SU_ADDRSTRLEN), 
@@ -19711,7 +19763,7 @@ bgp_config_write_network_evpn (struct vty *vty, struct bgp *bgp,
 	    /* "network" configuration display.  */
 	    prefix_rd2str (prd, rdbuf, RD_ADDRSTRLEN);
             labels2str (lblbuf, sizeof(lblbuf),
-                          bgp_static->labels, bgp_static->nlabels);
+                        bgp_static->labels, bgp_static->nlabels);
             inet_ntop (AF_INET, &bgp_static->igpnexthop, buf2, SU_ADDRSTRLEN);
 
             if(p->family == AF_L2VPN)

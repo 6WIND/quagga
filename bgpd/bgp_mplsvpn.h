@@ -41,6 +41,8 @@ struct rd_ip
   u_int16_t val;
 };
 
+#define LABEL_ENCODING_STANDARD 0
+#define LABEL_ENCODING_FULL 1
 extern u_int16_t decode_rd_type (u_char *pnt);
 extern void bgp_mplsvpn_init (void);
 extern int bgp_nlri_parse_vpn (struct peer *, struct attr *, struct bgp_nlri *);
@@ -48,7 +50,7 @@ extern void decode_rd_as (u_char *pnt, struct rd_as *rd_as);
 extern void decode_rd_as4 (u_char *pnt, struct rd_as *rd_as);
 extern void decode_rd_ip (u_char *pnt, struct rd_ip *rd_ip);
 extern int str2prefix_rd (const char *, struct prefix_rd *);
-extern int str2labels (const char *str, uint32_t *labels, size_t *nlabels);
+extern int str2labels (const char *str, uint32_t *labels, size_t *nlabels, int type);
 extern char *labels2str (char *str, size_t size, uint32_t *labels, size_t nlabels);
 extern char *prefix_rd2str (struct prefix_rd *, char *, size_t);
 extern int prefix_rd_cmp(struct prefix_rd *p1, struct prefix_rd *p2);

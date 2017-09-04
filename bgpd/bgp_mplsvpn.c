@@ -94,8 +94,7 @@ labels2str (char *str, size_t size, uint32_t *labels, size_t nlabels)
   char *pos = str;
   for (i = 0; i < nlabels; i++)
     {
-      snprintf (pos, str + size - pos, "%s%d", (i > 0) ? ":" : "",
-          labels[i] >> 4);
+      snprintf (pos, str + size - pos, "%s%d", (i > 0) ? ":" : "", labels[i] >> 4);
       pos += strlen(pos);
     }
   return str;
@@ -334,7 +333,7 @@ out:
 }
 
 int
-str2labels (const char *str, uint32_t*labels, size_t *nlabels)
+str2labels (const char *str, uint32_t*labels, size_t *nlabels, int type)
 {
   unsigned long l;
   char *endptr;
@@ -352,9 +351,12 @@ str2labels (const char *str, uint32_t*labels, size_t *nlabels)
       l = strtoul (str, &endptr, 0);
       if (endptr == str || (*endptr != '\0' && *endptr != ':') || l >= 0x100000)
         return 0;
-      labels[*nlabels] = l << 4;
+      if (type == LABEL_ENCODING_STANDARD)
+        labels[*nlabels] = l << 4;
+      else
+        labels[*nlabels] = l;
       (*nlabels)++;
-      if (*endptr == '\0')
+      if ((*endptr == '\0') && (type == LABEL_ENCODING_STANDARD))
         {
           labels[*nlabels - 1] |= 1;
           break;
