@@ -126,6 +126,22 @@ qthrift_master_init (void)
   tm->qthrift_notification_address = strdup(QTHRIFT_CLIENT_ADDRESS);
 }
 
+static void
+qthrift_kill_bgpd()
+{
+  pid_t pid;
+  int ret;
+
+  pid = get_pid_output(PATH_BGPD_PID);
+  if (pid)
+    {
+      zlog_notice("attempt to kill BGP instance %d", pid);
+      ret = kill(pid, SIGINT);
+      if (ret == 0)
+          unlink(PATH_BGPD_PID);
+      zlog_err("attempt to kill BGP instance (%d) %s", pid, ret == 0 ? "OK" : "NOK");
+    }
+}
 
 /* Called from VTY commands. */
 void  qthrift_create_context (struct qthrift **qthrift_val)
@@ -147,30 +163,12 @@ void  qthrift_create_context (struct qthrift **qthrift_val)
   /* creation of capnproto context - updater */
   qthrift_vpnservice_setup_qzc(qthrift->qthrift_vpnservice);
 
+  qthrift_kill_bgpd();
   /* run bgp_configurator_server */ 
   if(qthrift_server_listen (qthrift) < 0)
     {
-      pid_t pid;
-      pid = get_pid_output(PATH_BGPD_PID);
-      if(pid)
-        {
-          char saddr[64];
-          char *ptr = saddr;
-          int pid2;
-
-          ptr+=sprintf(saddr, "attempt to kill BGP instance %d",pid);
-          puts(saddr);
-          pid2 = kill(pid, SIGKILL);
-          if(pid2 == 0)
-            {
-              unlink(PATH_BGPD_PID);
-              sleep(5);
-            }
-          zlog_err("attempt to kill BGP instance (%d) %s", pid, pid2 == 0?"OK":"NOK");
-        }
       /* exit on failure */
-      if(qthrift_server_listen (qthrift) < 0)
-        exit(1);
+      exit(1);
     }
   return ;
 }
