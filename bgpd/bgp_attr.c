@@ -2588,6 +2588,10 @@ bgp_packet_mpattr_route_type_2 (struct stream *s,
       else
         len = 0; /* No Ip address in prefix */
       stream_putc (s, EVPN_MACIP_ADVERTISEMENT);
+      if (nlabels == 2)
+        len_label = 6;
+      else if (nlabels == 0)
+        len_label = 3;
       stream_putc (s, 8 /* RD */ + 10 /* ESI */  + 4 /* EthTag */ + 1 /* MAC len */
                    + 6 /* MAC */ + 1 + len + 3 /* label 1 */ + 3 /* label 2*/ + 1 /* len from TLV */);
       /* route distinguisher */
