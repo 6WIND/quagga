@@ -124,6 +124,9 @@ qthrift_accept (struct thread *thread)
     zlog_info("qthrift_accept : new connection (fd %d) from %s:%u", socket->sd, ipstr, port);
   }
   //set_nonblocking (socket->sd);
+  if (fcntl (socket->sd, F_SETFD, FD_CLOEXEC) == -1)
+    zlog_err ("qthriftd accept : fcntl failed (%s)", safe_strerror (errno));
+
   peer->peer = XCALLOC(MTYPE_QTHRIFT, \
                        sizeof(struct qthrift_vpnservice_client));
   qthrift_vpnservice_setup_client(peer->peer,
@@ -223,6 +226,10 @@ qthrift_server_listen (struct qthrift *qthrift)
     {
       ThriftServerSocket *tsocket = \
         THRIFT_SERVER_SOCKET (qthrift->qthrift_vpnservice->bgp_configurator_server_transport);
+
+      if (fcntl (tsocket->sd, F_SETFD, FD_CLOEXEC) == -1)
+        zlog_err ("qthrift_server_listen : fcntl failed (%s)", safe_strerror (errno));
+
       listener = XMALLOC (MTYPE_QTHRIFT, sizeof(*listener));
       listener->qthrift = qthrift;
       listener->thread = NULL;
