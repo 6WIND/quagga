@@ -2608,7 +2608,7 @@ bgp_packet_mpattr_route_type_2 (struct stream *s,
       if (nlabels == 2)
         len_label = 6;
       else if (nlabels == 0)
-        nlabels == 3;
+        len_label = 3;
       stream_putc (s, 8 /* RD */ + 10 /* ESI */  + 4 /* EthTag */ + 1 /* MAC len */
                    + 6 /* MAC */ + 1 + len + len_label);
       /* route distinguisher */
