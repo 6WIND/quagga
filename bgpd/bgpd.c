@@ -3931,8 +3931,8 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
          nh.v6_global = route->nexthop.u.prefix6;
        }
     }
-  /* EVPN RT2 encode vni in label. encoding uses full 24 bits */
-  if ( (safi == SAFI_EVPN) && (route->mac_router))
+  /* EVPN RT2/RT5 encode vni in label. encoding uses full 24 bits */
+  if (safi == SAFI_EVPN)
     label = route->label;
   else
     label = route->label << 4 | 1;
@@ -6140,10 +6140,8 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
                       ptr+=sprintf (ptr, " neighbor %s default-originate rd %s %s ", addr,
                                     rdstr, buf);
                     }
-                  /* EVPN RT2 encode vni in label. decoding uses full 24 bits */
-                  if (vrf->nlabels && !vrf->mac_router)
-                    labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
-                  else if (vrf->nlabels == 1)
+                  /* EVPN RT2/RT5 encode vni in label. decoding uses full 24 bits */
+                  if (vrf->nlabels == 1)
                     sprintf(labelstr,"%u", vrf->labels[0]);
                   else if (vrf->nlabels == 2)
                     sprintf(labelstr,"%u:%u", vrf->labels[0], vrf->labels[1] >> 4);
