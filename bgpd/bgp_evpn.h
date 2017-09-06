@@ -60,4 +60,13 @@ bgp_evpn_auto_discovery_new_entry (struct bgp_vrf *vrf,
 #define EVPN_ETHERNET_SEGMENT 4
 #define EVPN_IP_PREFIX 5
 
+
+/* BGP Encapsulation Types */
+/* https://tools.ietf.org/html/draft-ietf-bess-evpn-overlay-07#section-13 */
+#define BGP_ENCAPSULATION_VXLAN      8
+#define BGP_ENCAPSULATION_NVGRE      9
+#define BGP_ENCAPSULATION_MPLS      10
+#define BGP_ENCAPSULATION_MPLSOGRE  11
+#define BGP_ENCAPSULATION_VXLANGPE  12
+
 #endif /* _QUAGGA_BGP_EVPN_H */

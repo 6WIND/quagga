@@ -160,6 +160,7 @@ struct bgp_static
   struct eth_segment_id *eth_s_id;
   char *router_mac;
   struct prefix gatewayIp;
+  uint32_t bgp_encapsulation_type;
 };
 
 extern struct bgp_info *bgp_last_bgp_info_configured[AFI_MAX][SAFI_MAX];

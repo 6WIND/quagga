@@ -2469,6 +2469,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
     }
 
   bgp_static = bgp_static_new ();
+  bgp_static->bgp_encapsulation_type = BGP_ENCAPSULATION_VXLAN;
   bgp_static->backdoor = 0;
   bgp_static->valid = 1;
   bgp_static->igpmetric = 0;
@@ -5082,6 +5083,22 @@ bgp_default_originate (struct peer *peer, afi_t afi, safi_t safi, int withdraw)
   aspath_unintern (&aspath);
 }
 
+static void bgp_add_encapsulation_type (struct attr *attr, int bgp_encapsulation_type)
+{
+  struct ecommunity_val bgp_encaps_ecom;
+
+  if(attr->extra)
+    {
+      memset(&bgp_encaps_ecom, 0, sizeof(struct ecommunity_val));
+      bgp_encaps_ecom.val[0] = ECOMMUNITY_ENCODE_OPAQUE;
+      bgp_encaps_ecom.val[1] = ECOMMUNITY_OPAQUE_SUBTYPE_ENCAP;
+      bgp_encaps_ecom.val[7] = bgp_encapsulation_type;
+      if(!attr->extra->ecommunity)
+        attr->extra->ecommunity = ecommunity_new ();
+      ecommunity_add_val(attr->extra->ecommunity, &bgp_encaps_ecom);
+    }
+}
+
 static void bgp_add_routermac_ecom (struct attr* attr, char * routermac)
 {
   struct ecommunity_val routermac_ecom;
@@ -6671,6 +6688,10 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
       if(bgp_static->router_mac)
         {
           bgp_add_routermac_ecom (&attr, bgp_static->router_mac);
+          /* It may be advertised along with BGP Encapsulation Extended Community define
+           * in section 4.5 of [RFC5512].
+           */
+          bgp_add_encapsulation_type (&attr, bgp_static->bgp_encapsulation_type);
         }
       if (bgp_static->igpnexthop.s_addr)
         {
@@ -6888,6 +6909,7 @@ bgp_static_set (struct vty *vty, struct bgp *bgp, const char *ip_str,
     {
       /* New configuration. */
       bgp_static = bgp_static_new ();
+      bgp_static->bgp_encapsulation_type = BGP_ENCAPSULATION_VXLAN;
       bgp_static->backdoor = backdoor;
       bgp_static->valid = 0;
       bgp_static->igpmetric = 0;
@@ -7173,6 +7195,7 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
       bgp_static->igpnexthop = bgp->router_id;
       memcpy(bgp_static->labels, labels, sizeof(labels[0]) * nlabels);
       bgp_static->nlabels = nlabels;
+      bgp_static->bgp_encapsulation_type = BGP_ENCAPSULATION_VXLAN;
       if (rd_str)
         {
           vrf = bgp_vrf_lookup(bgp, &prd);
