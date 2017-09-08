@@ -3781,6 +3781,7 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
   struct prefix_rd* d;
   struct list *list_to_parse = NULL;
   struct bgp_nexthop nh;
+  int label;
 
   prefix_rd2str(rd, rdstr, RD_ADDRSTRLEN);
 
@@ -3806,8 +3807,16 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
     return 1;
   if(route)
     nh.v4 = route->nexthop;
+
+  /* EVPN RT2 encode vni in label. encoding uses full 24 bits */
+  if ( (safi == SAFI_INTERNAL_EVPN) && (route->mac_router))
+    label = route->label;
+  else
+    label = route->label << 4 | 1;
+
   zlog_info("%s: rd=%s, afi=%d, nh=%s, label=%u", __func__,
-            rdstr, afi, route?inet_ntoa(route->nexthop):"<none>", route->label << 4 | 1);
+            rdstr, afi, route?inet_ntoa(route->nexthop):"<none>", label);
+
   if (safi == SAFI_MPLS_VPN)
     list_to_parse = peer->def_route_rd_vpnv4;
   else if (safi == SAFI_INTERNAL_EVPN)
@@ -3821,7 +3830,7 @@ peer_default_originate_set_rd (struct peer *peer, struct prefix_rd *rd, afi_t af
         found->ipv4_gatewayIp.s_addr = 0;
       if (route && route->label)
         {
-          found->labels[0] = route->label << 4 | 1;
+          found->labels[0] = label;
           found->nlabels = 1;
         }
       else
@@ -3927,7 +3936,12 @@ peer_evpn_auto_discovery_set (struct peer *peer, struct bgp_vrf *vrf, struct att
   if (! peer->afc[AFI_INTERNAL_L2VPN][SAFI_INTERNAL_EVPN])
     return BGP_ERR_PEER_INACTIVE;
 
-  bgp_auto_discovery_evpn (peer, vrf, attr, esi, ethtag, nexthop, (label << 4) | 1, 0);
+  /* https://tools.ietf.org/html/draft-ietf-bess-evpn-overlay-04#5.1.3
+   * In EVPN, an MPLS label is distributed by the egress PE via the EVPN control plane
+   * MAC Advertisement Ethernet AD per EVI ... is used to carry the VNI.
+   * the entire 24-bit field is used to encode the VNI value.
+   */
+  bgp_auto_discovery_evpn (peer, vrf, attr, esi, ethtag, nexthop, label, 0);
 
   return 0;
 }
@@ -5954,11 +5968,15 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
                   
                   ptr+=sprintf (ptr, " neighbor %s default-originate rd %s %s ", addr,
                                 rdstr, inet_ntoa(vrf->nh.v4));
-                  if (vrf->nlabels)
-                    {
+                  /* EVPN RT2 encode vni in label. decoding uses full 24 bits */
+                  if (vrf->nlabels && !vrf->mac_router)
                       labels2str(labelstr, RD_ADDRSTRLEN, vrf->labels, vrf->nlabels);
-                      ptr+=sprintf (ptr, "%s", labelstr);
-                    }
+                  else if (vrf->nlabels == 1)
+                    sprintf(labelstr,"%u", vrf->labels[0]);
+                  else if (vrf->nlabels == 2)
+                    sprintf(labelstr,"%u:%u", vrf->labels[0], vrf->labels[1] >> 4);
+                   ptr+=sprintf (ptr, "%s", labelstr);
+
                   if (vrf->esi)
                     {
                       ptr+=sprintf (ptr, " %s", vrf->esi);

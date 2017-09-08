@@ -21,10 +21,12 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #ifndef _QUAGGA_BGP_MPLSVPN_H
 #define _QUAGGA_BGP_MPLSVPN_H
 
+#define LABEL_ENCODING_STANDARD 0
+#define LABEL_ENCODING_FULL 1
 extern void bgp_mplsvpn_init (void);
 extern int bgp_nlri_parse_vpn (struct peer *, struct attr *, struct bgp_nlri *);
 extern int str2prefix_rd (const char *, struct prefix_rd *);
-extern int str2labels (const char *str, uint32_t *labels, size_t *nlabels);
+extern int str2labels (const char *str, uint32_t *labels, size_t *nlabels, int type);
 extern char *labels2str (char *str, size_t size, uint32_t *labels, size_t nlabels);
 extern char *prefix_rd2str (struct prefix_rd *, char *, size_t);
 

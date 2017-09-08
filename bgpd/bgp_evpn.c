@@ -259,7 +259,8 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
         }
       else if (route_type == EVPN_ETHERNET_AUTO_DISCOVERY)
         {
-          if (p.u.prefix_macip.eth_tag_id == EVPN_MAX_ET && (labels[0] >> 4) == 0)
+          /* EVPN RT1 encode vni in label. encoding uses full 24 bits */
+          if (p.u.prefix_macip.eth_tag_id == EVPN_MAX_ET && labels[0] == 0)
             evpn.auto_discovery_type = EVPN_ETHERNET_AD_PER_ESI;
           else if (p.u.prefix_macip.eth_tag_id == 0)
             evpn.auto_discovery_type = EVPN_ETHERNET_AD_PER_EVI;
@@ -268,7 +269,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
               plog_err (peer->log,
                         "%s [Error] Update packet error / EVPN"
                         " (Auto Discovery with eth tag %08x and MPLS label %d not supported)",
-                        peer->host, p.u.prefix_macip.eth_tag_id, (labels[0] >> 4));
+                        peer->host, p.u.prefix_macip.eth_tag_id, labels[0]);
               return -1;
             }
         }
@@ -1188,7 +1189,7 @@ bgp_evpn_process_auto_discovery_propagate (struct bgp_vrf *vrf,
         }
         zlog_debug ("vrf[%s] %s Ethtag %08x/ ESI %s/ Label %u: A/D from %s applied ( nexthop %s)",
                     vrf_rd_str, ad->type == BGP_EVPN_AD_TYPE_MP_UNREACH?"MP_UNREACH":"MP_REACH",
-                    ad->eth_t_id, esi, ad->label >> 4, ad->peer->host, nh_str);
+                    ad->eth_t_id, esi, ad->label, ad->peer->host, nh_str);
         free (esi);
     }
 
