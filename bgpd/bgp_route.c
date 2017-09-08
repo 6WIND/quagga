@@ -2005,6 +2005,20 @@ static void bgp_send_notification_to_sdn (afi_t afi, safi_t safi, struct bgp_nod
 {
   struct bgp_event_vrf event;
 
+  if (announce == true)
+    {
+      if(CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
+        return;
+    }
+  else
+    {
+      /* if not already sent, do nothing */
+      if(!CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
+        return;
+      if(CHECK_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT))
+        return;
+    }
+
   memset (&event, 0, sizeof (struct bgp_event_vrf));
   event.announce = announce;
   if (safi == SAFI_LABELED_UNICAST &&
@@ -2050,23 +2064,7 @@ static void bgp_send_notification_to_sdn (afi_t afi, safi_t safi, struct bgp_nod
         zlog_info ("%s Route %s : withdrawn %s (label %d nh %s)",
                     pre_str, pfx_str, post_str, event.label, nh_str);
     }
-  if (announce == true)
-    {
-      if(CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
-        return;
-      SET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
-      UNSET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
-    }
-  else
-    {
-      /* if not already sent, do nothing */
-      if(!CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
-        return;
-      if(CHECK_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT))
-        return;
-      SET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
-      UNSET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
-    }
+
   if(selected->type == ZEBRA_ROUTE_BGP
      && selected->sub_type == BGP_ROUTE_STATIC)
     return;
@@ -2088,6 +2086,17 @@ static void bgp_send_notification_to_sdn (afi_t afi, safi_t safi, struct bgp_nod
 #ifdef HAVE_ZEROMQ
       bgp_notify_route (bgp_get_default (), &event);
 #endif /* HAVE_ZEROMQ */
+    }
+
+  if (announce == true)
+    {
+      SET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
+      UNSET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
+    }
+  else
+    {
+      SET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
+      UNSET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
     }
 }
 
@@ -2111,8 +2120,27 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
   if(!vrf || (rn && bgp_node_table (rn)->type != BGP_TABLE_VRF))
     return;
 
+  if(selected->type == ZEBRA_ROUTE_BGP
+     && selected->sub_type == BGP_ROUTE_STATIC)
+    return;
+
+  if (announce == true)
+    {
+      if(CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
+        return;
+    }
+  else
+    {
+      /* if not already sent, do nothing */
+      if(!CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
+        return;
+      if(CHECK_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT))
+        return;
+    }
+
   if (selected->extra)
     bgp_vrf_update_labels (vrf, rn, 0, selected, &(event.label), &(event.l2label));
+
   if (BGP_DEBUG (events, EVENTS))
     {
       char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN], pfx_str[PREFIX_STRLEN];
@@ -2211,26 +2239,6 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
         }
     }
 
-  if(selected->type == ZEBRA_ROUTE_BGP
-     && selected->sub_type == BGP_ROUTE_STATIC)
-    return;
-  if (announce == true)
-    {
-      if(CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
-        return;
-      SET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
-      UNSET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
-    }
-  else
-    {
-      /* if not already sent, do nothing */
-      if(!CHECK_FLAG (selected->flags, BGP_INFO_UPDATE_SENT))
-        return;
-      if(CHECK_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT))
-        return;
-      SET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
-      UNSET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
-    }
   if (afi == AFI_IP || afi == AFI_IP6)
     {
       if (selected->attr && selected->attr->extra)
@@ -2315,6 +2323,17 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
 #ifdef HAVE_ZEROMQ
       bgp_notify_route (vrf->bgp, &event);
 #endif /* HAVE_ZEROMQ */
+    }
+
+  if (announce == true)
+    {
+      SET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
+      UNSET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
+    }
+  else
+    {
+      SET_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT);
+      UNSET_FLAG (selected->flags, BGP_INFO_UPDATE_SENT);
     }
 
   if (event.mac_router)
