@@ -41,6 +41,14 @@ extern int bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
 #define EVPN_ETHERNET_MP_UNREACH 4
 #define EVPN_MAX_ET 0xffffffff
 
+/* BGP Encapsulation Types */
+/* https://tools.ietf.org/html/draft-ietf-bess-evpn-overlay-07#section-13 */
+#define BGP_ENCAPSULATION_VXLAN      8
+#define BGP_ENCAPSULATION_NVGRE      9
+#define BGP_ENCAPSULATION_MPLS      10
+#define BGP_ENCAPSULATION_MPLSOGRE  11
+#define BGP_ENCAPSULATION_VXLANGPE  12
+
 extern void
 bgp_evpn_process_imports2 (struct bgp *bgp, struct bgp_evpn_ad *old, struct bgp_evpn_ad *new);
 

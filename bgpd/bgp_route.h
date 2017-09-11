@@ -152,6 +152,7 @@ struct bgp_static
   struct eth_segment_id *eth_s_id;
   char *router_mac;
   struct in_addr gatewayIp;
+  uint32_t bgp_encapsulation_type;
 };
 
 struct bgp_route_evpn

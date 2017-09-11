@@ -37,7 +37,7 @@ DEFINE_MTYPE_STATIC(LIB, LIBECOMMUNITY_VAL,     "Ecommunity Val")
 DEFINE_MTYPE_STATIC(LIB, LIBECOMMUNITY_STR,     "Ecommunity Str")
 
 /* Allocate a new ecommunities.  */
-static struct ecommunity *
+struct ecommunity *
 ecommunity_new (void)
 {
   return (struct ecommunity *) XCALLOC (MTYPE_LIBECOMMUNITY,

@@ -78,6 +78,7 @@ struct ecommunity_val
 
 #define ecom_length(X)    ((X)->size * ECOMMUNITY_SIZE)
 
+extern struct ecommunity *ecommunity_new (void);
 extern void ecommunity_init (void);
 extern void ecommunity_finish (void);
 extern void ecommunity_free (struct ecommunity **);
