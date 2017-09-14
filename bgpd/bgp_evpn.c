@@ -471,7 +471,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
       if (route_type == EVPN_ETHERNET_AUTO_DISCOVERY)
         {
           /* EVPN RT1 encode vni in label. encoding uses full 24 bits */
-          if (p.u.prefix_macip.eth_tag_id == MAX_ET && labels[0] == 0)
+          if (p.u.prefix_macip.eth_tag_id == MAX_ET && (labels[0] >> 4) == 0)
             evpn.auto_discovery_type = EVPN_ETHERNET_AD_PER_ESI;
           else if (p.u.prefix_macip.eth_tag_id == 0)
             evpn.auto_discovery_type = EVPN_ETHERNET_AD_PER_EVI;
