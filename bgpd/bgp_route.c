@@ -19755,6 +19755,9 @@ bgp_config_write_network_vpn (struct vty *vty, struct bgp *bgp,
 		     inet_ntop (p->family, &p->u.prefix, buf, SU_ADDRSTRLEN), 
 		     p->prefixlen,
 		     rdbuf, lblbuf);
+	    if (bgp_static->rmap.name){
+              vty_out (vty, " route-map %s",bgp_static->rmap.name);
+            }
 	    vty_out (vty, "%s", VTY_NEWLINE);
 	  }
   return 0;
