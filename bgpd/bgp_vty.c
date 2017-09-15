@@ -10374,6 +10374,11 @@ DEFUN (bgp_vrf,
     return CMD_ERR_NO_MATCH;
   vty->index_sub = vrf;
   vty->node = BGP_VRF_NODE;
+  bgp_vrf_enable(vrf, AFI_IP, SAFI_UNICAST);
+  bgp_vrf_enable(vrf, AFI_IP6, SAFI_UNICAST);
+  bgp_vrf_enable(vrf, AFI_IP, SAFI_MPLS_VPN);
+  bgp_vrf_enable(vrf, AFI_IP6, SAFI_MPLS_VPN);
+  bgp_vrf_enable(vrf, AFI_L2VPN, SAFI_EVPN);
   return CMD_SUCCESS;
 }
 
