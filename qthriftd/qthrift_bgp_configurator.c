@@ -1402,6 +1402,19 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
     /* reset qzc reply and rc context */
     qzcclient_qzcgetrep_free( grep_vrf);
   }
+
+  /* Unintern import and export communities set in qcapn_BGPVRF_read */
+  if (instvrf.rt_import)
+    {
+      ecommunity_unintern (&instvrf.rt_import);
+      instvrf.rt_import = NULL;
+    }
+  if (instvrf.rt_export)
+    {
+      ecommunity_unintern (&instvrf.rt_export);
+      instvrf.rt_export = NULL;
+    }
+
   /* configuring bgp vrf with import and export communities */
   /* irts and erts have to be concatenated into temp string */
   rts = XMALLOC(MTYPE_QTHRIFT,2048);
@@ -2315,6 +2328,18 @@ instance_bgp_configurator_handler_multipaths(BgpConfiguratorIf *iface, gint32* _
         zlog_info ("maximum path for VRF %s set to %d", rd, maxPath);
       }
   }
+
+  /* Unintern import and export communities set in qcapn_BGPVRF_read */
+  if (instvrf.rt_import)
+    {
+      ecommunity_unintern (&instvrf.rt_import);
+      instvrf.rt_import = NULL;
+    }
+  if (instvrf.rt_export)
+    {
+      ecommunity_unintern (&instvrf.rt_export);
+      instvrf.rt_export = NULL;
+    }
 
   return TRUE;
 }
