@@ -187,6 +187,8 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
 #define ERROR_BGP_INVALID_MAXPATH g_error_new(1, BGP_ERR_PARAM, "BGP maxpaths: out of range value 0 < %d < 8", maxPath);
 #define ERROR_BGP_INTERNAL g_error_new(1, BGP_ERR_FAILED, "Error reported by BGP, check log file");
 #define ERROR_BGP_INVALID_UPDATE_DELAY g_error_new(1, BGP_ERR_PARAM, "BGP EOR update delay: out of range value 0 <= %d <= %d", delay, MAX_EOR_UPDATE_DELAY);
+#define ERROR_BGP_INVALID_NEXTHOP g_error_new(1, BGP_ERR_PARAM, "BGP nexthop: invalid IPv4 address %s", nexthop);
+#define ERROR_BGP_INVALID_PREFIX g_error_new(1, BGP_ERR_PARAM, "BGP prefix: invalid IPv4 prefix %s", prefix);
 #define BGP_ERR_INTERNAL 110
 
 /*
@@ -978,8 +980,17 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
   /* prepare route entry for AFI=IP */
   memset(&inst, 0, sizeof(struct bgp_api_route));
   inst.label = label;
-  inet_aton (nexthop, &inst.nexthop);
-  str2prefix_ipv4(prefix,&inst.prefix);
+  if (inet_aton (nexthop, &inst.nexthop) == 0)
+    {
+      *error = ERROR_BGP_INVALID_NEXTHOP;
+      return FALSE;
+    }
+  if (str2prefix_ipv4(prefix,&inst.prefix) == 0)
+    {
+      *error = ERROR_BGP_INVALID_PREFIX;
+      return FALSE;
+    }
+
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
   bgpvrfroute = qcapn_new_BGPVRFRoute(cs, 0);
@@ -1061,7 +1072,12 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
     }
   /* prepare route entry for AFI=IP */
   memset(&inst, 0, sizeof(struct bgp_api_route));
-  str2prefix_ipv4(prefix,&inst.prefix);
+  if (str2prefix_ipv4(prefix,&inst.prefix) == 0)
+    {
+      *error = ERROR_BGP_INVALID_PREFIX;
+      return FALSE;
+    }
+
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
   bgpvrfroute = qcapn_new_BGPVRFRoute(cs, 0);
