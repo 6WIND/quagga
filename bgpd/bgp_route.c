@@ -5297,8 +5297,12 @@ bgp_auto_discovery_evpn (struct peer *peer, struct bgp_vrf *vrf, struct attr * a
           memset(&bet, 0, sizeof(struct bgp_encap_type_vxlan));
           bet.vnid = ethtag;
           bgp_encap_type_vxlan_to_tlv(&bet, attr);
+          bgp_attr_extra_get (attr);
+          /* It may be advertised along with BGP Encapsulation Extended Community define
+           * in section 4.5 of [RFC5512].
+           */
+          bgp_add_encapsulation_type (attr, BGP_ENCAP_TYPE_VXLAN);
         }
-
       bgp_auto_discovery_update_send(peer, &vrf->outbound_rd, attr, ethtag, label);
     }
 }
@@ -6705,14 +6709,14 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
       }
       bgp_encap_type_vxlan_to_tlv(&bet, &attr);
       bgp_attr_extra_get (&attr);
+      /* It may be advertised along with BGP Encapsulation Extended Community define
+       * in section 4.5 of [RFC5512].
+       */
+      bgp_add_encapsulation_type (&attr, bgp_static->bgp_encapsulation_type);
 
       if(bgp_static->router_mac)
         {
           bgp_add_routermac_ecom (&attr, bgp_static->router_mac);
-          /* It may be advertised along with BGP Encapsulation Extended Community define
-           * in section 4.5 of [RFC5512].
-           */
-          bgp_add_encapsulation_type (&attr, bgp_static->bgp_encapsulation_type);
         }
       if (bgp_static->igpnexthop.s_addr)
         {
