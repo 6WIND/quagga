@@ -187,6 +187,8 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
 #define ERROR_BGP_INVALID_AD g_error_new(1, 5, "BGP [Push/Withdraw]Route: invalid parameter for Auto Discovery");
 #define ERROR_BGP_INVALID_AD_PROCESSING g_error_new(1, 6, "BGP [Push/Withdraw]Route: error when processing Auto Discovery");
 #define ERROR_BGP_INTERNAL g_error_new(1, BGP_ERR_FAILED, "Error reported by BGP, check log file");
+#define ERROR_BGP_INVALID_NEXTHOP g_error_new(1, BGP_ERR_PARAM, "BGP nexthop: invalid IPv4 address %s", nexthop);
+#define ERROR_BGP_INVALID_PREFIX g_error_new(1, BGP_ERR_PARAM, "BGP prefix: invalid IPv4 prefix %s", prefix);
 #define BGP_ERR_INTERNAL 110
 
 /*
@@ -987,7 +989,14 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
     }
 
   if (nexthop)
-    inet_aton (nexthop, &inst.nexthop);
+    {
+      if (inet_aton (nexthop, &inst.nexthop) == 0)
+        {
+          *error = ERROR_BGP_INVALID_NEXTHOP;
+          ret = FALSE;
+          goto error;
+        }
+    }
   else
     {
       *_return = BGP_ERR_PARAM;
@@ -1053,7 +1062,12 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
             {
               struct prefix_ipv4 dummy;
 
-              str2prefix_ipv4(prefix,&dummy);
+              if (str2prefix_ipv4(prefix,&dummy) == 0)
+                {
+                  *error = ERROR_BGP_INVALID_PREFIX;
+                  ret = FALSE;
+                  goto error;
+                }
               if (dummy.prefixlen != 0 && dummy.prefixlen != 32)
                 {
                   *_return = BGP_ERR_PARAM;
@@ -1068,11 +1082,23 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
           m->mac_len = ETHER_ADDR_LEN * 8;
         }
       else
-        str2prefix_ipv4(prefix, (struct prefix_ipv4*) &inst.prefix);
+        {
+          if (str2prefix_ipv4(prefix, (struct prefix_ipv4*) &inst.prefix) == 0)
+            {
+              *error = ERROR_BGP_INVALID_PREFIX;
+              ret = FALSE;
+              goto error;
+            }
+        }
     }
   else
     {
-      str2prefix_ipv4(prefix, (struct prefix_ipv4*) &inst.prefix);
+      if (str2prefix_ipv4(prefix, (struct prefix_ipv4*) &inst.prefix) == 0)
+        {
+          *error = ERROR_BGP_INVALID_PREFIX;
+          ret = FALSE;
+          goto error;
+        }
       afi = AFI_IP;
     }
 
@@ -1221,7 +1247,12 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
             {
               struct prefix_ipv4 dummy;
 
-              str2prefix_ipv4(prefix,&dummy);
+              if (str2prefix_ipv4(prefix,&dummy) == 0)
+                {
+                  *error = ERROR_BGP_INVALID_PREFIX;
+                  ret = FALSE;
+                  goto error;
+                }
               memcpy(&m->ip.in4, &dummy.prefix, sizeof(struct in_addr));
               m->ip_len = 32;
             }
@@ -1230,12 +1261,24 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
           m->mac_len = ETHER_ADDR_LEN * 8;
         }
       else
-        str2prefix_ipv4(prefix, (struct prefix_ipv4*) &inst.prefix);
+        {
+          if (str2prefix_ipv4(prefix, (struct prefix_ipv4*) &inst.prefix) == 0)
+            {
+              *error = ERROR_BGP_INVALID_PREFIX;
+              ret = FALSE;
+              goto error;
+            }
+        }
     }
   else
     {
       afi = AFI_IP;
-      str2prefix_ipv4(prefix, (struct prefix_ipv4*) &inst.prefix);
+      if (str2prefix_ipv4(prefix, (struct prefix_ipv4*) &inst.prefix) == 0)
+        {
+          *error = ERROR_BGP_INVALID_PREFIX;
+          ret = FALSE;
+          goto error;
+        }
     }
 
 inst_filled:
