@@ -2034,7 +2034,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   str2prefix ("0.0.0.0/0", &def_route);
 
   /* if we try to install a default route, set flag accordingly */
-  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p) &&
+  if (prefix_same (&def_route, p) &&
       ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_INTERNAL_EVPN)))
     {
       struct bgp_vrf *v;
@@ -2239,7 +2239,7 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   str2prefix ("0.0.0.0/0", &def_route);
 
   /* if we try to withdraw a default route, unset flag accordingly */
-  if (0 == prefix_rd_cmp((struct prefix_rd*) &def_route, (struct prefix_rd*) p) &&
+  if (prefix_same (&def_route, p) &&
       ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_INTERNAL_EVPN)))
     {
       int ret = -1;
