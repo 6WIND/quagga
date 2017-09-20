@@ -1314,6 +1314,12 @@ struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
           break;
         }
     }
+  if (vrf == null) {
+    char rd_str[RD_ADDRSTRLEN];
+    prefix_rd2str(prd, rd_str, sizeof(rd_str));
+    zlog_debug ("RD from %s received in AD. Unconfigured. Ignoring", rd_str, peer->host);
+    return NULL;
+  }
   /* Check if previous AD received */
   for (ALL_LIST_ELEMENTS_RO(vrf->rx_evpn_ad, node, ad))
     {
