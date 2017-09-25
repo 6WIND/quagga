@@ -5107,9 +5107,9 @@ bgp_default_originate (struct peer *peer, afi_t afi, safi_t safi, int withdraw)
 static void bgp_add_encapsulation_type (struct attr *attr, int bgp_encapsulation_type)
 {
   struct ecommunity_val bgp_encaps_ecom;
-
   if(attr->extra)
     {
+      attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
       memset(&bgp_encaps_ecom, 0, sizeof(struct ecommunity_val));
       bgp_encaps_ecom.val[0] = ECOMMUNITY_ENCODE_OPAQUE;
       bgp_encaps_ecom.val[1] = ECOMMUNITY_OPAQUE_SUBTYPE_ENCAP;
@@ -5126,6 +5126,7 @@ static void bgp_add_routermac_ecom (struct attr* attr, char * routermac)
 
   if(attr->extra)
     {
+      attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
       memset(&routermac_ecom, 0, sizeof(struct ecommunity_val));
       routermac_ecom.val[0] = ECOMMUNITY_ENCODE_EVPN;
       routermac_ecom.val[1] = ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC;
