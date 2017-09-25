@@ -349,8 +349,10 @@ str2labels (const char *str, uint32_t*labels, size_t *nlabels, int type)
     {
       errno = 0;
       l = strtoul (str, &endptr, 0);
-      if (endptr == str || (*endptr != '\0' && *endptr != ':') || l >= 0x100000)
+      if (type == LABEL_ENCODING_STANDARD && l >= 0x100000)
         return 0;
+      if (endptr == str || (*endptr != '\0' && *endptr != ':'))
+          return 0;
       if (type == LABEL_ENCODING_STANDARD)
         labels[*nlabels] = l << 4;
       else
@@ -359,6 +361,10 @@ str2labels (const char *str, uint32_t*labels, size_t *nlabels, int type)
       if ((*endptr == '\0') && (type == LABEL_ENCODING_STANDARD))
         {
           labels[*nlabels - 1] |= 1;
+          break;
+        }
+      if (*endptr == '\0')
+        {
           break;
         }
     }
