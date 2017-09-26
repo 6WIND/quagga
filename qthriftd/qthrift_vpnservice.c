@@ -50,6 +50,7 @@ void qthrift_transport_cancel_monitor(struct qthrift_vpnservice *setup);
 void qthrift_transport_change_status(struct qthrift_vpnservice *setup, gboolean response);
 static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thread);
 static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *thread);
+static void qthrift_transport_configures_cloexec(ThriftTransport *transport);
 int qthrift_monitor_retry_job_in_progress = 0;
 qthrift_status qthrift_transport_current_status;
 
@@ -151,9 +152,24 @@ static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thr
   assert (setup);
   thrift_transport_close (setup->bgp_updater_transport->transport, &error);
   response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
+  qthrift_transport_configures_cloexec(setup->bgp_updater_transport->transport);
   qthrift_monitor_retry_job_in_progress = 0;
   qthrift_transport_check_response(setup, response);
   return 0;
+}
+
+static void qthrift_transport_configures_cloexec(ThriftTransport *transport)
+{
+  ThriftSocket *tsocket = NULL;
+  int fd = 0;
+  if (transport)
+    tsocket = THRIFT_SOCKET (transport);
+  if (tsocket)
+    fd = tsocket->sd;
+  if (fd != 0) {
+    if (fcntl (tsocket->sd, F_SETFD, FD_CLOEXEC) == -1)
+       zlog_err ("qthrift_transport_configures_cloexec : fcntl failed (%s)", safe_strerror (errno));
+  }
 }
 
 /* detects if remote peer is present or not
@@ -173,6 +189,7 @@ static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *t
     {
       thrift_transport_close (setup->bgp_updater_transport->transport, &error);
       response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
+      qthrift_transport_configures_cloexec(setup->bgp_updater_transport->transport);
       qthrift_monitor_retry_job_in_progress = 0;
       qthrift_transport_check_response(setup, response);
       return 0;
@@ -439,6 +456,7 @@ gboolean qthrift_vpnservice_setup_thrift_bgp_updater_client (struct qthrift_vpns
                     "output_protocol", setup->bgp_updater_protocol,
                     NULL);
   response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
+  qthrift_transport_configures_cloexec(setup->bgp_updater_transport->transport);
   qthrift_transport_check_response(setup, response);
   return response;
 }
