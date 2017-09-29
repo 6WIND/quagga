@@ -432,6 +432,21 @@ void qzc_close (struct qzc_sock *sock)
   XFREE(MTYPE_QZC_SOCK, sock);
 }
 
+int qzc_setsockopt(struct qzc_sock *sock, int option,
+                   const void *optval, size_t optvallen)
+{
+  if (!sock || !sock->zmq)
+    return 0;
+
+  if (zmq_setsockopt(sock->zmq, option, optval, optvallen))
+    {
+      zlog_err ("zmq_setsockopt failed: %s (%d)", strerror (errno), errno);
+      return -1;
+    }
+
+  return 0;
+}
+
 capn_ptr 
 qzc_msg_to_notification(zmq_msg_t *msg, struct capn *rc)
 {

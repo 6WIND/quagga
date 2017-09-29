@@ -495,12 +495,22 @@ void qthrift_vpnservice_terminate_qzc(struct qthrift_vpnservice *setup)
 {
   if(!setup)
     return;
+
   if(setup->qzc_subscribe_sock)
-    qzc_close (setup->qzc_subscribe_sock);
-  setup->qzc_subscribe_sock = NULL;
+    {
+      int val = 0;
+      qzc_setsockopt(setup->qzc_subscribe_sock, ZMQ_LINGER, &val, sizeof(val));
+      qzc_close (setup->qzc_subscribe_sock);
+      setup->qzc_subscribe_sock = NULL;
+    }
+
   if(setup->qzc_sock)
+    {
+      int val = 0;
+      qzc_setsockopt(setup->qzc_sock, ZMQ_LINGER, &val, sizeof(val));
       qzc_close (setup->qzc_sock);
-  setup->qzc_sock = NULL;
+      setup->qzc_sock = NULL;
+    }
 
   qzmq_finish();
 }

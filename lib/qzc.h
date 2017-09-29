@@ -77,6 +77,8 @@ void qzc_finish(void);
 struct qzc_sock *qzc_bind(struct thread_master *master, const char *url);
 
 void qzc_close(struct qzc_sock *sock);
+int qzc_setsockopt(struct qzc_sock *sock, int option,
+                   const void *optval, size_t optvallen);
 
 struct qzc_wkn {
 	uint64_t wid;
