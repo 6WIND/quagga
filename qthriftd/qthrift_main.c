@@ -56,7 +56,9 @@ static const struct option longopts[] =
   { "vty_port",    required_argument, NULL, 'P'},
   { "thrift_port",    required_argument, NULL, 'p'},
   { "thrift_notif_port",    required_argument, NULL, 'n'},
-  { "thrift_notif_address",    required_argument, NULL, 'N'}
+  { "thrift_notif_address",    required_argument, NULL, 'N'},
+  { "help", 0, NULL, 'h'},
+  { NULL, 0, NULL, 0}
 };
 
 /* signal definitions */
