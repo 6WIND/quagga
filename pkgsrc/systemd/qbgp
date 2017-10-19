@@ -1,0 +1,4 @@
+# Configuration file for the thriftd service.
+
+# ODL IP Address
+ODL_IP_ADDR=0.0.0.0

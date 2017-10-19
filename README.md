@@ -25,6 +25,8 @@ The below description has been tested by using an-Ubuntu(14.04 distribution).
 Depending on the distribution, either some packages will be available and it is possible to 
 download the associated package without having to compile. Or you will have to compile the
 package. 
+A script is available on pkgsrc ( pkgsrc/dev_compile_script.sh), and is applying the build
+and installation descriptions mentioned below.
 
 ### Dependency: Thrift
 

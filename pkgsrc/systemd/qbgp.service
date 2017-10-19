@@ -1,0 +1,13 @@
+[Unit]
+Description=QBGP service daemon
+After=network.target
+
+[Service]
+EnvironmentFile=/etc/sysconfig/qbgp
+ExecStart=/opt/quagga/sbin/qthriftd -D \
+          -N ${ODL_IP_ADDR} 2>/dev/null >/dev/null&
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
