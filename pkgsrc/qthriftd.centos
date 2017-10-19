@@ -1,0 +1,124 @@
+#! /bin/sh
+# Copyright (c) 2016 6WIND,
+# This file is part of ZRPC daemon.
+# See the LICENSE file.
+#
+### BEGIN INIT INFO
+# Provides: qthriftd
+# Required-Start: $network
+# Required-Stop: $network
+# Default-Start: 3 5
+# Default-Stop: 0 1 2 6
+# Description:	Zebra RPC Daemon for QUAGGA Framework
+### END INIT INFO
+
+PREFIX=/opt/quagga
+
+BIN=$PREFIX/sbin/qthriftd
+test -x $BIN || exit 5
+BASENAME=$(basename $BIN)
+
+CONFIG=$PREFIX/etc/$BASENAME.conf
+PIDFILE=$PREFIX/var/run/quagga/$BASENAME.init.pid
+LOGFILE=$PREFIX/var/log/quagga/$BASENAME.init.log
+
+. /etc/init.d/functions
+
+function rc_reset ()
+{
+        _rc_status=0
+        _rc_status_all=0
+        rc_check
+        return 0
+}
+
+function rc_check ()
+{
+        _rc_status_ret=$?
+        test $_rc_status_ret -eq 0 || _rc_status=$_rc_status_ret
+        test $_rc_status -eq 0 || _rc_status_all=$_rc_status
+        return $_rc_check_ret
+}
+
+function rc_exit ()
+{
+        exit $_rc_status_all
+}
+
+
+soft_stop () {
+	echo -n "Shutting down Zebra RPC Daemon for Quagga Framework  $BASENAME"
+	killproc -p $PIDFILE $BIN
+}
+
+force_stop () {
+	echo -n "Killing $BASENAME"
+	killproc $BASENAME 2>/dev/null
+	if [ -r $PIDFILE ]; then
+		rm $PIDFILE;
+	fi
+}
+
+log_rotate () {
+	local tarname
+
+	# If logfile is greater than 100Mo
+	if [ -r $LOGFILE ] && [ "$(stat --printf='%s' $LOGFILE)" -gt "$((100*1024*1024))" ]; then
+		tarname=$tarname"${LOGFILE}."
+		tarname=$tarname"$(stat -c %y $LOGFILE|sed 's/\([ :]\)/-/g' | sed 's:\..*::' | sed 's:-::g')"
+		tarname=$tarname".tgz"
+		tar cPzf $tarname $LOGFILE
+		rm -f $LOGFILE
+	fi
+}
+
+start () {
+	if checkpid -p $PIDFILE $BIN; then
+		echo "$BASENAME is currently running, abort."
+		exit 1
+	fi
+
+	log_rotate
+
+	echo -n "Starting Zebra RPC Daemon for Quagga Framework  $BASENAME"
+
+	$BIN >> $LOGFILE 2>&1 &
+	echo $! > $PIDFILE
+}
+
+# First reset status of this service
+rc_reset
+
+case "$1" in
+start)
+	start
+	;;
+stop)
+	soft_stop
+	;;
+force-stop)
+	force_stop
+	;;
+restart)
+	if checkpid -p $PIDFILE $BIN; then
+		soft_stop
+		echo
+		if checkpid -p $PIDFILE $BIN; then
+			force_stop
+			echo
+		fi
+	fi
+	start
+	;;
+status)
+	echo -n "Checking for $BASENAME status"
+	checkproc -p $PIDFILE $BIN
+	rc_status -v
+	;;
+*)
+	echo "Usage: $0 {start|stop|restart|status}"
+	exit 1
+	;;
+esac
+
+rc_exit

@@ -1,7 +1,4 @@
 #! /bin/sh
-# Copyright (c) 2016 6WIND,
-# This file is part of ZRPC daemon.
-# See the LICENSE file.
 
 ### BEGIN INIT INFO
 # Provides:		qthriftd
@@ -9,7 +6,7 @@
 # Required-Stop:	$remote_fs
 # Default-Start:	2 3 4 5
 # Default-Stop:
-# Short-Description:	Zebra RPC Daemon for QUAGGA Framework
+# Description:	Zebra RPC Daemon for QUAGGA Framework
 ### END INIT INFO
 
 set -e
@@ -24,6 +21,11 @@ BASENAME=$(basename $BIN)
 
 PIDFILE=${PREFIX}/var/run/quagga/${BASENAME}.init.pid
 LOGFILE=${PREFIX}/var/log/quagga/${BASENAME}.init.log
+
+#Time to sleep before each logfile check for rotate
+TIME_SLEEP=120
+#If log file size than 10M, we will run logrotate 
+LOG_SIZE=1
 
 umask 022
 
@@ -56,19 +58,40 @@ log_rotate () {
 	fi
 }
 
+kill_all_log_rotate() {
+	#Kill loop script for logrotate
+	SCRIPT_TO_KILL=`pgrep -f qthriftd_log_rotate.sh`
+	if [ -n "${SCRIPT_TO_KILL}" ]
+	then
+		for log_pid in ${SCRIPT_TO_KILL}
+		do
+			kill -9 ${log_pid}
+		done
+	fi
+}
+
 start () {
         local rc;
         local ret;
         local nb;
         log_rotate
-
-        $BIN >> $LOGFILE 2>&1 &
+        nb=$(ps -ax 2>/dev/null | grep $BASENAME | grep -v grep | grep -v init | grep -v '\[' | wc -l)
+        if [ "$nb" -ge "1" ]; then
+            echo "An existing instance of $BASENAME is present. Do nothing."
+            return 1
+        fi
+	# Clean Up: kill all log rotate script
+	kill_all_log_rotate
+        touch $LOGFILE
+        chown quagga:quagga $LOGFILE
+        $BIN -D 2>/dev/null >/dev/null &
         ret=$!
         sleep 1
         if [ ! -z "$ret" ]; then
                 nb=$(ps -ax | grep $ret | grep qthriftd | wc -l)
                 if [ "$nb" -eq "1" ]; then
                     echo $ret > $PIDFILE
+		    bash $PREFIX/etc/init.d/qthriftd_log_rotate.sh ${TIME_SLEEP} ${LOG_SIZE} &
                     rc=0
                 else
                     rc=1
@@ -79,62 +102,54 @@ start () {
         return $rc
 }
 
+
+
 stop () {
-	local rc
+	#Kill loop script for logrotate
+	kill_all_log_rotate
 
-	start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE "$@"
-
-	rc=$?
-	[ -e $PIDFILE ] && rm $PIDFILE || true
-
-	return $rc
+	killproc -p $PIDFILE -TERM $BIN
 }
 
 case "$1" in
 start)
 	check_privsep_dir
-	log_daemon_msg "Starting Zebra RPC Daemon for Quagga Framework " "$BASENAME" || true
 	if start; then
-		log_end_msg 0 || true
+		log_success_msg "Starting Quagga-Thrift server $BASENAME" || true
 	else
-		log_end_msg 1 || true
+		log_failure_msg "Starting Quagga-Thrift server $BASENAME" || true
 	fi
 	;;
 stop)
-	log_daemon_msg "Stopping  Zebra RPC Daemon for Quagga Framework " "$BASENAME" || true
 	if stop --retry=TERM/5; then
-		log_end_msg 0 || true
+		log_success_msg "Shutting down Quagga-Thrift server $BASENAME" || true
 	else
-		log_end_msg 1 || true
+		log_failure_msg "Shutting down Quagga-Thrift server $BASENAME" || true
 	fi
 	;;
 
 force-stop)
-	log_daemon_msg "Stopping  Zebra RPC Daemon for Quagga Framework " "$BASENAME" || true
+	log_daemon_msg "Stopping Quagga-Thrift server" "$BASENAME" || true
 	if stop --retry=KILL/1; then
-		log_end_msg 0 || true
+		log_success_msg || true
 	else
-		log_end_msg 1 || true
+		log_failure_msg || true
 	fi
 	;;
 
 restart)
 	check_privsep_dir
-	log_daemon_msg "Restarting  Zebra RPC Daemon for Quagga Framework " "$BASENAME" || true
+	log_daemon_msg "Restarting Quagga-Thrift server" "$BASENAME" || true
 	stop --retry=TERM/5/KILL/5
 	if start; then
-		log_end_msg 0 || true
+		log_success_msg || true
 	else
-		log_end_msg 1 || true
+		log_failure_msg || true
 	fi
 	;;
 
-status)
-	status_of_proc -p $PIDFILE $BIN $BASENAME && exit 0 || exit $?
-	;;
-
 *)
-	log_action_msg "Usage: $0 {start|stop|force-stop|restart|status}" || true
+	log_action_msg "Usage: $0 {start|stop|force-stop|restart}" || true
 	exit 1
 esac
 
