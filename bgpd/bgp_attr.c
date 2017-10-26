@@ -1763,11 +1763,20 @@ bgp_mp_reach_parse (struct bgp_attr_parser_args *args,
   
   /* must have nrli_len, what is left of the attribute */
   nlri_len = LEN_LEFT;
-  if ((!nlri_len) || (nlri_len > STREAM_READABLE(s)))
+  if (nlri_len > STREAM_READABLE(s))
     {
       zlog_info ("%s: (%s) Failed to read NLRI",
                  __func__, peer->host);
       return BGP_ATTR_PARSE_ERROR_NOTIFYPLS;
+    }
+
+  if (!nlri_len)
+    {
+      zlog_info ("%s: (%s) No reachability, Treating as a EOR marker",
+                 __func__, peer->host);
+      mp_update->afi = afi;
+      mp_update->safi = safi;
+      return BGP_ATTR_PARSE_EOR;
     }
   
   mp_update->afi = afi;
