@@ -2226,6 +2226,56 @@ DEFUN (no_neighbor_passive,
   return peer_flag_unset_vty (vty, argv[0], PEER_FLAG_PASSIVE);
 }
 
+/* neighbor fall-over bfd. */
+DEFUN (neighbor_fall_over_bfd,
+       neighbor_fall_over_bfd_cmd,
+       NEIGHBOR_CMD2 "fall-over bfd",
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "enable BFD protocol support for fall over.\n"
+       "use Biderectional Forwarding Detection.\n")
+{
+  return peer_flag_set_vty (vty, argv[0], PEER_FLAG_BFD);
+}
+
+DEFUN (no_neighbor_fall_over_bfd,
+       no_neighbor_fall_over_bfd_cmd,
+       NO_NEIGHBOR_CMD2 "fall-over bfd",
+       NO_STR
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "disable BFD protocol support for fall over.\n"
+       "disable Biderectional Forwarding Detection.\n")
+{
+  return peer_flag_unset_vty (vty, argv[0], PEER_FLAG_BFD);
+}
+
+/* neighbor fall-over bfd sync. */
+DEFUN (neighbor_fall_over_bfd_sync,
+       neighbor_fall_over_bfd_sync_cmd,
+       NEIGHBOR_CMD2 "fall-over bfd sync",
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "enable BFD protocol support for fall over.\n"
+       "use Biderectional Forwarding Detection.\n"
+       "synchronize BGP with BFD.\n")
+{
+  return peer_flag_set_vty (vty, argv[0], PEER_FLAG_BFD_SYNC);
+}
+
+DEFUN (no_neighbor_fall_over_bfd_sync,
+       no_neighbor_fall_over_bfd_sync_cmd,
+       NO_NEIGHBOR_CMD2 "fall-over bfd sync",
+       NO_STR
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "disable BFD protocol support for fall over.\n"
+       "disable Biderectional Forwarding Detection.\n"
+       "disable synchroniation BGP/BFD.\n")
+{
+  return peer_flag_unset_vty (vty, argv[0], PEER_FLAG_BFD_SYNC);
+}
+
 /* neighbor shutdown. */
 DEFUN (neighbor_shutdown,
        neighbor_shutdown_cmd,
@@ -3184,6 +3234,10 @@ peer_ebgp_multihop_set_vty (struct vty *vty, const char *ip_str,
   else
     VTY_GET_INTEGER_RANGE ("TTL", ttl, ttl_str, 1, 255);
 
+  SET_FLAG(peer->flags, PEER_FLAG_MULTIHOP);
+  if(CHECK_FLAG(peer->flags,PEER_FLAG_BFD))
+    bgp_bfd_mhop(peer);
+
   return bgp_vty_return (vty,  peer_ebgp_multihop_set (peer, ttl));
 }
 
@@ -3195,6 +3249,10 @@ peer_ebgp_multihop_unset_vty (struct vty *vty, const char *ip_str)
   peer = peer_and_group_lookup_vty (vty, ip_str);
   if (! peer)
     return CMD_WARNING;
+
+  UNSET_FLAG(peer->flags, PEER_FLAG_MULTIHOP);
+  if(CHECK_FLAG(peer->flags,PEER_FLAG_BFD))
+    bgp_bfd_mhop(peer);
 
   return bgp_vty_return (vty, peer_ebgp_multihop_unset (peer));
 }
@@ -8850,6 +8908,18 @@ bgp_show_peer (struct vty *vty, struct peer *p)
     }
   vty_out (vty, "%s", VTY_NEWLINE);
   
+  /* BFD */
+  if(CHECK_FLAG(p->flags, PEER_FLAG_BFD)) 
+  {
+    vty_out(vty, "  Using BFD to detect fast fallover in ");
+    if(CHECK_FLAG(p->flags, PEER_FLAG_BFD_SYNC))
+      vty_out(vty, "sync mode");
+    else
+      vty_out(vty, "standard mode");
+    vty_out(vty, "%s  BFD last signalized state : %s%s",VTY_NEWLINE, LOOKUP(bgp_bfd_status_msg, p->bfd_status),VTY_NEWLINE);
+  }
+
+  
   /* read timer */
   vty_out (vty, "  Last read %s", peer_uptime (p->readtime, timebuf, BGP_UPTIME_LEN));
 
@@ -11408,6 +11478,14 @@ bgp_vty_init (void)
   /* "neighbor passive" commands. */
   install_element (BGP_NODE, &neighbor_passive_cmd);
   install_element (BGP_NODE, &no_neighbor_passive_cmd);
+
+  /* "neighbor fall-over bfd" commands. */
+  install_element (BGP_NODE, &neighbor_fall_over_bfd_cmd);
+  install_element (BGP_NODE, &no_neighbor_fall_over_bfd_cmd);
+
+  /* "neighbor fall-over bfd sync" commands. */
+  install_element (BGP_NODE, &neighbor_fall_over_bfd_sync_cmd);
+  install_element (BGP_NODE, &no_neighbor_fall_over_bfd_sync_cmd);
 
   /* "neighbor shutdown" commands. */
   install_element (BGP_NODE, &neighbor_shutdown_cmd);

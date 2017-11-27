@@ -503,6 +503,22 @@ struct peer
   int shared_network;		/* Is this peer shared same network. */
   struct bgp_nexthop nexthop;	/* Nexthop */
 
+  /* BFD section */
+  union sockunion *bfd_su_local;/* src address for transmission of BFD CP */
+  unsigned int bfd_ifindex;     /* interface for session */
+  int bfd_flags;                /* flags passed to zebra/bfd */
+  int bfd_status;               /* status of BFD session */
+#define PEER_BFD_STATUS_NEW     1 /* fall-over bfd command was executed 
+                                     but zebra/bfd weren't notied yet 
+				     (waiting for ESTABLISHED state) */
+#define PEER_BFD_STATUS_ADDED   2 /* request for adding neighbor has been sent*/
+#define PEER_BFD_STATUS_DELETED 3 /* neighbor will be deleted soon */
+#define PEER_BFD_STATUS_UP      5 /* zebra/bfd reported that 
+				     neighbor(session) is up */
+#define PEER_BFD_STATUS_DOWN    6 /* zebra/bfd reported that
+				     neighbor(session) is down */
+#define BGP_PEER_BFD_STATUS_MAX 7
+
   /* Peer address family configuration. */
   u_char afc[AFI_MAX][SAFI_MAX];
   u_char afc_nego[AFI_MAX][SAFI_MAX];
@@ -546,6 +562,10 @@ struct peer
 #define PEER_FLAG_LOCAL_AS_NO_PREPEND       (1 << 7) /* local-as no-prepend */
 #define PEER_FLAG_LOCAL_AS_REPLACE_AS       (1 << 8) /* local-as no-prepend replace-as */
 #define PEER_FLAG_USE_CONFIGURED_SOURCE     (1 << 9) /* use configured source-only */
+#define PEER_FLAG_MULTIHOP                  (1 << 10) /* multihop */
+#define PEER_FLAG_BFD                       (1 << 11) /* fall-over bfd */
+#define PEER_FLAG_BFD_SYNC                  (1 << 12) /* fall-over bfd sync */
+
   /* NSF mode (graceful restart) */
   u_char nsf[AFI_MAX][SAFI_MAX];
 
@@ -725,6 +745,7 @@ struct peer
 #define PEER_DOWN_MULTIHOP_CHANGE       21 /* neighbor multihop command */
 #define PEER_DOWN_NSF_CLOSE_SESSION     22 /* NSF tcp session close */
 #define PEER_DOWN_LOCAL_SEND_LABEL      23 /* Send Label changed */
+#define PEER_DOWN_BFD_NEIGHBOR_DOWN     24 /* BFD session to neighbor went down */
 
   /* The kind of route-map Flags.*/
   u_char rmap_type;
