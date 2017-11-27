@@ -20,7 +20,7 @@ dist_examples_DATA = vtysh.conf.sample
 
 EXTRA_DIST = extract.pl
 
-vtysh_cmd_FILES = $(top_srcdir)/bgpd/*.c $(top_srcdir)/isisd/*.c \
+vtysh_cmd_FILES = $(top_srcdir)/bfdd/*.c $(top_srcdir)/bgpd/*.c $(top_srcdir)/isisd/*.c \
 		  $(top_srcdir)/ospfd/*.c $(top_srcdir)/ospf6d/*.c \
 		  $(top_srcdir)/ripd/*.c $(top_srcdir)/ripngd/*.c \
 		  $(top_srcdir)/pimd/pim_cmd.c \

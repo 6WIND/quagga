@@ -315,6 +315,7 @@ extern struct prefix *sockunion2hostprefix (const union sockunion *, struct pref
 extern void prefix2sockunion (const struct prefix *, union sockunion *);
 
 extern int str2prefix_eth (const char *, struct prefix_eth *);
+extern union sockunion* hostprefix2sockunion (const struct prefix *p);
 
 extern struct prefix_ipv4 *prefix_ipv4_new (void);
 extern void prefix_ipv4_free (struct prefix_ipv4 *);

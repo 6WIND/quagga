@@ -36,6 +36,7 @@
 
 #include "zebra/rib.h"
 #include "zebra/zserv.h"
+#include "zebra/zserv_bfd.h"
 #include "zebra/debug.h"
 #include "zebra/router-id.h"
 #include "zebra/irdp.h"
@@ -423,6 +424,9 @@ main (int argc, char **argv)
 
   /* Initialize VRF module, and make kernel routing socket. */
   zebra_vrf_init ();
+
+  /* BFD */
+  bfd_cneigh_init();
 
 #ifdef HAVE_SNMP
   zebra_snmp_init ();

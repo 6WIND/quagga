@@ -862,6 +862,30 @@ prefix2sockunion (const struct prefix *p, union sockunion *su)
 #endif /* HAVE_IPV6 */
 }
 
+union sockunion*
+hostprefix2sockunion (const struct prefix *p)
+{
+  if(p->family == AF_INET)
+  {
+    union sockunion *su;
+    su = XCALLOC(MTYPE_SOCKUNION, sizeof(union sockunion));
+    su->sa.sa_family = AF_INET;
+    su->sin.sin_addr = ((struct prefix_ipv4*)p)->prefix;
+    return su;
+  }
+#ifdef HAVE_IPV6
+  if(p->family == AF_INET6)
+  {
+    union sockunion *su;
+    su = XCALLOC(MTYPE_SOCKUNION, sizeof(union sockunion));
+    su->sa.sa_family = AF_INET6;
+    memcpy (&su->sin6.sin6_addr, &((struct prefix_ipv6*)p)->prefix, sizeof(struct in6_addr));
+    return su;
+  }
+#endif /* HAVE_IPV6 */
+  return NULL;
+}
+
 int
 prefix_blen (const struct prefix *p)
 {
