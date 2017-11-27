@@ -43,6 +43,11 @@ extern int bgp_redistribute_rmap_set (struct bgp *, afi_t, int, const char *);
 extern int bgp_redistribute_metric_set (struct bgp *, afi_t, int, u_int32_t);
 extern int bgp_redistribute_unset (struct bgp *, afi_t, int);
 
+extern int bgp_bfd_neigh_add(struct peer *peer);
+extern int bgp_bfd_neigh_del(struct peer *peer);
+extern void bgp_bfd_estab(struct peer *peer);  
+extern int bgp_bfd_mhop(struct peer *peer);
+
 extern struct interface *if_lookup_by_ipv4 (struct in_addr *);
 extern struct interface *if_lookup_by_ipv4_exact (struct in_addr *);
 extern struct interface *if_lookup_by_ipv6 (struct in6_addr *);

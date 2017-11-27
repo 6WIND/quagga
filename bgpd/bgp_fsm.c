@@ -33,7 +33,9 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "workqueue.h"
 #include "filter.h"
 
+
 #include "bgpd/bgpd.h"
+#include "bgp_zebra.h"
 #include "bgpd/bgp_attr.h"
 #include "bgpd/bgp_debug.h"
 #include "bgpd/bgp_fsm.h"
@@ -227,6 +229,13 @@ bgp_start_timer (struct thread *thread)
   if (BGP_DEBUG (fsm, FSM))
     zlog (peer->log, LOG_DEBUG,
 	  "%s [FSM] Timer (start timer expire).", peer->host);
+
+  /* Check if peer uses BFD in SYNC mode and it's  BFD session is down.
+     If yes, do not send "BGP_Start" event because 
+     of possible link failure. */
+  if(CHECK_FLAG (peer->flags, PEER_FLAG_BFD_SYNC) 
+     && peer->bfd_status == PEER_BFD_STATUS_DOWN)
+    return 0;
 
   THREAD_VAL (thread) = BGP_Start;
   bgp_event (thread);  /* bgp_event unlocks peer */
@@ -952,6 +961,10 @@ bgp_establish (struct peer *peer)
 	if (CHECK_FLAG (peer->af_cap[afi][safi], PEER_CAP_ORF_PREFIX_SM_RCV)
 	    || CHECK_FLAG (peer->af_cap[afi][safi], PEER_CAP_ORF_PREFIX_SM_OLD_RCV))
 	  SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_ORF_WAIT_REFRESH);
+
+  /* Notify BFD about the session state, and start it if didn't started yet */
+  if (CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
+    bgp_bfd_estab(peer);
 
   bgp_announce_route_all (peer);
 

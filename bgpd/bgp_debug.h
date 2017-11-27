@@ -69,6 +69,7 @@ extern unsigned long conf_bgp_debug_normal;
 extern unsigned long conf_bgp_debug_zebra;
 extern unsigned long conf_bgp_debug_allow_martians;
 extern unsigned long conf_bgp_debug_nht;
+extern unsigned long conf_bgp_debug_bfd;
 
 extern unsigned long term_bgp_debug_as4;
 extern unsigned long term_bgp_debug_fsm;
@@ -81,6 +82,7 @@ extern unsigned long term_bgp_debug_normal;
 extern unsigned long term_bgp_debug_zebra;
 extern unsigned long term_bgp_debug_allow_martians;
 extern unsigned long term_bgp_debug_nht;
+extern unsigned long term_bgp_debug_bfd;
 
 #define BGP_DEBUG_AS4                 0x01
 #define BGP_DEBUG_AS4_SEGMENT         0x02
@@ -96,6 +98,7 @@ extern unsigned long term_bgp_debug_nht;
 #define BGP_DEBUG_ZEBRA               0x01
 #define BGP_DEBUG_ALLOW_MARTIANS      0x01
 #define BGP_DEBUG_NHT                 0x01
+#define BGP_DEBUG_BFD                 0x01
 
 #define BGP_DEBUG_PACKET_SEND         0x01
 #define BGP_DEBUG_PACKET_SEND_DETAIL  0x02
@@ -130,5 +133,7 @@ extern void bgp_notify_print (struct peer *, struct bgp_notify *, const char *);
 
 extern const struct message bgp_status_msg[];
 extern const int bgp_status_msg_max;
+extern const struct message bgp_bfd_status_msg[];
+extern const int bgp_bfd_status_msg_max;
 
 #endif /* _QUAGGA_BGP_DEBUG_H */

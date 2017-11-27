@@ -1398,6 +1398,10 @@ peer_delete (struct peer *peer)
   
   bgp_timer_set (peer); /* stops all timers for Deleted */
   
+  /* Delete BFD neighbor and stop the session */
+  if (CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
+    bgp_bfd_neigh_del(peer);
+  
   /* Delete from all peer list. */
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP)
       && (pn = listnode_lookup (bgp->peer, peer)))
@@ -3041,6 +3045,9 @@ static const struct peer_flag_action peer_flag_action_list[] =
     { PEER_FLAG_STRICT_CAP_MATCH,         0, peer_change_none },
     { PEER_FLAG_DYNAMIC_CAPABILITY,       0, peer_change_reset },
     { PEER_FLAG_DISABLE_CONNECTED_CHECK,  0, peer_change_reset },
+    { PEER_FLAG_MULTIHOP,                 0, peer_change_none },
+    { PEER_FLAG_BFD,                      0, peer_change_none },
+    { PEER_FLAG_BFD_SYNC,                 0, peer_change_none },
     { 0, 0, 0 }
   };
 
@@ -3121,6 +3128,10 @@ peer_flag_modify_action (struct peer *peer, u_int32_t flag)
     {
       if (CHECK_FLAG (peer->flags, flag))
 	{
+	  /* If BFD is in use then stop it */
+	  if(CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
+	      bgp_bfd_neigh_del(peer);
+
 	  if (CHECK_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT))
 	    peer_nsf_stop (peer);
 
@@ -3161,8 +3172,14 @@ peer_flag_modify_action (struct peer *peer, u_int32_t flag)
 		       BGP_NOTIFY_CEASE_CONFIG_CHANGE);
     }
   else
+  {
+    /* If BFD is configured  - start it */
+    if(CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
+	      bgp_bfd_neigh_add(peer);
     BGP_EVENT_ADD (peer, BGP_Stop);
 }
+}
+
 
 /* Change specified peer flag. */
 static int
@@ -3216,6 +3233,25 @@ peer_flag_modify (struct peer *peer, u_int32_t flag, int set)
     SET_FLAG (peer->flags, flag);
   else
     UNSET_FLAG (peer->flags, flag);
+ 
+  /* BFD */
+  if(flag == PEER_FLAG_BFD_SYNC) 
+  {
+    if (set) 
+    { 
+      /* SYNC mode requires standard BFD to run */
+      SET_FLAG (peer->flags, PEER_FLAG_BFD);
+      SET_FLAG (peer->flags, PEER_FLAG_BFD_SYNC);
+    }
+    else
+      UNSET_FLAG (peer->flags, PEER_FLAG_BFD_SYNC);
+  }
+  if(flag == PEER_FLAG_BFD) {
+    if(set)
+      bgp_bfd_neigh_add(peer);
+    else 
+      bgp_bfd_neigh_del(peer);
+  }
  
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
     {
@@ -5835,6 +5871,20 @@ bgp_config_write_peer (struct vty *vty, struct bgp *bgp,
 		   " no-prepend" : "",
 		   CHECK_FLAG (peer->flags, PEER_FLAG_LOCAL_AS_REPLACE_AS) ?
 		   " replace-as" : "", VTY_NEWLINE);
+
+      /* fall-over bfd  */
+      if (CHECK_FLAG (peer->flags, PEER_FLAG_BFD_SYNC))
+      {
+        if (! peer_group_active (peer) ||
+	    ! CHECK_FLAG (g_peer->flags, PEER_FLAG_BFD_SYNC))
+	  vty_out (vty, " neighbor %s fall-over bfd sync%s", addr, VTY_NEWLINE);
+      } 
+      else if (CHECK_FLAG (peer->flags, PEER_FLAG_BFD)) 
+      {
+        if (! peer_group_active (peer) ||
+	    ! CHECK_FLAG (g_peer->flags, PEER_FLAG_BFD))
+	  vty_out (vty, " neighbor %s fall-over bfd%s", addr, VTY_NEWLINE);
+      }
 
       /* Description. */
       if (peer->desc)

@@ -30,6 +30,8 @@ Boston, MA 02111-1307, USA.  */
 #include "routemap.h"
 #include "thread.h"
 #include "filter.h"
+#include "linklist.h"
+#include "bfd.h"
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_route.h"
@@ -183,6 +185,274 @@ bgp_interface_down (int command, struct zclient *zclient, zebra_size_t length,
 
   return 0;
 }
+
+/* Update information about preferred mode i.e. single hop or multihop
+   if necessary */
+int
+bgp_bfd_mhop(struct peer *peer)
+{
+  /* if there is a mismatch between BFD mode 
+     send update to zebra/bfd to correct it*/
+  if( ( CHECK_FLAG(peer->flags, PEER_FLAG_MULTIHOP)            &&
+       !CHECK_FLAG(peer->bfd_flags,BFD_CNEIGH_FLAGS_MULTIHOP)) || 
+      (!CHECK_FLAG(peer->flags, PEER_FLAG_MULTIHOP)            &&
+        CHECK_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_MULTIHOP)) )
+  {
+    if (BGP_DEBUG(bfd, BFD)) 
+      zlog_debug("BFD multihop mode change detected");
+
+      /* If previous candidate has been registered, we have to delete
+         previous reservation first, in order to register new */
+      if(peer->bfd_status 
+	 && peer->bfd_status != PEER_BFD_STATUS_NEW)
+      {
+	bgp_bfd_neigh_del(peer);
+	peer->bfd_flags = 0;
+	peer->bfd_ifindex = 0;
+      }
+      bgp_bfd_neigh_add(peer);
+  }
+
+  return 0;
+}
+
+/* Called when BGP's FSM reaches Established state*/
+void 
+bgp_bfd_estab(struct peer *peer)
+{
+  /* Check if we have local(src) address ready */
+  if (peer->bfd_su_local) 
+  {
+    /* We BGP is using different addrees than before 
+       remove and add neighbor(session) to reflect
+       address change */
+    if(!sockunion_same(peer->bfd_su_local, peer->su_local))
+    {
+      bgp_bfd_neigh_del(peer);
+      //peer->bfd_flags = 0;
+      //peer->bfd_ifindex = 0;
+      bgp_bfd_neigh_add(peer);
+    }
+  } 
+  /* We do not have local addrees - this is the first run */
+  else
+    bgp_bfd_neigh_add(peer);
+}
+
+/* Add BFD neighbor to zebra/bfd to start the session */
+int
+bgp_bfd_neigh_add(struct peer *peer)
+{
+  peer->bfd_flags = 0;
+  peer->bfd_ifindex = 0;
+  if(CHECK_FLAG(peer->flags,PEER_FLAG_MULTIHOP))
+    SET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_MULTIHOP);
+
+  if(peer->status == Established)
+  {
+    struct interface *ifp;
+    peer->bfd_su_local = sockunion_dup(peer->su_local);
+    ifp = if_lookup_by_sockunion_exact(peer->bfd_su_local);
+    peer->bfd_ifindex = ifp->ifindex;
+    struct prefix p1, p2;
+
+    if (BGP_DEBUG(zebra, ZEBRA))
+      {
+        char buf1[SU_ADDRSTRLEN], buf2[SU_ADDRSTRLEN];
+        zlog_debug("Zebra send: bfd cneigh add "
+		   "<raddr=%s, laddr=%s, ifindex=%d, flags=%d>",
+		   sockunion2str (&peer->su, buf1, SU_ADDRSTRLEN),
+		   sockunion2str (peer->bfd_su_local, buf2, SU_ADDRSTRLEN),
+		   peer->bfd_ifindex, peer->bfd_flags);
+      }
+
+    if(sockunion_family(&peer->su) == AF_INET)
+      zapi_ipv4_bfd_cneigh_add(zclient,
+	  (struct prefix_ipv4*)sockunion2hostprefix(&peer->su, &p1),
+	  (struct prefix_ipv4*)sockunion2hostprefix(peer->bfd_su_local, &p2),
+	  peer->bfd_ifindex,
+	  peer->bfd_flags);
+#ifdef HAVE_IPV6
+    else
+      zapi_ipv6_bfd_cneigh_add(zclient,
+	  (struct prefix_ipv6*)sockunion2hostprefix(&peer->su, &p1),
+	  (struct prefix_ipv6*)sockunion2hostprefix(peer->bfd_su_local, &p2),
+	  peer->bfd_ifindex,
+	  peer->bfd_flags);
+#endif /* HAVE_IPV6 */
+    peer->bfd_status = PEER_BFD_STATUS_ADDED;
+  }
+  else
+    peer->bfd_status = PEER_BFD_STATUS_NEW;
+  return 0;
+}
+
+int
+bgp_bfd_neigh_del(struct peer *peer)
+{
+  if(peer->bfd_status != PEER_BFD_STATUS_NEW 
+     && peer->bfd_status !=  PEER_BFD_STATUS_DELETED)
+  {
+    struct prefix p1, p2;
+    
+    if (BGP_DEBUG(zebra, ZEBRA))
+      {
+        char buf1[SU_ADDRSTRLEN], buf2[SU_ADDRSTRLEN];
+        zlog_debug("Zebra send: bfd cneigh del "
+		   "<raddr=%s, laddr=%s, ifindex=%d, flags=%d>",
+		   sockunion2str (&peer->su, buf1, SU_ADDRSTRLEN),
+		   sockunion2str (peer->bfd_su_local, buf2, SU_ADDRSTRLEN),
+		   peer->bfd_ifindex, peer->bfd_flags);
+      }
+
+    if(sockunion_family(&peer->su) == AF_INET)
+      zapi_ipv4_bfd_cneigh_del(zclient,
+	  (struct prefix_ipv4*)sockunion2hostprefix(&peer->su, &p1),
+	  (struct prefix_ipv4*)sockunion2hostprefix(peer->bfd_su_local, &p2),
+	  peer->bfd_ifindex,
+	  peer->bfd_flags);
+#ifdef HAVE_IPV6
+    else 
+      zapi_ipv6_bfd_cneigh_del(zclient,
+	  (struct prefix_ipv6*)sockunion2hostprefix(&peer->su, &p1),
+	  (struct prefix_ipv6*)sockunion2hostprefix(peer->bfd_su_local, &p2),
+	  peer->bfd_ifindex,
+	  peer->bfd_flags);
+#endif /* HAVE_IPV6 */
+    sockunion_free(peer->bfd_su_local);
+    peer->bfd_status = PEER_BFD_STATUS_DELETED;
+  }
+  return 0;
+}
+
+static int
+bgp_bfd_neigh_up(struct bfd_cneigh *cneighp)
+{
+  struct bgp *bgp;
+  struct peer *peer;
+  struct listnode *node;
+  union sockunion *su;
+
+  if(!cneighp)
+    return -1;
+
+  if (BGP_DEBUG(zebra, ZEBRA))
+  { 
+    char rpbuf[BUFSIZ];
+    char lpbuf[BUFSIZ];
+    prefix2str(&cneighp->raddr,rpbuf,sizeof(rpbuf));
+    prefix2str(&cneighp->laddr,lpbuf,sizeof(lpbuf));
+    zlog_debug("Zebra rcvd: bfd neigh up "
+	       "<raddr=%s, laddr=%s, ifindex=%d, flags=%d>",
+	       rpbuf, lpbuf, cneighp->ifindex, cneighp->flags);
+  }
+  
+  su = hostprefix2sockunion (&cneighp->raddr);
+
+  for (ALL_LIST_ELEMENTS_RO (bm->bgp, node, bgp))
+  {
+    peer = peer_lookup (bgp, su);
+    if (!peer)
+      continue;
+
+    /* Check if peer uses BFD - if not return */
+    if(!CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
+      return 0;
+
+    /* Ignore UP message when we are in UP state. We also don't want
+       to receive anything when we are just about to be deleted */
+    if(peer->bfd_status ==  PEER_BFD_STATUS_UP 
+       || peer->bfd_status == PEER_BFD_STATUS_DELETED) 
+      return 0;
+
+    if(peer->bfd_status == PEER_BFD_STATUS_DOWN)
+    {
+      /* start BGP */
+      if(peer->status == Idle)
+	 BGP_EVENT_ADD (peer, BGP_Start);
+    }
+    /* Change peer status to UP */
+    peer->bfd_status = PEER_BFD_STATUS_UP;
+  }
+  return 0;
+}
+
+static int
+bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
+{
+  struct bgp *bgp;
+  struct peer *peer;
+  struct listnode *node;
+  union sockunion *su;
+
+  if(!cneighp)
+    return -1;
+
+  if (BGP_DEBUG(zebra, ZEBRA) && cneighp)
+  { 
+    char rpbuf[BUFSIZ];
+    char lpbuf[BUFSIZ];
+    prefix2str(&cneighp->raddr,rpbuf,sizeof(rpbuf));
+    prefix2str(&cneighp->laddr,lpbuf,sizeof(lpbuf));
+    zlog_debug("Zebra rcvd: bfd neigh down "
+	       "<raddr=%s, laddr=%s, ifindex=%d, flags=%d>",
+	       rpbuf, lpbuf, cneighp->ifindex, cneighp->flags);
+  }
+  
+  su = hostprefix2sockunion (&cneighp->raddr);
+
+  for(ALL_LIST_ELEMENTS_RO (bm->bgp, node, bgp))
+  {
+    peer = peer_lookup (bgp, su);
+    if (!peer)
+      continue;
+    
+    /* Check if peer uses BFD - if not return */
+    if(!CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
+      return 0;
+
+    /* Ignore DOWN message when we are in DOWN state. We also don't want
+       to receive anything when we are just about to be deleted */
+    if(peer->bfd_status ==  PEER_BFD_STATUS_DOWN 
+       || peer->bfd_status == PEER_BFD_STATUS_DELETED) 
+      return 0;
+
+    /* If we were in UP state, stop BGP */
+    if(peer->bfd_status == PEER_BFD_STATUS_UP)
+      BGP_EVENT_ADD (peer, BGP_Stop);
+    /* Change peer status to DOWN */
+    peer->bfd_status = PEER_BFD_STATUS_DOWN;
+  }
+
+  return 0;
+}
+
+static int
+bgp_ipv4_bfd_neigh_up (int command, struct zclient *zclient, zebra_size_t length)
+{
+  return bgp_bfd_neigh_up(ipv4_bfd_neigh_updown_read (zclient->ibuf));
+}
+
+static int
+bgp_ipv4_bfd_neigh_down (int command, struct zclient *zclient, zebra_size_t length)
+{
+  return bgp_bfd_neigh_down(ipv4_bfd_neigh_updown_read (zclient->ibuf));
+}
+
+#ifdef HAVE_IPV6
+static int
+bgp_ipv6_bfd_neigh_up (int command, struct zclient *zclient, zebra_size_t length)
+{
+  return bgp_bfd_neigh_up(ipv6_bfd_neigh_updown_read (zclient->ibuf));
+}
+
+static int
+bgp_ipv6_bfd_neigh_down (int command, struct zclient *zclient, zebra_size_t length)
+{
+  return bgp_bfd_neigh_down(ipv6_bfd_neigh_updown_read (zclient->ibuf));
+}
+#endif /* HAVE_IPV6 */
+
 
 static int
 bgp_interface_address_add (int command, struct zclient *zclient,
@@ -1198,6 +1468,14 @@ bgp_zebra_init (struct thread_master *master)
   zclient->ipv6_route_add = zebra_read_ipv6;
   zclient->ipv6_route_delete = zebra_read_ipv6;
   zclient->nexthop_update = bgp_read_nexthop_update;
+  zclient->ipv4_bfd_neigh_up = bgp_ipv4_bfd_neigh_up;
+  zclient->ipv4_bfd_neigh_down = bgp_ipv4_bfd_neigh_down;
+#ifdef HAVE_IPV6
+  zclient->ipv6_route_add = zebra_read_ipv6;
+  zclient->ipv6_route_delete = zebra_read_ipv6;
+  zclient->ipv6_bfd_neigh_up = bgp_ipv6_bfd_neigh_up;
+  zclient->ipv6_bfd_neigh_down = bgp_ipv6_bfd_neigh_down;
+#endif /* HAVE_IPV6 */
 
   bgp_nexthop_buf = stream_new(BGP_NEXTHOP_BUF_SIZE);
   bgp_ifindices_buf = stream_new(BGP_IFINDICES_BUF_SIZE);
