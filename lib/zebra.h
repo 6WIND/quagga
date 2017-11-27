@@ -429,7 +429,18 @@ struct in_pktinfo
 #define ZEBRA_NEXTHOP_REGISTER            27
 #define ZEBRA_NEXTHOP_UNREGISTER          28
 #define ZEBRA_NEXTHOP_UPDATE              29
-#define ZEBRA_MESSAGE_MAX                 30
+#define ZEBRA_IPV4_BFD_CNEIGH_LIST        30 
+#define ZEBRA_IPV6_BFD_CNEIGH_LIST        31
+#define ZEBRA_IPV4_BFD_CNEIGH_ADD         32
+#define ZEBRA_IPV4_BFD_CNEIGH_DEL         33
+#define ZEBRA_IPV6_BFD_CNEIGH_ADD         34
+#define ZEBRA_IPV6_BFD_CNEIGH_DEL         35
+#define ZEBRA_IPV4_BFD_NEIGH_UP           36
+#define ZEBRA_IPV4_BFD_NEIGH_DOWN         37
+#define ZEBRA_IPV6_BFD_NEIGH_UP           38
+#define ZEBRA_IPV6_BFD_NEIGH_DOWN         39
+#define ZEBRA_BFD_REGISTER                40
+#define ZEBRA_MESSAGE_MAX                 41
 
 /* Marker value used in new Zserv, in the byte location corresponding
  * the command value in the old zserv header. To allow old and new

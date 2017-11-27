@@ -317,6 +317,22 @@ if_lookup_exact_address (struct in_addr src)
   return if_lookup_exact_address_vrf (src, VRF_DEFAULT);
 }
 
+struct interface *
+if_lookup_by_sockunion_exact(union sockunion *su)
+{
+  switch(sockunion_family(su))
+  {
+    case AF_INET:
+      return if_lookup_exact_address(su->sin.sin_addr);
+#ifdef HAVE_IPV6
+    case AF_INET6:
+      return if_lookup_exact_address6(&su->sin6.sin6_addr);
+#endif /* HAVE IPV6 */
+    default:
+      abort();
+  }
+}
+
 /* Lookup interface by IPv4 address. */
 struct interface *
 if_lookup_address_vrf (struct in_addr src, vrf_id_t vrf_id)
@@ -384,6 +400,60 @@ if_lookup_prefix (struct prefix *prefix)
 {
   return if_lookup_prefix_vrf (prefix, VRF_DEFAULT);
 }
+
+/* Lookup interface by prefix, not exactly match */
+struct interface *
+if_lookup_noexact_prefix (struct prefix *p)
+{
+  struct listnode *node;
+  int bestlen = 0;
+  struct listnode *cnode;
+  struct interface *ifp;
+  struct connected *c;
+  struct interface *match;
+
+  match = NULL;
+
+  for (ALL_LIST_ELEMENTS_RO (iflist, node, ifp))
+    {
+      for (ALL_LIST_ELEMENTS_RO (ifp->connected, cnode, c))
+	{
+	  if (c->address && (c->address->family == PREFIX_FAMILY(p)) &&
+	      prefix_match(CONNECTED_PREFIX(c), p) &&
+	      (c->address->prefixlen > bestlen))
+	    {
+	      bestlen = c->address->prefixlen;
+	      match = ifp;
+	    }
+	}
+    }
+  return match;
+}
+
+#ifdef HAVE_IPV6
+struct interface *
+if_lookup_exact_address6 (struct in6_addr *addr)
+{   
+  struct listnode *ifnode;
+  struct listnode *cnode;
+  struct interface *ifp;
+  struct connected *connected;
+  struct prefix *cp; 
+
+  for (ALL_LIST_ELEMENTS_RO (iflist, ifnode, ifp)) 
+    {
+      for (ALL_LIST_ELEMENTS_RO (ifp->connected, cnode, connected))
+        {
+          cp = connected->address;
+            
+          if (cp->family == AF_INET6)
+            if (IPV6_ADDR_SAME (&cp->u.prefix6, addr))
+              return ifp;
+        }
+    }
+  return NULL;       
+}
+#endif /* HAVE IPV6 */
 
 /* Get interface by name if given name interface doesn't exist create
    one. */

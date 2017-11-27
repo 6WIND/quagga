@@ -40,6 +40,7 @@
 #include "nexthop.h"
 
 #include "zebra/zserv.h"
+#include "zebra/zserv_bfd.h"
 #include "zebra/router-id.h"
 #include "zebra/redistribute.h"
 #include "zebra/debug.h"
@@ -1719,6 +1720,41 @@ zebra_client_read (struct thread *thread)
     case ZEBRA_NEXTHOP_UNREGISTER:
       zserv_nexthop_unregister(client, sock, length);
       break;
+    case ZEBRA_BFD_REGISTER:
+      zread_bfd_register (client, length);
+      break;
+    case ZEBRA_IPV4_BFD_CNEIGH_LIST:
+      zread_ipv4_bfd_cneigh_list (client, length);
+      break;
+    case ZEBRA_IPV4_BFD_CNEIGH_ADD:
+      zread_ipv4_bfd_cneigh_add (client, length);
+      break;
+    case ZEBRA_IPV4_BFD_CNEIGH_DEL:
+      zread_ipv4_bfd_cneigh_del (client, length);
+      break;
+    case ZEBRA_IPV4_BFD_NEIGH_UP:
+      zread_ipv4_bfd_neigh_up (client, length);
+      break;
+    case ZEBRA_IPV4_BFD_NEIGH_DOWN:
+      zread_ipv4_bfd_neigh_down (client, length);
+      break;
+#ifdef HAVE_IPV6
+    case ZEBRA_IPV6_BFD_CNEIGH_LIST:
+      zread_ipv6_bfd_cneigh_list (client, length);
+      break;
+    case ZEBRA_IPV6_BFD_CNEIGH_ADD:
+      zread_ipv6_bfd_cneigh_add (client, length);
+      break;
+    case ZEBRA_IPV6_BFD_CNEIGH_DEL:
+      zread_ipv6_bfd_cneigh_del (client, length);
+      break;
+    case ZEBRA_IPV6_BFD_NEIGH_UP:
+      zread_ipv6_bfd_neigh_up (client, length);
+      break;
+    case ZEBRA_IPV6_BFD_NEIGH_DOWN:
+      zread_ipv6_bfd_neigh_down (client, length);
+      break;
+#endif /* HAVE_IPV6 */
     default:
       zlog_info ("Zebra received unknown command %d", command);
       break;

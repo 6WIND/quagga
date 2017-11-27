@@ -362,6 +362,7 @@ extern struct interface *if_lookup_by_index (ifindex_t);
 extern struct interface *if_lookup_exact_address (struct in_addr);
 extern struct interface *if_lookup_address (struct in_addr);
 extern struct interface *if_lookup_prefix (struct prefix *prefix);
+extern struct interface *if_lookup_noexact_prefix (struct prefix *p);
 
 extern struct interface *if_create_vrf (const char *name, int namelen,
                                 vrf_id_t vrf_id);
@@ -372,6 +373,11 @@ extern struct interface *if_lookup_address_vrf (struct in_addr,
                                 vrf_id_t vrf_id);
 extern struct interface *if_lookup_prefix_vrf (struct prefix *prefix,
                                 vrf_id_t vrf_id);
+union sockunion;
+extern struct interface *if_lookup_by_sockunion_exact(union sockunion *su);
+#ifdef HAVE_IPV6
+extern struct interface *if_lookup_exact_address6 (struct in6_addr *addr);
+#endif /* HAVE IPV6 */
 
 /* These 2 functions are to be used when the ifname argument is terminated
    by a '\0' character: */
