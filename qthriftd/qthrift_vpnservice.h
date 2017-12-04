@@ -130,6 +130,9 @@ enum _qthrift_status
   };
 typedef enum _qthrift_status qthrift_status;
 
+#define QTHRIFT_MAX_ERRNO 132
+extern unsigned int notification_socket_errno[];
+
 void qthrift_vpnservice_terminate(struct qthrift_vpnservice *setup);
 void qthrift_vpnservice_terminate_thrift_bgp_configurator_server(struct qthrift_vpnservice *setup);
 void qthrift_vpnservice_terminate_thrift_bgp_updater_client(struct qthrift_vpnservice *setup);

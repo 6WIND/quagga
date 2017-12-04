@@ -55,6 +55,24 @@ DEFUN (show_debugging_qthrift_stats,
   return CMD_SUCCESS;
 }
 
+DEFUN (show_debugging_qthrift_errno,
+       show_debugging_qthrift_errno_cmd,
+       "show debugging qthrift errno",
+       SHOW_STR
+       DEBUG_STR
+       QTHRIFT_STR
+       "QTHRIFT errno with 6644")
+{
+  int i;
+  for (i = 0 ; i < QTHRIFT_MAX_ERRNO; i++)
+    {
+      if (notification_socket_errno[i] > 0)
+        {
+          vty_out (vty, " %s(%u) = %u%s", strerror(i), i, notification_socket_errno[i], VTY_NEWLINE);
+        }
+    }
+  return CMD_SUCCESS;
+}
 
 DEFUN (show_debugging_qthrift,
        show_debugging_qthrift_cmd,
@@ -221,4 +239,6 @@ qthrift_debug_init (void)
   install_element (ENABLE_NODE, &debug_qthrift_cache_cmd);
   install_element (ENABLE_NODE, &no_debug_qthrift_cache_cmd);
   install_element (ENABLE_NODE, &show_debugging_qthrift_stats_cmd);
+  install_element (ENABLE_NODE, &show_debugging_qthrift_errno_cmd);
+
 }
