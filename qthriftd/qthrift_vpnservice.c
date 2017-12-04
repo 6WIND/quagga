@@ -136,8 +136,20 @@ static int qthrift_vpnservice_bgp_updater_check_connection (struct qthrift_vpnse
     ret = recv(fd, buffer, 32, MSG_PEEK | MSG_DONTWAIT);
   if (ret == 0)
     {
-      errno = ENOTCONN;
       return -1;
+    }
+  else
+    {
+      if (ret == -1)
+        {
+          if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return 0;
+          /* other cases : EBADF, ECONNREFUSED, EFAULT, EINTR, EINVAL,
+           * EINOMEM, ENOTCONN, ENOTSOCK
+           * should fall on error
+           */
+          return -1;
+        }
     }
   return ret;
 }
@@ -185,7 +197,7 @@ static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *t
   setup = THREAD_ARG (thread);
   assert (setup);
   ret = qthrift_vpnservice_bgp_updater_check_connection (setup);
-  if (ret < 0 && errno == ENOTCONN)
+  if (ret < 0)
     {
       thrift_transport_close (setup->bgp_updater_transport->transport, &error);
       response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
