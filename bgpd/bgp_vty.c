@@ -987,6 +987,38 @@ ALIAS (no_bgp_timers,
        "Keepalive interval\n"
        "Holdtime\n")
 
+DEFUN (bgp_tcp_keepalive,
+       bgp_tcp_keepalive_cmd,
+       "bgp tcp-keepalive <1-65535> <1-65535> <1-30>",
+       "BGP specific commands\n"
+       "TCP keepalive parameters\n"
+       "TCP keepalive idle time (seconds)\n"
+       "TCP keepalive interval (seconds)\n"
+       "TCP keepalive maxinum probes\n")
+{
+  u_int16_t idle, intvl, probes;
+
+  VTY_GET_INTEGER ("keepalive-idle", idle, argv[0]);
+  VTY_GET_INTEGER ("keepalive-interval", intvl, argv[1]);
+  VTY_GET_INTEGER ("keepalive-probes", probes, argv[2]);
+
+  bgp_tcp_keepalive_set(idle, intvl, probes);
+
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_tcp_keepalive,
+       no_bgp_tcp_keepalive_cmd,
+       "no bgp tcp-keepalive",
+       NO_STR
+       "BGP specific commands\n"
+       "TCP keepalive parameters\n")
+{
+  bgp_tcp_keepalive_unset();
+
+  return CMD_SUCCESS;
+}
+
 DEFUN (bgp_client_to_client_reflection,
        bgp_client_to_client_reflection_cmd,
        "bgp client-to-client reflection",
@@ -10384,6 +10416,10 @@ bgp_vty_init (void)
   /* "bgp config-type" commands. */
   install_element (CONFIG_NODE, &bgp_config_type_cmd);
   install_element (CONFIG_NODE, &no_bgp_config_type_cmd);
+
+  /* "bgp tcp-keepalive" commands */
+  install_element (CONFIG_NODE, &bgp_tcp_keepalive_cmd);
+  install_element (CONFIG_NODE, &no_bgp_tcp_keepalive_cmd);
 
   /* Dummy commands (Currently not supported) */
   install_element (BGP_NODE, &no_synchronization_cmd);

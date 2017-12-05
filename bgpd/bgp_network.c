@@ -147,6 +147,22 @@ bgp_update_sock_send_buffer_size (int fd)
 }
 
 static void
+bgp_update_setsockopt_tcp_keepalive(int fd)
+{
+  if (bm->tcp_keepalive_idle != 0)
+    {
+      int ret;
+      ret = setsockopt_tcp_keepalive(fd, bm->tcp_keepalive_idle,
+                                     bm->tcp_keepalive_intvl,
+                                     bm->tcp_keepalive_probes);
+      if (ret < 0)
+        zlog_err ("Can't set TCP keepalive on socket %d, idle %u intvl %u probes %u",
+                 fd, bm->tcp_keepalive_idle, bm->tcp_keepalive_intvl,
+                 bm->tcp_keepalive_probes);
+    }
+}
+
+static void
 bgp_set_socket_ttl (struct peer *peer, int bgp_sock)
 {
   char buf[INET_ADDRSTRLEN];
@@ -221,6 +237,8 @@ bgp_accept (struct thread *thread)
 
   /* Set socket send buffer size */
   bgp_update_sock_send_buffer_size(bgp_sock);
+  /* Set TCP keepalive when TCP keepalive is enabled */
+  bgp_update_setsockopt_tcp_keepalive(bgp_sock);
 
   if (BGP_DEBUG (events, EVENTS))
     zlog_debug ("[Event] BGP connection from host %s", inet_sutop (&su, buf));
@@ -425,6 +443,8 @@ bgp_connect (struct peer *peer)
 
   /* Set socket send buffer size */
   bgp_update_sock_send_buffer_size(peer->fd);
+  /* Set TCP keepalive when TCP keepalive is enabled */
+  bgp_update_setsockopt_tcp_keepalive(peer->fd);
 
   bgp_set_socket_ttl (peer, peer->fd);
 

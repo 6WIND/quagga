@@ -75,6 +75,11 @@ struct bgp_master
   /* BGP start time.  */
   time_t start_time;
 
+  /* TCP keepalive parameters for BGP connection */
+  u_int16_t tcp_keepalive_idle;
+  u_int16_t tcp_keepalive_intvl;
+  u_int16_t tcp_keepalive_probes;
+
   /* Various BGP global configuration.  */
   u_char options;
 #define BGP_OPT_NO_FIB                   (1 << 0)
@@ -1037,6 +1042,9 @@ extern int bgp_confederation_peers_remove (struct bgp *, as_t);
 
 extern int bgp_timers_set (struct bgp *, u_int32_t keepalive, u_int32_t holdtime);
 extern int bgp_timers_unset (struct bgp *);
+
+extern void bgp_tcp_keepalive_set (u_int16_t, u_int16_t, u_int16_t);
+extern void bgp_tcp_keepalive_unset (void);
 
 extern int bgp_default_local_preference_set (struct bgp *, u_int32_t);
 extern int bgp_default_local_preference_unset (struct bgp *);

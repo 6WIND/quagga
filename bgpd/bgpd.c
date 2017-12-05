@@ -302,6 +302,23 @@ bgp_timers_unset (struct bgp *bgp)
   return 0;
 }
 
+void
+bgp_tcp_keepalive_set (u_int16_t keepalive_idle, u_int16_t keepalive_intvl,
+                       u_int16_t keepalive_probes)
+{
+  bm->tcp_keepalive_idle = keepalive_idle;
+  bm->tcp_keepalive_intvl = keepalive_intvl;
+  bm->tcp_keepalive_probes = keepalive_probes;
+}
+
+void
+bgp_tcp_keepalive_unset (void)
+{
+  bm->tcp_keepalive_idle = 0;
+  bm->tcp_keepalive_intvl = 0;
+  bm->tcp_keepalive_probes = 0;
+}
+
 /* BGP confederation configuration.  */
 int
 bgp_confederation_id_set (struct bgp *bgp, as_t as)
@@ -5959,6 +5976,14 @@ bgp_config_write (struct vty *vty)
       write++;
     }
 
+  /* TCP keepalive configuration */
+  if (bm->tcp_keepalive_idle)
+    {
+      vty_out (vty, "bgp tcp-keepalive %u %u %u%s", bm->tcp_keepalive_idle,
+               bm->tcp_keepalive_intvl, bm->tcp_keepalive_probes, VTY_NEWLINE);
+      write++;
+    }
+
   /* BGP configuration. */
   for (ALL_LIST_ELEMENTS (bm->bgp, mnode, mnnode, bgp))
     {
@@ -6196,6 +6221,10 @@ bgp_master_init (void)
   bm->port = BGP_PORT_DEFAULT;
   bm->master = thread_master_create ();
   bm->start_time = bgp_clock ();
+
+  bm->tcp_keepalive_idle = 0;
+  bm->tcp_keepalive_intvl = 0;
+  bm->tcp_keepalive_probes = 0;
 
   qzc_init ();
   QZC_NODE_REG(bm, bgp_master)
