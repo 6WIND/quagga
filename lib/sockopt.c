@@ -633,3 +633,47 @@ sockopt_tcp_signature (int sock, union sockunion *su, const char *password)
   return -2;
 #endif /* !HAVE_TCP_MD5SIG */
 }
+
+int
+setsockopt_tcp_keepalive (int sock, u_int16_t keepalive_idle,
+                          u_int16_t keepalive_intvl,
+                          u_int16_t keepalive_probes)
+{
+  int val = 1;
+
+  if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val)) < 0)
+    {
+      zlog_warn ("setsockopt_tcp_keepalive: setsockopt(%d) SO_KEEPALIVE: %s",
+                 sock, safe_strerror(errno));
+      return -1;
+    }
+
+  /* Send first probe after keepalive_idle seconds */
+  val = keepalive_idle;
+  if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &val, sizeof(val)) < 0)
+    {
+      zlog_warn ("setsockopt_tcp_keepalive: setsockopt(%d) TCP_KEEPIDLE: %s",
+                 sock, safe_strerror(errno));
+      return -1;
+    }
+
+  /* Set interval between two probes */
+  val = keepalive_intvl;
+  if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &val, sizeof(val)) < 0)
+    {
+      zlog_warn ("setsockopt_tcp_keepalive: setsockopt(%d) TCP_KEEPINTVL: %s",
+                 sock, safe_strerror(errno));
+      return -1;
+    }
+
+  /* Set maximum probes */
+  val = keepalive_probes;
+  if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &val, sizeof(val)) < 0)
+    {
+      zlog_warn ("setsockopt_tcp_keepalive: setsockopt(%d) TCP_KEEPCNT: %s",
+                 sock, safe_strerror(errno));
+      return -1;
+    }
+
+  return 0;
+}

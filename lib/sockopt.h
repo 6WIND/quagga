@@ -102,4 +102,7 @@ extern void sockopt_iphdrincl_swab_systoh (struct ip *iph);
 extern int sockopt_tcp_rtt (int);
 extern int sockopt_tcp_signature(int sock, union sockunion *su,
                                  const char *password);
+extern int setsockopt_tcp_keepalive (int sock, u_int16_t keepalive_idle,
+                                     u_int16_t keepalive_intvl,
+                                     u_int16_t keepalive_probes);
 #endif /*_ZEBRA_SOCKOPT_H */
