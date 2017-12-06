@@ -168,7 +168,7 @@ qthrift_bgp_updater_on_start_config_resync_notification (void)
             zlog_debug ("bgp->sdnc message failed to be sent");
         }
     }
-  return;
+  return TRUE;
 }
 
 /*
