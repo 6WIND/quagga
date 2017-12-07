@@ -272,3 +272,68 @@ void qthrift_server_socket(struct qthrift *qthrift)
   qthrift_vpnservice_setup_thrift_bgp_configurator_server(qthrift->qthrift_vpnservice);
   return;
 }
+
+gboolean qthrift_client_transport_open (ThriftTransport *transport, gboolean *needselect)
+{
+  struct sockaddr_in pin;
+  int err;
+  ThriftSocket *tsocket = THRIFT_SOCKET (transport);
+  struct hostent *hp = NULL;
+
+  if (tsocket->sd != THRIFT_INVALID_SOCKET)
+    return FALSE;
+
+  if ((hp = gethostbyname (tsocket->hostname)) == NULL && (err = h_errno))
+    {
+      /* host lookup failed, bail out with an error */
+      zlog_err ("host lookup failed for %s:%d - %s",
+                tsocket->hostname, tsocket->port,
+                hstrerror (err));
+      return FALSE;
+    }
+
+  /* create a socket structure */
+  memset (&pin, 0, sizeof(pin));
+  pin.sin_family = AF_INET;
+  pin.sin_addr.s_addr = ((struct in_addr *) (hp->h_addr))->s_addr;
+  pin.sin_port = htons (tsocket->port);
+  /* create the socket */
+  if ((tsocket->sd = socket (AF_INET, SOCK_STREAM, 0)) == -1)
+    {
+      zlog_err ("failed to create socket for host %s:%d - %s",
+                tsocket->hostname, tsocket->port,
+                strerror(errno));
+      return FALSE;
+    }
+  /* set non blocking */
+  set_nonblocking (tsocket->sd);
+  /* open a connection */
+  if (connect (tsocket->sd, (struct sockaddr *) &pin, sizeof(pin)) == -1)
+    {
+      if (errno == EINPROGRESS)
+        {
+          *needselect = TRUE;
+        }
+      zlog_err ("failed to connect to host %s:%d - %s",
+                tsocket->hostname, tsocket->port, strerror(errno));
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
+void qthrift_client_transport_close(ThriftTransport *transport)
+{
+  ThriftSocket *tsocket = NULL;
+
+  if (!transport)
+    return;
+  tsocket = THRIFT_SOCKET (transport);
+  zlog_err("trying to close socket %u", tsocket->sd);
+  if (tsocket && tsocket->sd != THRIFT_INVALID_SOCKET)
+    {
+      zlog_err("closing socket %u", tsocket->sd);
+      close (tsocket->sd);
+    }
+  tsocket->sd = THRIFT_INVALID_SOCKET;
+}

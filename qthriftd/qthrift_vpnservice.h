@@ -87,6 +87,7 @@ struct qthrift_vpnservice
   /* qthrift Update Contexts */
   BgpUpdaterIf *bgp_updater_client;
   struct thread *bgp_updater_client_thread;
+  gboolean bgp_updater_client_need_select;
   ThriftSocket *bgp_updater_socket;
   ThriftFramedTransport *bgp_updater_transport;
   ThriftProtocol *bgp_updater_protocol;

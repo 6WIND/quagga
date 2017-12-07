@@ -41,6 +41,7 @@
 #include "qthriftd/qthrift_bgp_configurator.h"
 #include "qthriftd/qthriftd.h"
 #include "qthriftd/qthrift_debug.h"
+#include "qthriftd/qthrift_network.h"
 #include "qthriftd/vpnservice_types.h"
 
 static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *msg);
@@ -115,6 +116,55 @@ void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean
   qthrift_monitor_retry_job_in_progress = 1;
 }
 
+static int qthrift_vpnservice_get_bgp_updater_socket (struct qthrift_vpnservice *setup)
+{
+  ThriftTransport *transport = NULL;
+  ThriftSocket *tsocket = NULL;
+
+  if(!setup)
+    return 0;
+  if (setup->bgp_updater_transport)
+    transport = setup->bgp_updater_transport->transport;
+  if (transport)
+    tsocket = THRIFT_SOCKET (transport);
+  if (tsocket)
+    return tsocket->sd;
+  return 0;
+}
+
+static gboolean qthrift_vpnservice_bgp_updater_select_connection (struct qthrift_vpnservice *setup)
+{
+  int ret = 0;
+  int fd = qthrift_vpnservice_get_bgp_updater_socket(setup);
+  fd_set wrfds;
+  struct timeval tout;
+  int optval, optlen;
+
+  if (fd == 0 || fd == THRIFT_INVALID_SOCKET)
+    return FALSE;
+  if (setup->bgp_updater_client_need_select == FALSE)
+    return FALSE;
+
+  FD_ZERO(&wrfds);
+  FD_SET(fd, &wrfds);
+
+  tout.tv_sec = 0;
+  tout.tv_usec = 0;
+
+  ret = select(FD_SETSIZE, NULL, &wrfds, NULL, &tout);
+  if (ret <= 0)
+    return FALSE;
+
+  optval = -1;
+  optlen = sizeof (optval);
+  if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &optval, (socklen_t *)&optlen) < 0)
+    return FALSE;
+  if (optval != 0)
+    return FALSE;
+
+  return TRUE;
+}
+
 /* returns status from recv with MSG_PEEK option
  * this permits knowing if socket is available or not.
  * values returned: -1 + EAGAIN => nothing to read, but socket is ok
@@ -124,23 +174,11 @@ void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean
  */
 static int qthrift_vpnservice_bgp_updater_check_connection (struct qthrift_vpnservice *setup)
 {
-  ThriftTransport *transport = NULL;
-  ThriftSocket *tsocket = NULL;
-  int fd = 0;
-  int ret;
+  int ret = 0;
+  int fd = qthrift_vpnservice_get_bgp_updater_socket(setup);
   char buffer[32];
 
-  if(!setup)
-    return 0;
-  if (setup->bgp_updater_transport)
-    transport = setup->bgp_updater_transport->transport;
-  if (transport)
-    tsocket = THRIFT_SOCKET (transport);
-  if (tsocket)
-    fd = tsocket->sd;
-  if (fd == 0)
-    ret = 0;
-  else
+  if (fd != 0 && fd != THRIFT_INVALID_SOCKET)
     ret = recv(fd, buffer, 32, MSG_PEEK | MSG_DONTWAIT);
   if (ret == 0)
     {
@@ -168,13 +206,24 @@ static int qthrift_vpnservice_bgp_updater_check_connection (struct qthrift_vpnse
 static int qthrift_vpnservice_setup_bgp_updater_client_retry (struct thread *thread)
 {
   struct qthrift_vpnservice *setup;
-  GError *error = NULL;
   gboolean response;
 
   setup = THREAD_ARG (thread);
   assert (setup);
-  thrift_transport_close (setup->bgp_updater_transport->transport, &error);
-  response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
+  if (qthrift_vpnservice_bgp_updater_select_connection(setup))
+    {
+      qthrift_monitor_retry_job_in_progress = 0;
+      qthrift_transport_check_response(setup, TRUE);
+      return 0;
+    }
+  qthrift_client_transport_close(setup->bgp_updater_transport->transport);
+  setup->bgp_updater_client_need_select = FALSE;
+  response = qthrift_client_transport_open (setup->bgp_updater_transport->transport,
+                                            &setup->bgp_updater_client_need_select);
+  if (response == FALSE)
+    {
+      zlog_err ("%s: qthrift_client_transport_open error\n", __func__);
+    }
   qthrift_transport_configures_cloexec(setup->bgp_updater_transport->transport);
   qthrift_monitor_retry_job_in_progress = 0;
   qthrift_transport_check_response(setup, response);
@@ -201,17 +250,21 @@ static void qthrift_transport_configures_cloexec(ThriftTransport *transport)
 static int qthrift_vpnservice_setup_bgp_updater_client_monitor (struct thread *thread)
 {
   struct qthrift_vpnservice *setup;
-  GError *error = NULL;
   gboolean response;
   int ret;
-
   setup = THREAD_ARG (thread);
   assert (setup);
   ret = qthrift_vpnservice_bgp_updater_check_connection (setup);
   if (ret < 0)
     {
-      thrift_transport_close (setup->bgp_updater_transport->transport, &error);
-      response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
+      qthrift_client_transport_close(setup->bgp_updater_transport->transport);
+      setup->bgp_updater_client_need_select = FALSE;
+      response = qthrift_client_transport_open (setup->bgp_updater_transport->transport,
+                                                &setup->bgp_updater_client_need_select);
+      if (response == FALSE)
+        {
+          zlog_err ("%s: qthrift_client_transport_open error\n", __func__);
+        }
       qthrift_transport_configures_cloexec(setup->bgp_updater_transport->transport);
       qthrift_monitor_retry_job_in_progress = 0;
       qthrift_transport_check_response(setup, response);
@@ -348,6 +401,8 @@ void qthrift_vpnservice_terminate_thrift_bgp_updater_client (struct qthrift_vpns
 
   if(!setup)
     return;
+  if (!setup->bgp_updater_transport)
+    return;
   thrift_transport_close (setup->bgp_updater_transport->transport, &error);
   if(setup->bgp_updater_client)
     g_object_unref(setup->bgp_updater_client);
@@ -365,9 +420,7 @@ void qthrift_vpnservice_terminate_thrift_bgp_updater_client (struct qthrift_vpns
 
 gboolean qthrift_vpnservice_setup_thrift_bgp_updater_client (struct qthrift_vpnservice *setup)
 {
-  GError *error = NULL;
   gboolean response;
-
   if(!setup->bgp_updater_socket)
     setup->bgp_updater_socket =
       g_object_new (THRIFT_TYPE_SOCKET,
@@ -395,7 +448,14 @@ gboolean qthrift_vpnservice_setup_thrift_bgp_updater_client (struct qthrift_vpns
                     "input_protocol",  setup->bgp_updater_protocol,
                     "output_protocol", setup->bgp_updater_protocol,
                     NULL);
-  response = thrift_transport_open (setup->bgp_updater_transport->transport, &error);
+  qthrift_client_transport_close(setup->bgp_updater_transport->transport);
+  setup->bgp_updater_client_need_select = FALSE;
+  response = qthrift_client_transport_open (setup->bgp_updater_transport->transport,
+                                            &setup->bgp_updater_client_need_select);
+  if (response == FALSE)
+    {
+      zlog_err ("%s: qthrift_client_transport_open error\n", __func__);
+    }
   qthrift_transport_configures_cloexec(setup->bgp_updater_transport->transport);
   qthrift_transport_check_response(setup, response);
   return response;

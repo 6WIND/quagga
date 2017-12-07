@@ -44,6 +44,7 @@
 #include "qthriftd/bgp_configurator.h"
 #include "qthriftd/bgp_updater.h"
 #include "qthriftd/qthrift_bgp_configurator.h"
+#include "qthriftd/qthrift_bgp_updater.h"
 #include "qthriftd/qthrift_vpnservice.h"
 
 #include <sys/types.h>
@@ -403,6 +404,13 @@ main (int argc, char **argv)
 	       qthrift_vpnservice_get_thrift_bgp_configurator_server_port(qthrift->qthrift_vpnservice),
 	       getpid ());
 
+  /* connect updater server and send notification */
+  struct qthrift_vpnservice *ctxt = NULL;
+  qthrift_vpnservice_get_context (&ctxt);
+  ctxt->bgp_updater_client_thread = NULL;
+  THREAD_TIMER_MSEC_ON(tm->master, ctxt->bgp_updater_client_thread,    \
+                       qthrift_bgp_updater_on_start_config_resync_notification, \
+                       ctxt, 10);
   /* Start finite state machine, here we go! */
   while (thread_fetch (tm->master, &thread))
     thread_call (&thread);

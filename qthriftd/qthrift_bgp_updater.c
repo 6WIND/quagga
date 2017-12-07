@@ -144,21 +144,22 @@ qthrift_bgp_updater_on_start_config_resync_notification_quick (struct qthrift_vp
  * when qthriftd has started and is ready and
  * available to receive thrift configuration commands
  */
-gboolean
-qthrift_bgp_updater_on_start_config_resync_notification (void)
+int
+qthrift_bgp_updater_on_start_config_resync_notification (struct thread *thread)
 {
   struct qthrift_vpnservice *ctxt = NULL;
   static gboolean client_ready;
 
-  qthrift_vpnservice_get_context (&ctxt);
-  if(!ctxt)
-      return FALSE;
+  ctxt = THREAD_ARG (thread);
+  assert (ctxt);
   if((ctxt->bgp_updater_client == NULL) ||
      (qthrift_transport_current_status == QTHRIFT_TO_SDN_UNKNOWN) ||
      (qthrift_transport_current_status == QTHRIFT_TO_SDN_FALSE))
     {
       if(ctxt->bgp_updater_client)
-        qthrift_vpnservice_terminate_thrift_bgp_updater_client(ctxt);
+        {
+          qthrift_vpnservice_terminate_thrift_bgp_updater_client(ctxt);
+        }
       /* start the retry mecanism */
       client_ready = qthrift_vpnservice_setup_thrift_bgp_updater_client(ctxt);
       qthrift_transport_check_response(ctxt, client_ready);
@@ -168,7 +169,8 @@ qthrift_bgp_updater_on_start_config_resync_notification (void)
             zlog_debug ("bgp->sdnc message failed to be sent");
         }
     }
-  return TRUE;
+  ctxt->bgp_update_total++;
+  return 0;
 }
 
 /*
