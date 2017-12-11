@@ -2233,7 +2233,7 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
           for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
             {
               bgp_vrf_process_two(vrf, afi, safi, rn, ri, action);
-              if (action == ROUTE_INFO_TO_ADD)
+              if (action == ROUTE_INFO_TO_ADD || action == ROUTE_INFO_TO_UPDATE)
                 action_add_done = 1;
             }
       }
@@ -2256,7 +2256,8 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
    * the same for ri = bgp static entry
    */
   if (ri && (ri->sub_type != BGP_ROUTE_STATIC) &&
-      (action_add_done == 0) && (action == ROUTE_INFO_TO_ADD) &&
+      (action_add_done == 0) &&
+      (action == ROUTE_INFO_TO_ADD || action == ROUTE_INFO_TO_UPDATE) &&
       !CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
     {
       SET_FLAG (ri->flags, BGP_INFO_VPN_HIDEN);
@@ -2264,6 +2265,148 @@ bgp_vrf_process_imports2 (struct bgp *bgp, afi_t afi, safi_t safi,
   else if (ri && CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN) && action_add_done == 1)
     {
       UNSET_FLAG (ri->flags, BGP_INFO_VPN_HIDEN);
+    }
+}
+
+static void bgp_vrf_remove_bgp_info (struct bgp_vrf *vrf, afi_t afi, safi_t safi,
+                                     struct bgp_node *rn, struct bgp_info *select)
+{
+  struct bgp_node *vrf_rn;
+  struct bgp_info *iter = NULL;
+  struct prefix_rd *prd;
+  char pfx_str[INET6_BUFSIZ];
+
+  prd = &bgp_node_table (rn)->prd;
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN];
+      char nh_str[BUFSIZ] = "<?>";
+
+      prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+      prefix_rd2str(prd, rd_str, sizeof(rd_str));
+      prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+      if(select && select->attr && select->attr->extra)
+        {
+          if (afi == AFI_IP)
+            strcpy (nh_str, inet_ntoa (select->attr->extra->mp_nexthop_global_in));
+          else if (afi == AFI_IP6)
+            inet_ntop (AF_INET6, &select->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+        }
+      else if(select)
+        {
+          inet_ntop (AF_INET, &select->attr->nexthop,
+                     nh_str, sizeof (nh_str));
+        }
+      zlog_debug ("vrf[%s] %s: [%s] [nh %s] removing", vrf_rd_str, pfx_str,
+                  rd_str, nh_str);
+    }
+
+  if(!vrf || !vrf->rib[afi] || !select)
+      return;
+  vrf_rn = bgp_node_get (vrf->rib[afi], &rn->p);
+  if(!vrf_rn)
+      return;
+
+  /* check entry not already present */
+  for (iter = vrf_rn->info; iter; iter = iter->next)
+    {
+      if (iter->extra == NULL)
+        continue;
+      /* coming from same peer */
+      if(iter->peer->remote_id.s_addr != select->peer->remote_id.s_addr)
+        continue;
+      if (!rd_same (&iter->extra->vrf_rd, &select->extra->vrf_rd))
+        continue;
+      bgp_info_delete(vrf_rn, iter);
+      prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
+      if (BGP_DEBUG (events, EVENTS))
+        {
+          char nh_str[BUFSIZ] = "<?>";
+          if(iter->attr && iter->attr->extra)
+            {
+              if (afi == AFI_IP)
+                strcpy (nh_str, inet_ntoa (iter->attr->extra->mp_nexthop_global_in));
+              else if (afi == AFI_IP6)
+                inet_ntop (AF_INET6, &iter->attr->extra->mp_nexthop_global, nh_str, BUFSIZ);
+            }
+          else
+            {
+              inet_ntop (AF_INET, &iter->attr->nexthop,
+                         nh_str, sizeof (nh_str));
+            }
+          zlog_debug ("%s: processing entry (for removal) from %s [ nh %s]",
+                      pfx_str, iter->peer->host, nh_str);
+        }
+      bgp_process (iter->peer->bgp, vrf_rn, afi, SAFI_UNICAST);
+      break;
+    }
+}
+
+/* Process the change of ecommunity.
+ * If an old ecommunity is not present in new ecommunity, the entry in
+ * the vrf who subscribed this old ecommunity should be removed.
+ */
+static void
+bgp_vrf_process_ecom_change (struct bgp *bgp, afi_t afi, safi_t safi,
+                             struct bgp_node *rn,
+                             struct bgp_info *ri,
+                             struct attr *new_attr)
+
+{
+  struct ecommunity *old_ecom = NULL, *new_ecom = NULL;
+  struct attr *old_attr = ri->attr;
+
+  if (safi != SAFI_MPLS_VPN)
+    return;
+
+  if (old_attr && old_attr->extra)
+    old_ecom = old_attr->extra->ecommunity;
+  if (new_attr && new_attr->extra)
+    new_ecom = new_attr->extra->ecommunity;
+
+  /*
+   * if old present, for each export target
+   * get the list of route target subscribers
+   * if no new, then withdraw entries in all mentioned export rt
+   */
+  if (old_ecom)
+    {
+      size_t i, j;
+
+      for (i = 0; i < (size_t)old_ecom->size; i++)
+        {
+          struct bgp_rt_sub dummy, *rt_sub;
+          uint8_t *val = old_ecom->val + 8 * i;
+          uint8_t type = val[1];
+          bool found = false;
+          struct bgp_vrf *vrf;
+          struct listnode *node;
+
+          if (type != ECOMMUNITY_ROUTE_TARGET)
+            continue;
+
+          memcpy(&dummy.rt, val, 8);
+          rt_sub = hash_lookup (bgp->rt_subscribers, &dummy);
+          if (!rt_sub)
+            continue;
+
+          if (new_ecom)
+            {
+              for (j = 0; j < (size_t)new_ecom->size; j++)
+                if (!memcmp(new_ecom->val + j * 8, val, 8))
+                  {
+                    found = true;
+                    break;
+                  }
+            }
+          if (!found)
+            for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
+              {
+                /* case ecom not present in new_ecom : remove associated ri
+                 */
+                bgp_vrf_remove_bgp_info(vrf, afi, safi, rn, ri);
+              }
+        }
     }
 }
 
@@ -3576,6 +3719,10 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 	  if (! CHECK_FLAG (ri->flags, BGP_INFO_HISTORY))
 	    bgp_damp_withdraw (ri, rn, afi, safi, 1);  
 	}
+
+      /* Maybe there is the case that ecommunities changed */
+      bgp_vrf_process_ecom_change(bgp, afi, safi, rn, ri, attr_new);
+
       /* Update to new attribute.  */
       bgp_attr_unintern (&ri->attr);
       ri->attr = attr_new;
