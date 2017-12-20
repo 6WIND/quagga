@@ -189,6 +189,7 @@ G_DEFINE_TYPE (InstanceBgpConfiguratorHandler,
 #define ERROR_BGP_INVALID_UPDATE_DELAY g_error_new(1, BGP_ERR_PARAM, "BGP EOR update delay: out of range value 0 <= %d <= %d", delay, MAX_EOR_UPDATE_DELAY);
 #define ERROR_BGP_INVALID_NEXTHOP g_error_new(1, BGP_ERR_PARAM, "BGP nexthop: invalid IPv4 address %s", nexthop);
 #define ERROR_BGP_INVALID_PREFIX g_error_new(1, BGP_ERR_PARAM, "BGP prefix: invalid IPv4 prefix %s", prefix);
+#define ERROR_BGP_INVALID_VRF_RTS g_error_new(1, BGP_ERR_PARAM, "BGP VRF: invalid rts \"%s\"", rts);
 #define BGP_ERR_INTERNAL 110
 
 /*
@@ -1342,6 +1343,8 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
   struct capn_segment *cs;
   uint64_t bgpvrf_nid;
   struct qthrift_vpnservice_cache_bgpvrf *entry;
+  struct ecommunity *rt_import = NULL;
+  struct ecommunity *rt_export = NULL;
 
   /* setup context */
   *_return = 0;
@@ -1373,6 +1376,43 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
+
+  /* check irts and erts */
+  /* irts and erts have to be concatenated into temp string */
+  rts = XMALLOC(MTYPE_QTHRIFT,2048);
+  memset(rts, 0, 2048);
+  rts_ptr = rts;
+  for(i = 0; i < irts->len; i++){
+    rts_ptr+=sprintf(rts_ptr, "rt %s ",(char *)g_ptr_array_index(irts, i));
+  }
+  if(irts->len)
+    {
+      rt_import = ecommunity_str2com(rts, ECOMMUNITY_ROUTE_TARGET, 1);
+      if (!rt_import)
+        {
+          *error = ERROR_BGP_INVALID_VRF_RTS;
+          XFREE(MTYPE_QTHRIFT, rts);
+          return FALSE;
+        }
+    }
+
+  memset(rts, 0, 2048);
+  rts_ptr = rts;
+  i = 0;
+  for(i = 0; i < erts->len; i++){
+    rts_ptr+=sprintf(rts_ptr, "rt %s ",(char *)g_ptr_array_index(erts, i));
+  }
+  if(erts->len)
+    {
+      rt_export = ecommunity_str2com(rts, ECOMMUNITY_ROUTE_TARGET, 1);
+      if (!rt_export)
+        {
+          *error = ERROR_BGP_INVALID_VRF_RTS;
+          XFREE(MTYPE_QTHRIFT, rts);
+          return FALSE;
+        }
+    }
+  XFREE(MTYPE_QTHRIFT, rts);
 
   /* retrive bgpvrf context or create new bgpvrf context */
   bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &instvrf.outbound_rd, _return);
@@ -1432,24 +1472,11 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
     }
 
   /* configuring bgp vrf with import and export communities */
-  /* irts and erts have to be concatenated into temp string */
-  rts = XMALLOC(MTYPE_QTHRIFT,2048);
-  memset(rts, 0, 2048);
-  rts_ptr = rts;
-  for(i = 0; i < irts->len; i++){
-    rts_ptr+=sprintf(rts_ptr, "rt %s ",(char *)g_ptr_array_index(irts, i));
-  }
   if(irts->len)
-    instvrf.rt_import = ecommunity_str2com(rts, ECOMMUNITY_ROUTE_TARGET, 1);
-  memset(rts, 0, 2048);
-  rts_ptr = rts;
-  i = 0;
-  for(i = 0; i < erts->len; i++){
-    rts_ptr+=sprintf(rts_ptr, "rt %s ",(char *)g_ptr_array_index(erts, i));
-  }
+    instvrf.rt_import = rt_import;
   if(erts->len)
-    instvrf.rt_export = ecommunity_str2com(rts, ECOMMUNITY_ROUTE_TARGET, 1);
-  XFREE(MTYPE_QTHRIFT, rts);
+    instvrf.rt_export = rt_export;
+
   /* allocate bgpvrf structure for set */
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
