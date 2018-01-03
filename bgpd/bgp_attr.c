@@ -2080,6 +2080,8 @@ bgp_attr_parse (struct peer *peer, struct attr *attr, bgp_size_t size,
   memset (seen, 0, BGP_ATTR_BITMAP_SIZE);
 
   /* End pointer of BGP attribute. */
+  assert (size <= stream_get_size (BGP_INPUT (peer)));
+  assert (size <= stream_get_endp (BGP_INPUT (peer)));
   endp = BGP_INPUT_PNT (peer) + size;
   
   /* Get attributes to the end of attribute length. */
