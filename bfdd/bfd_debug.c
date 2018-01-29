@@ -78,6 +78,11 @@ config_write_debug (struct vty *vty)
       vty_out (vty, "debug bfd fsm%s", VTY_NEWLINE);
       write++;
     }
+  if (BFD_IF_DEBUG_NET)
+    {
+      vty_out (vty, "debug bfd net%s", VTY_NEWLINE);
+      write++;
+    }
   return write;
 }
 
@@ -126,6 +131,20 @@ DEFUN (no_debug_bfd_fsm,
   return CMD_SUCCESS;
 }
 
+DEFUN (debug_bfd_net,
+       debug_bfd_net_cmd, "debug bfd net", DEBUG_STR BFD_STR "BFD NET\n")
+{
+  bfd->debug |= BFD_DEBUG_NET;
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_debug_bfd_net,
+       no_debug_bfd_net_cmd,
+       "no debug bfd net", NO_STR DEBUG_STR BFD_STR "BFD NET\n")
+{
+  bfd->debug &= ~BFD_DEBUG_NET;
+  return CMD_SUCCESS;
+}
 
 void
 bfd_vty_debug_init (void)
@@ -138,4 +157,14 @@ bfd_vty_debug_init (void)
   install_element (ENABLE_NODE, &no_debug_bfd_zebra_cmd);
   install_element (ENABLE_NODE, &debug_bfd_fsm_cmd);
   install_element (ENABLE_NODE, &no_debug_bfd_fsm_cmd);
+  install_element (ENABLE_NODE, &debug_bfd_net_cmd);
+  install_element (ENABLE_NODE, &no_debug_bfd_net_cmd);
+
+  install_element (CONFIG_NODE, &debug_bfd_zebra_cmd);
+  install_element (CONFIG_NODE, &no_debug_bfd_zebra_cmd);
+  install_element (CONFIG_NODE, &debug_bfd_fsm_cmd);
+  install_element (CONFIG_NODE, &no_debug_bfd_fsm_cmd);
+  install_element (CONFIG_NODE, &debug_bfd_net_cmd);
+  install_element (CONFIG_NODE, &no_debug_bfd_net_cmd);
+
 }
