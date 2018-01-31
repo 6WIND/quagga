@@ -47,9 +47,9 @@ bfd_if_info_new ()
   if (bii)
     {
       /* bfd interface default settings */
-      bii->interval = BFD_IF_INTERVAL_DFT;
-      bii->minrx = BFD_IF_MINRX_DFT;
-      bii->multiplier = BFD_IF_MULTIPLIER_DFT;
+      bii->interval = bfd->tx_interval;
+      bii->minrx = bfd->rx_interval;
+      bii->multiplier = bfd->failure_threshold;
       bii->enabled = 1;
       bii->passive = 0;
     }
@@ -60,6 +60,25 @@ bfd_if_info_new ()
     }
 
   return bii;
+}
+
+/* Update bfd interface info for all current interfaces */
+void bfd_if_info_update(void)
+{
+  struct listnode *node;
+  struct interface *ifp;
+  struct bfd_if_info *bii;
+
+  for (ALL_LIST_ELEMENTS_RO (iflist, node, ifp))
+    {
+      if (ifp->info)
+	{
+	  bii = ifp->info;
+          bii->interval = bfd->tx_interval;
+          bii->minrx = bfd->rx_interval;
+          bii->multiplier = bfd->failure_threshold;
+	}
+    }
 }
 
 /* Hooks for bfd interface information structure */
