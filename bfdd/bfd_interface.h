@@ -25,12 +25,14 @@
 #include "bfdd/bfdd.h"
 
 /* in msec */
-#define BFD_IF_INTERVAL_DFT	750
-#define BFD_IF_INTERVAL_MIN	200
-#define BFD_IF_INTERVAL_MAX	30000
+#define BFD_IF_INTERVAL_DFT	60000
+#define BFD_IF_INTERVAL_MIN	1000
+#define BFD_IF_INTERVAL_MAX	60000
 #define BFD_IF_MINRX_DFT	500
-#define BFD_IF_MINRX_MIN	200
+#define BFD_IF_MINRX_MIN	50
 #define BFD_IF_MINRX_MAX	30000
+#define BFD_DEBOUNCE_DOWN	100
+#define BFD_DEBOUNCE_UP 	5000
 
 #define BFD_IF_MULTIPLIER_DFT	3
 #define BFD_IF_MULTIPLIER_MIN	1
@@ -48,6 +50,7 @@ struct bfd_if_info
 
 void bfd_if_init (void);
 struct bfd_if_info *bfd_if_info_new (void);
+void bfd_if_info_update(void);
 
 struct bfd_if_info *bfd_ifinfo_get (struct bfd_neigh *neighp);
 void bfd_neigh_if_passive_update (struct bfd_neigh *neighp);

@@ -14,16 +14,7 @@ _qzc_set_bfd_1(struct bfd *p, struct QZCSetReq *req,
       /* error */
       return;
 
-  qcapn_BFD_read(p, req->data);
-  zlog_err("%s: %d, %u, %d, %u, %u, %u, %d", __func__,
-           p->config_data_version,
-           p->rx_interval,
-           p->failure_threshold,
-           p->tx_interval,
-           p->debounce_down,
-           p->debounce_up,
-           p->multihop);
-  /* TODO configure bfdd */
+  qcapn_BFD_set(p, req->data);
 }
 
 /* [3dd958b139b0bfdd] bfdd <> bfd */

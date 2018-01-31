@@ -78,6 +78,14 @@ bfd_new (void)
   bfd->wqueue = list_new ();
   bfd->debug = 0;		/* No debug by default */
 
+  bfd->config_data_version = 1;
+  bfd->rx_interval = BFD_IF_MINRX_DFT;
+  bfd->failure_threshold = BFD_IF_MULTIPLIER_DFT;
+  bfd->tx_interval = BFD_IF_INTERVAL_DFT;
+  bfd->debounce_down = BFD_DEBOUNCE_DOWN;
+  bfd->debounce_up = BFD_DEBOUNCE_UP;
+  bfd->multihop = 0;
+
   QZC_NODE_REG(bfd, bfd)
 }
 

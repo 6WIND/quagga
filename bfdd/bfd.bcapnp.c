@@ -4,8 +4,9 @@
 
 #include <stdbool.h>
 #include "capnp_c.h"
-#include "bfd.bcapnp.h"
-#include "bfdd.h"
+#include "bfdd/bfd.bcapnp.h"
+#include "bfdd/bfdd.h"
+#include "bfdd/bfd_interface.h"
 
 static const capn_text capn_val0 = {0, ""};
 
@@ -42,4 +43,25 @@ void qcapn_BFD_read(struct bfd *s, capn_ptr p)
 
     { capn_text tp = capn_get_text(p, 0, capn_val0); free(s->logFile); s->logFile = strdup(tp.str); }
     { capn_text tp = capn_get_text(p, 1, capn_val0); free(s->logLevel); s->logLevel = strdup(tp.str); }
+}
+
+void qcapn_BFD_set(struct bfd *s, capn_ptr p)
+{
+    capn_resolve(&p);
+
+    s->config_data_version = capn_read8(p, 0);
+    s->failure_threshold = capn_read8(p, 1);
+    s->multihop = capn_read8(p, 2);
+    s->rx_interval = capn_read32(p, 4);
+    s->tx_interval = capn_read32(p, 8);
+    s->debounce_down = capn_read32(p, 12);
+    s->debounce_up = capn_read32(p, 16);
+    bfd_if_info_update();
+
+    { capn_text tp = capn_get_text(p, 0, capn_val0); free(s->logFile); s->logFile = strdup(tp.str); }
+    { capn_text tp = capn_get_text(p, 1, capn_val0); free(s->logLevel); s->logLevel = strdup(tp.str); }
+    if (strlen(s->logFile) > 0 && strlen(s->logLevel) > 0)
+      {
+        zlog_set_file (NULL, s->logFile, s->logLevel);
+      }
 }
