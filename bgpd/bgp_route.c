@@ -1020,12 +1020,12 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
 
 
 #define NEXTHOP_IS_V4 (\
-    (safi != SAFI_ENCAP && p->family == AF_INET) || \
-    (safi == SAFI_ENCAP && attr->extra->mp_nexthop_len == 4))
+    (safi != SAFI_ENCAP && safi != SAFI_MPLS_VPN && p->family == AF_INET) || \
+    ((safi == SAFI_ENCAP || safi == SAFI_MPLS_VPN) && attr->extra->mp_nexthop_len == 4))
 
 #define NEXTHOP_IS_V6 (\
-    (safi != SAFI_ENCAP && p->family == AF_INET6) || \
-    (safi == SAFI_ENCAP && attr->extra->mp_nexthop_len == 16))
+    (safi != SAFI_ENCAP && safi != SAFI_MPLS_VPN && p->family == AF_INET6) || \
+    ((safi == SAFI_ENCAP || safi == SAFI_MPLS_VPN) && attr->extra->mp_nexthop_len == 16))
 
   /* next-hop-set */
   if (transparent
