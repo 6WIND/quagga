@@ -177,6 +177,8 @@ bfd_fsm_neigh_del (struct bfd_neigh *neighp)
   /* Stop timers (session, timer) and schedule delete timer */
   BFD_TIMER_OFF (neighp->t_timer);
   BFD_TIMER_OFF (neighp->t_session);
+  BFD_TIMER_OFF (neighp->t_notify_up);
+  BFD_TIMER_OFF (neighp->t_notify_down);
   BFD_TIMER_MSEC_ON (neighp->t_delete, bfd_fsm_delete,
 		     MSEC (neighp->negtxint * neighp->lmulti));
 
@@ -219,6 +221,21 @@ bfd_fsm_init (struct bfd_neigh *neighp)
   return BFD_OK;
 }
 
+/* Notify zebra the state change to Up */
+static int
+bfd_notify_up (struct thread *thread)
+{
+  struct bfd_neigh *neighp = THREAD_ARG (thread);
+
+  if (neighp->rstate == BFD_STATE_UP)
+    {
+      if (BFD_IF_DEBUG_FSM)
+        BFD_FSM_LOG_DEBUG_NOARG ("Up. (notify zebra)") bfd_signal_neigh_up (neighp);
+    }
+  neighp->t_notify_up = NULL;
+  return BFD_OK;
+}
+
 /* FSM Up state */
 static int
 bfd_fsm_up (struct bfd_neigh *neighp)
@@ -234,8 +251,9 @@ bfd_fsm_up (struct bfd_neigh *neighp)
       if (neighp->notify != FSM_S_Up)
 	{
 	  if (BFD_IF_DEBUG_FSM)
-	    BFD_FSM_LOG_DEBUG_NOARG ("Up.") bfd_signal_neigh_up (neighp);
-	  neighp->notify = FSM_S_Up;
+	    BFD_FSM_LOG_DEBUG_NOARG ("Up.") neighp->notify = FSM_S_Up;
+	  BFD_TIMER_OFF (neighp->t_notify_up);
+	  BFD_TIMER_MSEC_ON (neighp->t_notify_up, bfd_notify_up, bfd->debounce_up);
 	}
 
       /* "If either bfd.DesiredMinTxInterval is changed 
@@ -331,6 +349,20 @@ bfd_fsm_admdown (struct bfd_neigh *neighp)
   return BFD_OK;
 }
 
+/* Notify zebra the state change to Down */
+static int
+bfd_notify_down (struct thread *thread)
+{
+  struct bfd_neigh *neighp = THREAD_ARG (thread);
+
+  if (neighp->status != FSM_S_Up)
+    {
+      if (BFD_IF_DEBUG_FSM)
+      BFD_FSM_LOG_DEBUG_NOARG ("Down. (notify zebra)") bfd_signal_neigh_down (neighp);
+    }
+  neighp->t_notify_down = NULL;
+  return BFD_OK;
+}
 
 /* FSM Down state */
 static int
@@ -357,7 +389,10 @@ bfd_fsm_down (struct bfd_neigh *neighp)
     {
       BFD_FSM_LOG_DEBUG_NOARG ("Down.") neighp->notify = FSM_S_Down;
       if (neighp->status == FSM_S_Up)
-	bfd_signal_neigh_down (neighp);
+        {
+	  BFD_TIMER_OFF (neighp->t_notify_down);
+	  BFD_TIMER_MSEC_ON (neighp->t_notify_down, bfd_notify_down, bfd->debounce_down);
+        }
     }
   return BFD_OK;
 }

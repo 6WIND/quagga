@@ -312,6 +312,8 @@ bfd_neigh_init (struct bfd_cneigh *cneighp)
   neighp->t_hello = NULL;
   neighp->t_session = NULL;
   neighp->t_delete = NULL;
+  neighp->t_notify_up = NULL;
+  neighp->t_notify_down = NULL;
 
   /* Use the same set of flags as candidate */
   neighp->flags = cneighp->flags;
