@@ -1106,14 +1106,23 @@ route_set_ip_nexthop (void *rule, struct prefix *prefix,
 	    {
 	      bgp_info->attr->nexthop.s_addr = sockunion2ip (peer->su_local);
 	      bgp_info->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
+              zlog_err("should not pass by 2");
 	    }
+              zlog_err("why not going this way ??");
 	}
       else
 	{
 	  /* Set next hop value. */ 
 	  bgp_info->attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
 	  bgp_info->attr->nexthop = *rins->address;
-	}
+          /* case for MP-BGP : ENCAP or MPLS_VPN
+           * only writes in extra header if already allocated
+           */
+          if (bgp_info->attr->extra) {
+            bgp_attr_extra_get (bgp_info->attr)->mp_nexthop_global_in = *rins->address;
+            bgp_info->attr->extra->mp_nexthop_len = sizeof(*rins->address);
+          }
+        }
     }
 
   return RMAP_OKAY;
