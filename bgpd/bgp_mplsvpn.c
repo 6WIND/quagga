@@ -555,7 +555,7 @@ show_adj_route_vpn (struct vty *vty, struct peer *peer, struct prefix_rd *prd)
                     header = 0;
                   }
                 if (CHECK_FLAG (rm->flags, BGP_INFO_VPN_HIDEN))
-                  return;
+                  return CMD_SUCCESS;
                 if (rd_header)
                   {
                     u_int16_t type;
