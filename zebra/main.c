@@ -186,6 +186,7 @@ static void
 sigusr1 (void)
 {
   zlog_rotate (NULL);
+  zlog_notice ("sigusr1");
 }
 
 struct quagga_signal_t zebra_signals[] =
@@ -492,7 +493,7 @@ main (int argc, char **argv)
   vty_serv_sock (vty_addr, vty_port, ZEBRA_VTYSH_PATH);
 
   /* Print banner. */
-  zlog_notice ("Zebra %s starting: vty@%d", QUAGGA_VERSION, vty_port);
+  zlog_notice ("Zebra %s starting: vty@%d pid %d", QUAGGA_VERSION, vty_port, pid);
 
   while (thread_fetch (zebrad.master, &thread))
     thread_call (&thread);
