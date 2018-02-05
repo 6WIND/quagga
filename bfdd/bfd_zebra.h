@@ -29,6 +29,7 @@
 
 void bfd_vty_init (void);
 void bfd_zebra_init (void);
+void bfd_zebra_destroy (void);
 
 void bfd_zclient_reset (void);
 

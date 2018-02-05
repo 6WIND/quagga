@@ -615,3 +615,14 @@ bfd_zebra_init (void)
   zclient->ipv6_bfd_neigh_down = ipv6_bfd_neigh_down;
 #endif /* HAVE_IPV6 */
 }
+
+void
+bfd_zebra_destroy(void)
+{
+  if (zclient == NULL)
+    return;
+
+  zclient_stop(zclient);
+  zclient_free(zclient);
+  zclient = NULL;
+}

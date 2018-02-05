@@ -1,0 +1,6 @@
+/*
+ * Copyright (C) 2018 6WIND
+ */
+
+/* [3dd958b139b0bfdd] bfdd <> bfd */
+EXT_QZC_NODETYPE(bfd)

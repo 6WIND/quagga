@@ -24,6 +24,7 @@
 
 #include <zebra.h>
 #include "linklist.h"
+#include "qzc.h"
 #include "bfd.h"
 
 extern struct thread_master *master;
@@ -80,6 +81,19 @@ struct bfd
   struct thread *t_read6_mhop;
   struct thread *t_read6_1hop_echo;
 #endif				/* HAVE_IPV6 */
+
+  u_char     config_data_version;
+  u_int32_t  rx_interval;
+  u_char     failure_threshold;
+  u_int32_t  tx_interval;
+  u_int32_t  debounce_down;
+  u_int32_t  debounce_up;
+  uint8_t    multihop;
+
+  char *logFile;
+  char *logLevel;
+
+  QZC_NODE
 };
 
 struct neighstruct
@@ -234,6 +248,7 @@ struct bfd_neigh
 
 
 void bfd_init (void);
+void bfd_terminate (void);
 void bfd_cfg (void);
 
 struct bfd_neigh *bfd_neigh_init (struct bfd_cneigh *cneighp);
