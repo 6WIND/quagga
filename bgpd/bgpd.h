@@ -303,6 +303,7 @@ struct bgp_event_vrf
 {
 #define BGP_EVENT_MASK_ANNOUNCE 0x1
 #define BGP_EVENT_SHUT 0x2
+#define BGP_EVENT_BFD_STATUS 0x3
   uint8_t announce;
   struct prefix_rd outbound_rd; /* dummy for event_shut */
   struct prefix prefix; /* alias subtype */
@@ -319,6 +320,15 @@ struct bgp_event_shut
 {
   struct prefix peer;
   uint8_t type, subtype;
+};
+
+struct bgp_event_bfd_status
+{
+  struct prefix peer;
+  as_t   as;
+  uint8_t up_down;
+#define BGP_EVENT_BFD_STATUS_UP   1
+#define BGP_EVENT_BFD_STATUS_DOWN 0
 };
 
 #define ROUTE_TYPE_LABELED_UNICAST  1
@@ -1119,6 +1129,7 @@ extern void bgp_notify_zmq_init (void);
 extern int bgp_notify_zmq_url_set (struct bgp *, const char *url);
 extern void bgp_notify_route (struct bgp *, struct bgp_event_vrf *update);
 extern void bgp_notify_shut (struct bgp *, struct bgp_event_shut *shut);
+extern void bgp_notify_bfd_status (struct bgp *bgp, struct bgp_event_bfd_status *status);
 extern void bgp_notify_cleanup (struct bgp *);
 
 extern int peer_rsclient_active (struct peer *);
