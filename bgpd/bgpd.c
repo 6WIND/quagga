@@ -575,6 +575,76 @@ bgp_default_local_preference_unset (struct bgp *bgp)
   return 0;
 }
 
+int
+bgp_bfd_sync_set(struct bgp *bgp)
+{
+  struct peer *peer;
+  struct listnode *node, *nnode;
+
+  if (! bgp)
+    return -1;
+  if (CHECK_FLAG (bgp->flags, BGP_FLAG_BFD_SYNC))
+    return -1;
+
+  for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
+    {
+      if (CHECK_FLAG (bgp->flags, BGP_FLAG_BFD_MULTIHOP))
+        peer_flag_set (peer, PEER_FLAG_MULTIHOP);
+      peer_flag_set (peer, PEER_FLAG_BFD);
+      peer_flag_set (peer, PEER_FLAG_BFD_SYNC);
+    }
+
+  bgp_flag_set (bgp, BGP_FLAG_BFD_SYNC);
+  return 0;
+}
+
+int
+bgp_bfd_sync_unset(struct bgp *bgp)
+{
+  struct peer *peer;
+  struct listnode *node, *nnode;
+
+  if (! bgp)
+    return -1;
+  if (! CHECK_FLAG (bgp->flags, BGP_FLAG_BFD_SYNC))
+    return -1;
+
+  for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
+    {
+      peer_flag_unset (peer, PEER_FLAG_BFD_SYNC);
+      peer_flag_unset (peer, PEER_FLAG_BFD);
+      peer_flag_unset (peer, PEER_FLAG_MULTIHOP);
+    }
+
+  bgp_flag_unset (bgp, BGP_FLAG_BFD_SYNC);
+  return 0;
+}
+
+#define BGP_PEER_STATUS_UP      0
+#define BGP_PEER_STATUS_DOWN    1
+#define BGP_PEER_STATUS_UNKNOWN 2
+int
+bgp_peer_status_get(const struct peer *s)
+{
+  int status;
+
+  if (s->status == Established)
+    status = BGP_PEER_STATUS_UP;
+  else if (CHECK_FLAG (s->flags, PEER_FLAG_BFD_SYNC))
+    {
+      if (s->bfd_status == PEER_BFD_STATUS_UP)
+        status = BGP_PEER_STATUS_UP;
+      else if (s->bfd_status == PEER_BFD_STATUS_DOWN)
+        status = BGP_PEER_STATUS_DOWN;
+      else
+        status = BGP_PEER_STATUS_UNKNOWN;
+    }
+  else
+    status = BGP_PEER_STATUS_DOWN;
+
+  return status;
+}
+
 /* If peer is RSERVER_CLIENT in at least one address family and is not member
     of a peer_group for that family, return 1.
     Used to check wether the peer is included in list bgp->rsclient. */

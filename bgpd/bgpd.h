@@ -149,6 +149,8 @@ struct bgp
 #define BGP_FLAG_DELETING                 (1 << 15)
 #define BGP_FLAG_RR_ALLOW_OUTBOUND_POLICY (1 << 16)
 #define BGP_FLAG_GR_PRESERVE_FWD          (1 << 17)
+#define BGP_FLAG_BFD_SYNC                 (1 << 18)
+#define BGP_FLAG_BFD_MULTIHOP             (1 << 19)
 
   /* BGP Per AF flags */
   u_int16_t af_flags[AFI_MAX][SAFI_MAX];
@@ -1108,6 +1110,10 @@ extern int bgp_timers_unset (struct bgp *);
 
 extern int bgp_default_local_preference_set (struct bgp *, u_int32_t);
 extern int bgp_default_local_preference_unset (struct bgp *);
+
+extern int bgp_bfd_sync_set(struct bgp *);
+extern int bgp_bfd_sync_unset(struct bgp *);
+extern int bgp_peer_status_get(const struct peer *s);
 
 extern void bgp_notify_zmq_init (void);
 extern int bgp_notify_zmq_url_set (struct bgp *, const char *url);
