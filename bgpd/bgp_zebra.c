@@ -332,6 +332,7 @@ bgp_bfd_neigh_up(struct bfd_cneigh *cneighp)
   struct peer *peer;
   struct listnode *node;
   union sockunion *su;
+  struct bgp_event_bfd_status st;
 
   if(!cneighp)
     return -1;
@@ -373,6 +374,24 @@ bgp_bfd_neigh_up(struct bfd_cneigh *cneighp)
     }
     /* Change peer status to UP */
     peer->bfd_status = PEER_BFD_STATUS_UP;
+
+#ifdef HAVE_ZEROMQ
+    st.as = peer->as;
+    st.peer.family = peer->su.sa.sa_family;
+    if (st.peer.family == AF_INET)
+      {
+        st.peer.prefixlen = IPV4_MAX_PREFIXLEN;
+        st.peer.u.prefix4 = peer->su.sin.sin_addr;
+      }
+    else
+      {
+        st.peer.prefixlen = IPV6_MAX_PREFIXLEN;
+        st.peer.u.prefix6 = peer->su.sin6.sin6_addr;
+      }
+    st.up_down = BGP_EVENT_BFD_STATUS_UP;
+
+    bgp_notify_bfd_status (bgp, &st);
+#endif /* HAVE_ZEROMQ */
   }
   return 0;
 }
@@ -384,6 +403,7 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
   struct peer *peer;
   struct listnode *node;
   union sockunion *su;
+  struct bgp_event_bfd_status st;
 
   if(!cneighp)
     return -1;
@@ -422,6 +442,24 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
       BGP_EVENT_ADD (peer, BGP_Stop);
     /* Change peer status to DOWN */
     peer->bfd_status = PEER_BFD_STATUS_DOWN;
+
+#ifdef HAVE_ZEROMQ
+    st.as = peer->as;
+    st.peer.family = peer->su.sa.sa_family;
+    if (st.peer.family == AF_INET)
+      {
+        st.peer.prefixlen = IPV4_MAX_PREFIXLEN;
+        st.peer.u.prefix4 = peer->su.sin.sin_addr;
+      }
+    else
+      {
+        st.peer.prefixlen = IPV6_MAX_PREFIXLEN;
+        st.peer.u.prefix6 = peer->su.sin6.sin6_addr;
+      }
+    st.up_down = BGP_EVENT_BFD_STATUS_DOWN;
+
+    bgp_notify_bfd_status (bgp, &st);
+#endif /* HAVE_ZEROMQ */
   }
 
   return 0;

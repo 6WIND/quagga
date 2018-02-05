@@ -153,6 +153,21 @@ bgp_notify_shut (struct bgp *bgp, struct bgp_event_shut *shut)
   bgp_notify_send (bgp, &msg);
 }
 
+void
+bgp_notify_bfd_status (struct bgp *bgp, struct bgp_event_bfd_status *status)
+{
+  struct bgp_event_vrf msg;
+
+  /* encapsulate message in bgp_event_vrf structure */
+  memset(&msg, 0, sizeof(struct bgp_event_vrf));
+  msg.announce = BGP_EVENT_BFD_STATUS;
+  msg.nexthop = status->peer;
+  msg.label = (uint32_t)status->as;
+  msg.prefix.family = AF_INET;
+  msg.prefix.u.prefix4.s_addr = status->up_down;
+  bgp_notify_send (bgp, &msg);
+}
+
 DEFUN (show_debugging_bgp_zmq,
        show_debugging_bgp_zmq_cmd,
        "show debugging bgp zmq",
