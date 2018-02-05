@@ -46,6 +46,11 @@
 #include "bfdd/bfd_packet.h"
 #include "bfdd/bfd_net.h"
 
+#ifdef HAVE_CCAPNPROTO
+#include "bfd.bcapnp.h"
+#include "bfdd.ndef.hi"
+#endif /* HAVE_CCAPNPROTO */
+
 extern struct zclient *zclient;
 
 struct bfd_lport *bfd_lport;
@@ -72,6 +77,8 @@ bfd_new (void)
   /* Set up queue for waiting neighbors */
   bfd->wqueue = list_new ();
   bfd->debug = 0;		/* No debug by default */
+
+  QZC_NODE_REG(bfd, bfd)
 }
 
 /* Init BFD address header tree structure */
@@ -207,6 +214,12 @@ bfd_init (void)
 #endif /* HAVE_IPV6 */
 }
 
+void
+bfd_terminate (void)
+{
+  QZC_NODE_UNREG(bfd)
+  //TODO, free other resources and thread
+}
 /* Get unique local discriminator */
 static uint32_t
 bfd_get_mydisc (void)
@@ -729,3 +742,7 @@ bfd_neigh_add (struct bfd_neigh *neighp)
 	}
     }
 }
+
+#ifdef HAVE_CCAPNPROTO
+#include "bfdd.ndef.i"
+#endif /*HAVE_CCAPNPROTO */

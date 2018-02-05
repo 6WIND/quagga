@@ -30,6 +30,7 @@
 #include "memory.h"
 #include "sigevent.h"
 #include "privs.h"
+#include "qzc.h"
 
 #include "bfdd/bfdd.h"
 #include "bfdd/bfd_zebra.h"
@@ -64,6 +65,10 @@ char *config_file = NULL;
 /* Process ID saved for use by init system */
 const char *pid_file = PATH_BFDD_PID;
 
+#ifdef HAVE_ZEROMQ
+struct qzc_sock *qzc_sock = NULL;
+#endif /* HAVE_CCAPNPROTO */
+
 /* Help information display. */
 static void
 usage (char *progname, int status)
@@ -82,6 +87,7 @@ BFD Deamon\n\n\
 -C, --dryrun       Check configuration for validity and exit\n\
 -u, --user         User to run as\n\
 -g, --group        Group to run as\n\
+-Z, --zeromq,      Bind zmq socket\n\
 -v, --version      Print program version\n\
 -h, --help         Display this help and exit\n\
 \n\
@@ -109,12 +115,14 @@ static struct option longopts[] = {
   {"retain", no_argument, NULL, 'r'},
   {"user", required_argument, NULL, 'u'},
   {"group", required_argument, NULL, 'g'},
+  {"zeromq",required_argument, NULL, 'Z'},
   {"version", no_argument, NULL, 'v'},
   {0}
 };
 
 /* Master of threads. */
 struct thread_master *master;
+static void bfdd_exit(int);
 
 /* SIGHUP handler. */
 static void
@@ -128,7 +136,7 @@ static void
 sigint (void)
 {
   zlog_notice ("Terminating on signal");
-  exit (0);
+  bfdd_exit(0);
 }
 
 /* SIGUSR1 handler. */
@@ -168,6 +176,9 @@ main (int argc, char **argv, char **envp)
   int vty_port = BFDD_VTY_PORT;
   char *progname;
   struct thread thread;
+#ifdef HAVE_ZEROMQ
+  char *zmq_sock = NULL;
+#endif /* HAVE_ZEROMQ */
 
   umask (0027);
 
@@ -182,7 +193,7 @@ main (int argc, char **argv, char **envp)
     {
       int opt;
 
-      opt = getopt_long (argc, argv, "df:i:hA:P:u:g:vC", longopts, 0);
+      opt = getopt_long (argc, argv, "df:i:hA:P:u:g:Z:vC", longopts, 0);
 
       if (opt == EOF)
 	break;
@@ -223,6 +234,12 @@ main (int argc, char **argv, char **envp)
 	case 'g':
 	  bfdd_privs.group = optarg;
 	  break;
+	case 'Z':
+#ifdef HAVE_ZEROMQ
+	  zmq_sock = optarg;
+#endif /* HAVE_ZEROMQ */
+	  break;
+
 	case 'v':
 	  print_version (progname);
 	  exit (0);
@@ -239,6 +256,9 @@ main (int argc, char **argv, char **envp)
 
   /* Prepare master thread. */
   master = thread_master_create ();
+#ifdef HAVE_CCAPNPROTO
+  qzc_init ();
+#endif
 
   /* Library initialization. */
   zprivs_init (&bfdd_privs);
@@ -256,6 +276,11 @@ main (int argc, char **argv, char **envp)
   bfd_if_init ();
   bfd_zebra_init ();
   bfd_vty_init ();
+
+#ifdef HAVE_ZEROMQ
+  if (zmq_sock)
+    qzc_sock = qzc_bind (master, zmq_sock);
+#endif /* HAVE_ZEROMQ */
 
   /* Get configuration file. */
   vty_read_config (config_file, config_default);
@@ -277,7 +302,7 @@ main (int argc, char **argv, char **envp)
   vty_serv_sock (vty_addr, vty_port, BFD_VTYSH_PATH);
 
   /* Print banner. */
-  zlog_notice ("BFDd %s starting: vty@%d", QUAGGA_VERSION, vty_port);
+  zlog_notice ("BFDd %s starting: vty@%d pid %d", QUAGGA_VERSION, vty_port, getpid ());
 
   /* Execute each thread. */
   while (thread_fetch (master, &thread))
@@ -285,4 +310,32 @@ main (int argc, char **argv, char **envp)
 
   /* Not reached. */
   return (0);
+}
+
+static void
+bfdd_exit (int status)
+{
+  /* it only makes sense for this to be called on a clean exit */
+  assert (status == 0);
+
+  vrf_terminate ();
+  cmd_terminate ();
+  vty_terminate ();
+  bfd_zebra_destroy();
+
+  bfd_terminate();
+#ifdef HAVE_ZEROMQ
+  if (qzc_sock)
+    qzc_close (qzc_sock);
+#endif
+#ifdef HAVE_CCAPNPROTO
+  qzc_finish ();
+#endif /* HAVE_CCAPNPROTO */
+
+  thread_master_free (master);
+
+  if (zlog_default)
+    closezlog (zlog_default);
+
+  exit (status);
 }
