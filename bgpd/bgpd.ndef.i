@@ -651,6 +651,22 @@ _qzc_get_peer_3(struct peer *p,
 /* [] bgp_peer:2 <> peer */
 
 static void
+_qzc_get_peer_4(struct peer *p,
+        struct QZCGetReq *req, struct QZCGetRep *rep,
+        struct capn_segment *seg)
+{
+
+    if (req->ctxtype != 0)
+        /* error */
+        return;
+
+    rep->data = qcapn_new_BGPPeerStatus(seg);
+    qcapn_BGPPeerStatus_write(p, rep->data);
+}
+
+/* [] bgp_peer:2 <> peer */
+
+static void
 _qzc_set_peer_2(struct peer *p,
         struct QZCSetReq *req,
         struct capn_segment *seg)
@@ -705,6 +721,9 @@ _qzc_get_peer(void *entity, struct QZCGetReq *req, struct QZCGetRep *rep,
         return;
     case 3:
         _qzc_get_peer_3(p, req, rep, seg);
+        return;
+    case 4:
+        _qzc_get_peer_4(p, req, rep, seg);
         return;
     default:
         return;
