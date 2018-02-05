@@ -545,7 +545,7 @@ int
 bfd_read4_mhop (struct thread *t)
 {
   int ret = bfd_read4 (THREAD_FD (t), BFD_PORT_MHOP);
-  bfd->t_read4_1hop = NULL;
+  bfd->t_read4_mhop = NULL;
   BFD_READ_ON (bfd->t_read4_mhop, bfd_read4_mhop, bfd->sock4_mhop);
   return ret;
 }
