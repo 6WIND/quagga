@@ -1030,6 +1030,12 @@ bgp_config_write_debug (struct vty *vty)
       write++;
     }
 
+  if (CONF_BGP_DEBUG (zebra, BFD))
+    {
+      vty_out (vty, "debug bgp bfd%s", VTY_NEWLINE);
+      write++;
+    }
+
   if (CONF_BGP_DEBUG (allow_martians, ALLOW_MARTIANS))
     {
       vty_out (vty, "debug bgp allow-martians%s", VTY_NEWLINE);
