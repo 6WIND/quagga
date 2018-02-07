@@ -575,15 +575,16 @@ bgp_default_local_preference_unset (struct bgp *bgp)
   return 0;
 }
 
+/* Set bfd flags for existing bgp neighbours. As a result, bfd
+ * neighbour will be added into bfd through zapi message.
+ */
 int
-bgp_bfd_sync_set(struct bgp *bgp)
+bgp_peer_bfd_sync(struct bgp *bgp)
 {
   struct peer *peer;
   struct listnode *node, *nnode;
 
   if (! bgp)
-    return -1;
-  if (CHECK_FLAG (bgp->flags, BGP_FLAG_BFD_SYNC))
     return -1;
 
   for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
@@ -593,6 +594,75 @@ bgp_bfd_sync_set(struct bgp *bgp)
       peer_flag_set (peer, PEER_FLAG_BFD);
       peer_flag_set (peer, PEER_FLAG_BFD_SYNC);
     }
+  return 0;
+}
+
+/* Set bfd flags for established bgp neighbours specfied by
+ * local address.
+ */
+int
+bgp_peer_bfd_sync_by_local_addr(struct bgp *bgp,
+                                struct prefix *local_addr)
+{
+  struct peer *peer;
+  struct listnode *node, *nnode;
+  union sockunion su;
+
+  if (! bgp || ! local_addr)
+    return -1;
+
+  prefix2sockunion (local_addr, &su);
+  for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
+    {
+      if (peer->status == Established)
+        {
+          /* If BGP connection is established, only the peer
+	   * specified by local address is synced. This is to
+	   * avoid crash in bgp_bfd_neigh_add():
+	   *    ifp = if_lookup_by_sockunion_exact();
+	   * ifp will be NULL if the ZEBRA_INTERFACE_ADDRESS_ADD
+	   * message including the address specify by local_addr
+	   * does not arrive after zebra is connected.
+	   */
+          if (sockunion_cmp (peer->su_local, &su) == 0)
+            {
+              if (CHECK_FLAG (bgp->flags, BGP_FLAG_BFD_MULTIHOP))
+                peer_flag_set (peer, PEER_FLAG_MULTIHOP);
+              peer_flag_set (peer, PEER_FLAG_BFD);
+              peer_flag_set (peer, PEER_FLAG_BFD_SYNC);
+            }
+        }
+      else
+        {
+          /* If BGP connection is not established, only the BFD
+	   * flags are set. It is not a matter that these peers
+	   * are set several times.
+	   */
+          if (CHECK_FLAG (bgp->flags, BGP_FLAG_BFD_MULTIHOP))
+            peer_flag_set (peer, PEER_FLAG_MULTIHOP);
+          peer_flag_set (peer, PEER_FLAG_BFD);
+          peer_flag_set (peer, PEER_FLAG_BFD_SYNC);
+        }
+    }
+  return 0;
+}
+
+int
+bgp_bfd_sync_set (struct bgp *bgp)
+{
+
+  if (! bgp)
+    return -1;
+  if (CHECK_FLAG (bgp->flags, BGP_FLAG_BFD_SYNC))
+    return -1;
+
+  if (! bgp_is_zebra_connected())
+    {
+      zlog_info("Zebra is not connected yet, connect first");
+      bgp_zclient_reset ();
+    }
+  else
+    bgp_peer_bfd_sync (bgp);
 
   bgp_flag_set (bgp, BGP_FLAG_BFD_SYNC);
   return 0;

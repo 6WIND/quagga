@@ -497,6 +497,7 @@ bgp_interface_address_add (int command, struct zclient *zclient,
 			   zebra_size_t length, vrf_id_t vrf_id)
 {
   struct connected *ifc;
+  struct bgp *bgp = bgp_get_default ();
 
   ifc = zebra_interface_address_read (command, zclient->ibuf, vrf_id);
 
@@ -513,6 +514,19 @@ bgp_interface_address_add (int command, struct zclient *zclient,
 
   if (if_is_operative (ifc->ifp))
     bgp_connected_add (ifc);
+
+  /* Maybe bfd is enabled after bgp, so we should set bfd flags
+   * and add bfd neighbours for existing bgp neighbours. Moreover,
+   * during the process of adding bfd neigbour(bgp_bfd_neigh_add),
+   * in order to get interface ifindex, interface address is used
+   * to lookup interface. so bfd sync action is done here once
+   * interface address is gotten by bgpd.
+   */
+  if (bgp && CHECK_FLAG (bgp->flags, BGP_FLAG_BFD_SYNC))
+    {
+      zlog_debug ("Trying to sync bfd conf with BGP peers");
+      bgp_peer_bfd_sync_by_local_addr (bgp, ifc->address);
+    }
 
   return 0;
 }
@@ -1483,6 +1497,15 @@ bgp_zebra_connected (struct zclient *zclient)
 {
   zclient_num_connects++;
   zclient_send_requests (zclient, VRF_DEFAULT);
+}
+
+int
+bgp_is_zebra_connected ()
+{
+  if (zclient->sock >= 0 && zclient->t_read)
+    return 1;
+  else
+    return 0;
 }
 
 void
