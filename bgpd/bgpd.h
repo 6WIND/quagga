@@ -1050,6 +1050,7 @@ extern void bgp_terminate (void);
 extern void bgp_reset (void);
 extern time_t bgp_clock (void);
 extern void bgp_zclient_reset (void);
+extern int bgp_is_zebra_connected (void);
 extern int bgp_nexthop_set (union sockunion *, union sockunion *, 
 		     struct bgp_nexthop *, struct peer *);
 extern struct bgp *bgp_get_default (void);
@@ -1121,9 +1122,11 @@ extern int bgp_timers_unset (struct bgp *);
 extern int bgp_default_local_preference_set (struct bgp *, u_int32_t);
 extern int bgp_default_local_preference_unset (struct bgp *);
 
+extern int bgp_peer_bfd_sync(struct bgp *);
 extern int bgp_bfd_sync_set(struct bgp *);
 extern int bgp_bfd_sync_unset(struct bgp *);
 extern int bgp_peer_status_get(const struct peer *s);
+extern int bgp_peer_bfd_sync_by_local_addr(struct bgp *, struct prefix *);
 
 extern void bgp_notify_zmq_init (void);
 extern int bgp_notify_zmq_url_set (struct bgp *, const char *url);
