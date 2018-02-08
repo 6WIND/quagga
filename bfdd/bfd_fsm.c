@@ -177,8 +177,8 @@ bfd_fsm_neigh_del (struct bfd_neigh *neighp)
   /* Stop timers (session, timer) and schedule delete timer */
   BFD_TIMER_OFF (neighp->t_timer);
   BFD_TIMER_OFF (neighp->t_session);
-  BFD_TIMER_OFF (neighp->t_notify_up);
-  BFD_TIMER_OFF (neighp->t_notify_down);
+  BFD_TIMER_OFF (neighp->t_debounce_up);
+  BFD_TIMER_OFF (neighp->t_debounce_down);
   BFD_TIMER_MSEC_ON (neighp->t_delete, bfd_fsm_delete,
 		     MSEC (neighp->negtxint * neighp->lmulti));
 
@@ -221,18 +221,72 @@ bfd_fsm_init (struct bfd_neigh *neighp)
   return BFD_OK;
 }
 
-/* Notify zebra the state change to Up */
+
+static int bfd_handle_state_transition (struct bfd_neigh *, int);
+
+/* DebounceDown timer expire */
 static int
-bfd_notify_up (struct thread *thread)
+bfd_debounce_down_timer_expire (struct thread *thread)
 {
   struct bfd_neigh *neighp = THREAD_ARG (thread);
 
-  if (neighp->rstate == BFD_STATE_UP)
+  assert (neighp);
+  neighp->t_debounce_down = NULL;
+  if (neighp->status != FSM_S_Up)
+    bfd_handle_state_transition (neighp, BFD_NEIGH_DOWN);
+
+  return BFD_OK;
+}
+
+/* DebounceUp timer expire */
+static int
+bfd_debounce_up_timer_expire (struct thread *thread)
+{
+  struct bfd_neigh *neighp = THREAD_ARG (thread);
+
+  assert (neighp);
+  neighp->t_debounce_up = NULL;
+  if (neighp->rstate == BFD_STATE_UP && neighp->lstate == BFD_STATE_UP)
+    bfd_handle_state_transition (neighp, BFD_NEIGH_UP);
+
+  return BFD_OK;
+}
+
+static int
+bfd_handle_state_transition (struct bfd_neigh *neighp, int new_state)
+{
+  if (!neighp)
+    return BFD_ERR;
+
+  if (new_state != BFD_NEIGH_UP && new_state != BFD_NEIGH_DOWN)
+    return BFD_ERR;
+
+  if (neighp->t_debounce_up == NULL &&
+      neighp->t_debounce_down == NULL &&
+      new_state == neighp->wanted_state)
     {
-      if (BFD_IF_DEBUG_FSM)
-        BFD_FSM_LOG_DEBUG_NOARG ("Up. (notify zebra)") bfd_signal_neigh_up (neighp);
+      if (new_state == BFD_NEIGH_UP)
+        {
+          if (BFD_IF_DEBUG_FSM)
+            BFD_FSM_LOG_DEBUG_NOARG ("Up. (notify zebra)") bfd_signal_neigh_up (neighp);
+
+          BFD_TIMER_MSEC_ON (neighp->t_debounce_down,
+                             bfd_debounce_down_timer_expire,
+                             bfd->debounce_down);
+	  neighp->wanted_state = BFD_NEIGH_DOWN;
+        }
+      else
+        {
+          if (BFD_IF_DEBUG_FSM)
+            BFD_FSM_LOG_DEBUG_NOARG ("Down. (notify zebra)") bfd_signal_neigh_down (neighp);
+
+          BFD_TIMER_MSEC_ON (neighp->t_debounce_up,
+                             bfd_debounce_up_timer_expire,
+                             bfd->debounce_up);
+          neighp->wanted_state = BFD_NEIGH_UP;
+        }
     }
-  neighp->t_notify_up = NULL;
+
   return BFD_OK;
 }
 
@@ -252,8 +306,7 @@ bfd_fsm_up (struct bfd_neigh *neighp)
 	{
 	  if (BFD_IF_DEBUG_FSM)
 	    BFD_FSM_LOG_DEBUG_NOARG ("Up.") neighp->notify = FSM_S_Up;
-	  BFD_TIMER_OFF (neighp->t_notify_up);
-	  BFD_TIMER_MSEC_ON (neighp->t_notify_up, bfd_notify_up, bfd->debounce_up);
+	  bfd_handle_state_transition (neighp, BFD_NEIGH_UP);
 	}
 
       /* "If either bfd.DesiredMinTxInterval is changed 
@@ -349,21 +402,6 @@ bfd_fsm_admdown (struct bfd_neigh *neighp)
   return BFD_OK;
 }
 
-/* Notify zebra the state change to Down */
-static int
-bfd_notify_down (struct thread *thread)
-{
-  struct bfd_neigh *neighp = THREAD_ARG (thread);
-
-  if (neighp->status != FSM_S_Up)
-    {
-      if (BFD_IF_DEBUG_FSM)
-      BFD_FSM_LOG_DEBUG_NOARG ("Down. (notify zebra)") bfd_signal_neigh_down (neighp);
-    }
-  neighp->t_notify_down = NULL;
-  return BFD_OK;
-}
-
 /* FSM Down state */
 static int
 bfd_fsm_down (struct bfd_neigh *neighp)
@@ -389,10 +427,7 @@ bfd_fsm_down (struct bfd_neigh *neighp)
     {
       BFD_FSM_LOG_DEBUG_NOARG ("Down.") neighp->notify = FSM_S_Down;
       if (neighp->status == FSM_S_Up)
-        {
-	  BFD_TIMER_OFF (neighp->t_notify_down);
-	  BFD_TIMER_MSEC_ON (neighp->t_notify_down, bfd_notify_down, bfd->debounce_down);
-        }
+        bfd_handle_state_transition (neighp, BFD_NEIGH_DOWN);
     }
   return BFD_OK;
 }
