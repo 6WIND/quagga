@@ -194,8 +194,9 @@ struct bfd_neigh
   struct thread *t_delete;	/* Session delete timer (period of time that we xmit
 				   BFD control packets  with "AdminDown" state 
 				   after which neighbor(session) is removed */
-  struct thread *t_notify_up;   /* A timer to notify zebra the state change to "Up"*/
-  struct thread *t_notify_down; /* A timer to notify zebra the state change to "Down"*/
+  struct thread *t_debounce_up;   /* A timer to notify zebra the state change to "Up"*/
+  struct thread *t_debounce_down; /* A timer to notify zebra the state change to "Down"*/
+  int wanted_state;               /* The expected next state, used for debounce timer */
 
   /* Misc */
   uint32_t flags;		/* Flags (do not confuse with bits from BFDCP).
