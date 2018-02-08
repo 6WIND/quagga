@@ -2843,6 +2843,11 @@ void bgp_vrf_process_entry (struct bgp_info *iter,
         {
           char nh_str[BUFSIZ] = "<?>";
           char pfx_str[PREFIX_STRLEN];
+          unsigned int label = 0;
+
+          /* there should always be a label */
+          if(iter->extra && iter->extra->nlabels >=1)
+            label = iter->extra->labels[0];
           if(iter->attr && iter->attr->extra)
             {
               if (afi_int == AFI_IP)
@@ -2856,9 +2861,9 @@ void bgp_vrf_process_entry (struct bgp_info *iter,
                          nh_str, sizeof (nh_str));
             }
           prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
-          zlog_debug ("%s: processing entry (for %s) from %s [ nh %s]",
+          zlog_debug ("%s: processing entry (for %s) from %s [ nh %s label %u]",
                       pfx_str, action == ROUTE_INFO_TO_UPDATE?"upgrading":"adding",
-                      iter->peer->host, nh_str);
+                      iter->peer->host, nh_str, label);
         }
       /* When peer's soft reconfiguration enabled.  Record input packet in
          Adj-RIBs-In.  */
