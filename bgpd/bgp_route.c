@@ -5446,7 +5446,12 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
           bgp_attr_unintern (&ri->attr);
           ri->attr = attr_new;
           ri->uptime = bgp_clock ();
-
+          /* update label */
+          if(bgp_static->nlabels)
+            {
+              bgp_info_extra_get (ri)->nlabels = bgp_static->nlabels;
+              memcpy (ri->extra->labels, bgp_static->labels, sizeof(*bgp_static->labels) * bgp_static->nlabels);
+            }
           /* Process change. */
           bgp_aggregate_increment (bgp, p, ri, afi, safi);
           bgp_process (bgp, rn, afi, safi);
