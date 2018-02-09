@@ -223,6 +223,10 @@ struct bfd_neigh
   uint32_t recv_cnt;		/* Total number of received not discarded packets */
   uint32_t orecv_cnt;		/* Snapshot of recv_cnt for session timeout detect. */
   uint32_t timer_cnt;		/* Number of "TIMER" events */
+  uint32_t down_cnt;		/* Number of bfd "DOWN" events */
+  uint32_t up_cnt;		/* Number of bfd "UP" events */
+  uint32_t notify_down_cnt;	/* Number of notifying zebra the state change to "DOWN" */
+  uint32_t notify_up_cnt;	/* Number of notifying zebra the state change to "UP" */
 };
 
 #define BFD_TIMER_MSEC_ON(T,F,V) THREAD_TIMER_MSEC_ON(master,(T),(F),neighp,(V))

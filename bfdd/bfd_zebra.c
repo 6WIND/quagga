@@ -211,6 +211,13 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 			 MSEC (neighp->dtime), neighp->timer_cnt,
 			 MSEC (neighp->negrxint), neighp->recv_cnt,
 			 VTY_NEWLINE);
+		vty_out (vty,
+			 "UP event: %u, BFD_NEIGH_UP message: %u%s",
+			 neighp->up_cnt, neighp->notify_up_cnt, VTY_NEWLINE);
+		vty_out (vty,
+			 "DOWN event: %u, BFD_NEIGH_DOWN message: %u%s",
+			 neighp->down_cnt, neighp->notify_down_cnt, VTY_NEWLINE);
+
 		vty_out (vty, "Rx Count: %u%s", neighp->recv_cnt,
 			 VTY_NEWLINE);
 		vty_out (vty, "Tx Count: %u%s", neighp->xmit_cnt,

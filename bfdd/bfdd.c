@@ -336,6 +336,10 @@ bfd_neigh_init (struct bfd_cneigh *cneighp)
   neighp->recv_cnt = 0;
   neighp->orecv_cnt = 0;
   neighp->timer_cnt = 0;
+  neighp->down_cnt = 0;
+  neighp->up_cnt = 0;
+  neighp->notify_down_cnt = 0;
+  neighp->notify_up_cnt = 0;
 
   return neighp;
 }

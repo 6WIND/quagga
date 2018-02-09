@@ -273,7 +273,8 @@ bfd_handle_state_transition (struct bfd_neigh *neighp, int new_state)
           BFD_TIMER_MSEC_ON (neighp->t_debounce_down,
                              bfd_debounce_down_timer_expire,
                              bfd->debounce_down);
-	  neighp->wanted_state = BFD_NEIGH_DOWN;
+          neighp->wanted_state = BFD_NEIGH_DOWN;
+          neighp->notify_up_cnt++;
         }
       else
         {
@@ -284,6 +285,7 @@ bfd_handle_state_transition (struct bfd_neigh *neighp, int new_state)
                              bfd_debounce_up_timer_expire,
                              bfd->debounce_up);
           neighp->wanted_state = BFD_NEIGH_UP;
+          neighp->notify_down_cnt++;
         }
     }
 
@@ -307,6 +309,7 @@ bfd_fsm_up (struct bfd_neigh *neighp)
 	  if (BFD_IF_DEBUG_FSM)
 	    BFD_FSM_LOG_DEBUG_NOARG ("Up.") neighp->notify = FSM_S_Up;
 	  bfd_handle_state_transition (neighp, BFD_NEIGH_UP);
+	  neighp->up_cnt++;
 	}
 
       /* "If either bfd.DesiredMinTxInterval is changed 
@@ -428,6 +431,7 @@ bfd_fsm_down (struct bfd_neigh *neighp)
       BFD_FSM_LOG_DEBUG_NOARG ("Down.") neighp->notify = FSM_S_Down;
       if (neighp->status == FSM_S_Up)
         bfd_handle_state_transition (neighp, BFD_NEIGH_DOWN);
+      neighp->down_cnt++;
     }
   return BFD_OK;
 }
