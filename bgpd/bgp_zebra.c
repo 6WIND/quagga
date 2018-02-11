@@ -247,6 +247,8 @@ bgp_bfd_neigh_add(struct peer *peer)
   peer->bfd_ifindex = 0;
   if(CHECK_FLAG(peer->flags,PEER_FLAG_MULTIHOP))
     SET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_MULTIHOP);
+  if(!CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_MODE))
+    SET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
 
   if(peer->status == Established)
   {
@@ -437,9 +439,26 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
        || peer->bfd_status == PEER_BFD_STATUS_DELETED) 
       return 0;
 
-    /* If we were in UP state, stop BGP */
-    if(peer->bfd_status == PEER_BFD_STATUS_UP)
-      BGP_EVENT_ADD (peer, BGP_Stop);
+    if (CHECK_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT))
+      {
+        if (!CHECK_FLAG (cneighp->flags, BFD_CNEIGH_FLAGS_CBIT))
+          {
+            zlog_debug("Zebra rcvd: ignore bfd neigh down message because peer "
+                       "is gracefully restarted and C-Bit is cleared");
+            /* Not send peerDown event to zrpcd? TODO */
+          }
+        else
+          {
+            /* Abort graceful restart when C-Bit is set */
+            peer_nsf_stop (peer);
+          }
+      }
+    else
+      {
+        /* If we were in UP state, stop BGP */
+        if(peer->bfd_status == PEER_BFD_STATUS_UP)
+          BGP_EVENT_ADD (peer, BGP_Stop);
+      }
     /* Change peer status to DOWN */
     peer->bfd_status = PEER_BFD_STATUS_DOWN;
 
