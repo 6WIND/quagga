@@ -234,6 +234,10 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 			 bfd_neigh_check_rbit_p (neighp),
 			 bfd_neigh_check_rbit_f (neighp), VTY_NEWLINE);
 		vty_out (vty,
+			 "             C bit: %-5u             - Auth bit: %u%s",
+			 bfd_neigh_check_rbit_c (neighp),
+			 bfd_neigh_check_rbit_a (neighp), VTY_NEWLINE);
+		vty_out (vty,
 			 "             Multiplier: %-5u        - Length: %u%s",
 			 neighp->rmulti, neighp->rlen, VTY_NEWLINE);
 		vty_out (vty,
@@ -536,20 +540,23 @@ bfd_signal_neigh_updown (struct bfd_neigh *neighp, int cmd)
   struct prefix p_rem, p_loc;
   struct prefix *raddr = sockunion2hostprefix (neighp->su_remote, &p_rem);
   struct prefix *laddr = sockunion2hostprefix (neighp->su_local, &p_loc);
+  uint32_t flags = bfd_neigh_check_rbit_c (neighp) ? BFD_CNEIGH_FLAGS_CBIT : 0;
 
   if (bfd_check_neigh_family (neighp) == AF_INET)
     zapi_ipv4_bfd_neigh_updown (zclient,
 				cmd,
 				(struct prefix_ipv4 *) raddr,
 				(struct prefix_ipv4 *) laddr,
-				neighp->ifindex);
+				neighp->ifindex,
+				flags);
 #ifdef HAVE_IPV6
   else
     zapi_ipv6_bfd_neigh_updown (zclient,
 				cmd,
 				(struct prefix_ipv6 *) raddr,
 				(struct prefix_ipv6 *) laddr,
-				neighp->ifindex);
+				neighp->ifindex,
+				flags);
 #endif /* HAVE_IPV6 */
 }
 
