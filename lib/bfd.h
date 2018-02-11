@@ -34,6 +34,9 @@
 #define BFD_CNEIGH_FLAGS_ECHO	  (1<< 2)
 /* not supported */
 #define BFD_CNEIGH_FLAGS_DEMAND   (1<< 3)
+/* Control Plane Independent - this flag can be set if no graceful restart
+   is enabled */
+#define BFD_CNEIGH_FLAGS_CBIT     (1<< 4)
 
 #define bfd_flag_1hop_check(X) ((X->flags & BFD_CNEIGH_FLAGS_MULTIHOP) ? 0 : 1)
 #define bfd_flag_mhop_check(X) ((X->flags & BFD_CNEIGH_FLAGS_MULTIHOP) ? 1 : 0)
