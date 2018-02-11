@@ -1147,6 +1147,7 @@ extern int peer_group_remote_as_delete (struct peer_group *);
 extern int peer_activate (struct peer *, afi_t, safi_t);
 extern int peer_deactivate (struct peer *, afi_t, safi_t);
 extern int peer_afc_set (struct peer *, afi_t, safi_t, int);
+extern void peer_nsf_stop (struct peer *);
 
 extern int peer_group_bind (struct bgp *, union sockunion *, struct peer_group *,
 		     afi_t, safi_t, as_t *);

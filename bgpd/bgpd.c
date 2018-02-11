@@ -1447,7 +1447,7 @@ peer_afc_set (struct peer *peer, afi_t afi, safi_t safi, int enable)
     return peer_deactivate (peer, afi, safi);
 }
 
-static void
+void
 peer_nsf_stop (struct peer *peer)
 {
   afi_t afi;
