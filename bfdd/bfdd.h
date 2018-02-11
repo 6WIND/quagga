@@ -247,6 +247,8 @@ struct bfd_neigh
 #define bfd_neigh_check_rbit_d(NEIGHP) ((((NEIGHP)->rbits) & BFD_BIT_D) ? 1 : 0)
 #define bfd_neigh_check_rbit_f(NEIGHP) ((((NEIGHP)->rbits) & BFD_BIT_F) ? 1 : 0)
 #define bfd_neigh_check_rbit_p(NEIGHP) ((((NEIGHP)->rbits) & BFD_BIT_P) ? 1 : 0)
+#define bfd_neigh_check_rbit_c(NEIGHP) ((((NEIGHP)->rbits) & BFD_BIT_C) ? 1 : 0)
+#define bfd_neigh_check_rbit_a(NEIGHP) ((((NEIGHP)->rbits) & BFD_BIT_A) ? 1 : 0)
 
 /* Packet legth */
 #define bfd_neigh_check_lplen(NEIGHP)  ((bfd_neigh_check_lbit_a(NEIGHP)) \
