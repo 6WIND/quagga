@@ -233,18 +233,20 @@ extern struct bfd_cneigh* ipv6_bfd_cneigh_adddel_read(struct stream *);
 /* BFD: Signalize Up/Down state */
 #define BFD_NEIGH_UP   1
 #define BFD_NEIGH_DOWN 2
-#define zapi_ipv4_bfd_neigh_up(C,R,L,I)   zapi_ipv4_bfd_neigh_updown(C,BFD_NEIGH_UP,R,L.I)
-#define zapi_ipv4_bfd_neigh_down(C,R,L,I) zapi_ipv4_bfd_neigh_updown(C,BFD_NEIGH_DOWN,R,L,I)
+#define zapi_ipv4_bfd_neigh_up(C,R,L,I,F)   zapi_ipv4_bfd_neigh_updown(C,BFD_NEIGH_UP,R,L.I,F)
+#define zapi_ipv4_bfd_neigh_down(C,R,L,I,F) zapi_ipv4_bfd_neigh_updown(C,BFD_NEIGH_DOWN,R,L,I,F)
 int zapi_ipv4_bfd_neigh_updown(struct zclient *zclient, int cmd, 
 			       struct prefix_ipv4 *rp, 
-			       struct prefix_ipv4 *lp, unsigned int ifindex);
+			       struct prefix_ipv4 *lp, unsigned int ifindex,
+			       uint32_t flags);
 #define ipv4_bfd_neigh_updown_read(S) ipv4_bfd_cneigh_adddel_read(S)
 #ifdef HAVE_IPV6
-#define zapi_ipv6_bfd_neigh_up(C,R,L,I)   zapi_ipv6_bfd_neigh_updown(C,BFD_NEIGH_UP,R,L.I)
-#define zapi_ipv6_bfd_neigh_down(C,R,L,I) zapi_ipv6_bfd_neigh_updown(C,BFD_NEIGH_DOWN,R,L,I)
+#define zapi_ipv6_bfd_neigh_up(C,R,L,I,F)   zapi_ipv6_bfd_neigh_updown(C,BFD_NEIGH_UP,R,L.I,F)
+#define zapi_ipv6_bfd_neigh_down(C,R,L,I,F) zapi_ipv6_bfd_neigh_updown(C,BFD_NEIGH_DOWN,R,L,I,F)
 int zapi_ipv6_bfd_neigh_updown(struct zclient *zclient, int cmd, 
 			       struct prefix_ipv6 *rp, 
-			       struct prefix_ipv6 *lp, unsigned int ifindex);
+			       struct prefix_ipv6 *lp, unsigned int ifindex,
+			       uint32_t flags);
 #define ipv6_bfd_neigh_updown_read(S) ipv6_bfd_cneigh_adddel_read(S)
 #endif /* HAVE_IPV6 */
 

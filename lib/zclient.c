@@ -747,7 +747,7 @@ zapi_ipv6_bfd_cneigh_adddel(struct zclient *zclient, int cmd,
 int
 zapi_ipv4_bfd_neigh_updown(struct zclient *zclient, int cmd, 
 			   struct prefix_ipv4 *rp, struct prefix_ipv4 *lp, 
-			   unsigned int ifindex) 
+			   unsigned int ifindex, uint32_t flags)
 {
   struct stream *s;
 
@@ -770,7 +770,7 @@ zapi_ipv4_bfd_neigh_updown(struct zclient *zclient, int cmd,
 
   stream_putl(s,ifindex);
 
-  stream_putl(s,0); /* Flags values are not important */
+  stream_putl(s,flags); /* Flags values are not important */
 
   stream_putw_at (s, 0, stream_get_endp (s));
 
@@ -778,7 +778,9 @@ zapi_ipv4_bfd_neigh_updown(struct zclient *zclient, int cmd,
 }
 #ifdef HAVE_IPV6
 int
-zapi_ipv6_bfd_neigh_updown(struct zclient *zclient, int cmd, struct prefix_ipv6 *rp, struct prefix_ipv6 *lp, unsigned int ifindex) 
+zapi_ipv6_bfd_neigh_updown(struct zclient *zclient, int cmd,
+			   struct prefix_ipv6 *rp, struct prefix_ipv6 *lp,
+			   unsigned int ifindex, uint32_t flags)
 {
   struct stream *s;
 
@@ -801,7 +803,7 @@ zapi_ipv6_bfd_neigh_updown(struct zclient *zclient, int cmd, struct prefix_ipv6 
 
   stream_putl(s,ifindex);
 
-  stream_putl(s,0); /* Flags values are not important */
+  stream_putl(s,flags); /* Flags values are not important */
 
   stream_putw_at (s, 0, stream_get_endp (s));
 
