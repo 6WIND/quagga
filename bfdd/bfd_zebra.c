@@ -200,6 +200,11 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 			 "Local Diag: %u, Demand mode: %u, Poll bit: %u%s",
 			 neighp->ldiag, bfd_neigh_check_lbit_d (neighp),
 			 bfd_neigh_check_lbit_p (neighp), VTY_NEWLINE);
+		vty_out (vty,
+			 "Session mode: %s%s",
+			 bfd_flag_1hop_check (neighp) ?
+					"Single Hop" : "Multiple Hops",
+			 VTY_NEWLINE);
 		vty_out (vty, "MinTxInt: %u, MinRxInt: %u, Multiplier: %u%s",
 			 neighp->ldesmintx, neighp->lreqminrx, neighp->lmulti,
 			 VTY_NEWLINE);
@@ -212,10 +217,10 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 			 MSEC (neighp->negrxint), neighp->recv_cnt,
 			 VTY_NEWLINE);
 		vty_out (vty,
-			 "UP event: %u, BFD_NEIGH_UP message: %u%s",
+			 "UP event:   %-10u BFD_NEIGH_UP msg:   %u%s",
 			 neighp->up_cnt, neighp->notify_up_cnt, VTY_NEWLINE);
 		vty_out (vty,
-			 "DOWN event: %u, BFD_NEIGH_DOWN message: %u%s",
+			 "DOWN event: %-10u BFD_NEIGH_DOWN msg: %u%s",
 			 neighp->down_cnt, neighp->notify_down_cnt, VTY_NEWLINE);
 
 		vty_out (vty, "Rx Count: %u%s", neighp->recv_cnt,
