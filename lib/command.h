@@ -113,6 +113,7 @@ enum node_type
   VTY_NODE,			/* Vty node. */
   LINK_PARAMS_NODE,		/* Link-parameters node */
   ZEBRA_IF_DEFAULTS_NODE,	/* If defaults dummy node */
+  BFD_NODE,			/* BFD node */
 };
 
 /* Node which has some commands and prompt string and configuration
