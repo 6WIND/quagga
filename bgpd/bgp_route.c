@@ -2788,6 +2788,15 @@ void bgp_vrf_process_entry (struct bgp_info *iter,
 {
   afi_t afi_int = AFI_IP;
   struct bgp_node *vrf_rn = iter->net;
+  unsigned int label = 0;
+
+  /* there should always be a label */
+  if(iter->extra && iter->extra->nlabels >= 1) {
+    if (CHECK_FLAG (iter->flags, BGP_INFO_ORIGIN_EVPN))
+      label = iter->extra->labels[0];
+    else
+      label = iter->extra->labels[0] >> 4;
+  }
 
   if (afi == AFI_L2VPN)
     {
@@ -2833,8 +2842,8 @@ void bgp_vrf_process_entry (struct bgp_info *iter,
                          nh_str, sizeof (nh_str));
             }
           prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
-          zlog_debug ("%s: processing entry (for removal) from %s [ nh %s]", 
-                      pfx_str, iter->peer->host, nh_str);
+          zlog_debug ("%s: processing entry (for removal) from %s [ nh %s label %u]", 
+                      pfx_str, iter->peer->host, nh_str, label);
         }
     }
   else
@@ -2843,11 +2852,7 @@ void bgp_vrf_process_entry (struct bgp_info *iter,
         {
           char nh_str[BUFSIZ] = "<?>";
           char pfx_str[PREFIX_STRLEN];
-          unsigned int label = 0;
 
-          /* there should always be a label */
-          if(iter->extra && iter->extra->nlabels >=1)
-            label = iter->extra->labels[0];
           if(iter->attr && iter->attr->extra)
             {
               if (afi_int == AFI_IP)
