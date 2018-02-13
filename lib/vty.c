@@ -802,6 +802,7 @@ vty_end_config (struct vty *vty)
     case MASC_NODE:
     case PIM_NODE:
     case VTY_NODE:
+    case BFD_NODE:
       vty_config_unlock (vty);
       vty->node = ENABLE_NODE;
       break;
@@ -1210,6 +1211,7 @@ vty_stop_input (struct vty *vty)
     case MASC_NODE:
     case PIM_NODE:
     case VTY_NODE:
+    case BFD_NODE:
       vty_config_unlock (vty);
       vty->node = ENABLE_NODE;
       break;

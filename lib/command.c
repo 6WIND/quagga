@@ -2996,6 +2996,7 @@ DEFUN (config_exit,
     case RMAP_NODE:
     case PIM_NODE:
     case VTY_NODE:
+    case BFD_NODE:
       vty->node = CONFIG_NODE;
       break;
     case BGP_IPV4_NODE:
@@ -3068,6 +3069,7 @@ DEFUN (config_end,
     case PIM_NODE:
     case VTY_NODE:
     case LINK_PARAMS_NODE:
+    case BFD_NODE:
       vty_config_unlock (vty);
       vty->node = ENABLE_NODE;
       break;
