@@ -82,8 +82,8 @@ bfd_new (void)
   bfd->rx_interval = BFD_IF_MINRX_DFT;
   bfd->failure_threshold = BFD_IF_MULTIPLIER_DFT;
   bfd->tx_interval = BFD_IF_INTERVAL_DFT;
-  bfd->debounce_down = BFD_DEBOUNCE_DOWN;
-  bfd->debounce_up = BFD_DEBOUNCE_UP;
+  bfd->debounce_down = DEFAULT_BFD_DEBOUNCE_DOWN;
+  bfd->debounce_up = DEFAULT_BFD_DEBOUNCE_UP;
   bfd->multihop = 0;
 
   QZC_NODE_REG(bfd, bfd)
@@ -320,6 +320,8 @@ bfd_neigh_init (struct bfd_cneigh *cneighp)
 
   /* Use the same set of flags as candidate */
   neighp->flags = cneighp->flags;
+  if (bfd->multihop)
+    SET_FLAG (neighp->flags, BFD_CNEIGH_FLAGS_MULTIHOP);
   neighp->notify = 0;
   neighp->del = 0;
 
