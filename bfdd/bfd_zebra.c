@@ -152,6 +152,71 @@ DEFUN (show_bfd_neighbors_details,
   return CMD_SUCCESS;
 };
 
+DEFUN (bfd_rx_interval,
+       bfd_rx_interval_cmd,
+       "bfd rx-interval <50-30000> tx-interval <1000-60000> threshold <1-20> (single-hop|multihop)",
+       "BFD configuration\n"
+       "desired receive interval\n"
+       "msec\n"
+       "desired transmit interval\n"
+       "msec\n"
+       "failure threshold\n"
+       "failure threshold value\n"
+       "BFD session mode\n"
+       "BFD session mode\n")
+{
+  u_int32_t rx_interval = BFD_IF_MINRX_DFT;
+  u_int32_t tx_interval = BFD_IF_INTERVAL_DFT;
+  u_int32_t multi = BFD_IF_MULTIPLIER_DFT;
+
+  rx_interval = atoi (argv[0]);
+  tx_interval = atoi (argv[1]);
+  multi = atoi (argv[2]);
+
+  if ((rx_interval < BFD_IF_MINRX_MIN) || (rx_interval > BFD_IF_MINRX_MAX))
+    {
+      vty_out (vty, "Rx interval is invalid%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  if ((tx_interval < BFD_IF_INTERVAL_MIN) || (tx_interval > BFD_IF_INTERVAL_MAX))
+    {
+      vty_out (vty, "Tx interval is invalid%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  if ((multi < BFD_IF_MULTIPLIER_MIN) || (multi > BFD_IF_MULTIPLIER_MAX))
+    {
+      vty_out (vty, "Failure threshold is invalid%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  bfd->rx_interval = rx_interval;
+  bfd->tx_interval = tx_interval;
+  bfd->failure_threshold = multi;
+
+  if (strncmp (argv[3], "s", 1) == 0)
+    bfd->multihop = 0;
+  else
+    bfd->multihop = 1;
+
+  bfd_if_info_update();
+
+  return CMD_SUCCESS;
+}
+
+DEFUN (bfd_debounce_timer,
+       bfd_debounce_timer_cmd,
+       "bfd debounce-down <100-5000> debounce-up <1000-10000>",
+       "BFD configuration\n"
+       "Debounce down timer\n"
+       "msec\n"
+       "Debounce up timer\n"
+       "msec\n")
+{
+  bfd->debounce_down = atoi (argv[0]);
+  bfd->debounce_up = atoi (argv[1]);
+
+  return CMD_SUCCESS;
+}
 
 void
 bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
@@ -565,7 +630,60 @@ bfd_signal_neigh_updown (struct bfd_neigh *neighp, int cmd)
 #endif /* HAVE_IPV6 */
 }
 
+/* Configuration write function for bfdd. */
+static int
+bfd_config_write (struct vty *vty)
+{
+  int write = 0;
+  int write_interval = 0, write_debounce_timer = 0;
 
+  if (bfd->rx_interval != BFD_IF_MINRX_DFT ||
+      bfd->tx_interval != BFD_IF_INTERVAL_DFT ||
+      bfd->failure_threshold != BFD_IF_MULTIPLIER_DFT ||
+      bfd->multihop != 0)
+    write_interval = 1;
+
+  if (bfd->debounce_down != DEFAULT_BFD_DEBOUNCE_DOWN ||
+      bfd->debounce_up != DEFAULT_BFD_DEBOUNCE_UP)
+    write_debounce_timer = 1;
+
+  if (write_interval || write_debounce_timer)
+    vty_out (vty, "bfd%s", VTY_NEWLINE);
+
+  if (write_interval)
+    {
+      vty_out (vty, " bfd rx-interval %u tx-interval %u threshold %u %s%s",
+               bfd->rx_interval, bfd->tx_interval, bfd->failure_threshold,
+               bfd->multihop ? "multihop" : "single-hop", VTY_NEWLINE);
+      write++;
+    }
+
+  if (write_debounce_timer)
+    {
+      vty_out (vty, " bfd debounce-down %u debounce-up %u%s",
+               bfd->debounce_down, bfd->debounce_up, VTY_NEWLINE);
+      write++;
+    }
+
+  return write;
+}
+
+/* BFD node structure. */
+static struct cmd_node bfd_node =
+{
+  BFD_NODE,
+  "%s(config-bfd)# ",
+  1,
+};
+
+DEFUN (router_bfd,
+       router_bfd_cmd,
+       "bfd",
+       "Bidirectional Forwarding Detection\n")
+{
+  vty->node = BFD_NODE;
+  return CMD_SUCCESS;
+}
 
 /* Initialization of BFD interface. */
 static void
@@ -579,6 +697,10 @@ bfd_vty_cmd_init (void)
 
   /* Install interface node. */
   install_node (&interface_node, config_write_interface);
+  /* Install bfd top node. */
+  install_node (&bfd_node, bfd_config_write);
+
+  install_element (CONFIG_NODE, &router_bfd_cmd);
 
   install_element (VIEW_NODE, &show_bfd_neighbors_details_cmd);
   install_element (ENABLE_NODE, &show_bfd_neighbors_details_cmd);
@@ -592,6 +714,12 @@ bfd_vty_cmd_init (void)
   install_element (INTERFACE_NODE, &bfd_interval_cmd);
   install_element (INTERFACE_NODE, &bfd_passive_cmd);
   install_element (INTERFACE_NODE, &no_bfd_passive_cmd);
+
+  /* Install default VTY commands to new nodes.  */
+  install_default (BFD_NODE);
+
+  install_element (BFD_NODE, &bfd_rx_interval_cmd);
+  install_element (BFD_NODE, &bfd_debounce_timer_cmd);
 };
 
 
