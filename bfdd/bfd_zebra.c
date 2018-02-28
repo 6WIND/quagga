@@ -154,7 +154,7 @@ DEFUN (show_bfd_neighbors_details,
 
 DEFUN (bfd_rx_interval,
        bfd_rx_interval_cmd,
-       "bfd rx-interval <50-30000> tx-interval <1000-60000> threshold <1-20> (single-hop|multihop)",
+       "bfd rx-interval <20-30000> tx-interval <200-60000> threshold <1-20> (single-hop|multihop)",
        "BFD configuration\n"
        "desired receive interval\n"
        "msec\n"
