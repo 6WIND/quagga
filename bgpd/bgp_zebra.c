@@ -443,8 +443,9 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
       {
         if (!CHECK_FLAG (cneighp->flags, BFD_CNEIGH_FLAGS_CBIT))
           {
-            zlog_debug("Zebra rcvd: ignore bfd neigh down message because peer "
-                       "is gracefully restarted and C-Bit is cleared");
+            zlog_info ("%s BFD DOWN message ignored in the process of "
+                       "graceful restart when C bit is cleared",
+                       peer->host);
             /* Not send peerDown event to zrpcd? TODO */
           }
         else
