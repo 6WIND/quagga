@@ -406,6 +406,7 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
   struct listnode *node;
   union sockunion *su;
   struct bgp_event_bfd_status st;
+  bool send_event = true;
 
   if(!cneighp)
     return -1;
@@ -446,7 +447,7 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
             zlog_info ("%s BFD DOWN message ignored in the process of "
                        "graceful restart when C bit is cleared",
                        peer->host);
-            /* Not send peerDown event to zrpcd? TODO */
+            send_event = false;
           }
         else
           {
@@ -464,21 +465,24 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
     peer->bfd_status = PEER_BFD_STATUS_DOWN;
 
 #ifdef HAVE_ZEROMQ
-    st.as = peer->as;
-    st.peer.family = peer->su.sa.sa_family;
-    if (st.peer.family == AF_INET)
+    if (send_event)
       {
-        st.peer.prefixlen = IPV4_MAX_PREFIXLEN;
-        st.peer.u.prefix4 = peer->su.sin.sin_addr;
-      }
-    else
-      {
-        st.peer.prefixlen = IPV6_MAX_PREFIXLEN;
-        st.peer.u.prefix6 = peer->su.sin6.sin6_addr;
-      }
-    st.up_down = BGP_EVENT_BFD_STATUS_DOWN;
+        st.as = peer->as;
+        st.peer.family = peer->su.sa.sa_family;
+        if (st.peer.family == AF_INET)
+          {
+            st.peer.prefixlen = IPV4_MAX_PREFIXLEN;
+            st.peer.u.prefix4 = peer->su.sin.sin_addr;
+          }
+        else
+          {
+            st.peer.prefixlen = IPV6_MAX_PREFIXLEN;
+            st.peer.u.prefix6 = peer->su.sin6.sin6_addr;
+          }
+        st.up_down = BGP_EVENT_BFD_STATUS_DOWN;
 
-    bgp_notify_bfd_status (bgp, &st);
+        bgp_notify_bfd_status (bgp, &st);
+      }
 #endif /* HAVE_ZEROMQ */
   }
 
