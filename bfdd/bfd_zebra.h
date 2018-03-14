@@ -33,11 +33,20 @@ void bfd_zebra_destroy (void);
 
 void bfd_zclient_reset (void);
 
+/* Show bfd neighbor type */
+enum show_type
+{
+  show_all,
+  show_peer
+};
+
 #define BFD_SH_NEIGH      0
 #define BFD_SH_NEIGH_DET  1
-void bfd_sh_bfd_neigh (struct vty *vty, int mode);
+void bfd_sh_bfd_neigh (struct vty *vty, int mode,
+                       enum show_type type, const char *ip_str);
 void bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
-			   struct route_table *neightable, int *header);
+                           struct route_table *neightable, int *header,
+                           enum show_type type, union sockunion *su);
 
 void bfd_signal_neigh_updown (struct bfd_neigh *neighp, int cmd);
 #define bfd_signal_neigh_up(NEIGH) \
