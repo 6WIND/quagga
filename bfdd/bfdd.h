@@ -56,6 +56,15 @@ extern struct neightbl *neightbl;
 #define BFD_OK			0
 #define BFD_ERR			-1
 
+struct bfd_if_info
+{
+  int enabled;			/* enabled flag */
+  int passive;			/* passive flag */
+  uint32_t interval;		/* desmintx */
+  uint32_t minrx;		/* reqminrx */
+  uint32_t multiplier;
+};
+
 struct bfd
 {
   struct list *wqueue;		/* neighbor's wait queue */
@@ -92,6 +101,8 @@ struct bfd
 
   char *logFile;
   char *logLevel;
+
+  struct bfd_if_info global_info;
 
   QZC_NODE
 };

@@ -44,16 +44,6 @@
 #define BFD_IF_MULTIPLIER_MIN	1
 #define BFD_IF_MULTIPLIER_MAX	20
 
-struct bfd_if_info
-{
-  int enabled;			/* enabled flag */
-  int passive;			/* passive flag */
-  uint32_t interval;		/* desmintx */
-  uint32_t minrx;		/* reqminrx */
-  uint32_t multiplier;
-};
-
-
 void bfd_if_init (void);
 struct bfd_if_info *bfd_if_info_new (void);
 void bfd_if_info_update(void);
