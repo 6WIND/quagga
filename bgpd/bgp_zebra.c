@@ -285,7 +285,64 @@ bgp_bfd_neigh_add(struct peer *peer)
     peer->bfd_status = PEER_BFD_STATUS_ADDED;
   }
   else
-    peer->bfd_status = PEER_BFD_STATUS_NEW;
+  {
+    struct interface *ifp;
+    struct prefix p1, p2;
+
+    if ( !peer->su_local)
+      {
+        union sockunion su_ip_any = {.sin = {.sin_family = AF_INET,
+                                             .sin_addr.s_addr = INADDR_ANY
+                                            }
+                                    };
+#ifdef HAVE_IPV6
+        union sockunion su_ip6_any = {.sin6 = {.sin6_family = AF_INET6,
+                                               .sin6_addr = in6addr_any
+                                              }
+                                     };
+#endif
+
+        if (sockunion_family(&peer->su) == AF_INET)
+          peer->bfd_su_local = sockunion_dup(&su_ip_any);
+#ifdef HAVE_IPV6
+        else
+          peer->bfd_su_local = sockunion_dup(&su_ip6_any);
+#endif
+        peer->bfd_ifindex = 0;
+      }
+    else
+      {
+        peer->bfd_su_local = sockunion_dup(peer->su_local);
+        ifp = if_lookup_by_sockunion_exact(peer->bfd_su_local);
+        peer->bfd_ifindex = ifp->ifindex;
+      }
+
+    if (BGP_DEBUG(zebra, ZEBRA))
+      {
+        char buf1[SU_ADDRSTRLEN], buf2[SU_ADDRSTRLEN];
+        zlog_debug("Zebra send: bfd cneigh add "
+		   "<raddr=%s, laddr=%s, ifindex=%d, flags=%d>",
+		   sockunion2str (&peer->su, buf1, SU_ADDRSTRLEN),
+		   sockunion2str (peer->bfd_su_local, buf2, SU_ADDRSTRLEN),
+		   peer->bfd_ifindex, peer->bfd_flags);
+      }
+
+    if(sockunion_family(&peer->su) == AF_INET)
+      zapi_ipv4_bfd_cneigh_add(zclient,
+	  (struct prefix_ipv4*)sockunion2hostprefix(&peer->su, &p1),
+	  (struct prefix_ipv4*)sockunion2hostprefix(peer->bfd_su_local, &p2),
+	  peer->bfd_ifindex,
+	  peer->bfd_flags);
+#ifdef HAVE_IPV6
+    else
+      zapi_ipv6_bfd_cneigh_add(zclient,
+	  (struct prefix_ipv6*)sockunion2hostprefix(&peer->su, &p1),
+	  (struct prefix_ipv6*)sockunion2hostprefix(peer->bfd_su_local, &p2),
+	  peer->bfd_ifindex,
+	  peer->bfd_flags);
+#endif /* HAVE_IPV6 */
+    peer->bfd_status = PEER_BFD_STATUS_ADDED;
+  }
   return 0;
 }
 
