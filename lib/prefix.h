@@ -251,6 +251,13 @@ union prefix46constptr
 #define IPV6_ADDR_SAME(D,S)  (memcmp ((D), (S), IPV6_MAX_BYTELEN) == 0)
 #define IPV6_ADDR_COPY(D,S)  memcpy ((D), (S), IPV6_MAX_BYTELEN)
 
+#define IS_IPV6_ADDR_UNSPECIFIED(a)           \
+     ((((a)->s6_addr32[0]) == 0) &&           \
+      (((a)->s6_addr32[1]) == 0) &&           \
+      (((a)->s6_addr32[2]) == 0) &&           \
+      (((a)->s6_addr32[3]) == 0))
+
+
 /* Max bit/byte length of l2vpn address. */
 #define L2VPN_PREFIX_ETHTAGLEN (8 * sizeof(u_int32_t))
 #define L2VPN_PREFIX_MACADDRLEN (8 * sizeof (u_int8_t) + 8 * sizeof(struct ethaddr))
