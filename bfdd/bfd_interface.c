@@ -69,6 +69,10 @@ void bfd_if_info_update(void)
   struct interface *ifp;
   struct bfd_if_info *bii;
 
+  bfd->global_info.interval = bfd->tx_interval;
+  bfd->global_info.minrx = bfd->rx_interval;
+  bfd->global_info.multiplier = bfd->failure_threshold;
+
   for (ALL_LIST_ELEMENTS_RO (iflist, node, ifp))
     {
       if (ifp->info)
@@ -108,8 +112,12 @@ bfd_if_init ()
 static int
 bfd_check_if_enabled (struct bfd_neigh *neighp)
 {
-  struct interface *ifp = if_lookup_by_index (neighp->ifindex);
+  struct interface *ifp;
 
+  if (neighp->ifindex == 0)
+    return BFD_OK;
+
+  ifp = if_lookup_by_index (neighp->ifindex);
   if (!ifp)
     if (!(ifp = if_lookup_by_sockunion_exact (neighp->su_local)))
       abort ();
@@ -133,7 +141,12 @@ bfd_neigh_if_passive_update (struct bfd_neigh *neighp)
 struct bfd_if_info *
 bfd_ifinfo_get (struct bfd_neigh *neighp)
 {
-  struct interface *ifp = if_lookup_by_index (neighp->ifindex);
+  struct interface *ifp;
+
+  if (neighp->ifindex == 0)
+    return &bfd->global_info;
+
+  ifp = if_lookup_by_index (neighp->ifindex);
   if (!ifp)
     if (!(ifp = if_lookup_by_sockunion_exact (neighp->su_local)))
       abort ();
@@ -159,6 +172,12 @@ static int
 bfd_neigh_laddr_check (union sockunion *su)
 {
   struct interface *ifp = NULL;
+
+  if (((su->sa.sa_family == AF_INET) &&
+       (su->sin.sin_addr.s_addr == htonl(INADDR_ANY))) ||
+      ((su->sa.sa_family == AF_INET6) &&
+       IS_IPV6_ADDR_UNSPECIFIED (&su->sin6.sin6_addr)))
+    return BFD_OK;
 
   if (su->sa.sa_family == AF_INET)
     ifp = if_lookup_exact_address (su->sin.sin_addr);

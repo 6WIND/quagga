@@ -86,6 +86,12 @@ bfd_new (void)
   bfd->debounce_up = DEFAULT_BFD_DEBOUNCE_UP;
   bfd->multihop = 0;
 
+  bfd->global_info.interval = BFD_IF_INTERVAL_DFT;
+  bfd->global_info.minrx = BFD_IF_MINRX_DFT;
+  bfd->global_info.multiplier = BFD_IF_MULTIPLIER_DFT;
+  bfd->global_info.enabled = 1;
+  bfd->global_info.passive = 0;
+
   QZC_NODE_REG(bfd, bfd)
 }
 
