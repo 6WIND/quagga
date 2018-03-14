@@ -140,7 +140,17 @@ DEFUN (show_bfd_neighbors,
        show_bfd_neighbors_cmd,
        "show bfd neighbors", SHOW_STR BFD_STR "Show BFD neighbors\n")
 {
-  bfd_sh_bfd_neigh (vty, BFD_SH_NEIGH);
+  bfd_sh_bfd_neigh (vty, BFD_SH_NEIGH, show_all, NULL);
+  return CMD_SUCCESS;
+};
+
+DEFUN (show_bfd_neighbors_peer,
+       show_bfd_neighbors_peer_cmd,
+       "show bfd neighbors (A.B.C.D|X:X::X:X)", SHOW_STR BFD_STR "Show BFD neighbors\n"
+       "Neighbor to display information about\n"
+       "Neighbor to display information about\n")
+{
+  bfd_sh_bfd_neigh (vty, BFD_SH_NEIGH, show_peer, argv[0]);
   return CMD_SUCCESS;
 };
 
@@ -148,7 +158,18 @@ DEFUN (show_bfd_neighbors_details,
        show_bfd_neighbors_details_cmd,
        "show bfd neighbors details", SHOW_STR BFD_STR "Show BFD neighbors\n")
 {
-  bfd_sh_bfd_neigh (vty, BFD_SH_NEIGH_DET);
+  bfd_sh_bfd_neigh (vty, BFD_SH_NEIGH_DET, show_all, NULL);
+  return CMD_SUCCESS;
+};
+
+DEFUN (show_bfd_neighbors_peer_details,
+       show_bfd_neighbors_peer_details_cmd,
+       "show bfd neighbors (A.B.C.D|X:X::X:X) details",
+       SHOW_STR BFD_STR "Show BFD neighbors\n"
+       "Neighbor to display information about\n"
+       "Neighbor to display information about\n")
+{
+  bfd_sh_bfd_neigh (vty, BFD_SH_NEIGH_DET, show_peer, argv[0]);
   return CMD_SUCCESS;
 };
 
@@ -220,7 +241,8 @@ DEFUN (bfd_debounce_timer,
 
 void
 bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
-		      struct route_table *neightable, int *header)
+		      struct route_table *neightable, int *header,
+		      enum show_type type, union sockunion *su)
 {
   struct route_node *node, *subnode;
 
@@ -240,6 +262,10 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 	    char lbuf[INET6_ADDRSTRLEN];
 
 	    struct bfd_neigh *neighp = (struct bfd_neigh *) subnode->info;
+
+	    if ((type == show_peer) && su &&
+	        !sockunion_same (neighp->su_remote, su))
+	      continue;
 
 	    snprintf (lbuf, sizeof (lbuf), "%s",
 		      sockunion2str (neighp->su_local, buf, sizeof (buf)));
@@ -320,15 +346,38 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 			 neighp->rreqminechorx, VTY_NEWLINE, VTY_NEWLINE);
 	      }
 	  }
+  if ((type == show_peer) && (*header == 1))
+    vty_out (vty, "%% No such neighbor%s", VTY_NEWLINE);
 }
 
 void
-bfd_sh_bfd_neigh (struct vty *vty, int mode)
+bfd_sh_bfd_neigh (struct vty *vty, int mode, enum show_type type,
+		  const char *ip_str)
 {
   int header = 1;
-  bfd_sh_bfd_neigh_tbl (vty, mode, neightbl->v4->raddr, &header);
+
+  if (ip_str)
+    {
+      union sockunion su;
+      int ret = str2sockunion (ip_str, &su);
+      if (ret < 0)
+        {
+          vty_out (vty, "%% Malformed address: %s%s", ip_str, VTY_NEWLINE);
+          return;
+        }
+
+      if (sockunion_family(&su) == AF_INET)
+        bfd_sh_bfd_neigh_tbl (vty, mode, neightbl->v4->raddr, &header, type, &su);
 #ifdef HAVE_IPV6
-  bfd_sh_bfd_neigh_tbl (vty, mode, neightbl->v6->raddr, &header);
+      else
+        bfd_sh_bfd_neigh_tbl (vty, mode, neightbl->v6->raddr, &header, type, &su);
+#endif /* HAVE_IPV6 */
+      return;
+    }
+
+  bfd_sh_bfd_neigh_tbl (vty, mode, neightbl->v4->raddr, &header, type, NULL);
+#ifdef HAVE_IPV6
+  bfd_sh_bfd_neigh_tbl (vty, mode, neightbl->v6->raddr, &header, type, NULL);
 #endif /* HAVE_IPV6 */
 }
 
@@ -704,9 +753,13 @@ bfd_vty_cmd_init (void)
 
   install_element (VIEW_NODE, &show_bfd_neighbors_details_cmd);
   install_element (ENABLE_NODE, &show_bfd_neighbors_details_cmd);
+  install_element (VIEW_NODE, &show_bfd_neighbors_peer_details_cmd);
+  install_element (ENABLE_NODE, &show_bfd_neighbors_peer_details_cmd);
 
   install_element (VIEW_NODE, &show_bfd_neighbors_cmd);
   install_element (ENABLE_NODE, &show_bfd_neighbors_cmd);
+  install_element (VIEW_NODE, &show_bfd_neighbors_peer_cmd);
+  install_element (ENABLE_NODE, &show_bfd_neighbors_peer_cmd);
 
   install_element (CONFIG_NODE, &interface_cmd);
   install_element (CONFIG_NODE, &no_interface_cmd);
