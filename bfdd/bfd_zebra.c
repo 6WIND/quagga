@@ -173,6 +173,32 @@ DEFUN (show_bfd_neighbors_peer_details,
   return CMD_SUCCESS;
 };
 
+DEFUN (clear_bfd_neighbors_stats,
+       clear_bfd_neighbors_stats_cmd,
+       "clear bfd neighbors stats",
+       CLEAR_STR
+       "BFD information\n"
+       "BFD neighbors\n"
+       "Statistics\n")
+{
+  bfd_clear_bfd_neigh (vty, NULL);
+  return CMD_SUCCESS;
+};
+
+DEFUN (clear_bfd_neighbors_peer_stats,
+       clear_bfd_neighbors_peer_stats_cmd,
+       "clear bfd neighbors (A.B.C.D|X:X::X:X) stats",
+       CLEAR_STR
+       "BFD information\n"
+       "BFD neighbors\n"
+       "Remote neighbor IP address\n"
+       "Remote neighbor IPv6 address\n"
+       "Statistics\n")
+{
+  bfd_clear_bfd_neigh (vty, argv[0]);
+  return CMD_SUCCESS;
+};
+
 DEFUN (bfd_rx_interval,
        bfd_rx_interval_cmd,
        "bfd rx-interval <20-30000> tx-interval <200-60000> threshold <1-20> (single-hop|multihop)",
@@ -381,6 +407,79 @@ bfd_sh_bfd_neigh (struct vty *vty, int mode, enum show_type type,
 #endif /* HAVE_IPV6 */
 }
 
+static void
+bfd_clear_one_bfd_neigh (struct bfd_neigh *neighp)
+{
+  if (!neighp)
+    return;
+
+  neighp->timer_cnt = 0;
+  neighp->up_cnt = 0;
+  neighp->notify_up_cnt = 0;
+  neighp->down_cnt = 0;
+  neighp->notify_down_cnt = 0;
+  neighp->recv_cnt = 0;
+  neighp->xmit_cnt = 0;
+}
+
+void
+bfd_clear_bfd_neigh_tbl (struct vty *vty, struct route_table *neightable,
+			 union sockunion *su)
+{
+  struct route_node *node, *subnode;
+  int found = 0;
+
+  for (node = route_top (neightable); node != NULL; node = route_next (node))
+    if (!node->info)
+      continue;
+    else
+      for (subnode =
+	   route_top (((struct bfd_addrtreehdr *) node->info)->info);
+	   subnode != NULL; subnode = route_next (subnode))
+	if (!subnode->info)
+	  continue;
+	else
+	  {
+	    struct bfd_neigh *neighp = (struct bfd_neigh *) subnode->info;
+
+	    if (su && !sockunion_same (neighp->su_remote, su))
+	      continue;
+
+	    bfd_clear_one_bfd_neigh (neighp);
+	    found = 1;
+	  }
+
+  if (su && !found)
+    vty_out (vty, "%% No such neighbor%s", VTY_NEWLINE);
+}
+
+void
+bfd_clear_bfd_neigh (struct vty *vty, const char *ip_str)
+{
+  if (ip_str)
+    {
+      union sockunion su;
+      int ret = str2sockunion (ip_str, &su);
+      if (ret < 0)
+        {
+          vty_out (vty, "%% Malformed address: %s%s", ip_str, VTY_NEWLINE);
+          return CMD_WARNING;
+        }
+
+      if (sockunion_family(&su) == AF_INET)
+        bfd_clear_bfd_neigh_tbl (vty, neightbl->v4->raddr, &su);
+#ifdef HAVE_IPV6
+      else
+        bfd_clear_bfd_neigh_tbl (vty, neightbl->v6->raddr, &su);
+#endif /* HAVE_IPV6 */
+      return;
+    }
+
+  bfd_clear_bfd_neigh_tbl (vty, neightbl->v4->raddr, NULL);
+#ifdef HAVE_IPV6
+  bfd_clear_bfd_neigh_tbl (vty, neightbl->v6->raddr, NULL);
+#endif /* HAVE_IPV6 */
+}
 
 /* Configuration write function for bfdd. */
 static int
@@ -760,6 +859,9 @@ bfd_vty_cmd_init (void)
   install_element (ENABLE_NODE, &show_bfd_neighbors_cmd);
   install_element (VIEW_NODE, &show_bfd_neighbors_peer_cmd);
   install_element (ENABLE_NODE, &show_bfd_neighbors_peer_cmd);
+
+  install_element (ENABLE_NODE, &clear_bfd_neighbors_stats_cmd);
+  install_element (ENABLE_NODE, &clear_bfd_neighbors_peer_stats_cmd);
 
   install_element (CONFIG_NODE, &interface_cmd);
   install_element (CONFIG_NODE, &no_interface_cmd);

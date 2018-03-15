@@ -47,6 +47,9 @@ void bfd_sh_bfd_neigh (struct vty *vty, int mode,
 void bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
                            struct route_table *neightable, int *header,
                            enum show_type type, union sockunion *su);
+void bfd_clear_bfd_neigh (struct vty *vty, const char *ip_str);
+void bfd_clear_bfd_neigh_tbl (struct vty *vty, struct route_table *neightable,
+                              union sockunion *su);
 
 void bfd_signal_neigh_updown (struct bfd_neigh *neighp, int cmd);
 #define bfd_signal_neigh_up(NEIGH) \
