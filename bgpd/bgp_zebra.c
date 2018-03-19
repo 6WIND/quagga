@@ -258,10 +258,10 @@ bgp_bfd_neigh_add(struct peer *peer)
     peer->bfd_ifindex = ifp->ifindex;
     struct prefix p1, p2;
 
-    if (BGP_DEBUG(zebra, ZEBRA))
+    if (BGP_DEBUG (events, EVENTS))
       {
         char buf1[SU_ADDRSTRLEN], buf2[SU_ADDRSTRLEN];
-        zlog_debug("Zebra send: bfd cneigh add "
+        zlog_debug("bgp->bfd: add bfd neighbor "
 		   "<raddr=%s, laddr=%s, ifindex=%d, flags=%d>",
 		   sockunion2str (&peer->su, buf1, SU_ADDRSTRLEN),
 		   sockunion2str (peer->bfd_su_local, buf2, SU_ADDRSTRLEN),
@@ -317,10 +317,10 @@ bgp_bfd_neigh_add(struct peer *peer)
         peer->bfd_ifindex = ifp->ifindex;
       }
 
-    if (BGP_DEBUG(zebra, ZEBRA))
+    if (BGP_DEBUG (events, EVENTS))
       {
         char buf1[SU_ADDRSTRLEN], buf2[SU_ADDRSTRLEN];
-        zlog_debug("Zebra send: bfd cneigh add "
+        zlog_debug("bgp->bfd: add bfd neighbor "
 		   "<raddr=%s, laddr=%s, ifindex=%d, flags=%d>",
 		   sockunion2str (&peer->su, buf1, SU_ADDRSTRLEN),
 		   sockunion2str (peer->bfd_su_local, buf2, SU_ADDRSTRLEN),
@@ -354,10 +354,10 @@ bgp_bfd_neigh_del(struct peer *peer)
   {
     struct prefix p1, p2;
     
-    if (BGP_DEBUG(zebra, ZEBRA))
+    if (BGP_DEBUG (events, EVENTS))
       {
         char buf1[SU_ADDRSTRLEN], buf2[SU_ADDRSTRLEN];
-        zlog_debug("Zebra send: bfd cneigh del "
+        zlog_debug("bgp->bfd: del bfd neighbor "
 		   "<raddr=%s, laddr=%s, ifindex=%d, flags=%d>",
 		   sockunion2str (&peer->su, buf1, SU_ADDRSTRLEN),
 		   sockunion2str (peer->bfd_su_local, buf2, SU_ADDRSTRLEN),
@@ -396,13 +396,13 @@ bgp_bfd_neigh_up(struct bfd_cneigh *cneighp)
   if(!cneighp)
     return -1;
 
-  if (BGP_DEBUG(zebra, ZEBRA))
+  if (BGP_DEBUG (events, EVENTS))
   { 
     char rpbuf[BUFSIZ];
     char lpbuf[BUFSIZ];
     prefix2str(&cneighp->raddr,rpbuf,sizeof(rpbuf));
     prefix2str(&cneighp->laddr,lpbuf,sizeof(lpbuf));
-    zlog_debug("Zebra rcvd: bfd neigh up "
+    zlog_debug("bgp<-bfd: bfd neighbor up "
 	       "<raddr=%s, laddr=%s, ifindex=%d, flags=%d>",
 	       rpbuf, lpbuf, cneighp->ifindex, cneighp->flags);
   }
@@ -449,6 +449,12 @@ bgp_bfd_neigh_up(struct bfd_cneigh *cneighp)
       }
     st.up_down = BGP_EVENT_BFD_STATUS_UP;
 
+    if (BGP_DEBUG (events, EVENTS))
+      {
+        char buf[SU_ADDRSTRLEN];
+        sockunion2str (&peer->su, buf, SU_ADDRSTRLEN);
+        zlog_info ("bgp->mngr peer %s: BFD status UP", buf);
+      }
     bgp_notify_bfd_status (bgp, &st);
 #endif /* HAVE_ZEROMQ */
   }
@@ -468,13 +474,13 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
   if(!cneighp)
     return -1;
 
-  if (BGP_DEBUG(zebra, ZEBRA) && cneighp)
+  if (BGP_DEBUG (events, EVENTS))
   { 
     char rpbuf[BUFSIZ];
     char lpbuf[BUFSIZ];
     prefix2str(&cneighp->raddr,rpbuf,sizeof(rpbuf));
     prefix2str(&cneighp->laddr,lpbuf,sizeof(lpbuf));
-    zlog_debug("Zebra rcvd: bfd neigh down "
+    zlog_debug("bgp<-bfd: bfd neighbor down "
 	       "<raddr=%s, laddr=%s, ifindex=%d, flags=%d>",
 	       rpbuf, lpbuf, cneighp->ifindex, cneighp->flags);
   }
@@ -538,6 +544,12 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
           }
         st.up_down = BGP_EVENT_BFD_STATUS_DOWN;
 
+        if (BGP_DEBUG (events, EVENTS))
+          {
+            char buf[SU_ADDRSTRLEN];
+            sockunion2str (&peer->su, buf, SU_ADDRSTRLEN);
+            zlog_info ("bgp->mngr peer %s: BFD status DOWN", buf);
+          }
         bgp_notify_bfd_status (bgp, &st);
       }
 #endif /* HAVE_ZEROMQ */
