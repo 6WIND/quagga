@@ -1818,8 +1818,8 @@ void bgp_vrf_clean_tables (struct bgp_vrf *vrf)
           {
             ri_next = ri->next;
             bgp_vrf_update(vrf, afi, rn, ri, false);
-            bgp_info_reap (rn, ri);
             bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, afi);
+            bgp_info_reap (rn, ri);
           }
       bgp_table_finish (&vrf->rib[afi]);
 
@@ -1873,8 +1873,8 @@ static void bgp_vrf_disable_perafi (struct bgp_vrf *vrf, afi_t afi)
         if (!CHECK_FLAG (ri->flags, BGP_INFO_ORIGIN_EVPN))
           {
             bgp_vrf_update(vrf, afi, rn, ri, false);
-            bgp_info_reap (rn, ri);
             bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, afi);
+            bgp_info_reap (rn, ri);
           }
       }
 }
@@ -1894,8 +1894,8 @@ static void bgp_vrf_disable_l2vpn (struct bgp_vrf *vrf, afi_t afi)
         if (CHECK_FLAG (ri->flags, BGP_INFO_ORIGIN_EVPN))
           {
             bgp_vrf_update(vrf, afi, rn, ri, false);
-            bgp_info_reap (rn, ri);
             bgp_vrf_delete_vrf_update_global_rib (&(rn->p), ri, vrf, AFI_L2VPN);
+            bgp_info_reap (rn, ri);
           }
       }
 }
@@ -3446,7 +3446,7 @@ bgp_vrf_delete_vrf_update_global_rib (struct prefix *p, struct bgp_info *vrf_ri,
   size_t i;
   int vrf_ignore = 1;
   struct attr *attr;
-  struct prefix_rd *prd = &(in_vrf->outbound_rd);
+  struct prefix_rd *prd = &(vrf_ri->extra->vrf_rd);
 
   bgp = bgp_get_default ();
   if (bgp == NULL)
