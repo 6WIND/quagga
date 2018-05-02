@@ -1,8 +1,15 @@
 /opt/quagga/var/log/quagga/qthriftd.init.log {
+    su quagga quaggaa
     compress
     hourly
     rotate 99
     size 10K
     missingok
-    copytruncate
+    postrotate
+      touch /opt/quagga/var/log/quagga/qthriftd.init.log
+      chown -R quagga:quagga /opt/quagga/var/log/quagga/qthriftd.init.log
+      chmod u=rwx,go=rwx /opt/quagga/var/log/quagga/qthriftd.init.log
+      /bin/kill -USR1 `cat /opt/quagga/var/run/quagga/bgpd.pid 2>/dev/null || true`
+      /bin/kill -USR1 `cat /opt/quagga/var/run/quagga/qthriftd.init.pid 2>/dev/null || true`
+    endscript
 }

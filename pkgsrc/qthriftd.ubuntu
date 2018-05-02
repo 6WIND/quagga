@@ -40,6 +40,7 @@ check_privsep_dir() {
 		mkdir $PREFIX/var/log/quagga/
 		chmod 0755 $PREFIX/var/log/quagga/
 		chown -R quagga:quagga $PREFIX/var/log/quagga/
+		chmod u=rwx,go=rwx $PREFIX/var/log/quagga/qthriftd.init.log
 	fi
 }
 

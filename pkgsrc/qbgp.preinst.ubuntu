@@ -30,8 +30,9 @@ if [ "$1" = "install" ]; then
     mkdir -p $d
     touch $PREFIX/var/log/quagga/qthriftd.init.log
     chown -R quagga:quagga $d
+    find $d -type f -print0 | xargs -0 --no-run-if-empty   chmod u=rw,g=rw,o=
+    chmod u=rwx,go=rwx $PREFIX/var/log/quagga/qthriftd.init.log
     chmod u=rwx,go=rx $d
-    find $d -type f -print0 | xargs -0 --no-run-if-empty   chmod u=rw,g=r,o=
 
   # Strict permissions for the sockets.
   d=$PREFIX/var/run/quagga/

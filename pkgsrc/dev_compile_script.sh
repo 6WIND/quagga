@@ -368,7 +368,9 @@ build_qbgp (){
 	echo "debug bgp events" >> /opt/quagga/etc/bgpd.conf
         mkdir /opt/quagga/var/run/quagga -p
         mkdir /opt/quagga/var/log/quagga -p
-        touch /opt/quagga/var/log/quagga/qthriftd.init.log.init.log
+        if [ ! -f /opt/quagga/var/log/quagga/qthriftd.init.log ]; then
+            touch /opt/quagga/var/log/quagga/qthriftd.init.log;
+        fi
 	case $HOST_NAME in
         Ubuntu*)
              echo "UBUNTU VM"

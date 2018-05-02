@@ -84,6 +84,7 @@ start () {
 	kill_all_log_rotate
         touch $LOGFILE
         chown quagga:quagga $LOGFILE
+        chmod u=rwx,go=rwx $LOGFILE
         $BIN -D 2>/dev/null >/dev/null &
         ret=$!
         sleep 1

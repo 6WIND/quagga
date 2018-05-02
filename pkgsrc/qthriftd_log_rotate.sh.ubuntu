@@ -18,8 +18,6 @@ do
 	sleep $time_sleep
 	if [ -r $LOGFILE ] && [ "$(stat --printf='%s' $LOGFILE)" -gt "$((${size}*1024*1024))" ]; then
 		/usr/sbin/logrotate -f /opt/quagga/etc/init.d/qthriftd.rotate
-                touch $LOGFILE
-                chown quagga:quagga $LOGFILE
 	fi
 done
 
