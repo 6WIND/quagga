@@ -363,6 +363,17 @@ bfd_fsm_up (struct bfd_neigh *neighp)
 	  else
 	    BFD_TIMER_OFF (neighp->t_hello);
 	}
+      else
+	{
+	  /* If neighbor is not in demand mode and peer has pulled us,
+	     we should immediately transmit a BFD Control packet with
+	     the Final(F) bit set */
+	  if (bfd_neigh_check_lbit_f (neighp))
+	    {
+	      BFD_TIMER_OFF (neighp->t_hello);
+	      BFD_TIMER_MSEC_ON (neighp->t_hello, bfd_pkt_xmit, 0);
+	    }
+	}
 
       if (!neighp->uptime)
 	neighp->uptime = time (NULL);
