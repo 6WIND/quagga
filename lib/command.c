@@ -3844,6 +3844,17 @@ set_log_file(struct vty *vty, const char *fname, int loglevel)
   return CMD_SUCCESS;
 }
 
+int set_log_file_with_level(const char *logname, const char *loglevel)
+{
+  int level;
+
+  if (!logname || !loglevel)
+    return CMD_ERR_NO_MATCH;
+  if ((level = level_match(loglevel)) == ZLOG_DISABLED)
+    return CMD_ERR_NO_MATCH;
+  return set_log_file(NULL, logname, level);
+}
+
 DEFUN (config_log_file,
        config_log_file_cmd,
        "log file FILENAME",
