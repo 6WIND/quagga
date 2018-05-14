@@ -215,7 +215,6 @@ zread_bfd_cneigh_list (struct zserv *client, struct route_table *cneightable,
 		       int family)
 {
   struct route_node *node, *subnode;
-  int ret;
 
   for (node = route_top (cneightable); node != NULL; node = route_next (node))
     if (!node->info)
@@ -229,11 +228,9 @@ zread_bfd_cneigh_list (struct zserv *client, struct route_table *cneightable,
 	else
 	  {
 	    if (family == AF_INET)
-	      ret = zsend_ipv4_bfd_cneigh_add (subnode->info);
+	      zsend_ipv4_bfd_cneigh_add (subnode->info);
 	    else
-	      ret = zsend_ipv6_bfd_cneigh_add (subnode->info);
-	    if (!ret)
-	      return -1;
+	      zsend_ipv6_bfd_cneigh_add (subnode->info);
 	  }
   return 0;
 }
