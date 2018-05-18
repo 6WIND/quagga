@@ -349,6 +349,10 @@ bgp_bfd_neigh_add(struct peer *peer)
 int
 bgp_bfd_neigh_del(struct peer *peer)
 {
+  /* If peer->bfd_su_local is NULL, no bfd neighbor has been added */
+  if ( !peer->bfd_su_local)
+    return -1;
+
   if(peer->bfd_status != PEER_BFD_STATUS_NEW 
      && peer->bfd_status !=  PEER_BFD_STATUS_DELETED)
   {
