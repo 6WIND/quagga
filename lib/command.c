@@ -3832,7 +3832,10 @@ set_log_file(struct vty *vty, const char *fname, int loglevel)
 
   if (!ret)
     {
-      vty_out (vty, "can't open logfile %s\n", fname);
+      if (vty)
+        vty_out (vty, "can't open logfile %s\n", fname);
+      else
+        zlog_err("can't open logfile %s\n", fname);
       return CMD_WARNING;
     }
 
