@@ -62,6 +62,6 @@ void qcapn_BFD_set(struct bfd *s, capn_ptr p)
     { capn_text tp = capn_get_text(p, 1, capn_val0); free(s->logLevel); s->logLevel = strdup(tp.str); }
     if (strlen(s->logFile) > 0 && strlen(s->logLevel) > 0)
       {
-        zlog_set_file (NULL, s->logFile, s->logLevel);
+        set_log_file_with_level(s->logFile, s->logLevel);
       }
 }
