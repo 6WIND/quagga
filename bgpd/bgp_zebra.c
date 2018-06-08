@@ -247,8 +247,8 @@ bgp_bfd_neigh_add(struct peer *peer)
   peer->bfd_ifindex = 0;
   if(CHECK_FLAG(peer->flags,PEER_FLAG_MULTIHOP))
     SET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_MULTIHOP);
-  if(!CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_MODE))
-    SET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
+  else
+    UNSET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_MULTIHOP);
 
   if(peer->status == Established)
   {
@@ -257,6 +257,11 @@ bgp_bfd_neigh_add(struct peer *peer)
     ifp = if_lookup_by_sockunion_exact(peer->bfd_su_local);
     peer->bfd_ifindex = ifp->ifindex;
     struct prefix p1, p2;
+
+    if (!CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_MODE))
+      SET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
+    else
+      UNSET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
 
     if (BGP_DEBUG (events, EVENTS))
       {
@@ -286,36 +291,26 @@ bgp_bfd_neigh_add(struct peer *peer)
   }
   else
   {
-    struct interface *ifp;
     struct prefix p1, p2;
 
-    if ( !peer->su_local)
-      {
-        union sockunion su_ip_any = {.sin = {.sin_family = AF_INET,
-                                             .sin_addr.s_addr = INADDR_ANY
-                                            }
-                                    };
+    union sockunion su_ip_any = {.sin = {.sin_family = AF_INET,
+                                         .sin_addr.s_addr = INADDR_ANY
+                                        }
+                                };
 #ifdef HAVE_IPV6
-        union sockunion su_ip6_any = {.sin6 = {.sin6_family = AF_INET6,
-                                               .sin6_addr = in6addr_any
-                                              }
-                                     };
+    union sockunion su_ip6_any = {.sin6 = {.sin6_family = AF_INET6,
+                                           .sin6_addr = in6addr_any
+                                          }
+                                 };
 #endif
 
-        if (sockunion_family(&peer->su) == AF_INET)
-          peer->bfd_su_local = sockunion_dup(&su_ip_any);
+    if (sockunion_family(&peer->su) == AF_INET)
+      peer->bfd_su_local = sockunion_dup(&su_ip_any);
 #ifdef HAVE_IPV6
-        else
-          peer->bfd_su_local = sockunion_dup(&su_ip6_any);
-#endif
-        peer->bfd_ifindex = 0;
-      }
     else
-      {
-        peer->bfd_su_local = sockunion_dup(peer->su_local);
-        ifp = if_lookup_by_sockunion_exact(peer->bfd_su_local);
-        peer->bfd_ifindex = ifp->ifindex;
-      }
+      peer->bfd_su_local = sockunion_dup(&su_ip6_any);
+#endif
+    peer->bfd_ifindex = 0;
 
     if (BGP_DEBUG (events, EVENTS))
       {
