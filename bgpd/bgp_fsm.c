@@ -457,6 +457,43 @@ bgp_clearing_completed (struct peer *peer)
   return rc;
 }
 
+#ifdef HAVE_ZEROMQ
+void
+bgp_bfd_send_event(struct bgp *bgp, struct peer *peer, uint8_t up_down)
+{
+  struct bgp_event_bfd_status st;
+
+  if (!bgp || !peer)
+    return;
+  if ((up_down != BGP_EVENT_BFD_STATUS_UP) &&
+      (up_down != BGP_EVENT_BFD_STATUS_DOWN))
+    return;
+
+  st.as = peer->as;
+  st.peer.family = peer->su.sa.sa_family;
+  if (st.peer.family == AF_INET)
+    {
+      st.peer.prefixlen = IPV4_MAX_PREFIXLEN;
+      st.peer.u.prefix4 = peer->su.sin.sin_addr;
+    }
+  else
+    {
+      st.peer.prefixlen = IPV6_MAX_PREFIXLEN;
+      st.peer.u.prefix6 = peer->su.sin6.sin6_addr;
+    }
+  st.up_down = up_down;
+
+  if (BGP_DEBUG (events, EVENTS))
+    {
+      char buf[SU_ADDRSTRLEN];
+      sockunion2str (&peer->su, buf, SU_ADDRSTRLEN);
+      zlog_info ("bgp->mngr peer %s: BFD status %s",
+		 buf, up_down ? "UP" : "DOWN");
+    }
+  bgp_notify_bfd_status (bgp, &st);
+}
+#endif /* HAVE_ZEROMQ */
+
 /* Administrative BGP peer stop event. */
 /* May be called multiple times for the same peer */
 int
@@ -465,6 +502,9 @@ bgp_stop (struct peer *peer)
   afi_t afi;
   safi_t safi;
   char orf_name[BUFSIZ];
+#ifdef HAVE_ZEROMQ
+  bool send_event = false;
+#endif
 
   /* Can't do this in Clearing; events are used for state transitions */
   if (peer->status != Clearing)
@@ -492,17 +532,32 @@ bgp_stop (struct peer *peer)
 	}
       if (CHECK_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT))
 	{
-	  if (BGP_DEBUG (events, EVENTS))
+	  if (CHECK_FLAG (peer->sflags, PEER_STATUS_BFD_CBIT))
 	    {
-	      zlog_debug ("%s graceful restart timer started for %d sec",
-			  peer->host, peer->v_gr_restart);
-	      zlog_debug ("%s graceful restart stalepath timer started for %d sec",
-			  peer->host, peer->bgp->stalepath_time);
+	      UNSET_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT);
+	      UNSET_FLAG (peer->sflags, PEER_STATUS_NSF_MODE);
+
+	      for (afi = AFI_IP ; afi < AFI_MAX ; afi++)
+		for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_5 ; safi++)
+		  peer->nsf[afi][safi] = 0;
+#ifdef HAVE_ZEROMQ
+	      send_event = true;
+#endif
 	    }
-	  BGP_TIMER_ON (peer->t_gr_restart, bgp_graceful_restart_timer_expire,
-			peer->v_gr_restart);
-	  BGP_TIMER_ON (peer->t_gr_stale, bgp_graceful_stale_timer_expire,
-			peer->bgp->stalepath_time);
+	  else
+	    {
+	      if (BGP_DEBUG (events, EVENTS))
+		{
+		  zlog_debug ("%s graceful restart timer started for %d sec",
+			      peer->host, peer->v_gr_restart);
+		  zlog_debug ("%s graceful restart stalepath timer started for %d sec",
+			      peer->host, peer->bgp->stalepath_time);
+		}
+	      BGP_TIMER_ON (peer->t_gr_restart, bgp_graceful_restart_timer_expire,
+			    peer->v_gr_restart);
+	      BGP_TIMER_ON (peer->t_gr_stale, bgp_graceful_stale_timer_expire,
+			    peer->bgp->stalepath_time);
+	    }
 	}
       else
 	{
@@ -511,7 +566,25 @@ bgp_stop (struct peer *peer)
 	  for (afi = AFI_IP ; afi < AFI_MAX ; afi++)
 	    for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_5 ; safi++)
 	      peer->nsf[afi][safi] = 0;
+
+#ifdef HAVE_ZEROMQ
+	  if (CHECK_FLAG (peer->sflags, PEER_STATUS_CLOSE_SESSION))
+	    {
+	      send_event = true;
+	      UNSET_FLAG (peer->sflags, PEER_STATUS_CLOSE_SESSION);
+	    }
+	  else if (CHECK_FLAG (peer->sflags, PEER_STATUS_HOLDTIME_EXPIRED))
+	    {
+	      send_event = true;
+	      UNSET_FLAG (peer->sflags, PEER_STATUS_HOLDTIME_EXPIRED);
+	    }
+#endif
 	}
+
+#ifdef HAVE_ZEROMQ
+      if (CHECK_FLAG (peer->flags, PEER_FLAG_BFD_SYNC) && send_event)
+        bgp_bfd_send_event(peer->bgp, peer, BGP_EVENT_BFD_STATUS_DOWN);
+#endif /* HAVE_ZEROMQ */
 
       /* set last reset time */
       peer->resettime = peer->uptime = bgp_clock ();
@@ -851,6 +924,14 @@ bgp_fsm_holdtime_expire (struct peer *peer)
 {
   if (BGP_DEBUG (fsm, FSM))
     plog_debug (peer->log, "%s [FSM] Hold timer expire", peer->host);
+
+  if ((peer->status == Established)
+      && CHECK_FLAG (peer->flags, PEER_FLAG_BFD_SYNC))
+    {
+      if (CHECK_FLAG (peer->sflags, PEER_STATUS_NSF_MODE))
+        SET_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT);
+      SET_FLAG (peer->sflags, PEER_STATUS_HOLDTIME_EXPIRED);
+    }
 
   return bgp_stop_with_notify (peer, BGP_NOTIFY_HOLD_ERR, 0);
 }

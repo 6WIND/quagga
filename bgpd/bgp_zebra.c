@@ -380,6 +380,8 @@ bgp_bfd_neigh_del(struct peer *peer)
     sockunion_free(peer->bfd_su_local);
     peer->bfd_status = PEER_BFD_STATUS_DELETED;
   }
+
+  UNSET_FLAG (peer->sflags, PEER_STATUS_BFD_CBIT);
   return 0;
 }
 
@@ -390,7 +392,6 @@ bgp_bfd_neigh_up(struct bfd_cneigh *cneighp)
   struct peer *peer;
   struct listnode *node;
   union sockunion *su;
-  struct bgp_event_bfd_status st;
 
   if(!cneighp)
     return -1;
@@ -418,6 +419,12 @@ bgp_bfd_neigh_up(struct bfd_cneigh *cneighp)
     if(!CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
       return 0;
 
+    /* Save C-bit flag from peer */
+    if (CHECK_FLAG (cneighp->flags, BFD_CNEIGH_FLAGS_CBIT))
+      SET_FLAG (peer->sflags, PEER_STATUS_BFD_CBIT);
+    else
+      UNSET_FLAG (peer->sflags, PEER_STATUS_BFD_CBIT);
+
     /* Ignore UP message when we are in UP state. We also don't want
        to receive anything when we are just about to be deleted */
     if(peer->bfd_status ==  PEER_BFD_STATUS_UP 
@@ -434,28 +441,8 @@ bgp_bfd_neigh_up(struct bfd_cneigh *cneighp)
     peer->bfd_status = PEER_BFD_STATUS_UP;
 
 #ifdef HAVE_ZEROMQ
-    st.as = peer->as;
-    st.peer.family = peer->su.sa.sa_family;
-    if (st.peer.family == AF_INET)
-      {
-        st.peer.prefixlen = IPV4_MAX_PREFIXLEN;
-        st.peer.u.prefix4 = peer->su.sin.sin_addr;
-      }
-    else
-      {
-        st.peer.prefixlen = IPV6_MAX_PREFIXLEN;
-        st.peer.u.prefix6 = peer->su.sin6.sin6_addr;
-      }
-    st.up_down = BGP_EVENT_BFD_STATUS_UP;
-
-    if (BGP_DEBUG (events, EVENTS))
-      {
-        char buf[SU_ADDRSTRLEN];
-        sockunion2str (&peer->su, buf, SU_ADDRSTRLEN);
-        zlog_info ("bgp->mngr peer %s: BFD status UP", buf);
-      }
-    bgp_notify_bfd_status (bgp, &st);
-#endif /* HAVE_ZEROMQ */
+    bgp_bfd_send_event(bgp, peer, BGP_EVENT_BFD_STATUS_UP);
+#endif
   }
   return 0;
 }
@@ -467,8 +454,9 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
   struct peer *peer;
   struct listnode *node;
   union sockunion *su;
-  struct bgp_event_bfd_status st;
+#ifdef HAVE_ZEROMQ
   bool send_event = true;
+#endif
 
   if(!cneighp)
     return -1;
@@ -496,6 +484,12 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
     if(!CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
       return 0;
 
+    /* Save C-bit flag from peer */
+    if (CHECK_FLAG (cneighp->flags, BFD_CNEIGH_FLAGS_CBIT))
+      SET_FLAG (peer->sflags, PEER_STATUS_BFD_CBIT);
+    else
+      UNSET_FLAG (peer->sflags, PEER_STATUS_BFD_CBIT);
+
     /* Ignore DOWN message when we are in DOWN state. We also don't want
        to receive anything when we are just about to be deleted */
     if(peer->bfd_status ==  PEER_BFD_STATUS_DOWN 
@@ -509,48 +503,33 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
             zlog_info ("%s BFD DOWN message ignored in the process of "
                        "graceful restart when C bit is cleared",
                        peer->host);
-            send_event = false;
           }
         else
           {
             /* Abort graceful restart when C-Bit is set */
             peer_nsf_stop (peer);
           }
+#ifdef HAVE_ZEROMQ
+        send_event = false;
+#endif
       }
     else
       {
         /* If we were in UP state, stop BGP */
         if(peer->bfd_status == PEER_BFD_STATUS_UP)
           BGP_EVENT_ADD (peer, BGP_Stop);
+
+#ifdef HAVE_ZEROMQ
+	if (peer->status != Established)
+	  send_event = false;
+#endif
       }
     /* Change peer status to DOWN */
     peer->bfd_status = PEER_BFD_STATUS_DOWN;
 
 #ifdef HAVE_ZEROMQ
     if (send_event)
-      {
-        st.as = peer->as;
-        st.peer.family = peer->su.sa.sa_family;
-        if (st.peer.family == AF_INET)
-          {
-            st.peer.prefixlen = IPV4_MAX_PREFIXLEN;
-            st.peer.u.prefix4 = peer->su.sin.sin_addr;
-          }
-        else
-          {
-            st.peer.prefixlen = IPV6_MAX_PREFIXLEN;
-            st.peer.u.prefix6 = peer->su.sin6.sin6_addr;
-          }
-        st.up_down = BGP_EVENT_BFD_STATUS_DOWN;
-
-        if (BGP_DEBUG (events, EVENTS))
-          {
-            char buf[SU_ADDRSTRLEN];
-            sockunion2str (&peer->su, buf, SU_ADDRSTRLEN);
-            zlog_info ("bgp->mngr peer %s: BFD status DOWN", buf);
-          }
-        bgp_notify_bfd_status (bgp, &st);
-      }
+      bgp_bfd_send_event(bgp, peer, BGP_EVENT_BFD_STATUS_DOWN);
 #endif /* HAVE_ZEROMQ */
   }
 
