@@ -404,11 +404,15 @@ void qcapn_BGP_set(struct bgp *s, capn_ptr p)
       
     }
     {
-      const char * logFile, *logLevel;
+      const char * logFile, *logLevel, *logLevelSyslog;
       { capn_text tp = capn_get_text(p, 3, capn_val0); logFile = tp.str; }
       { capn_text tp = capn_get_text(p, 4, capn_val0); logLevel = tp.str; }
       if (strlen(logFile) > 0 && strlen(logLevel) > 0) {
           set_log_file_with_level(logFile, logLevel);
+      }
+      { capn_text tp = capn_get_text(p, 5, capn_val0); logLevelSyslog = tp.str; }
+      if (strlen(logLevelSyslog) > 0) {
+        set_log_syslog_with_level(logLevelSyslog);
       }
     }
     s->distance_ebgp = capn_read8(p, 6);
@@ -429,7 +433,7 @@ as_t qcapn_BGP_get_as(capn_ptr p)
 
 capn_ptr qcapn_new_BGP(struct capn_segment *s)
 {
-    return capn_new_struct(s, 34, 3);
+    return capn_new_struct(s, 34, 6);
 }
 
 
