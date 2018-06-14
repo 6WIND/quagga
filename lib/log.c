@@ -69,6 +69,18 @@ const char *zlog_priority[] =
   NULL,
 };
   
+const char *zlog_syslog_priority[] =
+{
+  "Emergency",
+  "Alert",
+  "Critical",
+  "Error",
+  "Warning",
+  "Notice",
+  "Informational",
+  "Debug",
+  NULL,
+};
 
 
 /* For time string format. */
@@ -190,7 +202,7 @@ vzlog (struct zlog *zl, int priority, const char *format, va_list args)
       va_list ac;
       time_print (zl->fp, &tsctl);
       if (zl->record_priority)
-	fprintf (zl->fp, "%s: ", zlog_priority[priority]);
+	fprintf (zl->fp, "%s: ", zlog_syslog_priority[priority]);
       fprintf (zl->fp, "%s: ", zlog_proto_names[zl->protocol]);
       va_copy(ac, args);
       vfprintf (zl->fp, format, ac);
@@ -205,7 +217,7 @@ vzlog (struct zlog *zl, int priority, const char *format, va_list args)
       va_list ac;
       time_print (stdout, &tsctl);
       if (zl->record_priority)
-	fprintf (stdout, "%s: ", zlog_priority[priority]);
+	fprintf (stdout, "%s: ", zlog_syslog_priority[priority]);
       fprintf (stdout, "%s: ", zlog_proto_names[zl->protocol]);
       va_copy(ac, args);
       vfprintf (stdout, format, ac);
@@ -216,7 +228,7 @@ vzlog (struct zlog *zl, int priority, const char *format, va_list args)
 
   /* Terminal monitor. */
   if (priority <= zl->maxlvl[ZLOG_DEST_MONITOR])
-    vty_log ((zl->record_priority ? zlog_priority[priority] : NULL),
+    vty_log ((zl->record_priority ? zlog_syslog_priority[priority] : NULL),
 	     zlog_proto_names[zl->protocol], format, &tsctl, args);
 
   errno = original_errno;
