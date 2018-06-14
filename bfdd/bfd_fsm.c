@@ -104,6 +104,8 @@ bfd_fsm_stimeout (struct thread *thread)
 
       /* Clear flags (bits) */
       neighp->lbits = 0;
+      if (CHECK_FLAG (neighp->flags, BFD_CNEIGH_FLAGS_CBIT))
+        neighp->lbits |= BFD_BIT_C;
       neighp->rbits = 0;
 
       neighp->notify = 0;
