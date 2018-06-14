@@ -740,6 +740,7 @@ DEFUN (bgp_maxpaths,
 	       maxpaths, bgp_node_afi (vty), bgp_node_safi(vty), VTY_NEWLINE);
       return CMD_WARNING;
     }
+  bgp_vrfs_maximum_paths_set(bgp, bgp_node_afi (vty), bgp_node_safi(vty), maxpaths);
 
   return CMD_SUCCESS;
 }
@@ -768,7 +769,7 @@ DEFUN (bgp_maxpaths_ibgp,
 	       maxpaths, bgp_node_afi (vty), bgp_node_safi(vty), VTY_NEWLINE);
       return CMD_WARNING;
     }
-
+  bgp_vrfs_maximum_paths_set(bgp, bgp_node_afi (vty), bgp_node_safi(vty), maxpaths);
   return CMD_SUCCESS;
 }
 

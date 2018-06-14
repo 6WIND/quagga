@@ -2320,7 +2320,10 @@ void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi,
       orig_value = vrf->max_mpath[afi][safi];
       if (maxpaths > BGP_DEFAULT_MAXPATHS)
         {
-          vrf->max_mpath[afi][safi] = vrf->max_mpath_configured;
+          if (maxpaths < orig_value)
+            vrf->max_mpath[afi][safi] = maxpaths;
+          else
+            vrf->max_mpath[afi][safi] = vrf->max_mpath_configured;
         }
       else
         {
