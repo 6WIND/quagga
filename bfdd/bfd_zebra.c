@@ -265,6 +265,20 @@ DEFUN (bfd_debounce_timer,
   return CMD_SUCCESS;
 }
 
+DEFUN (show_bfd_global_config,
+       show_bfd_global_config_cmd,
+       "show bfd global-config", SHOW_STR BFD_STR "Show BFD global config\n")
+{
+  vty_out (vty, "config-version: %d%s", bfd->config_data_version, VTY_NEWLINE);
+  vty_out (vty, "rx-interval:    %u%s", bfd->rx_interval, VTY_NEWLINE);
+  vty_out (vty, "tx-interval:    %u%s", bfd->tx_interval, VTY_NEWLINE);
+  vty_out (vty, "threshold:      %u%s", bfd->failure_threshold, VTY_NEWLINE);
+  vty_out (vty, "multihop:       %s%s", bfd->multihop ? "yes" : "no", VTY_NEWLINE);
+  vty_out (vty, "debounce-down:  %u%s", bfd->debounce_down, VTY_NEWLINE);
+  vty_out (vty, "debounce-up:    %u%s", bfd->debounce_up, VTY_NEWLINE);
+  return CMD_SUCCESS;
+};
+
 void
 bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 		      struct route_table *neightable, int *header,
@@ -875,6 +889,9 @@ bfd_vty_cmd_init (void)
 
   install_element (BFD_NODE, &bfd_rx_interval_cmd);
   install_element (BFD_NODE, &bfd_debounce_timer_cmd);
+
+  install_element (VIEW_NODE, &show_bfd_global_config_cmd);
+  install_element (ENABLE_NODE, &show_bfd_global_config_cmd);
 };
 
 
