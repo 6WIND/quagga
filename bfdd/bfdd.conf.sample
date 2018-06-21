@@ -1,0 +1,13 @@
+!
+! BFDd sample configuratin file
+!
+! bfdd.conf
+!
+hostname bfdd
+password zebra
+!
+!log file zapd.log
+!
+log stdout
+!
+

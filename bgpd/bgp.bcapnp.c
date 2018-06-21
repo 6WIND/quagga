@@ -197,6 +197,16 @@ void qcapn_BGP_read(struct bgp *s, capn_ptr p)
     s->distance_ebgp = capn_read8(p, 6);
     s->distance_ibgp = capn_read8(p, 7);
     s->distance_local = capn_read8(p, 8);
+    { bool tmp;
+      tmp = !!(capn_read8(p, 9) & (1 << 0));
+      if (tmp) s->flags |=  BGP_FLAG_BFD_SYNC;
+      else     s->flags &= ~BGP_FLAG_BFD_SYNC;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 9) & (1 << 1));
+      if (tmp) s->flags |=  BGP_FLAG_BFD_MULTIHOP;
+      else     s->flags &= ~BGP_FLAG_BFD_MULTIHOP;
+    }
     s->default_local_pref = capn_read32(p, 12);
     s->default_holdtime = capn_read32(p, 16);
     s->default_keepalive = capn_read32(p, 20);
@@ -238,6 +248,8 @@ void qcapn_BGP_write(const struct bgp *s, capn_ptr p)
     capn_write8(p, 6, s->distance_ebgp);
     capn_write8(p, 7, s->distance_ibgp);
     capn_write8(p, 8, s->distance_local);
+    capn_write1(p, 72, !!(s->flags & BGP_FLAG_BFD_SYNC));
+    capn_write1(p, 73, !!(s->flags & BGP_FLAG_BFD_MULTIHOP));
     capn_write32(p, 12, s->default_local_pref);
     capn_write32(p, 16, s->default_holdtime);
     capn_write32(p, 20, s->default_keepalive);
@@ -418,11 +430,22 @@ void qcapn_BGP_set(struct bgp *s, capn_ptr p)
     s->distance_ebgp = capn_read8(p, 6);
     s->distance_ibgp = capn_read8(p, 7);
     s->distance_local = capn_read8(p, 8);
+    { bool tmp;
+      tmp = !!(capn_read8(p, 9) & (1 << 1));
+      if (tmp) bgp_flag_set(s, BGP_FLAG_BFD_MULTIHOP);
+        else bgp_flag_unset(s, BGP_FLAG_BFD_MULTIHOP);
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 9) & (1 << 0));
+      if (tmp)
+        bgp_bfd_sync_set(s);
+      else
+        bgp_bfd_sync_unset(s);
+    }
     s->stalepath_time = capn_read32(p, 28);
     s->restart_time = capn_read32(p, 24);
     s->v_update_delay = capn_read16(p, 32);
 }
-
 
 as_t qcapn_BGP_get_as(capn_ptr p)
 {
@@ -579,6 +602,21 @@ void qcapn_BGPPeer_read(struct peer *s, capn_ptr p)
       if (tmp) s->flags |=  PEER_FLAG_USE_CONFIGURED_SOURCE;
       else     s->flags &= ~PEER_FLAG_USE_CONFIGURED_SOURCE;
     }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 7) & (1 << 0));
+      if (tmp) s->flags |=  PEER_FLAG_MULTIHOP;
+      else     s->flags &= ~PEER_FLAG_MULTIHOP;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 7) & (1 << 1));
+      if (tmp) s->flags |=  PEER_FLAG_BFD;
+      else     s->flags &= ~PEER_FLAG_BFD;
+    }
+    { bool tmp;
+      tmp = !!(capn_read8(p, 7) & (1 << 2));
+      if (tmp) s->flags |=  PEER_FLAG_BFD_SYNC;
+      else     s->flags &= ~PEER_FLAG_BFD_SYNC;
+    }
     s->ttl = capn_read32(p, 20);
     {
       const char * update_source = NULL;
@@ -622,6 +660,9 @@ void qcapn_BGPPeer_write(const struct peer *s, capn_ptr p)
     capn_write1(p, 53, !!(s->flags & PEER_FLAG_DYNAMIC_CAPABILITY));
     capn_write1(p, 54, !!(s->flags & PEER_FLAG_DISABLE_CONNECTED_CHECK));
     capn_write1(p, 55, !!(s->flags & PEER_FLAG_USE_CONFIGURED_SOURCE));
+    capn_write1(p, 56, !!(s->flags & PEER_FLAG_MULTIHOP));
+    capn_write1(p, 57, !!(s->flags & PEER_FLAG_BFD));
+    capn_write1(p, 58, !!(s->flags & PEER_FLAG_BFD_SYNC));
     capn_write32(p, 20, s->ttl);
     {
       capn_text tp;
@@ -748,6 +789,24 @@ void qcapn_BGPPeer_set(struct peer *s, capn_ptr p)
         peer_connect_with_update_source_only_set (s, 0);
     }
     {
+      u_int32_t flags;
+      flags = !!(capn_read8(p, 7) & (1 << 0));
+      if (flags) peer_flag_set(s, PEER_FLAG_MULTIHOP);
+      else     peer_flag_unset(s, PEER_FLAG_MULTIHOP);
+    }
+    {
+      u_int32_t flags;
+      flags = !!(capn_read8(p, 7) & (1 << 1));
+      if (flags) peer_flag_set(s, PEER_FLAG_BFD);
+      else peer_flag_unset(s, PEER_FLAG_BFD);
+    }
+    {
+      u_int32_t flags;
+      flags = !!(capn_read8(p, 7) & (1 << 2));
+      if (flags) peer_flag_set(s, PEER_FLAG_BFD_SYNC);
+      else peer_flag_unset(s, PEER_FLAG_BFD_SYNC);
+    }
+    {
       int ttl;
       ttl = capn_read32(p, 20);
       if (ttl) { peer_ebgp_multihop_set(s, ttl); } else { peer_ebgp_multihop_unset(s); }
@@ -793,7 +852,21 @@ capn_ptr qcapn_new_BGPPeer(struct capn_segment *s)
     return capn_new_struct(s, 24, 3);
 }
 
+capn_ptr qcapn_new_BGPPeerStatus(struct capn_segment *s)
+{
+    return capn_new_struct(s, 5, 0);
+}
 
+void qcapn_BGPPeerStatus_write(const struct peer *s, capn_ptr p)
+{
+    capn_resolve(&p);
+    capn_write32(p, 0, s->as);
+    {
+      int status;
+      status = bgp_peer_status_get(s);
+      capn_write8(p, 4, (uint8_t)status);
+    }
+}
 
 void qcapn_BGPPeerAfiSafi_read(struct peer *s, capn_ptr p, afi_t afi, safi_t safi)
 {

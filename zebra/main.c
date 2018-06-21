@@ -36,6 +36,7 @@
 
 #include "zebra/rib.h"
 #include "zebra/zserv.h"
+#include "zebra/zserv_bfd.h"
 #include "zebra/debug.h"
 #include "zebra/router-id.h"
 #include "zebra/irdp.h"
@@ -185,6 +186,7 @@ static void
 sigusr1 (void)
 {
   zlog_rotate (NULL);
+  zlog_notice ("sigusr1");
 }
 
 struct quagga_signal_t zebra_signals[] =
@@ -424,6 +426,9 @@ main (int argc, char **argv)
   /* Initialize VRF module, and make kernel routing socket. */
   zebra_vrf_init ();
 
+  /* BFD */
+  bfd_cneigh_init();
+
 #ifdef HAVE_SNMP
   zebra_snmp_init ();
 #endif /* HAVE_SNMP */
@@ -488,7 +493,7 @@ main (int argc, char **argv)
   vty_serv_sock (vty_addr, vty_port, ZEBRA_VTYSH_PATH);
 
   /* Print banner. */
-  zlog_notice ("Zebra %s starting: vty@%d", QUAGGA_VERSION, vty_port);
+  zlog_notice ("Zebra %s starting: vty@%d pid %d", QUAGGA_VERSION, vty_port, pid);
 
   while (thread_fetch (zebrad.master, &thread))
     thread_call (&thread);

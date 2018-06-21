@@ -235,6 +235,8 @@ AC_ARG_ENABLE(doc,
   AS_HELP_STRING([--disable-doc], [do not build docs]))
 AC_ARG_ENABLE(zebra,
   AS_HELP_STRING([--disable-zebra], [do not build zebra daemon]))
+AC_ARG_ENABLE(bfdd,
+  AS_HELP_STRING([--disable-bfdd], [do not build bfdd]))
 AC_ARG_ENABLE(bgpd,
   AS_HELP_STRING([--disable-bgpd], [do not build bgpd]))
 AC_ARG_ENABLE(ripd,
@@ -1165,6 +1167,12 @@ else
 fi
 AM_CONDITIONAL(ZEBRA, test "x$ZEBRA" = "xzebra")
 
+if test "${enable_bfdd}" = "no";then
+  BFDD=""
+else
+  BFDD="bfdd"
+fi
+
 if test "${enable_bgpd}" = "no";then
   BGPD=""
 else
@@ -1236,6 +1244,7 @@ fi
 
 AC_SUBST(DOC)
 AC_SUBST(ZEBRA)
+AC_SUBST(BFDD)
 AC_SUBST(BGPD)
 AC_SUBST(RIPD)
 AC_SUBST(RIPNGD)
@@ -1583,6 +1592,7 @@ AC_SUBST(quagga_statedir)
 AC_DEFINE_UNQUOTED(PATH_ZEBRA_PID, "$quagga_statedir/zebra.pid",zebra PID)
 AC_DEFINE_UNQUOTED(PATH_RIPD_PID, "$quagga_statedir/ripd.pid",ripd PID)
 AC_DEFINE_UNQUOTED(PATH_RIPNGD_PID, "$quagga_statedir/ripngd.pid",ripngd PID)
+AC_DEFINE_UNQUOTED(PATH_BFDD_PID, "$quagga_statedir/bfdd.pid",bfdd PID)
 AC_DEFINE_UNQUOTED(PATH_BGPD_PID, "$quagga_statedir/bgpd.pid",bgpd PID)
 AC_DEFINE_UNQUOTED(PATH_OSPFD_PID, "$quagga_statedir/ospfd.pid",ospfd PID)
 AC_DEFINE_UNQUOTED(PATH_OSPF6D_PID, "$quagga_statedir/ospf6d.pid",ospf6d PID)
@@ -1593,6 +1603,7 @@ AC_DEFINE_UNQUOTED(ZEBRA_SERV_PATH, "$quagga_statedir/zserv.api",zebra api socke
 AC_DEFINE_UNQUOTED(ZEBRA_VTYSH_PATH, "$quagga_statedir/zebra.vty",zebra vty socket)
 AC_DEFINE_UNQUOTED(RIP_VTYSH_PATH, "$quagga_statedir/ripd.vty",rip vty socket)
 AC_DEFINE_UNQUOTED(RIPNG_VTYSH_PATH, "$quagga_statedir/ripngd.vty",ripng vty socket)
+AC_DEFINE_UNQUOTED(BFD_VTYSH_PATH, "$quagga_statedir/bfdd.vty",bfdd vty socket)
 AC_DEFINE_UNQUOTED(BGP_VTYSH_PATH, "$quagga_statedir/bgpd.vty",bgpd vty socket)
 AC_DEFINE_UNQUOTED(OSPF_VTYSH_PATH, "$quagga_statedir/ospfd.vty",ospfd vty socket)
 AC_DEFINE_UNQUOTED(OSPF6_VTYSH_PATH, "$quagga_statedir/ospf6d.vty",ospf6d vty socket)
@@ -1620,7 +1631,7 @@ AC_CACHE_VAL(ac_cv_htonl_works,
 AC_MSG_RESULT($ac_cv_htonl_works)
 
 AC_CONFIG_FILES([Makefile lib/Makefile qpb/Makefile zebra/Makefile ripd/Makefile 
-	  ripngd/Makefile bgpd/Makefile ospfd/Makefile watchquagga/Makefile
+	  ripngd/Makefile bfdd/Makefile bgpd/Makefile ospfd/Makefile watchquagga/Makefile
 	  ospf6d/Makefile isisd/Makefile vtysh/Makefile
 	  doc/Makefile ospfclient/Makefile tests/Makefile m4/Makefile
 	  pimd/Makefile
@@ -1633,7 +1644,7 @@ AC_CONFIG_FILES([Makefile lib/Makefile qpb/Makefile zebra/Makefile ripd/Makefile
 	  lib/version.h
 	  doc/defines.texi
 	  isisd/topology/Makefile
-	  pkgsrc/bgpd.sh pkgsrc/ospf6d.sh pkgsrc/ospfd.sh
+	  pkgsrc/bfdd.sh pkgsrc/bgpd.sh pkgsrc/ospf6d.sh pkgsrc/ospfd.sh
 	  pkgsrc/ripd.sh pkgsrc/ripngd.sh pkgsrc/zebra.sh])
 AC_CONFIG_FILES([solaris/Makefile])
 

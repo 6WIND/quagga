@@ -32,6 +32,8 @@ void qcapn_BGPPeer_set(struct peer *s, capn_ptr p);
 as_t qcapn_BGPPeer_get_as(capn_ptr p);
 const char * qcapn_BGPPeer_get_host(capn_ptr p);
 capn_ptr qcapn_new_BGPPeer(struct capn_segment *s);
+capn_ptr qcapn_new_BGPPeerStatus(struct capn_segment *s);
+void qcapn_BGPPeerStatus_write(const struct peer *s, capn_ptr p);
 void qcapn_BGPPeerAfiSafi_read(struct peer *s, capn_ptr p, afi_t afi, safi_t safi);
 void qcapn_BGPPeerAfiSafi_write(const struct peer *s, capn_ptr p, afi_t afi, safi_t safi);
 void qcapn_BGPPeerAfiSafi_set(struct peer *s, capn_ptr p, afi_t afi, safi_t safi);

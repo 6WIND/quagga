@@ -32,6 +32,8 @@
 #include "zclient.h"
 #include "memory.h"
 #include "table.h"
+#include "bfd.h"
+#include "zebra/zserv_bfd.h"
 
 /* Zebra client events. */
 enum event {ZCLIENT_SCHEDULE, ZCLIENT_READ, ZCLIENT_CONNECT};
@@ -40,6 +42,8 @@ enum event {ZCLIENT_SCHEDULE, ZCLIENT_READ, ZCLIENT_CONNECT};
 static void zclient_event (enum event, struct zclient *);
 
 const char *zclient_serv_path = NULL;
+
+extern struct cneightbl *cneightbl;
 
 /* This file local debug flag. */
 int zclient_debug = 0;
@@ -648,6 +652,166 @@ zapi_ipv6_route (u_char cmd, struct zclient *zclient, struct prefix_ipv6 *p,
 }
 #endif /* HAVE_IPV6 */
 
+
+/* Register message is used to cell zebra that the client
+   who sent it is the BFD deamon */
+int 
+zapi_bfd_register(struct zclient *zclient)
+{   
+  struct stream *s;
+
+  s = zclient->obuf;
+  stream_reset(s);
+  zclient_create_header(s, ZEBRA_BFD_REGISTER, VRF_DEFAULT);
+      
+  return zclient_send_message(zclient);
+}
+
+/* Functions (one for each family)  provide an interface 
+   for adding/removing candidate neighbors which might 
+   (or might not) become bfd sessions (called "neighbors" internally). 
+   Add/del messages are normally sent by BFD clients like BGP for example.*/
+int
+zapi_ipv4_bfd_cneigh_adddel(struct zclient *zclient, int cmd, 
+			    struct prefix_ipv4 *rp, struct prefix_ipv4 *lp, 
+			    unsigned int ifindex, uint32_t flags) 
+{
+  struct stream *s;
+
+  s = zclient->obuf;
+  stream_reset (s);
+
+  switch(cmd) {
+    case BFD_CNEIGH_ADD:
+      zclient_create_header(s, ZEBRA_IPV4_BFD_CNEIGH_ADD, VRF_DEFAULT);
+      break;
+    case BFD_CNEIGH_DEL:
+      zclient_create_header(s, ZEBRA_IPV4_BFD_CNEIGH_DEL, VRF_DEFAULT);
+      break;
+    default:
+      abort();
+  }
+
+  stream_write(s, (u_char *)&rp->prefix, IPV4_MAX_BYTELEN);
+  stream_write(s, (u_char *)&lp->prefix, IPV4_MAX_BYTELEN);
+
+  stream_putl(s,ifindex);
+
+  stream_putl(s,flags);
+
+  /* Write packet size. */
+  stream_putw_at (s, 0, stream_get_endp (s));
+
+  return zclient_send_message(zclient);
+}
+#ifdef HAVE_IPV6
+int 
+zapi_ipv6_bfd_cneigh_adddel(struct zclient *zclient, int cmd, 
+			    struct prefix_ipv6 *rp, struct prefix_ipv6 *lp, 
+			    unsigned int ifindex, uint32_t flags) 
+{
+  struct stream *s;
+
+  s = zclient->obuf;
+  stream_reset (s);
+
+  switch(cmd) {
+    case BFD_CNEIGH_ADD:
+      zclient_create_header(s, ZEBRA_IPV6_BFD_CNEIGH_ADD, VRF_DEFAULT);
+      break;
+    case BFD_CNEIGH_DEL:
+      zclient_create_header(s, ZEBRA_IPV6_BFD_CNEIGH_DEL, VRF_DEFAULT);
+      break;
+    default:
+      abort();
+  }
+
+  stream_write(s, (u_char *)&rp->prefix, IPV6_MAX_BYTELEN);
+  stream_write(s, (u_char *)&lp->prefix, IPV6_MAX_BYTELEN);
+
+  stream_putl(s,ifindex);
+
+  stream_putl(s,flags);
+
+  /* Write packet size. */
+  stream_putw_at (s, 0, stream_get_endp (s));
+
+  return zclient_send_message(zclient);
+}
+#endif /* HAVE_IPV6 */
+
+/* Functions (one of each family) are responsible for sending 
+   up/down messages which carries information about session 
+   state transitions. Normally BFD deamon is the deamon that 
+   uses these functions */
+int
+zapi_ipv4_bfd_neigh_updown(struct zclient *zclient, int cmd, 
+			   struct prefix_ipv4 *rp, struct prefix_ipv4 *lp, 
+			   unsigned int ifindex, uint32_t flags)
+{
+  struct stream *s;
+
+  s = zclient->obuf;
+  stream_reset (s);
+
+  switch(cmd) {
+    case BFD_NEIGH_UP:
+      zclient_create_header(s, ZEBRA_IPV4_BFD_NEIGH_UP, VRF_DEFAULT);
+      break;
+    case BFD_NEIGH_DOWN:
+      zclient_create_header(s,  ZEBRA_IPV4_BFD_NEIGH_DOWN, VRF_DEFAULT);
+      break;
+    default:
+      abort();
+  }
+
+  stream_write(s, (u_char *)&rp->prefix, IPV4_MAX_BYTELEN);
+  stream_write(s, (u_char *)&lp->prefix, IPV4_MAX_BYTELEN);
+
+  stream_putl(s,ifindex);
+
+  stream_putl(s,flags); /* Flags values are not important */
+
+  stream_putw_at (s, 0, stream_get_endp (s));
+
+  return zclient_send_message(zclient);
+}
+#ifdef HAVE_IPV6
+int
+zapi_ipv6_bfd_neigh_updown(struct zclient *zclient, int cmd,
+			   struct prefix_ipv6 *rp, struct prefix_ipv6 *lp,
+			   unsigned int ifindex, uint32_t flags)
+{
+  struct stream *s;
+
+  s = zclient->obuf;
+  stream_reset (s);
+
+  switch(cmd) {
+    case BFD_NEIGH_UP:
+      zclient_create_header(s, ZEBRA_IPV6_BFD_NEIGH_UP, VRF_DEFAULT);
+      break;
+    case BFD_NEIGH_DOWN:
+      zclient_create_header(s,  ZEBRA_IPV6_BFD_NEIGH_DOWN, VRF_DEFAULT);
+      break;
+    default:
+      abort();
+  }
+
+  stream_write(s, (u_char *)&rp->prefix, IPV6_MAX_BYTELEN);
+  stream_write(s, (u_char *)&lp->prefix, IPV6_MAX_BYTELEN);
+
+  stream_putl(s,ifindex);
+
+  stream_putl(s,flags); /* Flags values are not important */
+
+  stream_putw_at (s, 0, stream_get_endp (s));
+
+  return zclient_send_message(zclient);
+}
+#endif /* HAVE_IPV6 */
+
+
 /* 
  * send a ZEBRA_REDISTRIBUTE_ADD or ZEBRA_REDISTRIBUTE_DELETE
  * for the route type (ZEBRA_ROUTE_KERNEL etc.). The zebra server will
@@ -757,6 +921,53 @@ zebra_interface_add_read (struct stream *s, vrf_id_t vrf_id)
 
   return ifp;
 }
+
+/* Functions (one for each family) are responsible
+   for reading add/del messages. */
+struct bfd_cneigh*
+ipv4_bfd_cneigh_adddel_read(struct stream *s)
+{
+  struct bfd_cneigh *cneighp;
+  cneighp = bfd_cneigh_new();
+  
+  cneighp->raddr.family = AF_INET;
+  cneighp->raddr.prefixlen = IPV4_MAX_PREFIXLEN;
+  stream_get(&cneighp->raddr.u.prefix, s, IPV4_MAX_BYTELEN);
+  
+  cneighp->laddr.family = AF_INET;
+  cneighp->laddr.prefixlen = IPV4_MAX_PREFIXLEN;
+  stream_get(&cneighp->laddr.u.prefix, s, IPV4_MAX_BYTELEN);
+
+  cneighp->ifindex = stream_getl(s);
+  
+  cneighp->flags = stream_getl(s);
+  
+  return cneighp;
+}
+#ifdef HAVE_IPV6
+struct bfd_cneigh*
+ipv6_bfd_cneigh_adddel_read(struct stream *s)
+{
+  struct bfd_cneigh *cneighp;
+  cneighp = bfd_cneigh_new();
+  
+  cneighp->raddr.family = AF_INET6;
+  cneighp->raddr.prefixlen = IPV6_MAX_PREFIXLEN;
+  stream_get(&cneighp->raddr.u.prefix, s, IPV6_MAX_BYTELEN);
+  
+  cneighp->laddr.family = AF_INET6;
+  cneighp->laddr.prefixlen = IPV6_MAX_PREFIXLEN;
+  stream_get(&cneighp->laddr.u.prefix, s, IPV6_MAX_BYTELEN);
+
+  cneighp->ifindex = stream_getl(s);
+  
+  cneighp->flags = stream_getl(s);
+  
+  return cneighp;
+}
+#endif /* HAVE_IPV6 */
+
+
 
 /* 
  * Read interface up/down msg (ZEBRA_INTERFACE_UP/ZEBRA_INTERFACE_DOWN)
@@ -1181,6 +1392,40 @@ zclient_read (struct thread *thread)
       if (zclient->nexthop_update)
 	(*zclient->nexthop_update) (command, zclient, length, vrf_id);
       break;
+    case ZEBRA_IPV4_BFD_CNEIGH_ADD:
+      if (zclient->ipv4_bfd_cneigh_add)
+	(*zclient->ipv4_bfd_cneigh_add) (command, zclient, length);
+      break;
+    case ZEBRA_IPV4_BFD_CNEIGH_DEL:
+      if (zclient->ipv4_bfd_cneigh_del)
+	(*zclient->ipv4_bfd_cneigh_del) (command, zclient, length);
+      break;
+    case ZEBRA_IPV4_BFD_NEIGH_UP:
+      if (zclient->ipv4_bfd_neigh_up)
+	(*zclient->ipv4_bfd_neigh_up) (command, zclient, length);
+      break;
+    case ZEBRA_IPV4_BFD_NEIGH_DOWN:
+      if (zclient->ipv4_bfd_neigh_down)
+	(*zclient->ipv4_bfd_neigh_down) (command, zclient, length);
+      break;
+#ifdef HAVE_IPV6
+    case ZEBRA_IPV6_BFD_CNEIGH_ADD:
+      if (zclient->ipv6_bfd_cneigh_add)
+	(*zclient->ipv6_bfd_cneigh_add) (command, zclient, length);
+      break;
+    case ZEBRA_IPV6_BFD_CNEIGH_DEL:
+      if (zclient->ipv6_bfd_cneigh_del)
+	(*zclient->ipv6_bfd_cneigh_del) (command, zclient, length);
+      break;
+    case ZEBRA_IPV6_BFD_NEIGH_UP:
+      if (zclient->ipv6_bfd_neigh_up)
+	(*zclient->ipv6_bfd_neigh_up) (command, zclient, length);
+      break;
+    case ZEBRA_IPV6_BFD_NEIGH_DOWN:
+      if (zclient->ipv6_bfd_neigh_down)
+	(*zclient->ipv6_bfd_neigh_down) (command, zclient, length);
+      break;
+#endif /* HAVE_IPV6 */
     default:
       break;
     }

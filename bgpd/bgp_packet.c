@@ -3164,7 +3164,10 @@ bgp_read_packet (struct peer *peer)
 	      SET_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT);
 	    }
 	  else
-	    peer->last_reset = PEER_DOWN_CLOSE_SESSION;
+	    {
+	      peer->last_reset = PEER_DOWN_CLOSE_SESSION;
+	      SET_FLAG (peer->sflags, PEER_STATUS_CLOSE_SESSION);
+	    }
 	}
 
       BGP_EVENT_ADD (peer, TCP_fatal_error);
@@ -3186,7 +3189,10 @@ bgp_read_packet (struct peer *peer)
 	      SET_FLAG (peer->sflags, PEER_STATUS_NSF_WAIT);
 	    }
 	  else
-	    peer->last_reset = PEER_DOWN_CLOSE_SESSION;
+	    {
+	      peer->last_reset = PEER_DOWN_CLOSE_SESSION;
+	      SET_FLAG (peer->sflags, PEER_STATUS_CLOSE_SESSION);
+	    }
 	}
 
       BGP_EVENT_ADD (peer, TCP_connection_closed);

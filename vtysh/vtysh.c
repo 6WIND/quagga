@@ -60,6 +60,7 @@ struct vtysh_client
   { .fd = -1, .name = "bgpd", .flag = VTYSH_BGPD, .path = BGP_VTYSH_PATH},
   { .fd = -1, .name = "isisd", .flag = VTYSH_ISISD, .path = ISIS_VTYSH_PATH},
   { .fd = -1, .name = "pimd", .flag = VTYSH_PIMD, .path = PIM_VTYSH_PATH},
+  { .fd = -1, .name = "bfdd", .flag = VTYSH_BFDD, .path = BFD_VTYSH_PATH},
 };
 
 
@@ -801,6 +802,13 @@ struct cmd_node link_params_node =
   "%s(config-link-params)# ",
 };
 
+/* BFD node */
+static struct cmd_node bfd_node =
+{
+  BFD_NODE,
+  "%s(config-bfd)# ",
+};
+
 /* Defined in lib/vty.c */
 extern struct cmd_node vty_node;
 
@@ -1117,6 +1125,16 @@ DEFUNSH (VTYSH_ALL,
   return CMD_SUCCESS;
 }
 
+DEFUNSH (VTYSH_BFDD,
+	 vtysh_bfd,
+	 vtysh_bfd_cmd,
+	 "bfd",
+	 "Bidirectional Forwarding Detection\n")
+{
+  vty->node = BFD_NODE;
+  return CMD_SUCCESS;
+}
+
 DEFUNSH (VTYSH_ALL,
 	 vtysh_enable, 
 	 vtysh_enable_cmd,
@@ -1174,6 +1192,7 @@ vtysh_exit (struct vty *vty)
     case RMAP_NODE:
     case VTY_NODE:
     case KEYCHAIN_NODE:
+    case BFD_NODE:
       vtysh_execute("end");
       vtysh_execute("configure terminal");
       vty->node = CONFIG_NODE;
@@ -2490,6 +2509,7 @@ vtysh_init_vty (void)
   install_node (&ripng_node, NULL);
   install_node (&ospf6_node, NULL);
 /* #endif */
+  install_node (&bfd_node, NULL);
   install_node (&babel_node, NULL);
   install_node (&keychain_node, NULL);
   install_node (&keychain_key_node, NULL);
@@ -2517,6 +2537,7 @@ vtysh_init_vty (void)
   vtysh_install_default (OSPF_NODE);
   vtysh_install_default (RIPNG_NODE);
   vtysh_install_default (OSPF6_NODE);
+  vtysh_install_default (BFD_NODE);
   vtysh_install_default (BABEL_NODE);
   vtysh_install_default (ISIS_NODE);
   vtysh_install_default (KEYCHAIN_NODE);
@@ -2571,6 +2592,8 @@ vtysh_init_vty (void)
   install_element (RMAP_NODE, &vtysh_quit_rmap_cmd);
   install_element (VTY_NODE, &vtysh_exit_line_vty_cmd);
   install_element (VTY_NODE, &vtysh_quit_line_vty_cmd);
+  install_element (BFD_NODE, &vtysh_exit_line_vty_cmd);
+  install_element (BFD_NODE, &vtysh_quit_line_vty_cmd);
 
   /* "end" command. */
   install_element (CONFIG_NODE, &vtysh_end_all_cmd);
@@ -2596,6 +2619,7 @@ vtysh_init_vty (void)
   install_element (KEYCHAIN_KEY_NODE, &vtysh_end_all_cmd);
   install_element (RMAP_NODE, &vtysh_end_all_cmd);
   install_element (VTY_NODE, &vtysh_end_all_cmd);
+  install_element (BFD_NODE, &vtysh_end_all_cmd);
 
   install_element (INTERFACE_NODE, &interface_desc_cmd);
   install_element (INTERFACE_NODE, &no_interface_desc_cmd);
@@ -2643,6 +2667,7 @@ vtysh_init_vty (void)
   install_element (CONFIG_NODE, &key_chain_cmd);
   install_element (CONFIG_NODE, &route_map_cmd);
   install_element (CONFIG_NODE, &vtysh_line_vty_cmd);
+  install_element (CONFIG_NODE, &vtysh_bfd_cmd);
   install_element (KEYCHAIN_NODE, &key_cmd);
   install_element (KEYCHAIN_NODE, &key_chain_cmd);
   install_element (KEYCHAIN_KEY_NODE, &key_chain_cmd);

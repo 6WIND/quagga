@@ -149,6 +149,8 @@ struct bgp
 #define BGP_FLAG_DELETING                 (1 << 15)
 #define BGP_FLAG_RR_ALLOW_OUTBOUND_POLICY (1 << 16)
 #define BGP_FLAG_GR_PRESERVE_FWD          (1 << 17)
+#define BGP_FLAG_BFD_SYNC                 (1 << 18)
+#define BGP_FLAG_BFD_MULTIHOP             (1 << 19)
 
   /* BGP Per AF flags */
   u_int16_t af_flags[AFI_MAX][SAFI_MAX];
@@ -301,6 +303,7 @@ struct bgp_event_vrf
 {
 #define BGP_EVENT_MASK_ANNOUNCE 0x1
 #define BGP_EVENT_SHUT 0x2
+#define BGP_EVENT_BFD_STATUS 0x3
   uint8_t announce;
   struct prefix_rd outbound_rd; /* dummy for event_shut */
   struct prefix prefix; /* alias subtype */
@@ -317,6 +320,15 @@ struct bgp_event_shut
 {
   struct prefix peer;
   uint8_t type, subtype;
+};
+
+struct bgp_event_bfd_status
+{
+  struct prefix peer;
+  as_t   as;
+  uint8_t up_down;
+#define BGP_EVENT_BFD_STATUS_UP   1
+#define BGP_EVENT_BFD_STATUS_DOWN 0
 };
 
 #define ROUTE_TYPE_LABELED_UNICAST  1
@@ -503,6 +515,22 @@ struct peer
   int shared_network;		/* Is this peer shared same network. */
   struct bgp_nexthop nexthop;	/* Nexthop */
 
+  /* BFD section */
+  union sockunion *bfd_su_local;/* src address for transmission of BFD CP */
+  unsigned int bfd_ifindex;     /* interface for session */
+  int bfd_flags;                /* flags passed to zebra/bfd */
+  int bfd_status;               /* status of BFD session */
+#define PEER_BFD_STATUS_NEW     1 /* fall-over bfd command was executed 
+                                     but zebra/bfd weren't notied yet 
+				     (waiting for ESTABLISHED state) */
+#define PEER_BFD_STATUS_ADDED   2 /* request for adding neighbor has been sent*/
+#define PEER_BFD_STATUS_DELETED 3 /* neighbor will be deleted soon */
+#define PEER_BFD_STATUS_UP      5 /* zebra/bfd reported that 
+				     neighbor(session) is up */
+#define PEER_BFD_STATUS_DOWN    6 /* zebra/bfd reported that
+				     neighbor(session) is down */
+#define BGP_PEER_BFD_STATUS_MAX 7
+
   /* Peer address family configuration. */
   u_char afc[AFI_MAX][SAFI_MAX];
   u_char afc_nego[AFI_MAX][SAFI_MAX];
@@ -546,6 +574,10 @@ struct peer
 #define PEER_FLAG_LOCAL_AS_NO_PREPEND       (1 << 7) /* local-as no-prepend */
 #define PEER_FLAG_LOCAL_AS_REPLACE_AS       (1 << 8) /* local-as no-prepend replace-as */
 #define PEER_FLAG_USE_CONFIGURED_SOURCE     (1 << 9) /* use configured source-only */
+#define PEER_FLAG_MULTIHOP                  (1 << 10) /* multihop */
+#define PEER_FLAG_BFD                       (1 << 11) /* fall-over bfd */
+#define PEER_FLAG_BFD_SYNC                  (1 << 12) /* fall-over bfd sync */
+
   /* NSF mode (graceful restart) */
   u_char nsf[AFI_MAX][SAFI_MAX];
 
@@ -594,6 +626,9 @@ struct peer
 #define PEER_STATUS_GROUP             (1 << 4) /* peer-group conf */
 #define PEER_STATUS_NSF_MODE          (1 << 5) /* NSF aware peer */
 #define PEER_STATUS_NSF_WAIT          (1 << 6) /* wait comeback peer */
+#define PEER_STATUS_BFD_CBIT          (1 << 7) /* BFD C-bit from peer */
+#define PEER_STATUS_HOLDTIME_EXPIRED  (1 << 8) /* TCP Hold timer expired */
+#define PEER_STATUS_CLOSE_SESSION     (1 << 9) /* peer closed session without graceful restart */
 
   /* Peer status af flags (reset in bgp_stop) */
   u_int16_t af_sflags[AFI_MAX][SAFI_MAX];
@@ -725,6 +760,7 @@ struct peer
 #define PEER_DOWN_MULTIHOP_CHANGE       21 /* neighbor multihop command */
 #define PEER_DOWN_NSF_CLOSE_SESSION     22 /* NSF tcp session close */
 #define PEER_DOWN_LOCAL_SEND_LABEL      23 /* Send Label changed */
+#define PEER_DOWN_BFD_NEIGHBOR_DOWN     24 /* BFD session to neighbor went down */
 
   /* The kind of route-map Flags.*/
   u_char rmap_type;
@@ -1017,6 +1053,7 @@ extern void bgp_terminate (void);
 extern void bgp_reset (void);
 extern time_t bgp_clock (void);
 extern void bgp_zclient_reset (void);
+extern int bgp_is_zebra_connected (void);
 extern int bgp_nexthop_set (union sockunion *, union sockunion *, 
 		     struct bgp_nexthop *, struct peer *);
 extern struct bgp *bgp_get_default (void);
@@ -1088,10 +1125,17 @@ extern int bgp_timers_unset (struct bgp *);
 extern int bgp_default_local_preference_set (struct bgp *, u_int32_t);
 extern int bgp_default_local_preference_unset (struct bgp *);
 
+extern int bgp_peer_bfd_sync(struct bgp *);
+extern int bgp_bfd_sync_set(struct bgp *);
+extern int bgp_bfd_sync_unset(struct bgp *);
+extern int bgp_peer_status_get(const struct peer *s);
+extern int bgp_peer_bfd_sync_by_local_addr(struct bgp *, struct prefix *);
+
 extern void bgp_notify_zmq_init (void);
 extern int bgp_notify_zmq_url_set (struct bgp *, const char *url);
 extern void bgp_notify_route (struct bgp *, struct bgp_event_vrf *update);
 extern void bgp_notify_shut (struct bgp *, struct bgp_event_shut *shut);
+extern void bgp_notify_bfd_status (struct bgp *bgp, struct bgp_event_bfd_status *status);
 extern void bgp_notify_cleanup (struct bgp *);
 
 extern int peer_rsclient_active (struct peer *);
@@ -1106,6 +1150,7 @@ extern int peer_group_remote_as_delete (struct peer_group *);
 extern int peer_activate (struct peer *, afi_t, safi_t);
 extern int peer_deactivate (struct peer *, afi_t, safi_t);
 extern int peer_afc_set (struct peer *, afi_t, safi_t, int);
+extern void peer_nsf_stop (struct peer *);
 
 extern int peer_group_bind (struct bgp *, union sockunion *, struct peer_group *,
 		     afi_t, safi_t, as_t *);

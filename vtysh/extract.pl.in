@@ -65,6 +65,7 @@ $ignore{'"route-map WORD (deny|permit) <1-65535>"'} = "ignore";
 $ignore{'"show route-map"'} = "ignore";
 $ignore{'"line vty"'} = "ignore";
 $ignore{'"who"'} = "ignore";
+$ignore{'"bfd"'} = "ignore";
 $ignore{'"terminal monitor"'} = "ignore";
 $ignore{'"terminal no monitor"'} = "ignore";
 $ignore{'"show history"'} = "ignore";

@@ -418,7 +418,6 @@ DEFUN (show_memory,
   return CMD_SUCCESS;
 }
 
-
 void
 memory_init (void)
 {
