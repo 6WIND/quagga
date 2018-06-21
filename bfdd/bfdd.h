@@ -101,6 +101,7 @@ struct bfd
 
   char *logFile;
   char *logLevel;
+  char *logLevelSyslog;
 
   struct bfd_if_info global_info;
 
