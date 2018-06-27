@@ -337,11 +337,11 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 					"Single Hop" : "Multiple Hops",
 			 VTY_NEWLINE);
 		vty_out (vty, "MinTxInt: %u, MinRxInt: %u, Multiplier: %u%s",
-			 neighp->ldesmintx, neighp->lreqminrx, neighp->lmulti,
+			 MSEC(neighp->ldesmintx), MSEC(neighp->lreqminrx), neighp->lmulti,
 			 VTY_NEWLINE);
 		vty_out (vty,
 			 "Received MinRxInt: %u, Received Multiplier: %u%s",
-			 neighp->rreqminrx, neighp->rmulti, VTY_NEWLINE);
+			 MSEC(neighp->rreqminrx), neighp->rmulti, VTY_NEWLINE);
 		vty_out (vty,
 			 "Holdown (hits): %u(%u), Hello (hits): %u(%u)%s",
 			 MSEC (neighp->dtime), neighp->timer_cnt,
@@ -381,7 +381,7 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 			 neighp->ldisc, neighp->rdisc, VTY_NEWLINE);
 		vty_out (vty,
 			 "             Min tx interval: %-7u - Min rx interval: %u%s",
-			 neighp->rdesmintx, neighp->rreqminrx, VTY_NEWLINE);
+			 MSEC(neighp->rdesmintx), MSEC(neighp->rreqminrx), VTY_NEWLINE);
 		vty_out (vty, "             Min Echo interval: %u%s%s",
 			 neighp->rreqminechorx, VTY_NEWLINE, VTY_NEWLINE);
 	      }
