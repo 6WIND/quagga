@@ -252,11 +252,15 @@ bgp_bfd_neigh_add(struct peer *peer)
 
   if(peer->status == Established)
   {
-    struct interface *ifp;
     peer->bfd_su_local = sockunion_dup(peer->su_local);
-    ifp = if_lookup_by_sockunion_exact(peer->bfd_su_local);
-    peer->bfd_ifindex = ifp->ifindex;
     struct prefix p1, p2;
+
+    if (!CHECK_FLAG(peer->flags,PEER_FLAG_MULTIHOP))
+      {
+        struct interface *ifp;
+        ifp = if_lookup_by_sockunion_exact(peer->bfd_su_local);
+        peer->bfd_ifindex = ifp->ifindex;
+      }
 
     if (!CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_MODE))
       SET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
