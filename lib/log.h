@@ -136,6 +136,7 @@ extern void plog_debug (struct zlog *, const char *format, ...)
 
 extern void zlog_thread_info (int log_level);
 
+extern void default_log_set_priority(int on);
 /* Set logging level for the given destination.  If the log_level
    argument is ZLOG_DISABLED, then the destination is disabled.
    This function should not be used for file logging (use zlog_set_file

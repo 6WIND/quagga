@@ -383,6 +383,7 @@ main (int argc, char **argv)
   host.name = XSTRDUP (MTYPE_HOST, "qthriftd");
 
   /* create listen context */
+  default_log_set_priority(1);
   zlog_set_level (NULL, ZLOG_DEST_STDOUT, 7);
   zlog_set_level (NULL, ZLOG_DEST_MONITOR, 7);
   zlog_set_level (NULL, ZLOG_DEST_SYSLOG, 7);

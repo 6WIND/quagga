@@ -740,6 +740,14 @@ closezlog (struct zlog *zl)
   XFREE (MTYPE_ZLOG, zl);
 }
 
+void
+default_log_set_priority(int on)
+{
+  if (!zlog_default)
+    return;
+  zlog_default->record_priority = on;
+}
+
 /* Called from command.c. */
 void
 zlog_set_level (struct zlog *zl, zlog_dest_t dest, int log_level)
