@@ -6841,6 +6841,7 @@ bgp_init (void)
   bgp_encap_init ();
   bgp_ethernetvpn_init ();
   bgp_lu_init();
+  bgp_bfd_init();
 
   /* Access list initialize. */
   access_list_init ();

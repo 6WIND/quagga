@@ -1272,4 +1272,6 @@ extern void bgp_send_eor (struct peer *peer);
 extern void bgp_send_eor_to_peers(struct bgp *bgp);
 extern int bgp_refresh_timer_expire (struct thread *thread);
 
+extern void bgp_bfd_init (void);
+
 #endif /* _QUAGGA_BGPD_H */
