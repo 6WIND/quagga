@@ -87,13 +87,13 @@ bfd_fsm_stimeout (struct thread *thread)
       neighp->ldiag = 0;
 
       /* Reset timers to default values */
-      neighp->ldesmintx = BFD_LDESMINTX_DFT;
-      neighp->ldesmintx_a = BFD_LDESMINTX_DFT;
+      neighp->ldesmintx = USEC (bfd->ldesmintx);
+      neighp->ldesmintx_a = USEC (bfd->ldesmintx);
       neighp->rreqminrx = BFD_RREQMINRX_DFT;
-      neighp->txint = BFD_LDESMINTX_DFT;
+      neighp->txint = USEC (bfd->ldesmintx);
 
-      neighp->lreqminrx = BFD_LREQMINRX_DFT;
-      neighp->lreqminrx_a = BFD_LREQMINRX_DFT;
+      neighp->lreqminrx = USEC (bfd->lreqminrx);
+      neighp->lreqminrx_a = USEC (bfd->lreqminrx);
       neighp->rdesmintx = BFD_RREQMINRX_DFT;
 
       neighp->lreqminechorx = BFD_REQMINECHORX_DFT;

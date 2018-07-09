@@ -265,6 +265,28 @@ DEFUN (bfd_debounce_timer,
   return CMD_SUCCESS;
 }
 
+DEFUN (bfd_lreqminrx,
+       bfd_lreqminrx_cmd,
+       "bfd lreqminrx <20-30000>",
+       "BFD configuration\n"
+       "Local required min rx interval\n"
+       "msec\n")
+{
+  bfd->lreqminrx = atoi (argv[0]);
+  return CMD_SUCCESS;
+}
+
+DEFUN (bfd_ldesmintx,
+       bfd_ldesmintx_cmd,
+       "bfd ldesmintx <200-60000>",
+       "BFD configuration\n"
+       "Local desired min tx interval\n"
+       "msec\n")
+{
+  bfd->ldesmintx = atoi (argv[0]);
+  return CMD_SUCCESS;
+}
+
 DEFUN (show_bfd_global_config,
        show_bfd_global_config_cmd,
        "show bfd global-config", SHOW_STR BFD_STR "Show BFD global config\n")
@@ -276,6 +298,8 @@ DEFUN (show_bfd_global_config,
   vty_out (vty, "multihop:       %s%s", bfd->multihop ? "yes" : "no", VTY_NEWLINE);
   vty_out (vty, "debounce-down:  %u%s", bfd->debounce_down, VTY_NEWLINE);
   vty_out (vty, "debounce-up:    %u%s", bfd->debounce_up, VTY_NEWLINE);
+  vty_out (vty, "lreqminrx:      %u%s", bfd->lreqminrx, VTY_NEWLINE);
+  vty_out (vty, "ldesmintx:      %u%s", bfd->ldesmintx, VTY_NEWLINE);
   return CMD_SUCCESS;
 };
 
@@ -889,6 +913,8 @@ bfd_vty_cmd_init (void)
 
   install_element (BFD_NODE, &bfd_rx_interval_cmd);
   install_element (BFD_NODE, &bfd_debounce_timer_cmd);
+  install_element (BFD_NODE, &bfd_lreqminrx_cmd);
+  install_element (BFD_NODE, &bfd_ldesmintx_cmd);
 
   install_element (VIEW_NODE, &show_bfd_global_config_cmd);
   install_element (ENABLE_NODE, &show_bfd_global_config_cmd);

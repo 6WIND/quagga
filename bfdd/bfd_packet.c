@@ -329,7 +329,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
      transmission of contol packets.                       */
   if (bfd_flag_passive_check (neighp) && !neighp->t_hello)
     BFD_TIMER_MSEC_ON (neighp->t_hello, bfd_pkt_xmit,
-		       MSEC (BFD_LDESMINTX_DFT));
+		       bfd->ldesmintx);
 
   /* Recveive interval negotiation  for "Detection Time" */
   neighp->negrxint =

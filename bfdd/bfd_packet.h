@@ -119,10 +119,10 @@ struct bfd_packet
   uint32_t yourdisc;
 
 #define BFD_RREQMINRX_DFT       1
-#define BFD_LDESMINTX_DFT       1000000
+#define BFD_LDESMINTX_DFT       1000
   uint32_t desmintx;
 
-#define BFD_LREQMINRX_DFT       250000
+#define BFD_LREQMINRX_DFT       250
   uint32_t reqminrx;
 #define BFD_REQMINECHORX_DFT 0
   uint32_t reqminechorx;

@@ -86,6 +86,9 @@ bfd_new (void)
   bfd->debounce_up = DEFAULT_BFD_DEBOUNCE_UP;
   bfd->multihop = 0;
 
+  bfd->ldesmintx = BFD_LDESMINTX_DFT;
+  bfd->lreqminrx = BFD_LREQMINRX_DFT;
+
   bfd->global_info.interval = BFD_IF_INTERVAL_DFT;
   bfd->global_info.minrx = BFD_IF_MINRX_DFT;
   bfd->global_info.multiplier = BFD_IF_MULTIPLIER_DFT;
@@ -272,16 +275,16 @@ bfd_neigh_init (struct bfd_cneigh *cneighp)
   /* Intervals
      "This MUST be initialized to a value of 
      at least one second (1,000,000 microseconds)" */
-  neighp->ldesmintx = BFD_LDESMINTX_DFT;
-  neighp->ldesmintx_a = BFD_LDESMINTX_DFT;
+  neighp->ldesmintx = USEC (bfd->ldesmintx);
+  neighp->ldesmintx_a = USEC (bfd->ldesmintx);
   /* This variable MUST be initialized to 1." */
   neighp->rreqminrx = BFD_RREQMINRX_DFT;
   neighp->negtxint = 0;
   neighp->negrxint = 0;
-  neighp->txint = BFD_LDESMINTX_DFT;	/* for 1st xmitted pkt */
+  neighp->txint = USEC (bfd->ldesmintx);	/* for 1st xmitted pkt */
 
-  neighp->lreqminrx = BFD_LREQMINRX_DFT;
-  neighp->lreqminrx_a = BFD_LREQMINRX_DFT;
+  neighp->lreqminrx = USEC (bfd->lreqminrx);
+  neighp->lreqminrx_a = USEC (bfd->lreqminrx);
   neighp->rdesmintx = BFD_RREQMINRX_DFT;
 
   /* "If this value is zero, the transmitting system does 

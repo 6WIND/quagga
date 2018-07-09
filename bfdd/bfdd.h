@@ -99,6 +99,11 @@ struct bfd
   u_int32_t  debounce_up;
   uint8_t    multihop;
 
+  /* local desired mintx and required minrx
+   * before bfd session gets UP */
+  u_int32_t  ldesmintx;
+  u_int32_t  lreqminrx;
+
   char *logFile;
   char *logLevel;
   char *logLevelSyslog;
