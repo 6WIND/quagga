@@ -679,6 +679,9 @@ zencrypt (const char *passwd)
   gettimeofday(&tv,0);
   
   to64(&salt[0], random(), 3);
+  salt[0] = '$';
+  salt[1] = '5'; /* configured for SHA256 */
+  salt[2] = '$';
   to64(&salt[3], tv.tv_usec, 3);
   salt[5] = '\0';
 
