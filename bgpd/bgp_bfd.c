@@ -30,6 +30,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgpd.h"
 
 #define VTYSH_BFDD   0x200
+#define BGP_BFD_BUFSIZ 4096
 
 /* VTY shell client structure. */
 struct vtysh_client
@@ -283,7 +284,7 @@ DEFUN (show_bgp_bfd_neighbors_peer,
        "Neighbor to display information about\n"
        "Neighbor to display information about\n")
 {
-  char cmd[BUFSIZ];
+  char cmd[BGP_BFD_BUFSIZ];
 
   snprintf(cmd, sizeof(cmd), "show bfd neighbors %s", argv[0]);
   vtysh_connect (&vtysh_client_bfdd);
@@ -318,7 +319,7 @@ DEFUN (show_bgp_bfd_neighbors_peer_details,
        "Neighbor to display information about\n"
        "Neighbor to display information about\n")
 {
-  char cmd[BUFSIZ];
+  char cmd[BGP_BFD_BUFSIZ];
 
   snprintf(cmd, sizeof(cmd), "show bfd neighbors %s details", argv[0]);
   vtysh_connect (&vtysh_client_bfdd);
