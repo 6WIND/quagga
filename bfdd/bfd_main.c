@@ -82,6 +82,7 @@ BFD Deamon\n\n\
 -d, --daemon       Runs in daemon mode\n\
 -f, --config_file  Set configuration file name\n\
 -i, --pid_file     Set process identifier file name\n\
+-z, --socket       Set path of zebra socket\n\
 -A, --vty_addr     Set vty's bind address\n\
 -P, --vty_port     Set vty's port number\n\
 -C, --dryrun       Check configuration for validity and exit\n\
@@ -108,6 +109,7 @@ static struct option longopts[] = {
   {"daemon", no_argument, NULL, 'd'},
   {"config_file", required_argument, NULL, 'f'},
   {"pid_file", required_argument, NULL, 'i'},
+  {"socket",      required_argument, NULL, 'z'},
   {"help", no_argument, NULL, 'h'},
   {"dryrun", no_argument, NULL, 'C'},
   {"vty_addr", required_argument, NULL, 'A'},
@@ -193,7 +195,7 @@ main (int argc, char **argv, char **envp)
     {
       int opt;
 
-      opt = getopt_long (argc, argv, "df:i:hA:P:u:g:Z:vC", longopts, 0);
+      opt = getopt_long (argc, argv, "df:i:z:hA:P:u:g:Z:vC", longopts, 0);
 
       if (opt == EOF)
 	break;
@@ -213,6 +215,9 @@ main (int argc, char **argv, char **envp)
 	  break;
 	case 'i':
 	  pid_file = optarg;
+	  break;
+	case 'z':
+	  zclient_serv_path_set (optarg);
 	  break;
 	case 'P':
 	  /* Deal with atoi() returning 0 on failure, and bfdd not
