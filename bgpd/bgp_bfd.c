@@ -329,6 +329,25 @@ DEFUN (show_bgp_bfd_neighbors_peer_details,
   return CMD_SUCCESS;
 }
 
+
+DEFUN (show_bgp_bfd_global_config,
+       show_bgp_bfd_global_config_cmd,
+       "show bgp bfd global-config",
+       SHOW_STR
+       BGP_STR
+       BFD_STR
+       "Show BFD global config\n")
+{
+  char cmd[BGP_BFD_BUFSIZ];
+
+  snprintf(cmd, sizeof(cmd), "show bfd global-config");
+  bgp_vtysh_connect (&vtysh_client_bfdd);
+  bgp_vtysh_client_execute (&vtysh_client_bfdd, cmd, vty);
+  bgp_vclient_close (&vtysh_client_bfdd);
+
+  return CMD_SUCCESS;
+}
+
 void
 bgp_bfd_init (void)
 {
@@ -340,4 +359,6 @@ bgp_bfd_init (void)
   install_element (ENABLE_NODE, &show_bgp_bfd_neighbors_details_cmd);
   install_element (VIEW_NODE, &show_bgp_bfd_neighbors_peer_details_cmd);
   install_element (ENABLE_NODE, &show_bgp_bfd_neighbors_peer_details_cmd);
+  install_element (VIEW_NODE, &show_bgp_bfd_global_config_cmd);
+  install_element (ENABLE_NODE, &show_bgp_bfd_global_config_cmd);
 }
