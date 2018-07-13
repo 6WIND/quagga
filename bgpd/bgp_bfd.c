@@ -105,13 +105,10 @@ vtysh_connect (struct vtysh_client *vclient)
 }
 
 static void
-vclient_close (struct vtysh_client *vclient)
+bgp_vclient_close (struct vtysh_client *vclient)
 {
   if (vclient->fd >= 0)
     {
-      fprintf(stderr,
-	      "Warning: closing connection to %s because of an I/O error!\n",
-	      vclient->name);
       close (vclient->fd);
       vclient->fd = -1;
     }
@@ -139,7 +136,10 @@ vtysh_client_execute (struct vtysh_client *vclient, const char *line, struct vty
   ret = write (vclient->fd, line, strlen (line) + 1);
   if (ret <= 0)
     {
-      vclient_close (vclient);
+      vty_out (vty,
+               "Warning: write error to %s!\n",
+               vclient->name);
+      bgp_vclient_close (vclient);
       return CMD_SUCCESS;
     }
 
@@ -173,7 +173,7 @@ vtysh_client_execute (struct vtysh_client *vclient, const char *line, struct vty
 	  if (errno == EAGAIN || errno == EIO)
 	    continue;
 
-	  vclient_close (vclient);
+	  bgp_vclient_close (vclient);
 	  XFREE(MTYPE_TMP, buf);
 	  return CMD_SUCCESS;
 	}
@@ -269,7 +269,7 @@ DEFUN (show_bgp_bfd_neighbors,
 {
   vtysh_connect (&vtysh_client_bfdd);
   vtysh_client_execute (&vtysh_client_bfdd, "show bfd neighbors", vty);
-  vclient_close (&vtysh_client_bfdd);
+  bgp_vclient_close (&vtysh_client_bfdd);
 
   return CMD_SUCCESS;
 }
@@ -289,7 +289,7 @@ DEFUN (show_bgp_bfd_neighbors_peer,
   snprintf(cmd, sizeof(cmd), "show bfd neighbors %s", argv[0]);
   vtysh_connect (&vtysh_client_bfdd);
   vtysh_client_execute (&vtysh_client_bfdd, cmd, vty);
-  vclient_close (&vtysh_client_bfdd);
+  bgp_vclient_close (&vtysh_client_bfdd);
 
   return CMD_SUCCESS;
 }
@@ -304,7 +304,7 @@ DEFUN (show_bgp_bfd_neighbors_details,
 {
   vtysh_connect (&vtysh_client_bfdd);
   vtysh_client_execute (&vtysh_client_bfdd, "show bfd neighbors details", vty);
-  vclient_close (&vtysh_client_bfdd);
+  bgp_vclient_close (&vtysh_client_bfdd);
 
   return CMD_SUCCESS;
 }
@@ -324,7 +324,7 @@ DEFUN (show_bgp_bfd_neighbors_peer_details,
   snprintf(cmd, sizeof(cmd), "show bfd neighbors %s details", argv[0]);
   vtysh_connect (&vtysh_client_bfdd);
   vtysh_client_execute (&vtysh_client_bfdd, cmd, vty);
-  vclient_close (&vtysh_client_bfdd);
+  bgp_vclient_close (&vtysh_client_bfdd);
 
   return CMD_SUCCESS;
 }
