@@ -336,7 +336,7 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 	    snprintf (rbuf, sizeof (rbuf), "%s",
 		      sockunion2str (neighp->su_remote, buf, sizeof (buf)));
 
-	    if (*header)
+	    if (*header || (mode == BFD_SH_NEIGH_DET))
 	      {
 		vty_out (vty,
 			 "OutAddr          NeighAddr         LD/RD Holdown(mult) State     Int%s",
