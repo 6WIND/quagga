@@ -368,6 +368,7 @@ bgp_capability_orf_entry (struct peer *peer, struct capability_header *hdr)
   return 0;
 }
 
+#define REFRESH_MIN_TIMER 5
 static int
 bgp_capability_restart (struct peer *peer, struct capability_header *caphdr)
 {
@@ -382,8 +383,11 @@ bgp_capability_restart (struct peer *peer, struct capability_header *caphdr)
   
   UNSET_FLAG (restart_flag_time, 0xF000);
   peer->v_gr_restart = restart_flag_time;
-  peer->v_refresh_expire = peer->v_gr_restart;
-
+  if (peer->v_gr_restart < REFRESH_MIN_TIMER)
+    peer->v_refresh_expire = REFRESH_MIN_TIMER;
+  else
+    peer->v_refresh_expire = peer->v_gr_restart;
+  zlog_err("refresh timer expire set to %u", peer->v_refresh_expire);
   if (BGP_DEBUG (normal, NORMAL))
     {
       zlog_debug ("%s OPEN has Graceful Restart capability", peer->host);
