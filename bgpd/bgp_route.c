@@ -2973,6 +2973,8 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
             continue;
           if (0 == bgp_info_nexthop_cmp (iter, select))
             {
+              if (!CHECK_FLAG (iter->flags, BGP_INFO_HISTORY))
+                bgp_info_delete (iter->net, iter);
               bgp_vrf_process_entry(iter, action, afi,safi);
               bgp_process (iter->peer->bgp, iter->net, afi_int, SAFI_UNICAST);
               break;
