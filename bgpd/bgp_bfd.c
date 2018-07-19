@@ -33,18 +33,18 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #define BGP_BFD_BUFSIZ 4096
 
 /* VTY shell client structure. */
-struct vtysh_client
+struct bgp_vtysh_client
 {
   int fd;
   const char *name;
   int flag;
   const char *path;
-} vtysh_client_bfdd =
+} bgp_vtysh_client_bfdd =
   { .fd = -1, .name = "bfdd", .flag = VTYSH_BFDD, .path = BFD_VTYSH_PATH};
 
 /* Making connection to protocol daemon. */
 static int
-vtysh_connect (struct vtysh_client *vclient)
+bgp_vtysh_connect (struct bgp_vtysh_client *vclient)
 {
   int ret;
   int sock, len;
@@ -64,8 +64,8 @@ vtysh_connect (struct vtysh_client *vclient)
     {
       if (! S_ISSOCK(s_stat.st_mode))
 	{
-	  fprintf (stderr, "vtysh_connect(%s): Not a socket\n",
-		   vclient->path);
+	  fprintf (stderr, "%s(%s): Not a socket\n",
+		   __func__, vclient->path);
 	  exit (1);
 	}
     }
@@ -93,7 +93,7 @@ vtysh_connect (struct vtysh_client *vclient)
   if (ret < 0)
     {
 #ifdef DEBUG
-      fprintf(stderr, "vtysh_connect(%s): connect = %s\n", vclient->path,
+      fprintf(stderr, "%s(%s): connect = %s\n", __func__, vclient->path,
 	      safe_strerror(errno));
 #endif /* DEBUG */
       close (sock);
@@ -105,7 +105,7 @@ vtysh_connect (struct vtysh_client *vclient)
 }
 
 static void
-bgp_vclient_close (struct vtysh_client *vclient)
+bgp_vclient_close (struct bgp_vtysh_client *vclient)
 {
   if (vclient->fd >= 0)
     {
@@ -114,9 +114,9 @@ bgp_vclient_close (struct vtysh_client *vclient)
     }
 }
 
-#define ERR_WHERE_STRING "vtysh(): vtysh_client_execute(): "
+#define ERR_WHERE_STRING "bgp_vtysh(): bgp_vtysh_client_execute(): "
 static int
-vtysh_client_execute (struct vtysh_client *vclient, const char *line, struct vty *vty)
+bgp_vtysh_client_execute (struct bgp_vtysh_client *vclient, const char *line, struct vty *vty)
 {
   int ret;
   char *buf;
@@ -267,9 +267,9 @@ DEFUN (show_bgp_bfd_neighbors,
        BFD_STR
        "BFD neighbors\n")
 {
-  vtysh_connect (&vtysh_client_bfdd);
-  vtysh_client_execute (&vtysh_client_bfdd, "show bfd neighbors", vty);
-  bgp_vclient_close (&vtysh_client_bfdd);
+  bgp_vtysh_connect (&bgp_vtysh_client_bfdd);
+  bgp_vtysh_client_execute (&bgp_vtysh_client_bfdd, "show bfd neighbors", vty);
+  bgp_vclient_close (&bgp_vtysh_client_bfdd);
 
   return CMD_SUCCESS;
 }
@@ -287,9 +287,9 @@ DEFUN (show_bgp_bfd_neighbors_peer,
   char cmd[BGP_BFD_BUFSIZ];
 
   snprintf(cmd, sizeof(cmd), "show bfd neighbors %s", argv[0]);
-  vtysh_connect (&vtysh_client_bfdd);
-  vtysh_client_execute (&vtysh_client_bfdd, cmd, vty);
-  bgp_vclient_close (&vtysh_client_bfdd);
+  bgp_vtysh_connect (&bgp_vtysh_client_bfdd);
+  bgp_vtysh_client_execute (&bgp_vtysh_client_bfdd, cmd, vty);
+  bgp_vclient_close (&bgp_vtysh_client_bfdd);
 
   return CMD_SUCCESS;
 }
@@ -302,9 +302,9 @@ DEFUN (show_bgp_bfd_neighbors_details,
        BFD_STR
        "BFD neighbors\n")
 {
-  vtysh_connect (&vtysh_client_bfdd);
-  vtysh_client_execute (&vtysh_client_bfdd, "show bfd neighbors details", vty);
-  bgp_vclient_close (&vtysh_client_bfdd);
+  bgp_vtysh_connect (&bgp_vtysh_client_bfdd);
+  bgp_vtysh_client_execute (&bgp_vtysh_client_bfdd, "show bfd neighbors details", vty);
+  bgp_vclient_close (&bgp_vtysh_client_bfdd);
 
   return CMD_SUCCESS;
 }
@@ -322,9 +322,9 @@ DEFUN (show_bgp_bfd_neighbors_peer_details,
   char cmd[BGP_BFD_BUFSIZ];
 
   snprintf(cmd, sizeof(cmd), "show bfd neighbors %s details", argv[0]);
-  vtysh_connect (&vtysh_client_bfdd);
-  vtysh_client_execute (&vtysh_client_bfdd, cmd, vty);
-  bgp_vclient_close (&vtysh_client_bfdd);
+  bgp_vtysh_connect (&bgp_vtysh_client_bfdd);
+  bgp_vtysh_client_execute (&bgp_vtysh_client_bfdd, cmd, vty);
+  bgp_vclient_close (&bgp_vtysh_client_bfdd);
 
   return CMD_SUCCESS;
 }
@@ -341,9 +341,9 @@ DEFUN (show_bgp_bfd_global_config,
   char cmd[BGP_BFD_BUFSIZ];
 
   snprintf(cmd, sizeof(cmd), "show bfd global-config");
-  bgp_vtysh_connect (&vtysh_client_bfdd);
-  bgp_vtysh_client_execute (&vtysh_client_bfdd, cmd, vty);
-  bgp_vclient_close (&vtysh_client_bfdd);
+  bgp_vtysh_connect (&bgp_vtysh_client_bfdd);
+  bgp_vtysh_client_execute (&bgp_vtysh_client_bfdd, cmd, vty);
+  bgp_vclient_close (&bgp_vtysh_client_bfdd);
 
   return CMD_SUCCESS;
 }
