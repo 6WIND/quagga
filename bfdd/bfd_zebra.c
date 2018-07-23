@@ -267,7 +267,7 @@ DEFUN (bfd_debounce_timer,
 
 DEFUN (bfd_lreqminrx,
        bfd_lreqminrx_cmd,
-       "bfd lreqminrx <20-30000>",
+       "bfd lreqminrx <0-30000>",
        "BFD configuration\n"
        "Local required min rx interval\n"
        "msec\n")
@@ -278,7 +278,7 @@ DEFUN (bfd_lreqminrx,
 
 DEFUN (bfd_ldesmintx,
        bfd_ldesmintx_cmd,
-       "bfd ldesmintx <200-60000>",
+       "bfd ldesmintx <0-60000>",
        "BFD configuration\n"
        "Local desired min tx interval\n"
        "msec\n")
