@@ -1232,6 +1232,44 @@ DEFUN (no_bgp_graceful_restart_preserve_fw,
   return CMD_SUCCESS;
 }
 
+/* neighbor fall-over bfd sync. */
+DEFUN (bgp_fall_over_bfd_multihop,
+       bgp_fall_over_bfd_multihop_cmd,
+       "bgp fall-over bfd multihop",
+       "BGP specific commands\n"
+       "configure fall-over settings.\n"
+       "configure BFD protocol settings for bfd fall-over.\n"
+       "set BFD multihop to enabled.\n")
+{
+  struct bgp *bgp;
+
+  bgp = vty->index;
+  if (! bgp)
+    return CMD_WARNING;
+
+  bgp_flag_set(bgp, BGP_FLAG_BFD_MULTIHOP);
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_fall_over_bfd_multihop,
+       no_bgp_fall_over_bfd_multihop_cmd,
+       "no bgp fall-over bfd multihop",
+       NO_STR
+       "BGP specific commands\n"
+       "configure fall-over settings.\n"
+       "configure BFD protocol settings for bfd fall-over.\n"
+       "unset BFD multihop to enabled.\n")
+{
+  struct bgp *bgp;
+
+  bgp = vty->index;
+  if (! bgp)
+    return CMD_WARNING;
+
+  bgp_flag_unset(bgp, BGP_FLAG_BFD_MULTIHOP);
+  return CMD_SUCCESS;
+}
+
 /* "bgp fast-external-failover" configuration. */
 DEFUN (bgp_fast_external_failover,
        bgp_fast_external_failover_cmd,
@@ -2271,7 +2309,7 @@ DEFUN (no_neighbor_fall_over_bfd_sync,
        NEIGHBOR_STR
        NEIGHBOR_ADDR_STR2
        "disable BFD protocol support for fall over.\n"
-       "disable Biderectional Forwarding Detection.\n"
+       "disable Bidirectional Forwarding Detection.\n"
        "disable synchroniation BGP/BFD.\n")
 {
   return peer_flag_unset_vty (vty, argv[0], PEER_FLAG_BFD_SYNC);
@@ -10977,7 +11015,9 @@ bgp_vty_init (void)
   install_element (BGP_NODE, &no_bgp_graceful_restart_restart_time_val_cmd);
   install_element (BGP_NODE, &bgp_graceful_restart_preserve_fw_cmd);
   install_element (BGP_NODE, &no_bgp_graceful_restart_preserve_fw_cmd);
- 
+  install_element (BGP_NODE, &bgp_fall_over_bfd_multihop_cmd);
+  install_element (BGP_NODE, &no_bgp_fall_over_bfd_multihop_cmd);
+
   /* "bgp fast-external-failover" commands */
   install_element (BGP_NODE, &bgp_fast_external_failover_cmd);
   install_element (BGP_NODE, &no_bgp_fast_external_failover_cmd);
