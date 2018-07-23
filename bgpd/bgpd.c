@@ -3386,7 +3386,8 @@ peer_flag_modify (struct peer *peer, u_int32_t flag, int set)
     else
       UNSET_FLAG (peer->flags, PEER_FLAG_BFD_SYNC);
   }
-  if(flag == PEER_FLAG_BFD) {
+  if(flag == PEER_FLAG_BFD ||
+     flag == PEER_FLAG_BFD_SYNC) {
     if(set)
       bgp_bfd_neigh_add(peer);
     else 
