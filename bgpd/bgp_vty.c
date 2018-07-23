@@ -2234,7 +2234,7 @@ DEFUN (neighbor_fall_over_bfd,
        NEIGHBOR_STR
        NEIGHBOR_ADDR_STR2
        "enable BFD protocol support for fall over.\n"
-       "use Biderectional Forwarding Detection.\n")
+       "use Bidirectional Forwarding Detection.\n")
 {
   return peer_flag_set_vty (vty, argv[0], PEER_FLAG_BFD);
 }
@@ -2246,7 +2246,7 @@ DEFUN (no_neighbor_fall_over_bfd,
        NEIGHBOR_STR
        NEIGHBOR_ADDR_STR2
        "disable BFD protocol support for fall over.\n"
-       "disable Biderectional Forwarding Detection.\n")
+       "disable Bidirectional Forwarding Detection.\n")
 {
   return peer_flag_unset_vty (vty, argv[0], PEER_FLAG_BFD);
 }
@@ -2258,7 +2258,7 @@ DEFUN (neighbor_fall_over_bfd_sync,
        NEIGHBOR_STR
        NEIGHBOR_ADDR_STR2
        "enable BFD protocol support for fall over.\n"
-       "use Biderectional Forwarding Detection.\n"
+       "use Bidirectional Forwarding Detection.\n"
        "synchronize BGP with BFD.\n")
 {
   return peer_flag_set_vty (vty, argv[0], PEER_FLAG_BFD_SYNC);
