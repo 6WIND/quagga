@@ -42,7 +42,7 @@
 
 #define BFD_IF_MULTIPLIER_DFT	3
 #define BFD_IF_MULTIPLIER_MIN	1
-#define BFD_IF_MULTIPLIER_MAX	20
+#define BFD_IF_MULTIPLIER_MAX	255
 
 void bfd_if_init (void);
 struct bfd_if_info *bfd_if_info_new (void);
