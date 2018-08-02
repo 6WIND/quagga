@@ -822,6 +822,7 @@ bfd_config_write (struct vty *vty)
 {
   int write = 0;
   int write_interval = 0, write_debounce_timer = 0;
+  int write_ldesmintx = 0, write_lreqminrx = 0;
 
   if (bfd->rx_interval != BFD_IF_MINRX_DFT ||
       bfd->tx_interval != BFD_IF_INTERVAL_DFT ||
@@ -833,7 +834,14 @@ bfd_config_write (struct vty *vty)
       bfd->debounce_up != DEFAULT_BFD_DEBOUNCE_UP)
     write_debounce_timer = 1;
 
-  if (write_interval || write_debounce_timer)
+  if (bfd->ldesmintx != BFD_LDESMINTX_DFT)
+    write_ldesmintx = 1;
+
+  if (bfd->lreqminrx != BFD_LREQMINRX_DFT)
+    write_lreqminrx = 1;
+
+  if (write_interval || write_debounce_timer ||
+      write_ldesmintx || write_lreqminrx)
     vty_out (vty, "bfd%s", VTY_NEWLINE);
 
   if (write_interval)
@@ -848,6 +856,18 @@ bfd_config_write (struct vty *vty)
     {
       vty_out (vty, " bfd debounce-down %u debounce-up %u%s",
                bfd->debounce_down, bfd->debounce_up, VTY_NEWLINE);
+      write++;
+    }
+
+  if (write_ldesmintx)
+    {
+      vty_out (vty, " bfd ldesmintx %u%s", bfd->ldesmintx, VTY_NEWLINE);
+      write++;
+    }
+
+  if (write_lreqminrx)
+    {
+      vty_out (vty, " bfd lreqminrx %u%s", bfd->lreqminrx, VTY_NEWLINE);
       write++;
     }
 
