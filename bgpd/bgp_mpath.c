@@ -78,9 +78,7 @@ bgp_mpath_is_configured (struct bgp *bgp, afi_t afi, safi_t safi, struct bgp_nod
     {
       vrf = bgp_vrf_lookup_per_rn(bgp, afi, rn);
     }
-  if (vrf && (vrf->max_mpath[AFI_IP][safi] > 1 ||
-              vrf->max_mpath[AFI_IP6][safi] > 1 ||
-              vrf->max_mpath[AFI_L2VPN][safi] > 1))
+  if (vrf && vrf->max_mpath[afi][safi] > 1)
     {
       return true;
     }
