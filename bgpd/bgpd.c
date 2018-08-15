@@ -2361,7 +2361,7 @@ bgp_vrf_lookup_per_name (struct bgp *bgp, const char *name, int create)
   vrf->bgp = bgp;
   vrf->name = strdup (name);
   vrf->max_mpath_configured = bgp->maxpaths[AFI_IP][SAFI_MPLS_VPN].maxpaths_ibgp;
-  if (vrf->max_mpath == 0)
+  if (vrf->max_mpath[AFI_IP][SAFI_MPLS_VPN] == 0)
     vrf->max_mpath_configured = BGP_DEFAULT_MAXPATHS;
   vrf->flag |= BGP_VRF_RD_UNSET;
   vrf->ltype = BGP_LAYER_TYPE_3;
@@ -2449,31 +2449,37 @@ bgp_vrf_update_rd (struct bgp *bgp, struct bgp_vrf *vrf, struct prefix_rd *outbo
   return vrf;
 }
 
-void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi,
-                                u_int16_t maxpaths)
+static void
+bgp_vrfs_update_maxpath (struct bgp *bgp, afi_t afi, safi_t safi,
+                         u_int16_t maxpaths)
 {
   struct listnode *node;
   struct bgp_vrf *vrf;
   u_int16_t orig_value;
+  afi_t orig_afi = (safi == SAFI_EVPN) ? AFI_L2VPN : afi;
 
-  if (!bgp || (afi >= AFI_MAX) || (safi >= SAFI_MAX))
+  if (afi != AFI_IP && afi != AFI_IP6 && afi != AFI_L2VPN)
+    return;
+
+  if (safi != SAFI_MPLS_VPN && safi != SAFI_EVPN)
     return;
 
   for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
     {
-      orig_value = vrf->max_mpath[afi][safi];
+      orig_value = vrf->max_mpath[afi][SAFI_UNICAST];
       if (maxpaths > BGP_DEFAULT_MAXPATHS)
         {
           if (maxpaths < orig_value)
-            vrf->max_mpath[afi][safi] = maxpaths;
+            vrf->max_mpath[afi][SAFI_UNICAST] = maxpaths;
           else
-            vrf->max_mpath[afi][safi] = vrf->max_mpath_configured;
+            vrf->max_mpath[afi][SAFI_UNICAST] = vrf->max_mpath_configured;
         }
       else
         {
-          vrf->max_mpath[afi][safi] = BGP_DEFAULT_MAXPATHS;
+          vrf->max_mpath[afi][SAFI_UNICAST] = BGP_DEFAULT_MAXPATHS;
         }
-      if (orig_value != vrf->max_mpath[afi][safi])
+
+      if (orig_value != vrf->max_mpath[afi][SAFI_UNICAST])
         {
           struct listnode *node, *next;
           struct peer *peer;
@@ -2481,14 +2487,38 @@ void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi,
             {
               if (peer->status != Established)
                 continue;
-              if (! peer->afc[afi][safi])
+              if (! peer->afc[orig_afi][safi])
                 continue;
               zlog_err("vrf mpath (%u->%u) : peer %s refreshing afi %u %u",
-                       orig_value, vrf->max_mpath[afi][safi],
-                       peer->host, afi, safi);
-              peer_change_action (peer, afi, safi, peer_change_reset_in);
+                       orig_value, vrf->max_mpath[afi][SAFI_UNICAST],
+                       peer->host, orig_afi, safi);
+              if (CHECK_FLAG (peer->af_flags[orig_afi][safi], PEER_FLAG_SOFT_RECONFIG))
+                peer_clear_soft (peer, orig_afi, safi, BGP_CLEAR_SOFT_IN);
+              else
+                peer_change_action (peer, orig_afi, safi, peer_change_reset_in);
             }
         }
+    }
+}
+
+void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi,
+                                u_int16_t maxpaths)
+{
+  if (!bgp)
+    return;
+
+  if (afi != AFI_IP && afi != AFI_IP6 && afi != AFI_L2VPN)
+    return;
+
+  if (safi != SAFI_MPLS_VPN && safi != SAFI_EVPN)
+    return;
+
+  if (safi == SAFI_MPLS_VPN)
+    bgp_vrfs_update_maxpath (bgp, afi, safi, maxpaths);
+  else
+    {
+      bgp_vrfs_update_maxpath (bgp, AFI_IP, safi, maxpaths);
+      bgp_vrfs_update_maxpath (bgp, AFI_IP6, safi, maxpaths);
     }
 }
 
@@ -2517,7 +2547,11 @@ void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf)
                   zlog_err("vrf mpath (%u->%u) : peer %s refreshing afi %u %u",
                            vrf->max_mpath[afi][safi], vrf->max_mpath_configured,
                            peer->host, afi, safi);
-                  peer_change_action (peer, afi, safi, peer_change_reset_in);
+
+                  if (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG))
+                    peer_clear_soft (peer, afi, safi, BGP_CLEAR_SOFT_IN);
+                  else
+                    peer_change_action (peer, afi, safi, peer_change_reset_in);
                 }
             }
           vrf->max_mpath[afi][safi] = vrf->max_mpath_configured;

@@ -4817,7 +4817,8 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
                 }
 	      /* graceful restart STALE flag unset. */
 	      if (CHECK_FLAG (ri->flags, BGP_INFO_STALE) ||
-                  CHECK_FLAG (ri->flags, BGP_INFO_STALE_REFRESH))
+                  CHECK_FLAG (ri->flags, BGP_INFO_STALE_REFRESH) ||
+                  soft_reconfig)
 		{
                   if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
                       bgp_info_unset_flag (rn, ri, BGP_INFO_STALE);
