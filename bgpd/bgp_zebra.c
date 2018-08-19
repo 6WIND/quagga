@@ -250,10 +250,14 @@ bgp_bfd_neigh_add(struct peer *peer)
   else
     UNSET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_MULTIHOP);
 
-  if(peer->status == Established)
+  if (peer->status == Established || peer->update_source)
   {
-    peer->bfd_su_local = sockunion_dup(peer->su_local);
     struct prefix p1, p2;
+
+    if (peer->update_source)
+      peer->bfd_su_local = sockunion_dup(peer->update_source);
+    else
+      peer->bfd_su_local = sockunion_dup(peer->su_local);
 
     if (!CHECK_FLAG(peer->flags,PEER_FLAG_MULTIHOP))
       {

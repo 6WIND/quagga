@@ -3811,6 +3811,12 @@ peer_update_source_addr_set (struct peer *peer, const union sockunion *su)
 
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
     {
+      if (CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
+        {
+          bgp_bfd_neigh_del(peer);
+          bgp_bfd_neigh_add(peer);
+        }
+
       if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status))
        {
          peer->last_reset = PEER_DOWN_UPDATE_SOURCE_CHANGE;
@@ -3842,6 +3848,12 @@ peer_update_source_addr_set (struct peer *peer, const union sockunion *su)
 
       peer->update_source = sockunion_dup (su);
 
+      if (CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
+        {
+          bgp_bfd_neigh_del(peer);
+          bgp_bfd_neigh_add(peer);
+        }
+
       if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status))
        {
          peer->last_reset = PEER_DOWN_UPDATE_SOURCE_CHANGE;
@@ -3870,6 +3882,12 @@ peer_update_source_unset (struct peer *peer)
     {
       sockunion_free (peer->update_source);
       peer->update_source = NULL;
+
+      if (CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
+        {
+          bgp_bfd_neigh_del(peer);
+          bgp_bfd_neigh_add(peer);
+        }
     }
   if (peer->update_if)
     {
@@ -3915,6 +3933,12 @@ peer_update_source_unset (struct peer *peer)
 	{
 	  sockunion_free (peer->update_source);
 	  peer->update_source = NULL;
+
+          if (CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
+            {
+              bgp_bfd_neigh_del(peer);
+              bgp_bfd_neigh_add(peer);
+            }
 	}
 
       if (peer->update_if)
