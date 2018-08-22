@@ -49,10 +49,11 @@ static void qthrift_bgp_updater_handle_response(struct qthrift_vpnservice *ctxt,
             error->code == THRIFT_TRANSPORT_ERROR_SEND)
           {
             (*thrift_tries)++;
-            zlog_info ("%s: sent error %s %s",
-                       name, error->message,
+            zlog_info ("%s: sent error %s (%d) %s (%d)",
+                       name, error->message, errno,
                        *thrift_tries < thrift_retries_limitation ?
-                       ", retrying" : ", dropping msg");
+                       ", retrying" : ", dropping msg",
+                       *thrift_tries);
             usleep(20000); /* wait 20 milliseconds */
             if (*thrift_tries >= thrift_retries_limitation) {
               ctxt->bgp_update_thrift_lost_msgs++;
