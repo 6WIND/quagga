@@ -57,10 +57,10 @@ qthrift_status qthrift_transport_current_status;
 
 unsigned int notification_socket_errno[QTHRIFT_MAX_ERRNO];
 
-static void qthrift_update_notification_socket_errno(void) {
-  if (errno >= QTHRIFT_MAX_ERRNO)
+static void qthrift_update_notification_socket_errno(int err) {
+  if (err >= QTHRIFT_MAX_ERRNO)
     return;
-  notification_socket_errno[errno]++;
+  notification_socket_errno[err]++;
 }
 
 void qthrift_transport_change_status(struct qthrift_vpnservice *setup, gboolean response)
@@ -182,15 +182,14 @@ static int qthrift_vpnservice_bgp_updater_check_connection (struct qthrift_vpnse
     ret = recv(fd, buffer, 32, MSG_PEEK | MSG_DONTWAIT);
   if (ret == 0)
     {
-      errno = ENOTCONN;
-      qthrift_update_notification_socket_errno();
+      qthrift_update_notification_socket_errno(ENOTCONN);
       return -1;
     }
   else
     {
       if (ret == -1)
         {
-          qthrift_update_notification_socket_errno();
+          qthrift_update_notification_socket_errno(errno);
           if (errno == EAGAIN || errno == EWOULDBLOCK)
             return 0;
           /* other cases : EBADF, ECONNREFUSED, EFAULT, EINTR, EINVAL,
