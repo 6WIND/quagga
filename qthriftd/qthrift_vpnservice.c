@@ -116,7 +116,7 @@ void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean
   qthrift_monitor_retry_job_in_progress = 1;
 }
 
-static int qthrift_vpnservice_get_bgp_updater_socket (struct qthrift_vpnservice *setup)
+int qthrift_vpnservice_get_bgp_updater_socket (struct qthrift_vpnservice *setup)
 {
   ThriftTransport *transport = NULL;
   ThriftSocket *tsocket = NULL;
