@@ -65,6 +65,7 @@ static bool qthrift_bgp_updater_handle_response(struct qthrift_vpnservice *ctxt,
               tout.tv_usec = thrift_retries_timeout_ms * 1000;
               optval = -1;
               optlen = sizeof (optval);
+              ctxt->bgp_update_thrift_retries++;
               if ((select(FD_SETSIZE, NULL, &wrfds, NULL, &tout) <= 0) ||
                   (getsockopt(fd, SOL_SOCKET, SO_ERROR, &optval, (socklen_t *)&optlen) < 0) ||
                   (optval != 0)) {
@@ -75,8 +76,10 @@ static bool qthrift_bgp_updater_handle_response(struct qthrift_vpnservice *ctxt,
                 should_retry = FALSE;
                 *response = FALSE;
                 qthrift_transport_check_response(ctxt, FALSE);
-              } else
+              } else {
+                ctxt->bgp_update_thrift_retries_successfull++;
                 should_retry = TRUE;
+              }
             } else {
               zlog_info ("%s: sent error %s (%d), resetting connection",
                          name, error->message, errno);

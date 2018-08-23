@@ -121,6 +121,8 @@ struct qthrift_vpnservice
   u_int32_t bgp_update_monitor;
   u_int32_t bgp_update_retries;
   u_int32_t bgp_update_total;
+  u_int32_t bgp_update_thrift_retries;
+  u_int32_t bgp_update_thrift_retries_successfull;
 };
 
 enum _qthrift_status

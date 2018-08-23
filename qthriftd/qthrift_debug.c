@@ -46,12 +46,15 @@ DEFUN (show_debugging_qthrift_stats,
     {
       return CMD_SUCCESS;
     }
-  vty_out (vty, "BGP ZMQ notifications total %u lost %u thrift lost %u%s",
+  vty_out (vty, "BGP ZMQ notifications total %u lost %u%s",
            ctxt->bgp_update_total,
            ctxt->bgp_update_lost_msgs,
+           VTY_NEWLINE);
+  vty_out (vty, "BGP Thrift retries %u, successfull %u, lost %u%s",
+           ctxt->bgp_update_thrift_retries,
+           ctxt->bgp_update_thrift_retries_successfull,
            ctxt->bgp_update_thrift_lost_msgs,
            VTY_NEWLINE);
-
   return CMD_SUCCESS;
 }
 
