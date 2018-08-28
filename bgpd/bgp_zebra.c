@@ -526,11 +526,6 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
         /* If we were in UP state, stop BGP */
         if(peer->bfd_status == PEER_BFD_STATUS_UP)
           BGP_EVENT_ADD (peer, BGP_Stop);
-
-#ifdef HAVE_ZEROMQ
-	if (peer->status != Established)
-	  send_event = false;
-#endif
       }
     /* Change peer status to DOWN */
     peer->bfd_status = PEER_BFD_STATUS_DOWN;

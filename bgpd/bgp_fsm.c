@@ -469,6 +469,19 @@ bgp_bfd_send_event(struct bgp *bgp, struct peer *peer, uint8_t up_down)
       (up_down != BGP_EVENT_BFD_STATUS_DOWN))
     return;
 
+  if (up_down == BGP_EVENT_BFD_STATUS_UP)
+    {
+      if (CHECK_FLAG (peer->sflags, PEER_STATUS_PEER_UP_SENT))
+        return;
+    }
+  else
+    {
+      if (! CHECK_FLAG (peer->sflags, PEER_STATUS_PEER_UP_SENT))
+        return;
+      if (CHECK_FLAG (peer->sflags, PEER_STATUS_PEER_DOWN_SENT))
+        return;
+    }
+
   st.as = peer->as;
   st.peer.family = peer->su.sa.sa_family;
   if (st.peer.family == AF_INET)
@@ -485,12 +498,29 @@ bgp_bfd_send_event(struct bgp *bgp, struct peer *peer, uint8_t up_down)
 
   if (BGP_DEBUG (events, EVENTS))
     {
-      char buf[SU_ADDRSTRLEN];
-      sockunion2str (&peer->su, buf, SU_ADDRSTRLEN);
-      zlog_info ("bgp->mngr peer %s: BFD status %s",
-		 buf, up_down ? "UP" : "DOWN");
+      if ((peer->bfd_status == PEER_BFD_STATUS_UP &&
+           up_down == BGP_EVENT_BFD_STATUS_UP) ||
+          (peer->bfd_status == PEER_BFD_STATUS_DOWN &&
+           up_down == BGP_EVENT_BFD_STATUS_DOWN))
+        {
+          char buf[SU_ADDRSTRLEN];
+          sockunion2str (&peer->su, buf, SU_ADDRSTRLEN);
+          zlog_info ("bgp->mngr peer %s: BFD status %s",
+                     buf, up_down ? "UP" : "DOWN");
+        }
     }
   bgp_notify_bfd_status (bgp, &st);
+
+  if (up_down == BGP_EVENT_BFD_STATUS_UP)
+    {
+      SET_FLAG (peer->sflags, PEER_STATUS_PEER_UP_SENT);
+      UNSET_FLAG (peer->sflags, PEER_STATUS_PEER_DOWN_SENT);
+    }
+  else
+    {
+      SET_FLAG (peer->sflags, PEER_STATUS_PEER_DOWN_SENT);
+      UNSET_FLAG (peer->sflags, PEER_STATUS_PEER_UP_SENT);
+    }
 }
 #endif /* HAVE_ZEROMQ */
 
@@ -1048,6 +1078,11 @@ bgp_establish (struct peer *peer)
   /* Notify BFD about the session state, and start it if didn't started yet */
   if (CHECK_FLAG (peer->flags, PEER_FLAG_BFD))
     bgp_bfd_estab(peer);
+
+#ifdef HAVE_ZEROMQ
+  if (CHECK_FLAG (peer->flags, PEER_FLAG_BFD_SYNC))
+    bgp_bfd_send_event(peer->bgp, peer, BGP_EVENT_BFD_STATUS_UP);
+#endif /* HAVE_ZEROMQ */
 
   bgp_announce_route_all (peer);
 

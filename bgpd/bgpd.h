@@ -629,6 +629,8 @@ struct peer
 #define PEER_STATUS_BFD_CBIT          (1 << 7) /* BFD C-bit from peer */
 #define PEER_STATUS_HOLDTIME_EXPIRED  (1 << 8) /* TCP Hold timer expired */
 #define PEER_STATUS_CLOSE_SESSION     (1 << 9) /* peer closed session without graceful restart */
+#define PEER_STATUS_PEER_UP_SENT      (1 << 10)/* peerUp() sent */
+#define PEER_STATUS_PEER_DOWN_SENT    (1 << 11)/* peerDown() sent */
 
   /* Peer status af flags (reset in bgp_stop) */
   u_int16_t af_sflags[AFI_MAX][SAFI_MAX];
