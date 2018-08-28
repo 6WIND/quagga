@@ -771,6 +771,54 @@ bfd_neigh_add (struct bfd_neigh *neighp)
     }
 }
 
+char *
+bfd_neigh_uptime (time_t uptime2, char *buf, size_t len)
+{
+  time_t uptime1;
+  struct tm *tm;
+
+  /* Check buffer length. */
+  if (len < BFD_UPTIME_LEN)
+    {
+      zlog_warn ("bfd_neigh_uptime (): buffer shortage %lu", (u_long)len);
+      /* XXX: should return status instead of buf... */
+      snprintf (buf, len, "<error> ");
+      return buf;
+    }
+
+  /* If there is no connection has been done before print `never'. */
+  if (uptime2 == 0)
+    {
+      snprintf (buf, len, "never   ");
+      return buf;
+    }
+
+  /* Get current time. */
+  uptime1 = time (NULL);
+  uptime1 -= uptime2;
+  tm = gmtime (&uptime1);
+
+  /* Making formatted timer strings. */
+#define ONE_DAY_SECOND 60*60*24
+#define ONE_WEEK_SECOND ONE_DAY_SECOND*7
+#define ONE_YEAR_SECOND ONE_DAY_SECOND*365
+
+  if (uptime1 < ONE_DAY_SECOND)
+    snprintf (buf, len, "%02d:%02d:%02d",
+	      tm->tm_hour, tm->tm_min, tm->tm_sec);
+  else if (uptime1 < ONE_WEEK_SECOND)
+    snprintf (buf, len, "%dd%02dh%02dm",
+	      tm->tm_yday, tm->tm_hour, tm->tm_min);
+  else if (uptime1 < ONE_YEAR_SECOND)
+    snprintf (buf, len, "%02dw%dd%02dh",
+	      tm->tm_yday/7, tm->tm_yday - ((tm->tm_yday/7) * 7), tm->tm_hour);
+  else
+    snprintf (buf, len, "%02dy%02dw%dd",
+	      tm->tm_year - 70, tm->tm_yday/7,
+	      tm->tm_yday - ((tm->tm_yday/7) * 7));
+  return buf;
+}
+
 #ifdef HAVE_CCAPNPROTO
 #include "bfdd.ndef.i"
 #endif /*HAVE_CCAPNPROTO */

@@ -312,6 +312,8 @@ bfd_fsm_up (struct bfd_neigh *neighp)
 	    BFD_FSM_LOG_DEBUG_NOARG ("Up.") neighp->notify = FSM_S_Up;
 	  bfd_handle_state_transition (neighp, BFD_NEIGH_UP);
 	  neighp->up_cnt++;
+
+	  neighp->uptime = time (NULL);
 	}
 
       /* "If either bfd.DesiredMinTxInterval is changed 
@@ -376,9 +378,6 @@ bfd_fsm_up (struct bfd_neigh *neighp)
 	      BFD_TIMER_MSEC_ON (neighp->t_hello, bfd_pkt_xmit, 0);
 	    }
 	}
-
-      if (!neighp->uptime)
-	neighp->uptime = time (NULL);
     }
   return BFD_OK;
 }
@@ -425,9 +424,6 @@ bfd_fsm_down (struct bfd_neigh *neighp)
 
   neighp->lstate = BFD_STATE_DOWN;
 
-  if (!neighp->uptime)
-    neighp->uptime = time (NULL);
-
   /* Initialization of session timeout timer */
   if (!neighp->t_session)
     {
@@ -445,6 +441,8 @@ bfd_fsm_down (struct bfd_neigh *neighp)
       if (neighp->status == FSM_S_Up)
         bfd_handle_state_transition (neighp, BFD_NEIGH_DOWN);
       neighp->down_cnt++;
+
+      neighp->uptime = time (NULL);
     }
   return BFD_OK;
 }

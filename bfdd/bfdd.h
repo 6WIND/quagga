@@ -295,4 +295,9 @@ int bfd_neigh_add (struct bfd_neigh *neighp);
 int bfd_neigh_del (struct bfd_neigh *neighp);
 int bfd_cneigh_del (struct bfd_cneigh *cneighp);
 
+/* BFD uptime string length.  */
+#define BFD_UPTIME_LEN 25
+
+char *bfd_neigh_uptime (time_t uptime2, char *buf, size_t len);
+
 #endif /* _ZEBRA_BFD_H */

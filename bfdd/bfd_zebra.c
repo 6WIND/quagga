@@ -351,10 +351,26 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 
 	    if (mode == BFD_SH_NEIGH_DET)
 	      {
+		char timebuf[BFD_UPTIME_LEN];
+
 		vty_out (vty,
 			 "Local Diag: %u, Demand mode: %u, Poll bit: %u%s",
 			 neighp->ldiag, bfd_neigh_check_lbit_d (neighp),
 			 bfd_neigh_check_lbit_p (neighp), VTY_NEWLINE);
+		if (neighp->status == FSM_S_Up)
+		  {
+		    vty_out (vty,
+			     "Session up time: %s%s",
+			     bfd_neigh_uptime (neighp->uptime, timebuf, BFD_UPTIME_LEN),
+			     VTY_NEWLINE);
+		  }
+		else if (neighp->status == FSM_S_Down)
+		  {
+		    vty_out (vty,
+			     "Session down time: %s%s",
+			     bfd_neigh_uptime (neighp->uptime, timebuf, BFD_UPTIME_LEN),
+			     VTY_NEWLINE);
+		  }
 		vty_out (vty,
 			 "Session mode: %s%s",
 			 bfd_flag_1hop_check (neighp) ?
