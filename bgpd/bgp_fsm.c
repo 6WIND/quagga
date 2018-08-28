@@ -587,6 +587,10 @@ bgp_stop (struct peer *peer)
 			    peer->v_gr_restart);
 	      BGP_TIMER_ON (peer->t_gr_stale, bgp_graceful_stale_timer_expire,
 			    peer->bgp->stalepath_time);
+
+	      /* peerUp() is expected when bgp session is established again */
+	      SET_FLAG (peer->sflags, PEER_STATUS_PEER_DOWN_SENT);
+	      UNSET_FLAG (peer->sflags, PEER_STATUS_PEER_UP_SENT);
 	    }
 	}
       else

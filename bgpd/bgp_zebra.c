@@ -533,6 +533,12 @@ bgp_bfd_neigh_down(struct bfd_cneigh *cneighp)
 #ifdef HAVE_ZEROMQ
     if (send_event)
       bgp_bfd_send_event(bgp, peer, BGP_EVENT_BFD_STATUS_DOWN);
+    else
+      {
+        /* peerUp() is expected when bfd session is up again */
+        SET_FLAG (peer->sflags, PEER_STATUS_PEER_DOWN_SENT);
+        UNSET_FLAG (peer->sflags, PEER_STATUS_PEER_UP_SENT);
+      }
 #endif /* HAVE_ZEROMQ */
   }
 
