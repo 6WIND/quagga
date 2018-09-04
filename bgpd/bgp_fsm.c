@@ -592,6 +592,9 @@ bgp_stop (struct peer *peer)
 	      SET_FLAG (peer->sflags, PEER_STATUS_PEER_DOWN_SENT);
 	      UNSET_FLAG (peer->sflags, PEER_STATUS_PEER_UP_SENT);
 	    }
+
+	  if (CHECK_FLAG (peer->sflags, PEER_STATUS_HOLDTIME_EXPIRED))
+	    UNSET_FLAG (peer->sflags, PEER_STATUS_HOLDTIME_EXPIRED);
 	}
       else
 	{
