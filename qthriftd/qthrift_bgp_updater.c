@@ -122,6 +122,7 @@ qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix
                                                           nexthop, label, &error);
     if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, error, buff) == FALSE)
       break;
+    error = NULL;
   }
   if(IS_QTHRIFT_DEBUG_NOTIFICATION && response == TRUE)
     zlog_info (buff);
@@ -152,6 +153,7 @@ qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * pr
                                                           nexthop, label, &error);
     if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, error, buff) == FALSE)
       break;
+    error = NULL;
   }
   if(IS_QTHRIFT_DEBUG_NOTIFICATION && response == TRUE)
     zlog_info (buff);
@@ -171,6 +173,7 @@ qthrift_bgp_updater_on_start_config_resync_notification_quick (struct qthrift_vp
     response = bgp_updater_client_on_start_config_resync_notification(ctxt->bgp_updater_client, &error);
     if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, error, "onStartConfigResyncNotification()") == FALSE)
       break;
+    error = NULL;
   }
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
     zlog_info ("onStartConfigResyncNotification() %s", response == FALSE?"NOK":"OK");
@@ -235,6 +238,7 @@ qthrift_bgp_updater_on_notification_send_event (const gchar * prefix, const gint
                                                              errSubcode, &error);
     if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, error, buff) == FALSE)
       break;
+    error = NULL;
   }
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
     zlog_info ("%s %s", buff, response == FALSE?"NOK":"OK");
