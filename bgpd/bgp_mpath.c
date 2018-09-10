@@ -66,6 +66,8 @@ bgp_mpath_is_configured (struct bgp *bgp, afi_t afi, safi_t safi, struct bgp_nod
 {
   bool val;
   struct bgp_vrf *vrf = NULL;
+  int is_origin_evpn = 0;
+  u_int16_t maxpaths = BGP_DEFAULT_MAXPATHS;
 
   val  = bgp_mpath_is_configured_sort (bgp, BGP_PEER_IBGP, afi, safi)
     || bgp_mpath_is_configured_sort (bgp, BGP_PEER_EBGP, afi, safi);
@@ -77,13 +79,26 @@ bgp_mpath_is_configured (struct bgp *bgp, afi_t afi, safi_t safi, struct bgp_nod
       bgp_node_table (rn)->type == BGP_TABLE_VRF)
     {
       vrf = bgp_vrf_lookup_per_rn(bgp, afi, rn);
+      if (vrf)
+        {
+          struct bgp_info *ri = NULL;
+
+          for (ri = rn->info; ri; ri = ri->next)
+            if (CHECK_FLAG (ri->flags, BGP_INFO_ORIGIN_EVPN))
+              {
+                is_origin_evpn = 1;
+                break;
+              }
+          if (is_origin_evpn)
+            maxpaths = vrf->max_mpath[AFI_L2VPN][SAFI_EVPN];
+          else
+            maxpaths = vrf->max_mpath[afi][SAFI_MPLS_VPN];
+
+	  if (maxpaths > 1)
+            return true;
+        }
     }
-  if (vrf && (vrf->max_mpath[AFI_IP][safi] > 1 ||
-              vrf->max_mpath[AFI_IP6][safi] > 1 ||
-              vrf->max_mpath[AFI_L2VPN][safi] > 1))
-    {
-      return true;
-    }
+
   return false;
 }
 
