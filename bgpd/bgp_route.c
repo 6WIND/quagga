@@ -5670,10 +5670,19 @@ bgp_soft_reconfig_table (struct peer *peer, afi_t afi, safi_t safi,
 	    struct bgp_info *ri = rn->info;
 	    uint32_t *labels = (ri && ri->extra) ? ri->extra->labels : NULL;
 	    size_t nlabels = (ri && ri->extra) ? ri->extra->nlabels : 0;
+            struct bgp_route_evpn evpn_copy;
+            struct bgp_route_evpn *evpn_ptr = NULL;
 
+            if (safi == SAFI_EVPN && ri && ri->attr && ri->attr->extra) {
+              evpn_ptr = &evpn_copy;
+              evpn_ptr->eth_t_id = ri->attr->extra->eth_t_id;
+              memcpy(&evpn_ptr->eth_s_id, &ri->attr->extra->evpn_overlay.eth_s_id, sizeof(struct eth_segment_id));
+              memcpy(&evpn_ptr->gw_ip, &ri->attr->extra->evpn_overlay.gw_ip, sizeof(union gw_addr));
+              evpn_ptr->auto_discovery_type = 0;
+            }
 	    ret = bgp_update (peer, &rn->p, ain->attr, afi, safi,
 			      ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL,
-			      prd, labels, nlabels, 1, NULL);
+			      prd, labels, nlabels, 1, evpn_ptr);
 
 	    if (ret < 0)
 	      {
