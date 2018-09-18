@@ -496,7 +496,7 @@ main (int argc, char **argv)
   bgp_init ();
 
   if (zmq_sock)
-    qzc_sock = qzc_bind (bm->master, zmq_sock);
+    qzc_sock = qzc_bind (bm->master, zmq_sock, QZC_CLIENT_ZMQ_LIMIT_RX);
 
   /* Parse config file. */
   vty_read_config (config_file, config_default);
