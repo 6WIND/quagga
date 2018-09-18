@@ -237,7 +237,7 @@ static void qthrift_transport_configures_cloexec(ThriftTransport *transport)
     tsocket = THRIFT_SOCKET (transport);
   if (tsocket)
     fd = tsocket->sd;
-  if (fd != 0) {
+  if (fd != 0 && fd != -1) {
     if (fcntl (tsocket->sd, F_SETFD, FD_CLOEXEC) == -1)
        zlog_err ("qthrift_transport_configures_cloexec : fcntl failed (%s)", safe_strerror (errno));
   }
