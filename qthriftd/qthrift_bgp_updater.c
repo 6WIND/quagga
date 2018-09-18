@@ -35,7 +35,7 @@ extern qthrift_status qthrift_transport_current_status;
 extern void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response);
 extern void qthrift_transport_cancel_monitor(struct qthrift_vpnservice *setup);
 
-static int thrift_retries_timeout_ms = 1000;
+static int thrift_retries_timeout_ms = 5000;
 
 static bool qthrift_bgp_updater_handle_response(struct qthrift_vpnservice *ctxt,
                                                 bool *response,
