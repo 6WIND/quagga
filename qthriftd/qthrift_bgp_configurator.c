@@ -730,7 +730,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
   qthrift_vpnservice_get_bgp_context(ctxt)->proc = pid;
   /* creation of capnproto context - bgp configurator */
   /* creation of qzc client context */
-  ctxt->qzc_sock = qzcclient_connect(s_zmq_sock);
+  ctxt->qzc_sock = qzcclient_connect(s_zmq_sock, QZC_CLIENT_ZMQ_LIMIT_TX);
   if(ctxt->qzc_sock == NULL)
     {
       *_return = BGP_ERR_FAILED;
