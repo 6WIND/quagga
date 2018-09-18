@@ -39,14 +39,16 @@ static int thrift_retries_timeout_ms = 5000;
 
 static bool qthrift_bgp_updater_handle_response(struct qthrift_vpnservice *ctxt,
                                                 bool *response,
-                                                GError *error,
+                                                GError **perror,
                                                 const char *name)
 {
   bool should_retry = FALSE;
+  GError *error = NULL;
 
-    if (error != NULL)
+    if (perror != NULL)
       {
-        if (error->domain == THRIFT_TRANSPORT_ERROR &&
+        error = *perror;
+        if (error && error->domain == THRIFT_TRANSPORT_ERROR &&
             error->code == THRIFT_TRANSPORT_ERROR_SEND)
           {
             /* errors that are worth to be retried */
@@ -105,12 +107,13 @@ gboolean
 qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix, \
                                           const gint32 prefixlen, const gchar * nexthop, const gint32 label)
 {
-  GError *error = NULL;
+  GError *error = NULL, **perror;
   gboolean response;
   struct qthrift_vpnservice *ctxt = NULL;
   int thrift_tries;
   char buff[255];
 
+  perror = &error;
   sprintf(buff, "onUpdatePushRoute(rd %s,pfx %s/%d, nh %s, label %u)",
           rd, prefix, prefixlen, nexthop, label);
   qthrift_vpnservice_get_context (&ctxt);
@@ -119,8 +122,8 @@ qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix
   for (thrift_tries = 0; thrift_tries < 2; thrift_tries++) {
     response = bgp_updater_client_send_on_update_push_route(ctxt->bgp_updater_client, \
                                                           rd, prefix, prefixlen,
-                                                          nexthop, label, &error);
-    if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, error, buff) == FALSE)
+                                                          nexthop, label, perror);
+    if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, perror, buff) == FALSE)
       break;
     error = NULL;
   }
@@ -136,12 +139,13 @@ qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix
 gboolean
 qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * prefix, const gint32 prefixlen, const gchar * nexthop,  const gint32 label)
 {
-  GError *error = NULL;
+  GError *error = NULL, **perror;
   gboolean response;
   struct qthrift_vpnservice *ctxt = NULL;
   int thrift_tries;
   char buff[255];
 
+  perror = &error;
   sprintf(buff, "onUpdateWithdrawRoute(rd %s, pfx %s/%d, nh %s, label %u)",
           rd, prefix, prefixlen, nexthop, label);
   qthrift_vpnservice_get_context (&ctxt);
@@ -150,8 +154,8 @@ qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * pr
   for (thrift_tries = 0; thrift_tries < 2; thrift_tries++) {
     response = bgp_updater_client_on_update_withdraw_route(ctxt->bgp_updater_client, \
                                                           rd, prefix, prefixlen,
-                                                          nexthop, label, &error);
-    if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, error, buff) == FALSE)
+                                                          nexthop, label, perror);
+    if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, perror, buff) == FALSE)
       break;
     error = NULL;
   }
@@ -166,12 +170,13 @@ gboolean
 qthrift_bgp_updater_on_start_config_resync_notification_quick (struct qthrift_vpnservice *ctxt, gboolean restart)
 {
   gboolean response;
-  GError *error = NULL;
+  GError *error = NULL, **perror;
   int thrift_tries;
 
+  perror = &error;
   for (thrift_tries = 0; thrift_tries < 2; thrift_tries++) {
-    response = bgp_updater_client_on_start_config_resync_notification(ctxt->bgp_updater_client, &error);
-    if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, error, "onStartConfigResyncNotification()") == FALSE)
+    response = bgp_updater_client_on_start_config_resync_notification(ctxt->bgp_updater_client, perror);
+    if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, perror, "onStartConfigResyncNotification()") == FALSE)
       break;
     error = NULL;
   }
@@ -220,12 +225,13 @@ qthrift_bgp_updater_on_start_config_resync_notification (struct thread *thread)
 gboolean
 qthrift_bgp_updater_on_notification_send_event (const gchar * prefix, const gint8 errCode, const gint8 errSubcode)
 {
-  GError *error = NULL;
+  GError *error = NULL, **perror;
   gboolean response;
   struct qthrift_vpnservice *ctxt = NULL;
   int thrift_tries;
   char buff[256];
 
+  perror = &error;
   sprintf(buff, "onNotificationSendEvent(%s, errCode %d, errSubCode %d)",
           prefix, errCode, errSubcode);
 
@@ -235,8 +241,8 @@ qthrift_bgp_updater_on_notification_send_event (const gchar * prefix, const gint
   for (thrift_tries = 0; thrift_tries < 2; thrift_tries++) {
     response = bgp_updater_client_on_notification_send_event(ctxt->bgp_updater_client, \
                                                              prefix, errCode,
-                                                             errSubcode, &error);
-    if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, error, buff) == FALSE)
+                                                             errSubcode, perror);
+    if (qthrift_bgp_updater_handle_response(ctxt, (bool *)&response, perror, buff) == FALSE)
       break;
     error = NULL;
   }
