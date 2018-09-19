@@ -508,7 +508,8 @@ struct qzc_sock *qzcclient_connect (const char *url, uint32_t limit)
 }
 
 struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *url,
-                                void (*func)(void *arg, void *zmqsock, void *msg))
+                                      void (*func)(void *arg, void *zmqsock, void *msg),
+                                      uint32_t limit)
 {
   void *qzc_sock;
   struct qzc_sock *ret;
@@ -533,7 +534,8 @@ struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *
       zmq_close (qzc_sock);
       return NULL;
     }
-
+  if (limit)
+    zmq_setsockopt (qzc_sock, ZMQ_RCVHWM, &limit, sizeof(limit));
   func2 = func;
   ret = XCALLOC(MTYPE_QZC_SOCK, sizeof(*ret));
   ret->zmq = qzc_sock;

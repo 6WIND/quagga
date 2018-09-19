@@ -603,7 +603,8 @@ void qthrift_vpnservice_setup_qzc(struct qthrift_vpnservice *setup)
   if(setup->zmq_subscribe_sock && setup->qzc_subscribe_sock == NULL )
     setup->qzc_subscribe_sock = qzcclient_subscribe(tm->master, \
                                                     setup->zmq_subscribe_sock, \
-                                                    qthrift_vpnservice_callback);
+                                                    qthrift_vpnservice_callback,
+                                                    QZC_CLIENT_ZMQ_LIMIT_RX);
 }
 
 void qthrift_vpnservice_terminate_bgp_context(struct qthrift_vpnservice *setup)

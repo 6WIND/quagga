@@ -96,7 +96,8 @@ qzc_msg_to_notification(zmq_msg_t *msg, struct capn *rc);
 #define QZC_CLIENT_ZMQ_LIMIT_RX     500000
 struct qzc_sock *qzcclient_connect (const char *url, uint32_t limit);
 struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *url,
-                                void (*func)(void *arg, void *zmqsock, void *msg));
+                                      void (*func)(void *arg, void *zmqsock, void *msg),
+                                      uint32_t limit);
 struct QZCReply *qzcclient_do(struct qzc_sock *sock,
                               struct QZCRequest *req_ptr);
 uint64_t
