@@ -39,6 +39,7 @@ struct qthrift_master
   /* qthriftd parameters */
   uint16_t qthrift_notification_port;
   uint16_t qthrift_listen_port;
+  uint16_t qthrift_select_time;
   char *qthrift_notification_address;
 };
 

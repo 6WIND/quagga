@@ -19,8 +19,10 @@
  * 02111-1307, USA.
  */
 
+#include <zebra.h>
 #include <stdio.h>
 #include "qthriftd/qthrift_thrift_wrapper.h"
+#include "qthriftd/qthrift_master.h"
 #include "qthriftd/bgp_updater.h"
 #include "qthriftd/bgp_configurator.h"
 #include "qthriftd/qthrift_bgp_updater.h"
@@ -34,8 +36,6 @@
 extern qthrift_status qthrift_transport_current_status;
 extern void qthrift_transport_check_response(struct qthrift_vpnservice *setup, gboolean response);
 extern void qthrift_transport_cancel_monitor(struct qthrift_vpnservice *setup);
-
-static int thrift_retries_timeout_ms = 5000;
 
 static bool qthrift_bgp_updater_handle_response(struct qthrift_vpnservice *ctxt,
                                                 bool *response,
@@ -58,13 +58,13 @@ static bool qthrift_bgp_updater_handle_response(struct qthrift_vpnservice *ctxt,
               struct timeval tout;
               int optval, optlen;
 
-              zlog_info ("%s: sent error %s (%d), using select to retry",
-                         name, error->message, errno);
+              zlog_info ("%s: sent error %s (%d), using select (%d sec) to retry",
+                         name, error->message, errno, tm->qthrift_select_time);
               FD_ZERO(&wrfds);
               FD_SET(fd, &wrfds);
 
               tout.tv_sec = 0;
-              tout.tv_usec = thrift_retries_timeout_ms * 1000;
+              tout.tv_usec = tm->qthrift_select_time * 1000 * 1000;
               optval = -1;
               optlen = sizeof (optval);
               ctxt->bgp_update_thrift_retries++;

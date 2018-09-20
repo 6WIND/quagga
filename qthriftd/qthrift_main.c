@@ -58,6 +58,7 @@ static const struct option longopts[] =
   { "thrift_port",    required_argument, NULL, 'p'},
   { "thrift_notif_port",    required_argument, NULL, 'n'},
   { "thrift_notif_address",    required_argument, NULL, 'N'},
+  { "select_timeout_max",    required_argument, NULL, 'S'},
   { "help", 0, NULL, 'h'},
   { NULL, 0, NULL, 0}
 };
@@ -144,6 +145,7 @@ qthrift configuration across thrift defined model : vpnservice.\n\n\
 -P, --thrift_port           Set thrift's config port number\n\
 -p, --thrift_notif_port     Set thrift's notif update port number\n\
 -N, --thrift_notif_address  Set thrift's notif update specified address\n\
+-S, --select_timeout_max    Set thrift's select timeout max calue in seconds\n\
 -h, --help                  Display this help and exit\n\
 \n\
 Report bugs to %s\n", progname, ZEBRA_BUG_ADDRESS);
@@ -291,7 +293,7 @@ main (int argc, char **argv)
   char *progname;
   struct thread thread;
   struct qthrift *qthrift;
-  int tmp_port, opt;
+  int tmp_port, opt, tmp_select;
   char vtydisplay[20];
 
   /* Set umask before anything for security */
@@ -312,11 +314,11 @@ main (int argc, char **argv)
   /* THRIFT master init. */
   qthrift_master_init ();
 
+  tm->qthrift_select_time = QTHRIFT_SELECT_TIME_SEC;
   /* Command line argument treatment. */
   while (1)
     {
-      opt = getopt_long (argc, argv, "A:P:p:N:n:Dh", longopts, 0);
-
+      opt = getopt_long (argc, argv, "A:P:p:S:N:n:Dh", longopts, 0);
       if (opt == EOF)
 	break;
       switch (opt)
@@ -345,6 +347,13 @@ main (int argc, char **argv)
 	    tm->qthrift_listen_port = QTHRIFT_LISTEN_PORT;
 	  else
 	    tm->qthrift_listen_port = tmp_port;
+	  break;
+        case 'S':
+	  tmp_select = atoi (optarg);
+	  if (tmp_select <= 0 || tmp_select > 0xffff)
+	    tm->qthrift_select_time = QTHRIFT_SELECT_TIME_SEC;
+	  else
+	    tm->qthrift_select_time = tmp_select;
 	  break;
 	case 'N':
           if(tm->qthrift_notification_address)

@@ -28,7 +28,7 @@
 #define QTHRIFT_LISTEN_PORT	 7644
 #define QTHRIFT_NOTIFICATION_PORT 6644
 #define QTHRIFT_CLIENT_ADDRESS "0.0.0.0"
-
+#define QTHRIFT_SELECT_TIME_SEC 10
 #define ZMQ_SOCK "ipc:///tmp/qzc-vpn2bgp"
 #define ZMQ_NOTIFY "ipc:///tmp/qzc-notify"
 
