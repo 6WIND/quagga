@@ -178,6 +178,8 @@ static int qthrift_vpnservice_bgp_updater_check_connection (struct qthrift_vpnse
   int fd = qthrift_vpnservice_get_bgp_updater_socket(setup);
   char buffer[32];
 
+  if (setup->bgp_updater_select_in_progress == TRUE)
+    return 0;
   if (fd != 0 && fd != THRIFT_INVALID_SOCKET)
     ret = recv(fd, buffer, 32, MSG_PEEK | MSG_DONTWAIT);
   if (ret == 0)
@@ -449,6 +451,7 @@ gboolean qthrift_vpnservice_setup_thrift_bgp_updater_client (struct qthrift_vpns
                     NULL);
   qthrift_client_transport_close(setup->bgp_updater_transport->transport);
   setup->bgp_updater_client_need_select = FALSE;
+  setup->bgp_updater_select_in_progress = FALSE;
   response = qthrift_client_transport_open (setup->bgp_updater_transport->transport,
                                             &setup->bgp_updater_client_need_select);
   if (response == FALSE)

@@ -68,9 +68,11 @@ static bool qthrift_bgp_updater_handle_response(struct qthrift_vpnservice *ctxt,
               optval = -1;
               optlen = sizeof (optval);
               ctxt->bgp_update_thrift_retries++;
+              ctxt->bgp_updater_select_in_progress = TRUE;
               if ((select(FD_SETSIZE, NULL, &wrfds, NULL, &tout) <= 0) ||
                   (getsockopt(fd, SOL_SOCKET, SO_ERROR, &optval, (socklen_t *)&optlen) < 0) ||
                   (optval != 0)) {
+                ctxt->bgp_updater_select_in_progress = FALSE;
                 zlog_info ("%s: sent error %s (%d), resetting connection",
                            name, error->message, errno);
                 ctxt->bgp_update_thrift_lost_msgs++;
@@ -79,6 +81,7 @@ static bool qthrift_bgp_updater_handle_response(struct qthrift_vpnservice *ctxt,
                 *response = FALSE;
                 qthrift_transport_check_response(ctxt, FALSE);
               } else {
+                ctxt->bgp_updater_select_in_progress = FALSE;
                 ctxt->bgp_update_thrift_retries_successfull++;
                 should_retry = TRUE;
               }
