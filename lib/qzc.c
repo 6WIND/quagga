@@ -48,6 +48,9 @@ int rc_table_cnt = 0;
 int rc_table_index_free = 0;
 int rc_table_inited = 0;
 int qzc_debug = 0;
+int qzc_simulate_delay = 0;
+int qzc_simulate_random = 5;
+
 /*
  * manages capnproto allocations for some routines
  * that need delayed free.
@@ -293,12 +296,20 @@ static void qzc_del (struct QZCRequest *req, struct QZCReply *rep,
   node->type->destroy(entity, &dreq, cs);
 }
 
+void qzc_configure_simulation_delay (unsigned int delay,
+                                     unsigned int occurence)
+{
+  qzc_simulate_delay = delay;
+  if (occurence)
+    qzc_simulate_random = occurence;
+}
 
 static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
 {
   int64_t more = 0;
   size_t more_size;
   int ret;
+  static int simulate_counter;
 
   void *data = zmq_msg_data (msg);
   size_t size = zmq_msg_size (msg);
@@ -357,6 +368,11 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
 
   if(qzc_debug)
     zlog_debug ("QZC request type %d, response type %d, %zd bytes, error=%d", req.which, rep.which, rs, rep.error);
+  /* introduce some heavy work */
+  if (qzc_simulate_delay && 0 == (simulate_counter % qzc_simulate_random)) {
+    sleep(qzc_simulate_delay);
+  }
+  simulate_counter++;
   zmq_send (zmqsock, buf, rs, 0);
 
   do
