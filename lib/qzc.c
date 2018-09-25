@@ -599,7 +599,7 @@ qzcclient_do(struct qzc_sock **p_sock,
 
   if (zmq_msg_init (&msg))
     {
-      zlog_err ("zmq_msg_init failed: %s (%d)", strerror (errno), errno);
+      zlog_err ("zmq_msg_init failed: %s (%d)", zmq_strerror (errno), errno);
       return NULL;
     }
   do
@@ -607,7 +607,7 @@ qzcclient_do(struct qzc_sock **p_sock,
       ret = zmq_msg_recv (&msg, sock->zmq, 0);
       if (ret < 0)
         {
-          zlog_err ("zmq_msg_recv failed: %s (%d)", strerror (errno), errno);
+          zlog_err ("zmq_msg_recv failed: %s (%d)", zmq_strerror (errno), errno);
           break;
         }
       if (ret >= 0)
