@@ -98,31 +98,31 @@ struct qzc_sock *qzcclient_connect (const char *url, uint32_t limit);
 struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *url,
                                       void (*func)(void *arg, void *zmqsock, void *msg),
                                       uint32_t limit);
-struct QZCReply *qzcclient_do(struct qzc_sock *sock,
+struct QZCReply *qzcclient_do(struct qzc_sock **sock,
                               struct QZCRequest *req_ptr);
 uint64_t
-qzcclient_wkn(struct qzc_sock *sock, uint64_t *wkn);
+qzcclient_wkn(struct qzc_sock **sock, uint64_t *wkn);
 
 uint64_t
-qzcclient_createchild (struct qzc_sock *sock,
+qzcclient_createchild (struct qzc_sock **sock,
                        uint64_t *nid, int elem,
                        capn_ptr *p, uint64_t *dtypeid);
 
 int
-qzcclient_setelem (struct qzc_sock *sock, uint64_t *nid,
+qzcclient_setelem (struct qzc_sock **sock, uint64_t *nid,
                    int elem, capn_ptr *data, uint64_t *type_data,
                    capn_ptr *ctxt, uint64_t *type_ctxt);
 
 int
-qzcclient_deletenode (struct qzc_sock *sock, uint64_t *nid);
+qzcclient_deletenode (struct qzc_sock **sock, uint64_t *nid);
 
-struct QZCGetRep *qzcclient_getelem (struct qzc_sock *sock, uint64_t *nid,\
+struct QZCGetRep *qzcclient_getelem (struct qzc_sock **sock, uint64_t *nid,\
                                      int elem, \
                                      capn_ptr *ctxt, uint64_t *ctxt_type,\
                                      capn_ptr *iter, uint64_t *iter_type);
 
 int
-qzcclient_unsetelem (struct qzc_sock *sock, uint64_t *nid, int elem, \
+qzcclient_unsetelem (struct qzc_sock **sock, uint64_t *nid, int elem, \
                      capn_ptr *data, uint64_t *type_data, \
                      capn_ptr *ctxt, uint64_t *type_ctxt);
 

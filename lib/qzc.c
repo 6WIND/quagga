@@ -396,6 +396,8 @@ void qzc_finish (void)
 struct qzc_sock {
 	void *zmq;
 	struct qzmq_cb *cb;
+	char *path;
+	uint32_t limit;
 };
 
 struct qzc_sock *qzc_bind (struct thread_master *master, const char *url,
@@ -431,6 +433,10 @@ void qzc_close (struct qzc_sock *sock)
   if(sock->cb)
     qzmq_thread_cancel (sock->cb);
   zmq_close (sock->zmq);
+  if (sock->path) {
+    XFREE(MTYPE_QZC_SOCK, sock->path);
+    sock->path = NULL;
+  }
   XFREE(MTYPE_QZC_SOCK, sock);
 }
 
@@ -504,6 +510,8 @@ struct qzc_sock *qzcclient_connect (const char *url, uint32_t limit)
   ret = XCALLOC(MTYPE_QZC_SOCK, sizeof(*ret));
   ret->zmq = qzc_sock;
   ret->cb = NULL;
+  ret->path = XSTRDUP(MTYPE_QZC_SOCK, url);
+  ret->limit = limit;
   return ret;
 }
 
@@ -545,7 +553,7 @@ struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *
 
 /* send QZCrequest and return QZCreply or NULL if timeout */
 struct QZCReply *
-qzcclient_do(struct qzc_sock *sock,
+qzcclient_do(struct qzc_sock **p_sock,
              struct QZCRequest *req_ptr)
 {
   struct capn *rc;
@@ -557,7 +565,13 @@ qzcclient_do(struct qzc_sock *sock,
   uint8_t buf[4096];
   ssize_t rs;
   int ret;
+  struct qzc_sock *sock;
 
+  if (!p_sock || *p_sock == NULL) {
+    zlog_err ("%s: sock null", __func__);
+    return NULL;
+  }
+  sock = *p_sock;
   rc = rc_table_get_entry(NULL, 0);
   cs = capn_root(rc).seg;
   memset(buf, 0, 4096);
@@ -624,7 +638,7 @@ qzcclient_do(struct qzc_sock *sock,
  * return 0 if set operation fails
  */
 uint64_t
-qzcclient_createchild (struct qzc_sock *sock,
+qzcclient_createchild (struct qzc_sock **sock,
                        uint64_t *nid, int elem, capn_ptr *p, uint64_t *type_data)
 
 {
@@ -664,7 +678,7 @@ qzcclient_createchild (struct qzc_sock *sock,
  * return 1 if set operation is successfull
  */
 int
-qzcclient_setelem (struct qzc_sock *sock, uint64_t *nid,
+qzcclient_setelem (struct qzc_sock **sock, uint64_t *nid,
                    int elem, capn_ptr *data, uint64_t *type_data,
                    capn_ptr *ctxt, uint64_t *type_ctxt)
 {
@@ -703,7 +717,7 @@ qzcclient_setelem (struct qzc_sock *sock, uint64_t *nid,
 }
 
 uint64_t
-qzcclient_wkn(struct qzc_sock *sock, uint64_t *wkn)
+qzcclient_wkn(struct qzc_sock **sock, uint64_t *wkn)
 {
   struct QZCRequest req;
   struct QZCWKNResolveReq wknreq;
@@ -739,7 +753,7 @@ qzcclient_wkn(struct qzc_sock *sock, uint64_t *wkn)
  * return 0 if set operation fails, 1 otherwise.
  */
 int
-qzcclient_deletenode (struct qzc_sock *sock, uint64_t *nid)
+qzcclient_deletenode (struct qzc_sock **sock, uint64_t *nid)
 {
   struct QZCRequest req;
   struct QZCReply *rep;
@@ -773,7 +787,7 @@ qzcclient_deletenode (struct qzc_sock *sock, uint64_t *nid)
  * qzc client API. send a QZCGetReq message
  * return NULL if error; QZCGetRep pointer otherwise
  */
-struct QZCGetRep *qzcclient_getelem (struct qzc_sock *sock, uint64_t *nid,\
+struct QZCGetRep *qzcclient_getelem (struct qzc_sock **sock, uint64_t *nid,\
                                      int elem, \
                                      capn_ptr *ctxt, uint64_t *ctxt_type, \
                                      capn_ptr *iter, uint64_t *iter_type)
@@ -829,7 +843,7 @@ struct QZCGetRep *qzcclient_getelem (struct qzc_sock *sock, uint64_t *nid,\
  * return 1 if set operation is successfull
  */
 int
-qzcclient_unsetelem (struct qzc_sock *sock, uint64_t *nid, int elem, \
+qzcclient_unsetelem (struct qzc_sock **sock, uint64_t *nid, int elem, \
                      capn_ptr *data, uint64_t *type_data, \
                      capn_ptr *ctxt, uint64_t *type_ctxt)
 {
