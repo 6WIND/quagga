@@ -107,6 +107,7 @@ struct qthrift_vpnservice
 
   /* QZC internal contexts */
   struct qzc_sock *qzc_sock;
+  struct qzc_sock **p_qzc_sock;
   struct qzc_sock *qzc_subscribe_sock;
 
   /* Thrift Cache Context */
