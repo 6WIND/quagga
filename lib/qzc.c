@@ -52,6 +52,7 @@ int qzc_debug = 0;
 int qzc_simulate_delay = 0;
 int qzc_simulate_random = 5;
 
+static int qzcclient_reconnect_count;
 /*
  * manages capnproto allocations for some routines
  * that need delayed free.
@@ -618,13 +619,50 @@ qzcclient_do(struct qzc_sock **p_sock,
   capn_setp(capn_root(rc), 0, p.p);
   rs = capn_write_mem(rc, buf, sizeof(buf), 0);
 
-  ret = zmq_send (sock->zmq, buf, rs, 0);
-  if (ret < 0)
-    {
-      zlog_err ("zmq_send failed: %s (%d)", strerror (errno), errno);
-      return NULL;
-    }
+  /* introduce polling algorithm to check
+   * if there is a response */
+  {
+#define REQUEST_TIMEOUT 2500
+#define REQUEST_RETRIES     5
+    zmq_pollitem_t items [] = { { sock->zmq, 0, ZMQ_POLLIN, 0 } };
+    int retries_left = REQUEST_RETRIES;
+    int rc;
+    struct zmq_sock *zmq_sock_new;
 
+    while (retries_left) {
+      ret = zmq_send (sock->zmq, buf, rs, 0);
+      if (ret < 0)
+        {
+          zlog_err ("zmq_send failed: %s (%d)", zmq_strerror (errno), errno);
+          return NULL;
+        }
+      rc = zmq_poll(items, 1, REQUEST_TIMEOUT);
+      if (rc == -1)
+        break;
+      if (items [0].revents & ZMQ_POLLIN)
+        /* will read message */
+        break;
+      else {
+        if (retries_left-- == 0) {
+          zlog_err ("%s: server seems to be offline. cancel", __func__);
+          break;
+        }
+        zlog_err ("%s: server seems to be delayed. retry", __func__);
+	qzcclient_reconnect_count++;
+        zmq_close(sock->zmq);
+        zmq_sock_new = qzcclient_connect(sock->path, sock->limit);
+        /* free old p_sock */
+        if (sock->path)
+	  XFREE(MTYPE_QZC_SOCK, sock->path);
+        sock->path = NULL;
+        sock->limit = 0;
+        XFREE(MTYPE_QZC_SOCK, sock);
+        /* update passed param */
+        sock = zmq_sock_new;
+        *p_sock = zmq_sock_new;
+      }
+    }
+  }
   if (zmq_msg_init (&msg))
     {
       zlog_err ("zmq_msg_init failed: %s (%d)", zmq_strerror (errno), errno);
@@ -928,3 +966,7 @@ qzcclient_qzcreply_free(struct QZCReply *rep)
 
 }
 
+int qzcclient_get_nb_reconnect(void)
+{
+  return qzcclient_reconnect_count;
+}
