@@ -582,6 +582,7 @@ qzcclient_do(struct qzc_sock **p_sock,
   ssize_t rs;
   int ret;
   struct qzc_sock *sock;
+  static int simulate_counter;
 
   if (!p_sock || *p_sock == NULL) {
     zlog_err ("%s: sock null", __func__);
@@ -618,6 +619,11 @@ qzcclient_do(struct qzc_sock **p_sock,
       zlog_err ("zmq_msg_init failed: %s (%d)", zmq_strerror (errno), errno);
       return NULL;
     }
+  /* introduce some heavy work */
+  if (qzc_simulate_delay && 0 == (simulate_counter % qzc_simulate_random)) {
+    sleep(qzc_simulate_delay);
+  }
+  simulate_counter++;
   do
     {
       ret = zmq_msg_recv (&msg, sock->zmq, 0);
