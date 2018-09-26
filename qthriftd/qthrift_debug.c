@@ -77,6 +77,25 @@ DEFUN (show_debugging_qthrift_errno,
   return CMD_SUCCESS;
 }
 
+static int qthrift_zmq_delay;
+static int qthrift_zmq_occurence;
+
+DEFUN (show_debugging_qthrift_simulate,
+       show_debugging_qthrift_simulate_cmd,
+       "show debugging qthrift delay <0-20> occurence <1-500>",
+       SHOW_STR
+       DEBUG_STR
+       QTHRIFT_STR
+       "Simulate an extra delay before waiting for REP"
+       "Delay in seconds"
+       "Simulate the occurence of the event 1 out of X"
+       "X in number of occurences")
+{
+  qthrift_zmq_delay = atoi(argv[0]);
+  qthrift_zmq_occurence = atoi(argv[1]);
+  qzc_configure_simulation_delay (qthrift_zmq_delay, qthrift_zmq_occurence);
+}
+
 DEFUN (show_debugging_qthrift,
        show_debugging_qthrift_cmd,
        "show debugging qthrift",
@@ -235,6 +254,7 @@ qthrift_debug_init (void)
 
   install_node (&debug_node, config_write_debug);
   install_element (ENABLE_NODE, &show_debugging_qthrift_cmd);
+  install_element (ENABLE_NODE, &show_debugging_qthrift_simulate_cmd);
   install_element (ENABLE_NODE, &debug_qthrift_cmd);
   install_element (ENABLE_NODE, &no_debug_qthrift_cmd);
   install_element (ENABLE_NODE, &debug_qthrift_notification_cmd);
