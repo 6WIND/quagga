@@ -41,6 +41,7 @@ static void rc_table_init();
 
 static struct qzc_wkn *wkn_first = NULL;
 
+#define QZC_SOCKET_SIZE_USER 200000
 #define RC_TABLE_NB_ELEM 50
 struct capn rc_table[RC_TABLE_NB_ELEM];
 int rc_table_index = 0;
@@ -421,6 +422,7 @@ struct qzc_sock *qzc_bind (struct thread_master *master, const char *url,
 {
   void *qzc_sock;
   struct qzc_sock *ret;
+  uint64_t socket_size = QZC_SOCKET_SIZE_USER;
 
   qzc_sock = zmq_socket (qzmq_context, ZMQ_REP);
 
@@ -431,6 +433,10 @@ struct qzc_sock *qzc_bind (struct thread_master *master, const char *url,
     }
   if (limit)
     zmq_setsockopt (qzc_sock, ZMQ_RCVHWM, &limit, sizeof(limit));
+  zmq_setsockopt (qzc_sock, ZMQ_RCVBUF, &socket_size,
+                  sizeof(socket_size));
+  zmq_setsockopt (qzc_sock, ZMQ_SNDBUF, &socket_size,
+                  sizeof(socket_size));
   if (zmq_bind (qzc_sock, url))
     {
       zlog_err ("zmq_bind failed: %s (%d)", strerror (errno), errno);
@@ -508,6 +514,7 @@ struct qzc_sock *qzcclient_connect (const char *url, uint32_t limit)
 {
   void *qzc_sock;
   struct qzc_sock *ret;
+  uint64_t socket_size = QZC_SOCKET_SIZE_USER;
 
   qzc_sock = zmq_socket (qzmq_context, ZMQ_REQ);
   if (!qzc_sock)
@@ -517,6 +524,10 @@ struct qzc_sock *qzcclient_connect (const char *url, uint32_t limit)
     }
   if (limit)
     zmq_setsockopt (qzc_sock, ZMQ_SNDHWM, &limit, sizeof(limit));
+  zmq_setsockopt (qzc_sock, ZMQ_RCVBUF, &socket_size,
+                  sizeof(socket_size));
+  zmq_setsockopt (qzc_sock, ZMQ_SNDBUF, &socket_size,
+                  sizeof(socket_size));
   if (zmq_connect (qzc_sock, url))
     {
       zlog_err ("zmq_bind failed: %s (%d)", strerror (errno), errno);
