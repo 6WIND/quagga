@@ -172,6 +172,7 @@ DEFUN (show_debugging_bgp_zmq_simulate,
 {
   bgp_zmq_delay = atoi(argv[0]);
   bgp_zmq_occurence = atoi(argv[1]);
+  qzc_configure_simulation_delay (bgp_zmq_delay, bgp_zmq_occurence);
 }
 
 DEFUN (show_debugging_bgp_zmq,
@@ -186,7 +187,6 @@ DEFUN (show_debugging_bgp_zmq,
   vty_out (vty, "BGP ZMQ queue storage limit : %u%s", bgp_notify_zmq_limit, VTY_NEWLINE);
   vty_out (vty, "BGP ZMQ Heavy Work Simulation: sleep %u sec. occurence 1 out of %d%s",
            bgp_zmq_delay, bgp_zmq_occurence, VTY_NEWLINE);
-  qzc_configure_simulation_delay (bgp_zmq_delay, bgp_zmq_occurence);
   return CMD_SUCCESS;
 }
 
