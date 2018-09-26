@@ -55,6 +55,9 @@ DEFUN (show_debugging_qthrift_stats,
            ctxt->bgp_update_thrift_retries_successfull,
            ctxt->bgp_update_thrift_lost_msgs,
            VTY_NEWLINE);
+  vty_out (vty, "BGP ZMQ client reconnections %u%s",
+	   qzcclient_get_nb_reconnect(),
+           VTY_NEWLINE);
   return CMD_SUCCESS;
 }
 
@@ -263,5 +266,4 @@ qthrift_debug_init (void)
   install_element (ENABLE_NODE, &no_debug_qthrift_cache_cmd);
   install_element (ENABLE_NODE, &show_debugging_qthrift_stats_cmd);
   install_element (ENABLE_NODE, &show_debugging_qthrift_errno_cmd);
-
 }
