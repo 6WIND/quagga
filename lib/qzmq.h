@@ -37,6 +37,13 @@ extern void qzmq_finish (void);
 
 struct qzmq_cb;
 
+struct qzc_sock {
+	void *zmq;
+	struct qzmq_cb *cb;
+	char *path;
+	uint32_t limit;
+};
+
 extern struct qzmq_cb *funcname_qzmq_thread_read_msg (
         struct thread_master *master,
         void (*func)(void *arg, void *zmqsock, zmq_msg_t *msg),

@@ -135,8 +135,9 @@ struct qzmq_cb *funcname_qzmq_thread_read_msg (
   int fd;
   size_t fd_len = sizeof (fd);
   struct qzmq_cb *cb;
+  struct qzc_sock *ctxt = zmqsock;
 
-  if (zmq_getsockopt (zmqsock, ZMQ_FD, &fd, &fd_len))
+  if (zmq_getsockopt (ctxt->zmq, ZMQ_FD, &fd, &fd_len))
     return NULL;
 
   cb = XCALLOC (MTYPE_ZEROMQ_CB, sizeof (struct qzmq_cb));
