@@ -7428,24 +7428,8 @@ route_vty_out_route (struct prefix *p, struct vty *vty)
   u_int32_t destination; 
   char buf[BUFSIZ];
 
-  if (p->family == AF_INET)
-    {
-      len = vty_out (vty, "%s", inet_ntop (p->family, &p->u.prefix, buf, BUFSIZ));
-      destination = ntohl (p->u.prefix4.s_addr);
-
-      if ((IN_CLASSC (destination) && p->prefixlen == 24)
-	  || (IN_CLASSB (destination) && p->prefixlen == 16)
-	  || (IN_CLASSA (destination) && p->prefixlen == 8)
-	  || p->u.prefix4.s_addr == 0)
-	{
-	  /* When mask is natural, mask is not displayed. */
-	}
-      else
-	len += vty_out (vty, "/%d", p->prefixlen);
-    }
-  else
-    len = vty_out (vty, "%s/%d", inet_ntop (p->family, &p->u.prefix, buf, BUFSIZ),
-		   p->prefixlen);
+  len = vty_out (vty, "%s/%d", inet_ntop (p->family, &p->u.prefix, buf, BUFSIZ),
+                 p->prefixlen);
 
   len = 17 - len;
   if (len < 1)
