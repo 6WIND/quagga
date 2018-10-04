@@ -55,7 +55,7 @@ int qzc_simulate_random = 5;
 
 static int qzcclient_reconnect_count;
 static int qzcclient_recv_failed;
-
+static int qzcserver_reconnect_count;
 /*
  * manages capnproto allocations for some routines
  * that need delayed free.
@@ -314,7 +314,6 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
   int64_t more = 0;
   size_t more_size;
   int ret;
-  static int simulate_counter;
 
   void *data = zmq_msg_data (msg);
   size_t size = zmq_msg_size (msg);
@@ -369,19 +368,70 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
 
   uint8_t buf[4096];
   ssize_t rs = capn_write_mem(&rc, buf, sizeof(buf), 0);
+  int retries_left = REQUEST_RETRIES;
+
   capn_free(&ctx);
   capn_free(&rc);
 
   if(qzc_debug)
     zlog_debug ("QZC request type %d, response type %d, %zd bytes, error=%d", req.which, rep.which, rs, rep.error);
   /* introduce some heavy work */
-  if (qzc_simulate_delay && 0 == (simulate_counter % qzc_simulate_random)) {
-    sleep(qzc_simulate_delay);
-  }
-  simulate_counter++;
-  zmq_send (zmqsock, buf, rs, 0);
 
-#if 0
+  while (retries_left) {
+    ret = zmq_send (ctxt->zmq, buf, rs, 0);
+    if (ret >= 0)
+      break;
+    zlog_err ("%s : zmq_send failed: %s (%d).retry", __func__, zmq_strerror (errno), errno);
+    retries_left--;
+  }
+  if (ret < 0) {
+    void *qzc_sock;
+    uint64_t socket_size = QZC_SOCKET_SIZE_USER;
+    int fd;
+    size_t fd_len = sizeof (fd);
+
+    zlog_err ("%s : zmq_send failed: resetting connection", __func__);
+
+    qzc_sock = zmq_socket (qzmq_context, ZMQ_REP);
+    if (!qzc_sock)
+      {
+        zlog_err ("%s : zmq_socket failed: %s (%d)",
+                  __func__, strerror (errno), errno);
+        return;
+      }
+    if (ctxt->limit)
+      zmq_setsockopt (qzc_sock, ZMQ_RCVHWM, &ctxt->limit, sizeof(uint32_t));
+    zmq_setsockopt (qzc_sock, ZMQ_RCVBUF, &socket_size,
+                    sizeof(socket_size));
+    zmq_setsockopt (qzc_sock, ZMQ_SNDBUF, &socket_size,
+                    sizeof(socket_size));
+    zmq_close (ctxt->zmq);
+
+    if (zmq_bind (qzc_sock, ctxt->path))
+      {
+        zlog_err ("%s : zmq_bind failed: %s (%d)",
+                  __func__, strerror (errno), errno);
+        zmq_close (qzc_sock);
+        return;
+      }
+    /* reuse old context */
+    ctxt->zmq = qzc_sock;
+
+    if (zmq_getsockopt (ctxt->zmq, ZMQ_FD, &fd, &fd_len)) {
+        zlog_err ("%s : zmq_getsockopt failed: %s (%d)",
+                  __func__, strerror (errno), errno);
+        zmq_close (qzc_sock);
+        return;
+    }
+    qzcserver_reconnect_count++;
+    /* update fd */
+    ctxt->fd = fd;
+    /* relaunch thread */
+    if(ctxt->cb)
+      qzmq_thread_cancel (ctxt->cb);
+    return;
+  }
+#if 1
   do
     {
       more_size = sizeof (more);
@@ -448,6 +498,7 @@ struct qzc_sock *qzc_bind (struct thread_master *master, const char *url,
   ret->path = XSTRDUP(MTYPE_QZC_SOCK, url);
   ret->limit = limit;
   ret->zmq = qzc_sock;
+  ret->thread_master = master;
   ret->cb = qzmq_thread_read_msg (master, qzc_callback, NULL, ret);
   return ret;
 }
@@ -576,6 +627,7 @@ struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *
   func2 = func;
   ret = XCALLOC(MTYPE_QZC_SOCK, sizeof(struct qzc_sock));
   ret->zmq = qzc_sock;
+  ret->limit = limit;
   ret->cb = qzmq_thread_read_msg (master, func2, NULL, ret);
   return ret;
 }
@@ -626,7 +678,7 @@ qzcclient_do(struct qzc_sock **p_sock,
 #define REQUEST_TIMEOUT 2500
     int retries_left = REQUEST_RETRIES;
     int rc;
-    struct zmq_sock *zmq_sock_new;
+    struct qzc_sock *zmq_sock_new;
 
     while (retries_left) {
       zmq_pollitem_t items [] = { { sock->zmq, 0, ZMQ_POLLIN, 0 } };
@@ -643,7 +695,7 @@ qzcclient_do(struct qzc_sock **p_sock,
         qzcclient_recv_failed++;
         continue;
       }
-      if (items [0].revents & ZMQ_POLLIN) {
+      if (items[0].revents & ZMQ_POLLIN) {
         if (zmq_msg_init (&msg))
           {
             zlog_err ("zmq_msg_init failed: %s (%d)", zmq_strerror (errno), errno);
@@ -663,11 +715,11 @@ qzcclient_do(struct qzc_sock **p_sock,
       else {
       qzcclient_reset_retry:
         if (--retries_left == 0) {
-        if (zmq_msg_init (&msg))
-          {
-            zlog_err ("zmq_msg_init failed: %s (%d)", zmq_strerror (errno), errno);
-            return NULL;
-          }
+          if (zmq_msg_init (&msg))
+            {
+              zlog_err ("zmq_msg_init failed: %s (%d)", zmq_strerror (errno), errno);
+              return NULL;
+            }
           zlog_err ("%s: server seems to be offline. cancel", __func__);
           ret = -1;
           break;
@@ -977,4 +1029,9 @@ qzcclient_qzcreply_free(struct QZCReply *rep)
 int qzcclient_get_nb_reconnect(void)
 {
   return qzcclient_reconnect_count;
+}
+
+int qzcserver_get_nb_reconnect(void)
+{
+  return qzcserver_reconnect_count;
 }

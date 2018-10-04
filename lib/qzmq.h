@@ -42,6 +42,8 @@ struct qzc_sock {
 	struct qzmq_cb *cb;
 	char *path;
 	uint32_t limit;
+        void * thread_master;
+        int fd;
 };
 
 extern struct qzmq_cb *funcname_qzmq_thread_read_msg (

@@ -60,11 +60,14 @@ static int qzmq_read_msg (struct thread *t)
   struct qzmq_cb *cb = THREAD_ARG (t);
   zmq_msg_t msg;
   int ret;
+  struct qzc_sock *ctxt;
+
+  ctxt = cb->zmqsock;
   cb->thread = NULL;
 
   while (1)
     {
-      zmq_pollitem_t polli = { .socket = cb->zmqsock, .events = ZMQ_POLLIN };
+      zmq_pollitem_t polli = { .socket = ctxt->zmq, .events = ZMQ_POLLIN };
       ret = zmq_poll (&polli, 1, 0);
 
       if (ret < 0)
@@ -74,7 +77,7 @@ static int qzmq_read_msg (struct thread *t)
 
       if (zmq_msg_init (&msg))
         goto out_err;
-      ret = zmq_msg_recv (&msg, cb->zmqsock, ZMQ_NOBLOCK);
+      ret = zmq_msg_recv (&msg, ctxt->zmq, ZMQ_NOBLOCK);
       if (ret < 0)
         {
           if (errno == EAGAIN)
@@ -83,49 +86,20 @@ static int qzmq_read_msg (struct thread *t)
           zmq_msg_close (&msg);
           goto out_err;
         }
-      cb->cb_msg (cb->arg, cb->zmqsock, &msg);
+      cb->cb_msg (cb->arg, ctxt, &msg);
       zmq_msg_close (&msg);
     }
-
+  /* update ctxt if necessary */
+  t->u.fd = ctxt->fd;
   cb->thread = funcname_thread_add_read (t->master, qzmq_read_msg, cb,
-        t->u.fd, t->funcname, t->schedfrom, t->schedfrom_line);
+                            t->u.fd, t->funcname, t->schedfrom, t->schedfrom_line);
+
   return 0;
 
 out_err:
   zlog_err ("ZeroMQ error: %s(%d)", strerror (errno), errno);
   return 0;
 }
-
-#if 0
-static int qzmq_read_buf (struct thread *t)
-{
-  return 0;
-}
-
-struct qzmq_cb *funcname_qzmq_thread_read_buf (
-        struct thread_master *master,
-        void (*func)(void *arg, void *zmqsock, const uint8_t *buf, size_t len),
-        void *arg, void *zmqsock, debugargdef)
-{
-  int fd;
-  size_t fd_len = sizeof (fd);
-  struct qzmq_cb *cb;
-
-  if (zmq_getsockopt (zmqsock, ZMQ_FD, &fd, &fd_len))
-    return NULL;
-
-  cb = XCALLOC (MTYPE_ZEROMQ_CB, sizeof (struct qzmq_cb));
-  if (!cb)
-    return NULL;
-
-  cb->arg = arg;
-  cb->zmqsock = zmqsock;
-  cb->cb_buf = func;
-  cb->thread = funcname_thread_add_read (master, qzmq_read_buf, cb, fd,
-                                         funcname, schedfrom, fromln);
-  return cb;
-}
-#endif
 
 struct qzmq_cb *funcname_qzmq_thread_read_msg (
         struct thread_master *master,
@@ -139,7 +113,7 @@ struct qzmq_cb *funcname_qzmq_thread_read_msg (
 
   if (zmq_getsockopt (ctxt->zmq, ZMQ_FD, &fd, &fd_len))
     return NULL;
-
+  ctxt->fd = fd;
   cb = XCALLOC (MTYPE_ZEROMQ_CB, sizeof (struct qzmq_cb));
   if (!cb)
     return NULL;
@@ -154,6 +128,8 @@ struct qzmq_cb *funcname_qzmq_thread_read_msg (
 
 void qzmq_thread_cancel (struct qzmq_cb *cb)
 {
-  thread_cancel (cb->thread);
-  XFREE (MTYPE_ZEROMQ_CB, cb);
+  if (cb->thread) {
+    thread_cancel (cb->thread);
+    XFREE (MTYPE_ZEROMQ_CB, cb);
+  }
 }
