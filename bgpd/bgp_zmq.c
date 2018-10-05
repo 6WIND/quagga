@@ -200,6 +200,7 @@ DEFUN (show_debugging_bgp_zmq,
   vty_out (vty, "BGP ZMQ queue storage limit : %u%s", bgp_notify_zmq_limit, VTY_NEWLINE);
   vty_out (vty, "BGP ZMQ Heavy Work Simulation: sleep %u sec. occurence 1 out of %d%s",
            bgp_zmq_delay, bgp_zmq_occurence, VTY_NEWLINE);
+  vty_out (vty, "BGP ZMQ REP reconnect %u%s", qzcserver_get_nb_reconnect(), VTY_NEWLINE);
   return CMD_SUCCESS;
 }
 
