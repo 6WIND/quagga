@@ -2057,6 +2057,7 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
           iter->sub_type = select->sub_type;
           iter->uptime = bgp_clock ();
           iter->peer = select->peer;
+          iter->net = vrf_rn;
           SET_FLAG (iter->flags, BGP_INFO_VALID);
           bgp_info_add (vrf_rn, iter);
           bgp_unlock_node (vrf_rn);
@@ -3322,6 +3323,7 @@ bgp_update_rsclient (struct peer *rsclient, afi_t afi, safi_t safi,
   new->peer = peer;
   new->attr = attr_new;
   new->uptime = bgp_clock ();
+  new->net = rn;
 
   /* Update MPLS tag. */
   if (nlabels)
@@ -3797,6 +3799,7 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
   new->peer = peer;
   new->attr = attr_new;
   new->uptime = bgp_clock ();
+  new->net = rn;
 
   /* Update MPLS tag. */
   if (nlabels)
@@ -5109,6 +5112,7 @@ bgp_static_update_rsclient (struct peer *rsclient, struct prefix *p,
   SET_FLAG (new->flags, BGP_INFO_VALID);
   new->attr = attr_new;
   new->uptime = bgp_clock ();
+  new->net = rn;
 
   /* Register new BGP information. */
   bgp_info_add (rn, new);
@@ -5229,6 +5233,7 @@ bgp_static_update_main (struct bgp *bgp, struct prefix *p,
   SET_FLAG (new->flags, BGP_INFO_VALID);
   new->attr = attr_new;
   new->uptime = bgp_clock ();
+  new->net = rn;
 
   /* Aggregate address increment. */
   bgp_aggregate_increment (bgp, p, new, afi, safi);
@@ -5474,6 +5479,7 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   new->sub_type = BGP_ROUTE_STATIC;
   new->peer = bgp->peer_self;
   new->attr = attr_new;
+  new->net = rn;
   SET_FLAG (new->flags, BGP_INFO_VALID);
   new->uptime = bgp_clock ();
   new->extra = bgp_info_extra_new();
@@ -6502,6 +6508,7 @@ bgp_aggregate_route (struct bgp *bgp, struct prefix *p, struct bgp_info *rinew,
       SET_FLAG (new->flags, BGP_INFO_VALID);
       new->attr = bgp_attr_aggregate_intern (bgp, origin, aspath, community, aggregate->as_set);
       new->uptime = bgp_clock ();
+      new->net = rn;
 
       bgp_info_add (rn, new);
       bgp_unlock_node (rn);
@@ -6696,6 +6703,7 @@ bgp_aggregate_add (struct bgp *bgp, struct prefix *p, afi_t afi, safi_t safi,
       SET_FLAG (new->flags, BGP_INFO_VALID);
       new->attr = bgp_attr_aggregate_intern (bgp, origin, aspath, community, aggregate->as_set);
       new->uptime = bgp_clock ();
+      new->net = rn;
 
       bgp_info_add (rn, new);
       bgp_unlock_node (rn);
@@ -7348,6 +7356,7 @@ bgp_redistribute_add (struct prefix *p, const struct in_addr *nexthop,
 	  SET_FLAG (new->flags, BGP_INFO_VALID);
 	  new->attr = new_attr;
 	  new->uptime = bgp_clock ();
+	  new->net = bn;
 
 	  bgp_aggregate_increment (bgp, p, new, afi, SAFI_UNICAST);
 	  bgp_info_add (bn, new);
