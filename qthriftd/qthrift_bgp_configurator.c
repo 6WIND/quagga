@@ -1256,6 +1256,18 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
         zlog_info ("createPeer(%s,%u) NOK (capnproto error 3)", routerId, (as_t)asNumber);
       return FALSE;
     }
+  ret = qthrift_bgp_peer_af_flag_config(ctxt, _return, routerId, \
+                                        AF_AFI_AFI_IP, AF_SAFI_SAFI_MPLS_VPN,
+                                        PEER_FLAG_SOFT_RECONFIG, TRUE,
+                                        error);
+  if (ret == FALSE && *_return == BGP_ERR_INTERNAL)
+    {
+      *_return = BGP_ERR_FAILED;
+      *error = ERROR_BGP_INTERNAL;
+      if(IS_QTHRIFT_DEBUG)
+        zlog_info ("createPeer(%s,%u) NOK (capnproto error 4)", routerId, (as_t)asNumber);
+      return FALSE;
+    }
   if (ret)
     return TRUE;
   else
