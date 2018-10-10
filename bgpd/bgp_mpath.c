@@ -61,10 +61,34 @@ bgp_mpath_is_configured_sort (struct bgp *bgp, bgp_peer_sort_t sort,
 }
 
 bool
-bgp_mpath_is_configured (struct bgp *bgp, afi_t afi, safi_t safi)
+bgp_mpath_is_configured (struct bgp *bgp, afi_t afi, safi_t safi, struct bgp_node *rn)
 {
-  return bgp_mpath_is_configured_sort (bgp, BGP_PEER_IBGP, afi, safi)
-         || bgp_mpath_is_configured_sort (bgp, BGP_PEER_EBGP, afi, safi);
+  bool val = bgp_mpath_is_configured_sort (bgp, BGP_PEER_IBGP, afi, safi)
+             || bgp_mpath_is_configured_sort (bgp, BGP_PEER_EBGP, afi, safi);
+
+  if (rn == NULL)
+    return val;
+
+  if (rn->table && bgp_node_table (rn))
+    {
+      if (bgp_node_table (rn)->type == BGP_TABLE_VRF)
+        {
+          struct bgp_vrf *vrf = NULL;
+          vrf = bgp_vrf_lookup_per_rn(bgp, afi, rn);
+          if (vrf && vrf->max_mpath[afi] > 1)
+            {
+              return true;
+            }
+          else
+            {
+              return false;
+            }
+        }
+      else
+        return val;
+    }
+  else
+    return false;
 }
 
 /*

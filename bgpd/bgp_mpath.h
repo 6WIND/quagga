@@ -54,7 +54,7 @@ extern int bgp_maximum_paths_unset (struct bgp *, afi_t, safi_t, int);
 extern int bgp_maxpaths_default_set (struct bgp *, u_int32_t);
 extern int bgp_maxpaths_default_unset (struct bgp *);
 bool bgp_mpath_is_configured_sort (struct bgp *, bgp_peer_sort_t, afi_t, safi_t);
-bool bgp_mpath_is_configured (struct bgp *, afi_t, safi_t);
+bool bgp_mpath_is_configured (struct bgp *, afi_t, safi_t, struct bgp_node *);
 
 /* Functions used by bgp_best_selection to record current
  * multipath selections

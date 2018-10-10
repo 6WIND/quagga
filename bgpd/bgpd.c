@@ -2225,7 +2225,7 @@ void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf)
 
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     {
-      if (bgp_mpath_is_configured(vrf->bgp, afi, SAFI_MPLS_VPN))
+      if (bgp_mpath_is_configured(vrf->bgp, afi, SAFI_MPLS_VPN, NULL))
         {
           if (vrf->max_mpath[afi] != vrf->max_mpath_configured)
             {

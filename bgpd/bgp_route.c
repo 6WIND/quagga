@@ -486,7 +486,7 @@ bgp_info_cmp (struct bgp *bgp, struct bgp_info *new, struct bgp_info *exist,
     return 1;
 
   /* 9. Maximum path check. */
-  if (bgp_mpath_is_configured (bgp, afi, safi))
+  if (bgp_mpath_is_configured (bgp, afi, safi, new->net))
     {
       if (bgp_flag_check(bgp, BGP_FLAG_ASPATH_MULTIPATH_RELAX))
         {
@@ -1337,7 +1337,7 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
     }
   
   bgp_mp_list_init (&mp_list);
-  do_mpath = bgp_mpath_is_configured (bgp, afi, safi);
+  do_mpath = bgp_mpath_is_configured (bgp, afi, safi, rn);
   /* bgp deterministic-med */
   new_select = NULL;
   if (bgp_flag_check (bgp, BGP_FLAG_DETERMINISTIC_MED))
