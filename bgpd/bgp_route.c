@@ -2883,7 +2883,7 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
        */
       for(ri = rn->info; ri; ri = ri->next)
         {
-          if( (ri == new_select) || ( ri == old_select))
+          if (ri == new_select)
             continue;
           if(bgp_is_mpath_entry(ri, new_select))
             {
