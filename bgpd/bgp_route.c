@@ -2950,29 +2950,123 @@ bgp_process_queue_init (void)
 }
 
 void
-bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
+bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
+{
+  struct bgp_node *rn;
+  struct bgp_vrf *vrf;
+  struct bgp_info *ri;
+  struct listnode *node;
+  uint32_t nb_prefixes = 0;
+
+  zlog_debug ("%s: %s, running bgp best selection for %d, %d", __func__,
+              peer->host, afi, safi);
+
+  if (safi == SAFI_MPLS_VPN)
+    {
+      for (rn = bgp_table_top (peer->bgp->rib[afi][safi]); rn; rn = bgp_route_next (rn))
+        {
+          struct bgp_node *rm;
+	  struct bgp_table *table;
+
+          /* look for neighbor in tables */
+          if ((table = rn->info) != NULL)
+            {
+              for (rm = bgp_table_top (table); rm; rm = bgp_route_next (rm))
+                {
+                  bool all_peers_eor_received = true;
+                  bool has_peer = false;
+
+                  if (!CHECK_FLAG (rm->flags, BGP_NODE_PROCESS_TO_SCHEDULE))
+                    continue;
+                  for (ri = rm->info; ri; ri = ri->next)
+                    {
+                      if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED))
+                        {
+                          all_peers_eor_received = false;
+                          break;
+                        }
+                      if (ri->peer == peer)
+                        has_peer = true;
+                    }
+                  if (all_peers_eor_received == true && has_peer == true)
+                    {
+                      UNSET_FLAG (rm->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
+                      bgp_process(peer->bgp, rm, afi, safi);
+                      nb_prefixes++;
+                    }
+                }
+            }
+        }
+    }
+  else
+    {
+      for (rn = bgp_table_top (peer->bgp->rib[afi][safi]); rn; rn = bgp_route_next (rn))
+        {
+          bool all_peers_eor_received = true;
+          bool has_peer = false;
+
+          if (!CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE))
+            continue;
+          for (ri = rn->info; ri; ri = ri->next)
+	    {
+              if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED))
+                {
+                  all_peers_eor_received = false;
+                  break;
+                }
+              if (ri->peer == peer)
+                  has_peer = true;
+            }
+          if (all_peers_eor_received == true && has_peer == true)
+            {
+              UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
+              bgp_process(peer->bgp, rn, afi, safi);
+              nb_prefixes++;
+            }
+        }
+    }
+
+  if (safi != SAFI_MPLS_VPN)
+    goto end_running;
+
+  for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf)) {
+    for (rn = bgp_table_top (vrf->rib[afi]); rn; rn = bgp_route_next (rn))
+      {
+        bool all_peers_eor_received = true;
+        bool has_peer = false;
+
+        if (!CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE))
+          continue;
+        for (ri = rn->info; ri; ri = ri->next)
+          {
+	    if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED))
+              {
+                all_peers_eor_received = false;
+                break;
+              }
+            if (ri->peer == peer)
+              has_peer = true;
+          }
+        if (all_peers_eor_received == true && has_peer == true)
+          {
+            UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
+            bgp_process(peer->bgp, rn, afi, SAFI_UNICAST);
+            nb_prefixes++;
+          }
+      }
+  }
+
+ end_running:
+  zlog_debug ("%s: %s, enqueued %u prefixes for bgp best selection for %d, %d", __func__,
+              peer->host, nb_prefixes, afi, safi);
+  return;
+}
+
+static void
+bgp_process_send (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
 {
   struct bgp_process_queue *pqnode;
-  
-  /* already scheduled for processing? */
-  if (CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_SCHEDULED))
-    {
-      return;
-    }
-  
-  if (rn->info == NULL)
-    {
-      /* XXX: Perhaps remove before next release, after we've flushed out
-       * any obvious cases
-       */
-      assert (rn->info != NULL);
-      char buf[PREFIX_STRLEN];
-      zlog_warn ("%s: Called for route_node %s with no routing entries!",
-                 __func__,
-                 prefix2str (&(bgp_node_to_rnode (rn)->p), buf, sizeof(buf)));
-      return;
-    }
-  
+
   if ( (bm->process_main_queue == NULL) ||
        (bm->process_rsclient_queue == NULL) ||
        (bm->process_vrf_queue == NULL) )
@@ -3003,8 +3097,57 @@ bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
         work_queue_add (bm->process_vrf_queue, pqnode);
         break;
     }
-  
   SET_FLAG (rn->flags, BGP_NODE_PROCESS_SCHEDULED);
+  return;
+}
+
+void
+bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
+{
+  struct bgp_info *ri;
+  safi_t orig_safi = safi;
+
+  /* already scheduled for processing? */
+  if (CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_SCHEDULED))
+    {
+      return;
+    }
+
+  if (rn->info == NULL)
+    {
+      /* XXX: Perhaps remove before next release, after we've flushed out
+       * any obvious cases
+       */
+      assert (rn->info != NULL);
+      char buf[PREFIX_STRLEN];
+      zlog_warn ("%s: Called for route_node %s with no routing entries!",
+                 __func__,
+                 prefix2str (&(bgp_node_to_rnode (rn)->p), buf, sizeof(buf)));
+      return;
+    }
+
+  if (rn->table && bgp_node_table (rn) &&
+      bgp_node_table (rn)->type == BGP_TABLE_VRF)
+    orig_safi = SAFI_MPLS_VPN;
+
+  /* do not enqueue for BGP, wait reception of EOR marker */
+  for (ri = rn->info; ri; ri = ri->next) {
+    if (ri->peer == bgp->peer_self)
+      continue;
+    /* if graceful restart is disabled, assume eor is not active */
+    if (!CHECK_FLAG(ri->peer->af_cap[afi][orig_safi], PEER_CAP_RESTART_AF_RCV))
+      continue;
+    /* if eor is not received yet, cancel enqueuing of rm */
+    if (!CHECK_FLAG (ri->peer->af_sflags[afi][orig_safi], PEER_STATUS_EOR_RECEIVED)) {
+      SET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
+      return;
+    }
+  }
+
+  if (CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE))
+    UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
+
+  bgp_process_send(bgp, rn, afi, safi);
   return;
 }
 
