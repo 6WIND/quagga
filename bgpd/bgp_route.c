@@ -3691,12 +3691,22 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
         }
 
       /* Received Logging. */
-      if (BGP_DEBUG (update, UPDATE_IN))  
-	zlog (peer->log, LOG_DEBUG, "%s rcvd %s/%d",
-	      peer->host,
-	      inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-	      p->prefixlen);
+      if (BGP_DEBUG (update, UPDATE_IN)) {
+        char rd_buf[RD_ADDRSTRLEN];
 
+	if (prd)
+          prefix_rd2str(prd, rd_buf, sizeof(rd_buf));
+        if (prd)
+          zlog (peer->log, LOG_DEBUG, "%s RD %s rcvd %s/%d",
+                peer->host, rd_buf,
+                inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+                p->prefixlen);
+        else
+          zlog (peer->log, LOG_DEBUG, "%s rcvd %s/%d",
+                peer->host,
+                inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+                p->prefixlen);
+      }
       /* graceful restart STALE flag unset. */
       if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
 	bgp_info_unset_flag (rn, ri, BGP_INFO_STALE);
