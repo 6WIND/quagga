@@ -69,6 +69,7 @@ struct bgp_node
   u_char flags;
 #define BGP_NODE_PROCESS_SCHEDULED	(1 << 0)
 #define BGP_NODE_USER_CLEAR             (1 << 1)
+#define BGP_NODE_PROCESS_TO_SCHEDULE	(1 << 2)
 };
 
 /*
