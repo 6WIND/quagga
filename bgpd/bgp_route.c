@@ -2980,7 +2980,13 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
                     continue;
                   for (ri = rm->info; ri; ri = ri->next)
                     {
-                      if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED))
+                      if (ri->peer->status != Established)
+                        continue;
+                      /* if graceful restart is disabled, assume eor is not active */
+                      if (!CHECK_FLAG(ri->peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_RCV))
+                        continue;
+                      if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED) &&
+                          !CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED))
                         {
                           all_peers_eor_received = false;
                           break;
@@ -3009,7 +3015,13 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
             continue;
           for (ri = rn->info; ri; ri = ri->next)
 	    {
-              if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED))
+              if (ri->peer->status != Established)
+                continue;
+              /* if graceful restart is disabled, assume eor is not active */
+              if (!CHECK_FLAG(ri->peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_RCV))
+                continue;
+              if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED) &&
+                  !CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED))
                 {
                   all_peers_eor_received = false;
                   break;
@@ -3039,7 +3051,13 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
           continue;
         for (ri = rn->info; ri; ri = ri->next)
           {
-	    if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED))
+            if (ri->peer->status != Established)
+              continue;
+            /* if graceful restart is disabled, assume eor is not active */
+            if (!CHECK_FLAG(ri->peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_RCV))
+              continue;
+            if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED) &&
+                !CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED))
               {
                 all_peers_eor_received = false;
                 break;
@@ -3134,11 +3152,14 @@ bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
   for (ri = rn->info; ri; ri = ri->next) {
     if (ri->peer == bgp->peer_self)
       continue;
+    if (ri->peer->status != Established)
+      continue;
     /* if graceful restart is disabled, assume eor is not active */
     if (!CHECK_FLAG(ri->peer->af_cap[afi][orig_safi], PEER_CAP_RESTART_AF_RCV))
       continue;
     /* if eor is not received yet, cancel enqueuing of rm */
-    if (!CHECK_FLAG (ri->peer->af_sflags[afi][orig_safi], PEER_STATUS_EOR_RECEIVED)) {
+    if (!CHECK_FLAG (ri->peer->af_sflags[afi][orig_safi], PEER_STATUS_EOR_RECEIVED) &&
+        !CHECK_FLAG (ri->peer->af_sflags[afi][orig_safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED)) {
       SET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
       return;
     }
