@@ -3961,6 +3961,7 @@ bgp_trigger_bgp_selection_check (struct peer *peer, afi_t afi, safi_t safi,
   struct bgp_info *ri;
   bool all_peers_eor_received = true;
   bool has_peer = false;
+  int is_origin_evpn = 0;
 
   assert (rn && peer);
 
@@ -3969,13 +3970,31 @@ bgp_trigger_bgp_selection_check (struct peer *peer, afi_t afi, safi_t safi,
 
   for (ri = rn->info; ri; ri = ri->next)
     {
-      if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED))
+      if (ri->peer->status != Established)
+        continue;
+
+      if (!is_origin_evpn && CHECK_FLAG (ri->flags, BGP_INFO_ORIGIN_EVPN))
+        is_origin_evpn = 1;
+
+      /* if graceful restart is disabled, assume eor is not active */
+      if (!CHECK_FLAG(ri->peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_RCV))
+        continue;
+      if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED) &&
+          !CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED))
         {
           all_peers_eor_received = false;
           break;
         }
       if (ri->peer == peer)
         has_peer = true;
+    }
+
+  if (rn->table && bgp_node_table (rn) &&
+      bgp_node_table (rn)->type == BGP_TABLE_VRF)
+    {
+      if ((safi == SAFI_MPLS_VPN && is_origin_evpn) ||
+          (safi == SAFI_EVPN && !is_origin_evpn))
+        return false;
     }
 
   if (all_peers_eor_received == true && has_peer == true)
@@ -4143,6 +4162,17 @@ bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
       return;
     }
 
+  /* if deferral timer is disabled, then
+   * go back to old behaviour, ie: process incoming entries
+   * as soon as possible
+   */
+  if (!bgp->v_selection_deferral) {
+    if (CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE))
+      UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
+    bgp_process_send(bgp, rn, afi, safi);
+    return;
+  }
+
   if (rn->table && bgp_node_table (rn) &&
       bgp_node_table (rn)->type == BGP_TABLE_VRF)
     {
@@ -4170,11 +4200,14 @@ bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
   for (ri = rn->info; ri; ri = ri->next) {
     if (ri->peer == bgp->peer_self)
       continue;
+    if (ri->peer->status != Established)
+      continue;
     /* if graceful restart is disabled, assume eor is not active */
     if (!CHECK_FLAG(ri->peer->af_cap[orig_afi][orig_safi], PEER_CAP_RESTART_AF_RCV))
       continue;
     /* if eor is not received yet, cancel enqueuing of rm */
-    if (!CHECK_FLAG (ri->peer->af_sflags[orig_afi][orig_safi], PEER_STATUS_EOR_RECEIVED)) {
+    if (!CHECK_FLAG (ri->peer->af_sflags[orig_afi][orig_safi], PEER_STATUS_EOR_RECEIVED) &&
+        !CHECK_FLAG (ri->peer->af_sflags[orig_afi][orig_safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED)) {
       SET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
       return;
     }

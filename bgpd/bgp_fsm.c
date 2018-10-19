@@ -650,6 +650,8 @@ bgp_stop (struct peer *peer)
       {
         if (bgp_update_delay_active (peer, afi, safi))
           bgp_update_delay_end (peer, afi, safi);
+        if (bgp_selection_deferral_timer_active (peer, afi, safi))
+          bgp_selection_deferral_timer_end (peer, afi, safi);
       }
 
   /* Stream reset. */
@@ -1009,6 +1011,12 @@ bgp_establish (struct peer *peer)
   for (afi = AFI_IP ; afi < AFI_MAX ; afi++)
     for (safi = SAFI_UNICAST ; safi < SAFI_RESERVED_5 ; safi++)
       {
+        /* launch bgp selection deferral timer for each afi/safi handled by peer */
+        if (peer->afc_nego[afi][safi] &&
+            peer->bgp->v_selection_deferral &&
+            !bgp_selection_deferral_timer_active (peer, afi, safi))
+          bgp_selection_deferral_timer_begin (peer, afi, safi);
+
 	if (peer->afc_nego[afi][safi]
 	    && CHECK_FLAG (peer->cap, PEER_CAP_RESTART_ADV)
 	    && CHECK_FLAG (peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_RCV))
@@ -1368,4 +1376,63 @@ void bgp_update_delay_end (struct peer *peer, afi_t afi, safi_t safi)
     return;
   THREAD_OFF(peer->t_update_delay[afi][safi]);
   peer->t_update_delay[afi][safi] = NULL;
+}
+
+int bgp_selection_deferral_timer_active (struct peer *peer, afi_t afi, safi_t safi)
+{
+  if (peer->t_selection_deferral[afi][safi])
+    return 1;
+  return 0;
+}
+
+static int bgp_selection_deferral_timer (struct thread *t)
+{
+  struct bgp_eor *eor = THREAD_ARG(t);
+  struct peer *peer;
+  afi_t afi;
+  safi_t safi;
+
+  if (!eor)
+    return 0;
+
+  peer = eor->peer;
+  afi = eor->afi;
+  safi = eor->safi;
+  peer->t_selection_deferral[afi][safi] = NULL;
+  XFREE (MTYPE_BGP_ENDOFRIB_CTXT, eor);
+
+  if (BGP_DEBUG (events, EVENTS))
+    zlog_debug ("%s bgp selection deferral timer expired", peer->host);
+  SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED);
+  bgp_trigger_bgp_selection (peer, afi, safi);
+
+  return 0;
+}
+
+void bgp_selection_deferral_timer_begin (struct peer *peer, afi_t afi, safi_t safi)
+{
+  struct bgp *bgp = peer->bgp;
+  struct bgp_eor *eor = XCALLOC(MTYPE_BGP_ENDOFRIB_CTXT, sizeof(struct bgp_eor));
+  eor->peer = peer;
+  eor->afi = afi;
+  eor->safi = safi;
+  THREAD_TIMER_MSEC_ON(bm->master, peer->t_selection_deferral[afi][safi],
+                       bgp_selection_deferral_timer, eor,
+                       bgp->v_selection_deferral);
+}
+
+void bgp_selection_deferral_timer_end (struct peer *peer, afi_t afi, safi_t safi)
+{
+  struct bgp_eor *eor = NULL;
+
+  if (!peer)
+    return;
+  if (!peer->t_selection_deferral[afi][safi])
+    return;
+
+  eor = THREAD_ARG(peer->t_selection_deferral[afi][safi]);
+  THREAD_OFF(peer->t_selection_deferral[afi][safi]);
+  peer->t_selection_deferral[afi][safi] = NULL;
+  if (eor)
+    XFREE (MTYPE_BGP_ENDOFRIB_CTXT, eor);
 }

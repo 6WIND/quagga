@@ -936,6 +936,42 @@ DEFUN (bgp_vty_send_eor,
   return CMD_SUCCESS;
 }
 
+/* BGP selection deferral */
+DEFUN (bgp_bestpath_selection_deferral,
+       bgp_bestpath_selection_deferral_cmd,
+       "bgp bestpath selection-deferral <0-720000>",
+       "BGP\n"
+       "Change the default bestpath selection\n"
+       "Best path selection deferral\n"
+       "Time in milliseconds\n")
+{
+  unsigned long selection_deferral = 0;
+
+  VTY_GET_INTEGER ("selection_deferral", selection_deferral, argv[0]);
+
+  if (selection_deferral > MAX_BGP_SELECTION_DEFERRAL)
+    {
+      vty_out (vty, "%% must be between 0 and less than %d seconds%s",
+	       MAX_BGP_SELECTION_DEFERRAL/1000, VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  bgp_selection_deferral_tmr = selection_deferral;
+  return CMD_SUCCESS;
+}
+
+/* BGP selection deferral */
+DEFUN (no_bgp_bestpath_selection_deferral,
+       no_bgp_bestpath_selection_deferral_cmd,
+       "no bgp bestpath selection-deferral",
+       "No\n"
+       "BGP\n"
+       "Change the default bestpath selection\n"
+       "Best path selection deferral\n")
+{
+  bgp_selection_deferral_tmr = 0;
+  return CMD_SUCCESS;
+}
+
 DEFUN (bgp_timers,
        bgp_timers_cmd,
        "timers bgp <0-65535> <0-65535>",
@@ -10922,6 +10958,10 @@ bgp_vty_init (void)
   /* "bgp config-type" commands. */
   install_element (CONFIG_NODE, &bgp_config_type_cmd);
   install_element (CONFIG_NODE, &no_bgp_config_type_cmd);
+
+  /* bgp bestpath selection deferral commands */
+  install_element (CONFIG_NODE, &bgp_bestpath_selection_deferral_cmd);
+  install_element (CONFIG_NODE, &no_bgp_bestpath_selection_deferral_cmd);
 
   /* Dummy commands (Currently not supported) */
   install_element (BGP_NODE, &no_synchronization_cmd);

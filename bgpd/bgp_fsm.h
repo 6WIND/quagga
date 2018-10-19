@@ -83,4 +83,9 @@ extern void bgp_update_delay_begin (struct peer *peer, afi_t, safi_t safi);
 extern void bgp_update_delay_end (struct peer *peer, afi_t, safi_t safi);
 
 extern void bgp_bfd_send_event(struct bgp *bgp, struct peer *peer, uint8_t up_down);
+
+extern int bgp_selection_deferral_timer_active (struct peer *peer, afi_t afi, safi_t safi);
+extern void bgp_selection_deferral_timer_begin (struct peer *peer, afi_t afi, safi_t safi);
+extern void bgp_selection_deferral_timer_end (struct peer *peer, afi_t afi, safi_t safi);
+
 #endif /* _QUAGGA_BGP_FSM_H */

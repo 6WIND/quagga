@@ -2571,6 +2571,10 @@ bgp_update_receive (struct peer *peer, bgp_size_t size)
 	    zlog (peer->log, LOG_DEBUG, "rcvd End-of-RIB for %s from %s",
 		  peer->host, afi_safi_print (afi, safi));
           bgp_trigger_bgp_selection (peer, afi, safi);
+
+          /* Stop bgp selection deferral timer */
+          if (bgp_selection_deferral_timer_active (peer, afi, safi))
+            bgp_selection_deferral_timer_end (peer, afi, safi);
         }
     }
   

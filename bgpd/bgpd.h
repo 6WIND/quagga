@@ -219,6 +219,8 @@ struct bgp
 
 #define MAX_EOR_UPDATE_DELAY 3600
   u_int16_t v_update_delay;
+#define MAX_BGP_SELECTION_DEFERRAL 720000
+  u_int32_t v_selection_deferral;
 
   QZC_NODE
 };
@@ -643,6 +645,7 @@ struct peer
 #define PEER_STATUS_EOR_SEND          (1 << 5) /* end-of-rib send to peer */
 #define PEER_STATUS_EOR_RECEIVED      (1 << 6) /* end-of-rib received from peer */
 #define PEER_STATUS_EORR_READY_TO_SEND (1 << 7) /* end-of-rib marker for sender */
+#define PEER_STATUS_SELECTION_DEFERRAL_EXPIRED (1 << 8) /* bgp path selection deferral timer expired */
 
 
   /* Default attribute value for the peer. */
@@ -777,6 +780,8 @@ struct peer
 #define PEER_RMAP_TYPE_EXPORT         (1 << 7) /* neighbor route-map export */
 
   struct thread *t_update_delay[AFI_MAX][SAFI_MAX];
+  struct thread *t_selection_deferral[AFI_MAX][SAFI_MAX];
+
   /* Clear purpose configuration flags. */
   enum bgp_clear_route_type clear_purpose;
 
@@ -970,6 +975,7 @@ struct bgp_nlri
 #define BGP_DEFAULT_IBGP_ROUTEADV                5
 #define BGP_CLEAR_CONNECT_RETRY                 20
 #define BGP_DEFAULT_CONNECT_RETRY               1
+#define BGP_DEFAULT_SELECTION_DEFERRAL        360000
 
 /* BGP default local preference.  */
 #define BGP_DEFAULT_LOCAL_PREF                 100
@@ -1050,6 +1056,7 @@ enum bgp_clear_type
 extern struct bgp_master *bm;
 extern int bgp_exit_procedure;
 extern int  bgp_order_send_eor;
+extern int bgp_selection_deferral_tmr;
 
 /* Prototypes. */
 extern void bgp_terminate (void);
