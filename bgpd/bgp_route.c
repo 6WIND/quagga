@@ -3148,6 +3148,16 @@ bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
       bgp_node_table (rn)->type == BGP_TABLE_VRF)
     orig_safi = SAFI_MPLS_VPN;
 
+  /* if deferral timer is disabled, then
+   * go back to old behaviour, ie: process incoming entries
+   * as soon as possible
+   */
+  if (!bgp->v_selection_deferral) {
+    if (CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE))
+      UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
+    bgp_process_send(bgp, rn, afi, safi);
+    return;
+  }
   /* do not enqueue for BGP, wait reception of EOR marker */
   for (ri = rn->info; ri; ri = ri->next) {
     if (ri->peer == bgp->peer_self)
