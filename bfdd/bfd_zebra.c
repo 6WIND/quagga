@@ -380,8 +380,8 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 			 MSEC(neighp->ldesmintx), MSEC(neighp->lreqminrx), neighp->lmulti,
 			 VTY_NEWLINE);
 		vty_out (vty,
-			 "Received MinRxInt: %u, Received Multiplier: %u%s",
-			 MSEC(neighp->rreqminrx), neighp->rmulti, VTY_NEWLINE);
+			 "Received MinTxInt: %u, Received MinRxInt: %u, Received Multiplier: %u%s",
+			 MSEC(neighp->rdesmintx), MSEC(neighp->rreqminrx), neighp->rmulti, VTY_NEWLINE);
 		vty_out (vty,
 			 "Holdown (hits): %u(%u), Hello (hits): %u(%u)%s",
 			 MSEC (neighp->dtime), neighp->timer_cnt,
