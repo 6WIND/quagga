@@ -219,7 +219,7 @@ struct bgp
 
 #define MAX_EOR_UPDATE_DELAY 3600
   u_int16_t v_update_delay;
-#define MAX_BGP_SELECTION_DEFERRAL 60000
+#define MAX_BGP_SELECTION_DEFERRAL 720000
   u_int16_t v_selection_deferral;
 
   QZC_NODE
@@ -891,7 +891,7 @@ struct bgp_nlri
 #define BGP_DEFAULT_IBGP_ROUTEADV                5
 #define BGP_CLEAR_CONNECT_RETRY                 20
 #define BGP_DEFAULT_CONNECT_RETRY               1
-#define BGP_DEFAULT_SELECTION_DEFERRAL        5000
+#define BGP_DEFAULT_SELECTION_DEFERRAL        360000
 
 /* BGP default local preference.  */
 #define BGP_DEFAULT_LOCAL_PREF                 100
