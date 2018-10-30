@@ -31,7 +31,7 @@
 #include "bgpd.h"
 #include "bgpd/bgp_vty.h"
 
-#define BGP_NOTIFY_ZMQ_LIMIT     500000
+#define BGP_NOTIFY_ZMQ_LIMIT     1500000
 #define BGP_NOTIFY_ZMQ_MIN_LIMIT 60000
 #define BGP_NOTIFY_ZMQ_MAX_LIMIT 4000000
 
