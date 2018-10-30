@@ -516,7 +516,7 @@ main (int argc, char **argv)
 
 #ifdef HAVE_ZEROMQ
   if (zmq_sock)
-    qzc_sock = qzc_bind (bm->master, zmq_sock);
+    qzc_sock = qzc_bind (bm->master, zmq_sock, QZC_CLIENT_ZMQ_LIMIT_RX);
 #endif /* HAVE_ZEROMQ */
 
   /* Parse config file. */
