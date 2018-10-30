@@ -73,7 +73,8 @@ struct qzc_sock;
 
 void qzc_init(void);
 void qzc_finish(void);
-struct qzc_sock *qzc_bind(struct thread_master *master, const char *url);
+struct qzc_sock *qzc_bind(struct thread_master *master,
+                          const char *url, uint32_t limit);
 void qzc_close(struct qzc_sock *sock);
 
 struct qzc_wkn {
@@ -83,6 +84,9 @@ struct qzc_wkn {
 	struct qzc_wkn *next;
 };
 void qzc_wkn_reg(struct qzc_wkn *wkn);
+
+#define QZC_CLIENT_ZMQ_LIMIT_TX     1500000
+#define QZC_CLIENT_ZMQ_LIMIT_RX     1500000
 #else
 
 #define QZC_NODE

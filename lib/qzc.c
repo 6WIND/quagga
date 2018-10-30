@@ -348,7 +348,8 @@ struct qzc_sock {
 	struct qzmq_cb *cb;
 };
 
-struct qzc_sock *qzc_bind (struct thread_master *master, const char *url)
+struct qzc_sock *qzc_bind (struct thread_master *master, const char *url,
+                           uint32_t limit)
 {
   void *qzc_sock;
   struct qzc_sock *ret;
@@ -360,6 +361,9 @@ struct qzc_sock *qzc_bind (struct thread_master *master, const char *url)
       zlog_err ("zmq_socket failed: %s (%d)", strerror (errno), errno);
       return NULL;
     }
+
+  if (limit)
+    zmq_setsockopt (qzc_sock, ZMQ_RCVHWM, &limit, sizeof(limit));
 
   if (zmq_bind (qzc_sock, url))
     {
