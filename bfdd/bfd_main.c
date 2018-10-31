@@ -124,7 +124,29 @@ static struct option longopts[] = {
 
 /* Master of threads. */
 struct thread_master *master;
+static struct thread *bfdd_monitor_thread;
 static void bfdd_exit(int);
+
+static int bfdd_monitor_timer (struct thread *t)
+{
+  if (getppid() == 1)
+    {
+      zlog_notice ("parent program has exited, force bfdd to exit");
+      bfdd_exit (0);
+      return 1;
+    }
+  bfdd_monitor_thread = thread_add_timer (master, bfdd_monitor_timer,
+                                             NULL, BFD_MONITOR_INTERVAL);
+  return 0;
+}
+
+static int bfdd_new_monitor ()
+{
+  bfdd_monitor_thread = thread_add_timer (master, bfdd_monitor_timer,
+                                            NULL, BFD_MONITOR_INTERVAL);
+  return 0;
+}
+
 
 /* SIGHUP handler. */
 static void
@@ -306,6 +328,10 @@ main (int argc, char **argv, char **envp)
   /* Create VTY's socket */
   vty_serv_sock (vty_addr, vty_port, BFD_VTYSH_PATH);
 
+#ifdef HAVE_ZEROMQ
+  if (zmq_sock)
+    bfdd_new_monitor();
+#endif
   /* Print banner. */
   zlog_notice ("BFDd %s starting: vty@%d pid %d", QUAGGA_VERSION, vty_port, getpid ());
 
@@ -337,6 +363,8 @@ bfdd_exit (int status)
   qzc_finish ();
 #endif /* HAVE_CCAPNPROTO */
 
+  if (bfdd_monitor_thread)
+    THREAD_OFF(bfdd_monitor_thread);
   thread_master_free (master);
 
   if (zlog_default)

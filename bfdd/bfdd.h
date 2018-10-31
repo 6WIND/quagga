@@ -56,6 +56,8 @@ extern struct neightbl *neightbl;
 #define BFD_OK			0
 #define BFD_ERR			-1
 
+#define BFD_MONITOR_INTERVAL   5
+
 struct bfd_if_info
 {
   int enabled;			/* enabled flag */
