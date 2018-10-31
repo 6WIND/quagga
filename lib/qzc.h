@@ -89,6 +89,8 @@ void qzc_wkn_reg(struct qzc_wkn *wkn);
 #define QZC_CLIENT_ZMQ_LIMIT_RX     1500000
 void qzc_configure_simulation_delay (unsigned int delay,
                                      unsigned int occurence);
+#define QZC_SOCKET_SIZE_USER 200000
+
 #else
 
 #define QZC_NODE

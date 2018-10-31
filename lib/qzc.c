@@ -368,6 +368,7 @@ struct qzc_sock *qzc_bind (struct thread_master *master, const char *url,
 {
   void *qzc_sock;
   struct qzc_sock *ret;
+  uint64_t socket_size = QZC_SOCKET_SIZE_USER;
 
   qzc_sock = zmq_socket (qzmq_context, ZMQ_REP);
 
@@ -379,6 +380,10 @@ struct qzc_sock *qzc_bind (struct thread_master *master, const char *url,
 
   if (limit)
     zmq_setsockopt (qzc_sock, ZMQ_RCVHWM, &limit, sizeof(limit));
+  zmq_setsockopt (qzc_sock, ZMQ_RCVBUF, &socket_size,
+                  sizeof(socket_size));
+  zmq_setsockopt (qzc_sock, ZMQ_SNDBUF, &socket_size,
+                  sizeof(socket_size));
 
   if (zmq_bind (qzc_sock, url))
     {
