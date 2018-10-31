@@ -90,6 +90,7 @@ void qzc_wkn_reg(struct qzc_wkn *wkn);
 void qzc_configure_simulation_delay (unsigned int delay,
                                      unsigned int occurence);
 #define QZC_SOCKET_SIZE_USER 200000
+extern int qzcserver_get_nb_reconnect(void);
 
 #else
 
