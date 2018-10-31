@@ -168,6 +168,26 @@ bgp_notify_bfd_status (struct bgp *bgp, struct bgp_event_bfd_status *status)
   bgp_notify_send (bgp, &msg);
 }
 
+static int bgp_zmq_delay;
+static int bgp_zmq_occurence;
+
+DEFUN (show_debugging_bgp_zmq_simulate,
+       show_debugging_bgp_zmq_simulate_cmd,
+       "show debugging bgp zmq delay <0-20> occurence <1-500>",
+       SHOW_STR
+       DEBUG_STR
+       BGP_STR
+       "ZMQ information"
+       "Simulate an extra Delay before sending REP"
+       "Delay in seconds"
+       "Simulate the occurence of the event 1 out of X"
+       "X in number of occurences")
+{
+  bgp_zmq_delay = atoi(argv[0]);
+  bgp_zmq_occurence = atoi(argv[1]);
+  qzc_configure_simulation_delay (bgp_zmq_delay, bgp_zmq_occurence);
+}
+
 DEFUN (show_debugging_bgp_zmq,
        show_debugging_bgp_zmq_cmd,
        "show debugging bgp zmq",
@@ -178,15 +198,17 @@ DEFUN (show_debugging_bgp_zmq,
 {
   vty_out (vty, "BGP ZMQ notifications : %u%s", bgp_zmq_notify_send_counter, VTY_NEWLINE);
   vty_out (vty, "BGP ZMQ queue storage limit : %u%s", bgp_notify_zmq_limit, VTY_NEWLINE);
+  vty_out (vty, "BGP ZMQ Heavy Work Simulation: sleep %u sec. occurence 1 out of %d%s",
+           bgp_zmq_delay, bgp_zmq_occurence, VTY_NEWLINE);
   return CMD_SUCCESS;
 }
-
 
 void
 bgp_notify_zmq_init (void)
 {
   bgp_notify_zmq_limit = BGP_NOTIFY_ZMQ_LIMIT;
   install_element (ENABLE_NODE, &show_debugging_bgp_zmq_cmd);
+  install_element (ENABLE_NODE, &show_debugging_bgp_zmq_simulate_cmd);
   install_element (ENABLE_NODE, &debug_bgp_notify_zmq_set_limit_cmd);
   install_element (CONFIG_NODE, &debug_bgp_notify_zmq_set_limit_cmd);
 }
