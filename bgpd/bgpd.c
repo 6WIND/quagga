@@ -88,6 +88,7 @@ int bgp_exit_procedure = 0;
 struct community_list_handler *bgp_clist;
 
 int  bgp_order_send_eor = 0;
+int  bgp_selection_deferral_tmr = BGP_DEFAULT_SELECTION_DEFERRAL;
 
 /* peer_flag_change_type. */
 enum peer_change_type
@@ -2412,7 +2413,7 @@ bgp_create (as_t *as, const char *name)
   bgp->default_keepalive = BGP_DEFAULT_KEEPALIVE;
   bgp->restart_time = BGP_DEFAULT_RESTART_TIME;
   bgp->stalepath_time = BGP_DEFAULT_STALEPATH_TIME;
-  bgp->v_selection_deferral = BGP_DEFAULT_SELECTION_DEFERRAL;
+  bgp->v_selection_deferral = bgp_selection_deferral_tmr;
   bgp_flag_set (bgp, BGP_FLAG_LOG_NEIGHBOR_CHANGES);
 
   bgp->as = *as;
@@ -6013,6 +6014,10 @@ bgp_config_write (struct vty *vty)
       write++;
     }
 
+  /* BGP selection deferral timer */
+  vty_out (vty, "bgp bestpath selection-deferral %u%s",
+           bgp_selection_deferral_tmr, VTY_NEWLINE);
+
   /* BGP configuration. */
   for (ALL_LIST_ELEMENTS (bm->bgp, mnode, mnnode, bgp))
     {
@@ -6156,9 +6161,6 @@ bgp_config_write (struct vty *vty)
       /* BGP update delay */
       if (bgp->v_update_delay)
         vty_out (vty, " bgp update-delay %u%s", bgp->v_update_delay, VTY_NEWLINE);
-
-      /* BGP selection deferral timer */
-      vty_out (vty, " bgp bestpath selection-deferral %u%s", bgp->v_selection_deferral, VTY_NEWLINE);
 
       /* peer-group */
       for (ALL_LIST_ELEMENTS (bgp->group, node, nnode, group))

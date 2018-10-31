@@ -975,6 +975,7 @@ enum bgp_clear_type
 extern struct bgp_master *bm;
 extern int bgp_exit_procedure;
 extern int  bgp_order_send_eor;
+extern int bgp_selection_deferral_tmr;
 
 /* Prototypes. */
 extern void bgp_terminate (void);

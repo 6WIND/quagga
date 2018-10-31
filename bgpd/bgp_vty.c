@@ -936,14 +936,12 @@ DEFUN (bgp_vty_send_eor,
 /* BGP selection deferral */
 DEFUN (bgp_bestpath_selection_deferral,
        bgp_bestpath_selection_deferral_cmd,
-       "bgp bestpath selection-deferral <0-60000>",
+       "bgp bestpath selection-deferral <0-600000>",
        "BGP\n"
        "Change the default bestpath selection\n"
        "Best path selection deferral\n"
        "Time in milliseconds\n")
 {
-  struct bgp *bgp;
-  bgp = vty->index;
   unsigned long selection_deferral = 0;
 
   VTY_GET_INTEGER ("selection_deferral", selection_deferral, argv[0]);
@@ -954,7 +952,7 @@ DEFUN (bgp_bestpath_selection_deferral,
 	       MAX_BGP_SELECTION_DEFERRAL/1000, VTY_NEWLINE);
       return CMD_WARNING;
     }
-   bgp->v_selection_deferral = selection_deferral;
+  bgp_selection_deferral_tmr = selection_deferral;
    return CMD_SUCCESS;
 }
 
@@ -967,10 +965,7 @@ DEFUN (no_bgp_bestpath_selection_deferral,
        "Change the default bestpath selection\n"
        "Best path selection deferral\n")
 {
-  struct bgp *bgp;
-
-  bgp = vty->index;
-  bgp->v_selection_deferral = 0;
+  bgp_selection_deferral_tmr = 0;
   return CMD_SUCCESS;
 }
 
@@ -10462,6 +10457,10 @@ bgp_vty_init (void)
   install_element (CONFIG_NODE, &bgp_tcp_keepalive_cmd);
   install_element (CONFIG_NODE, &no_bgp_tcp_keepalive_cmd);
 
+  /* bgp bestpath selection deferral commands */
+  install_element (CONFIG_NODE, &bgp_bestpath_selection_deferral_cmd);
+  install_element (CONFIG_NODE, &no_bgp_bestpath_selection_deferral_cmd);
+
   /* Dummy commands (Currently not supported) */
   install_element (BGP_NODE, &no_synchronization_cmd);
   install_element (BGP_NODE, &no_auto_summary_cmd);
@@ -11817,9 +11816,6 @@ bgp_vty_init (void)
   install_element (BGP_NODE, &bgp_update_delay_cmd);
   install_element (BGP_NODE, &no_bgp_update_delay_cmd);
   install_element (BGP_NODE, &bgp_vty_send_eor_cmd);
-
-  install_element (BGP_NODE, &bgp_bestpath_selection_deferral_cmd);
-  install_element (BGP_NODE, &no_bgp_bestpath_selection_deferral_cmd);
 }
 
 /* VTY functions.  */
