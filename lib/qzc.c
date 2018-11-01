@@ -328,15 +328,19 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
   if (qzc_simulate_delay && 0 == (simulate_counter % qzc_simulate_random)) {
     sleep(qzc_simulate_delay);
   }
-  simulate_counter++;
 
   while (retries_left) {
-    ret = zmq_send (ctxt->zmq, buf, rs, 0);
+    if (qzc_simulate_delay && 0 == (simulate_counter % qzc_simulate_random)) {
+      ret = -1;
+    } else
+      ret = zmq_send (ctxt->zmq, buf, rs, 0);
     if (ret >= 0)
       break;
     zlog_err ("%s : zmq_send failed: %s (%d).retry", __func__, zmq_strerror (errno), errno);
     retries_left--;
   }
+  simulate_counter++;
+
   if (ret < 0) {
     void *qzc_sock;
     uint64_t socket_size = QZC_SOCKET_SIZE_USER;
