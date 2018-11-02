@@ -2481,7 +2481,7 @@ void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi,
                 continue;
               if (! peer->afc[afi][safi])
                 continue;
-              zlog_err("vrf mpath (%u->%u) : peer %s refreshing afi %u %u",
+              zlog_info("vrf mpath (%u->%u) : peer %s refreshing afi %u %u",
                        orig_value, vrf->max_mpath[afi][safi],
                        peer->host, afi, safi);
               if (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG))
@@ -2515,7 +2515,7 @@ void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf)
                     continue;
                   if (! peer->afc[afi][safi])
                     continue;
-                  zlog_err("vrf mpath (%u->%u) : peer %s refreshing afi %u %u",
+                  zlog_info("vrf mpath (%u->%u) : peer %s refreshing afi %u %u",
                            vrf->max_mpath[afi][safi], vrf->max_mpath_configured,
                            peer->host, afi, safi);
 
