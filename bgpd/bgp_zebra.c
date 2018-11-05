@@ -263,7 +263,8 @@ bgp_bfd_neigh_add(struct peer *peer)
       {
         struct interface *ifp;
         ifp = if_lookup_by_sockunion_exact(peer->bfd_su_local);
-        peer->bfd_ifindex = ifp->ifindex;
+        if (ifp)
+          peer->bfd_ifindex = ifp->ifindex;
       }
 
     if (!CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_MODE))

@@ -632,6 +632,19 @@ bgp_peer_bfd_sync_by_local_addr(struct bgp *bgp,
               peer_flag_set (peer, PEER_FLAG_BFD_SYNC);
             }
         }
+      else if (peer->update_source)
+        {
+          /* The peer with update-source configured is synced only
+	   * when the ZEBRA_INTERFACE_ADDRESS_ADD message including
+	   * this update-source address arrives from zebra. */
+          if (sockunion_cmp (peer->update_source, &su) == 0)
+            {
+              if (CHECK_FLAG (bgp->flags, BGP_FLAG_BFD_MULTIHOP))
+                peer_flag_set (peer, PEER_FLAG_MULTIHOP);
+              peer_flag_set (peer, PEER_FLAG_BFD);
+              peer_flag_set (peer, PEER_FLAG_BFD_SYNC);
+            }
+        }
       else
         {
           /* If BGP connection is not established, only the BFD
