@@ -845,9 +845,17 @@ bgp_attr_unintern (struct attr **pattr)
   if (attr->refcnt == 0)
     {
       ret = hash_release (attrhash, attr);
-      /* assert (ret != NULL); */
-      bgp_attr_extra_free (attr);
-      XFREE (MTYPE_ATTR, attr);
+      if (ret)
+      {
+        /* assert (ret != NULL); */
+        bgp_attr_extra_free (attr);
+        XFREE (MTYPE_ATTR, attr);
+      }
+      else
+      {
+        zlog_err("%s attrhash hash_release() bug: data of attr=%p is modified after bgp_attr_intern()\n",
+                   __func__, attr);
+      }
       *pattr = NULL;
     }
 
