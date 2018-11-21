@@ -1423,7 +1423,7 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
 
 		  if (do_mpath)
 		    {
-                      if (cmpret != 0)
+                      if (cmpret == -1)
                         bgp_mp_list_clear (&mp_list);
 
                       if (cmpret == 0 || cmpret == -1)
@@ -1496,7 +1496,7 @@ bgp_best_selection (struct bgp *bgp, struct bgp_node *rn,
 
       if (do_mpath)
         {
-          if (cmpret != 0)
+          if (cmpret == -1)
             bgp_mp_list_clear (&mp_list);
 
           if (cmpret == 0 || cmpret == -1)
