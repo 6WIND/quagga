@@ -2466,6 +2466,7 @@ void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi,
   struct listnode *node;
   struct bgp_vrf *vrf;
   u_int16_t orig_value;
+  bool need_refresh = false;
 
   if (!bgp || (afi >= AFI_MAX) || (safi >= SAFI_MAX))
     return;
@@ -2486,22 +2487,31 @@ void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi,
         }
       if (orig_value != vrf->max_mpath[afi][safi])
         {
-          struct listnode *node, *next;
-          struct peer *peer;
-          for (ALL_LIST_ELEMENTS (vrf->bgp->peer, node, next, peer))
-            {
-              if (peer->status != Established)
-                continue;
-              if (! peer->afc[afi][safi])
-                continue;
-              zlog_info("vrf mpath (%u->%u) : peer %s refreshing afi %u %u",
-                       orig_value, vrf->max_mpath[afi][safi],
-                       peer->host, afi, safi);
-              if (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG))
-                peer_clear_soft (peer, afi, safi, BGP_CLEAR_SOFT_IN);
-              else
-                peer_change_action (peer, afi, safi, peer_change_reset_in);
-            }
+          char vrf_rd_str[RD_ADDRSTRLEN];
+
+          prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+          zlog_info("vrf[%s] mpath (%u->%u): afi %u safi %u",
+                    vrf_rd_str, orig_value, vrf->max_mpath[afi][safi],
+                    afi, safi);
+          need_refresh = true;
+        }
+    }
+
+  if (need_refresh == true)
+    {
+      struct listnode *node, *next;
+      struct peer *peer;
+      for (ALL_LIST_ELEMENTS (bgp->peer, node, next, peer))
+        {
+          if (peer->status != Established)
+            continue;
+          if (! peer->afc[afi][safi])
+            continue;
+          zlog_info ("peer %s refreshing afi %u %u", peer->host, afi, safi);
+          if (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG))
+            peer_clear_soft (peer, afi, safi, BGP_CLEAR_SOFT_IN);
+          else
+            peer_change_action (peer, afi, safi, peer_change_reset_in);
         }
     }
 }
