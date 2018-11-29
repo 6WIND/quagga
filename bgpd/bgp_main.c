@@ -41,6 +41,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "workqueue.h"
 #include "qzc.h"
 
+#include <sys/prctl.h>
+
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_attr.h"
 #include "bgpd/bgp_mplsvpn.h"
@@ -492,6 +494,8 @@ main (int argc, char **argv)
   memory_init ();
   vrf_init ();
 
+  if (prctl(PR_SET_DUMPABLE, 1) == -1)
+      zlog_err("BGP: core dumps will not be enabled: %s", strerror(errno));
   /* BGP related initialization.  */
   bgp_init ();
 
