@@ -422,6 +422,9 @@ void qcapn_BGP_set(struct bgp *s, capn_ptr p)
       if (strlen(logFile) > 0 && strlen(logLevel) > 0) {
           set_log_file_with_level(logFile, logLevel);
       }
+      if (strlen(logFile) == 0 && strlen(logLevel) > 0) {
+          set_log_stdout_with_level(logLevel);
+      }
       { capn_text tp = capn_get_text(p, 5, capn_val0); logLevelSyslog = tp.str; }
       if (strlen(logLevelSyslog) > 0) {
         set_log_syslog_with_level(logLevelSyslog);

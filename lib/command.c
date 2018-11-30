@@ -3857,6 +3857,11 @@ int set_log_syslog_with_level(const char *logLevel)
   zlog_set_level (NULL, ZLOG_DEST_SYSLOG, level_match(logLevel));
 }
 
+int set_log_stdout_with_level(const char *logLevel)
+{
+  zlog_set_level (NULL, ZLOG_DEST_STDOUT, level_match(logLevel));
+}
+
 int set_log_file_with_level(const char *logname, const char *loglevel)
 {
   int level;
