@@ -3992,7 +3992,8 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       bgp_info_extra_get (new)->nlabels = nlabels;
       memcpy (new->extra->labels, labels, sizeof(*labels) * nlabels);
     }
-  memcpy (&(bgp_info_extra_get (new)->vrf_rd), prd,sizeof(struct prefix_rd));
+  if (prd)
+    memcpy (&(bgp_info_extra_get (new)->vrf_rd), prd,sizeof(struct prefix_rd));
   /* Nexthop reachability check. */
   if ((afi == AFI_IP || afi == AFI_IP6)
       && safi == SAFI_UNICAST
