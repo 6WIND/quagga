@@ -2493,6 +2493,7 @@ void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi,
           zlog_info("vrf[%s] mpath (%u->%u): afi %u safi %u",
                     vrf_rd_str, orig_value, vrf->max_mpath[afi][safi],
                     afi, safi);
+          vrf->flag |= BGP_VRF_MPATH_CHANGE;
           need_refresh = true;
         }
     }
@@ -2501,6 +2502,7 @@ void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi,
     {
       struct listnode *node, *next;
       struct peer *peer;
+
       for (ALL_LIST_ELEMENTS (bgp->peer, node, next, peer))
         {
           if (peer->status != Established)
@@ -2512,6 +2514,11 @@ void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi,
             peer_clear_soft (peer, afi, safi, BGP_CLEAR_SOFT_IN);
           else
             peer_change_action (peer, afi, safi, peer_change_reset_in);
+        }
+
+      for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+        {
+          vrf->flag &= ~BGP_VRF_MPATH_CHANGE;
         }
     }
 }
@@ -2532,21 +2539,28 @@ void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf)
             {
               struct listnode *node, *next;
               struct peer *peer;
+
+              vrf->flag |= BGP_VRF_MPATH_CHANGE;
               for (ALL_LIST_ELEMENTS (vrf->bgp->peer, node, next, peer))
                 {
+                  char vrf_rd_str[RD_ADDRSTRLEN];
+
                   if (peer->status != Established)
                     continue;
                   if (! peer->afc[afi][safi])
                     continue;
-                  zlog_info("vrf mpath (%u->%u) : peer %s refreshing afi %u %u",
-                           vrf->max_mpath[afi][safi], vrf->max_mpath_configured,
-                           peer->host, afi, safi);
+
+                  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+                  zlog_info("vrf[%s] mpath (%u->%u) : peer %s refreshing afi %u %u",
+                            vrf_rd_str, vrf->max_mpath[afi][safi], vrf->max_mpath_configured,
+                            peer->host, afi, safi);
 
                   if (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_SOFT_RECONFIG))
                     peer_clear_soft (peer, afi, safi, BGP_CLEAR_SOFT_IN);
                   else
                     peer_change_action (peer, afi, safi, peer_change_reset_in);
                 }
+              vrf->flag &= ~BGP_VRF_MPATH_CHANGE;
             }
           vrf->max_mpath[afi][safi] = vrf->max_mpath_configured;
         }

@@ -4644,6 +4644,48 @@ bgp_vrf_info_restore (struct bgp *bgp, afi_t afi, safi_t safi,
       }
 }
 
+/*
+ * Check if target subscriber's multipath has been changed.
+ * Return true if at least one subscriber's multipath has been changed,
+ * else return false.
+ */
+static bool bgp_target_subscribers_mpath_check(struct bgp *bgp, struct attr *attr)
+{
+  struct ecommunity *ecom = NULL;
+
+  if (!attr || !attr->extra)
+    return false;
+
+  ecom = attr->extra->ecommunity;
+  if (ecom)
+    {
+      for (size_t i = 0; i < (size_t)ecom->size; i++)
+        {
+          struct bgp_rt_sub dummy, *rt_sub;
+          uint8_t *val = ecom->val + 8 * i;
+          uint8_t type = val[1];
+          struct bgp_vrf *vrf;
+          struct listnode *node;
+
+          if (type != ECOMMUNITY_ROUTE_TARGET)
+            continue;
+
+          memcpy(&dummy.rt, val, 8);
+          rt_sub = hash_lookup (bgp->rt_subscribers, &dummy);
+          if (!rt_sub)
+            continue;
+
+          for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
+            {
+              if (vrf->flag & BGP_VRF_MPATH_CHANGE)
+                return true;
+            }
+        }
+    }
+
+  return false;
+}
+
 static int
 bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 	    afi_t afi, safi_t safi, int type, int sub_type,
@@ -4825,7 +4867,14 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
                   else if (CHECK_FLAG (ri->flags, BGP_INFO_STALE_REFRESH))
                     bgp_info_unset_flag (rn, ri, BGP_INFO_STALE_REFRESH);
 		  bgp_process (bgp, rn, afi, safi);
-		  bgp_vrf_process_imports(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri);
+
+		  if (soft_reconfig)
+		    {
+		      if (bgp_target_subscribers_mpath_check(bgp, ri->attr))
+			bgp_vrf_process_imports(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri);
+		    }
+		  else
+		    bgp_vrf_process_imports(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri);
 		}
 	    }
 

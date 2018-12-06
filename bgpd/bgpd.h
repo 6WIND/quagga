@@ -288,6 +288,7 @@ struct bgp_vrf
 
   /* internal flag */
 #define BGP_VRF_RD_UNSET 1
+#define BGP_VRF_MPATH_CHANGE 1   /* this vrf's multipath has been changed */
   uint16_t flag;
 
   /* List of auto discovery statically set */
