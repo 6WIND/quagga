@@ -294,6 +294,12 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
     {
       return;
     }
+  if (qthrift_silent_leave)
+    {
+      return;
+    }
+
+
   ctxt->bgp_update_total++;
   /* if first time or previous failure, try to reconnect to client */
   if((ctxt->bgp_updater_client == NULL) ||

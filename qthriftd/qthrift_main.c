@@ -97,6 +97,7 @@ static struct quagga_signal_t qthrift_signals[] =
 
 /* Route retain mode flag. */
 static int retain_mode = 0;
+int  qthrift_silent_leave = 0;
 
 /* Manually specified configuration file name.  */
 char *config_file = NULL;
@@ -171,6 +172,18 @@ sighup (void)
   /* Try to return to normal operation. */
 }
 
+void
+sigint_internal (void)
+{
+  zlog_notice ("Terminating on signal");
+  if (! retain_mode) 
+    {
+      qthrift_terminate ();
+      zprivs_terminate (&qthriftd_privs);
+    }
+  qthrift_exit (0);
+}
+
 /* SIGCHLD handler. */
 void
 sigchild (void)
@@ -192,11 +205,13 @@ sigchild (void)
       /* kill BGP Daemon */
       if(ctxt == NULL)
         {
-          sigint();
+          sigint_internal();
         }
       if(qthrift_vpnservice_get_bgp_context(ctxt) == NULL)
         /* nothing to be done - BGP config already flushed */
         return;
+      if (!qthrift_stopbgp_called)
+        qthrift_silent_leave = 1;
       asNumber = qthrift_vpnservice_get_bgp_context(ctxt)->asNumber;
       /* reset Thrift Context */
       qthrift_kill_in_progress = 1;
@@ -222,15 +237,8 @@ sigchild (void)
 void
 sigint (void)
 {
-  zlog_notice ("Terminating on signal");
-
-  if (! retain_mode) 
-    {
-      qthrift_terminate ();
-      zprivs_terminate (&qthriftd_privs);
-    }
-
-  qthrift_exit (0);
+  qthrift_silent_leave = 1;
+  sigint_internal();
 }
 
 /* SIGUSR1 handler. */
