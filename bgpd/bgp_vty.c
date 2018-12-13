@@ -936,7 +936,7 @@ DEFUN (bgp_vty_send_eor,
 /* BGP selection deferral */
 DEFUN (bgp_bestpath_selection_deferral,
        bgp_bestpath_selection_deferral_cmd,
-       "bgp bestpath selection-deferral <0-600000>",
+       "bgp bestpath selection-deferral <0-720000>",
        "BGP\n"
        "Change the default bestpath selection\n"
        "Best path selection deferral\n"

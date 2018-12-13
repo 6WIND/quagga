@@ -220,7 +220,7 @@ struct bgp
 #define MAX_EOR_UPDATE_DELAY 3600
   u_int16_t v_update_delay;
 #define MAX_BGP_SELECTION_DEFERRAL 720000
-  u_int16_t v_selection_deferral;
+  u_int32_t v_selection_deferral;
 
   QZC_NODE
 };
