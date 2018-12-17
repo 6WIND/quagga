@@ -27,10 +27,12 @@
 #define QTHRIFT_DEBUG_NOTIFICATION  0x02
 #define QTHRIFT_DEBUG_CACHE         0x04
 #define QTHRIFT_DEBUG_NETWORK       0x08
+#define QTHRIFT_DEBUG_SHOW          0x10
 
 /* Debug related macro. */
 #define IS_QTHRIFT_DEBUG  (qthrift_debug & QTHRIFT_DEBUG)
 #define IS_QTHRIFT_DEBUG_NOTIFICATION  (qthrift_debug & QTHRIFT_DEBUG_NOTIFICATION)
+#define IS_QTHRIFT_DEBUG_SHOW  (qthrift_debug & QTHRIFT_DEBUG_SHOW)
 #define IS_QTHRIFT_DEBUG_NETWORK  (qthrift_debug & QTHRIFT_DEBUG_NETWORK)
 #define IS_QTHRIFT_DEBUG_CACHE  (qthrift_debug & QTHRIFT_DEBUG_CACHE)
 #define CONF_QTHRIFT_DEBUG(a, b)    (conf_thrift_debug_ ## a & QTHRIFT_DEBUG_ ## b)

@@ -112,6 +112,8 @@ DEFUN (show_debugging_qthrift,
     vty_out (vty, "  QTHRIFT debugging is on%s", VTY_NEWLINE);
   if (IS_QTHRIFT_DEBUG_NOTIFICATION)
     vty_out (vty, "  QTHRIFT debugging notification is on%s", VTY_NEWLINE);
+  if (IS_QTHRIFT_DEBUG_SHOW)
+    vty_out (vty, "  QTHRIFT debugging show is on%s", VTY_NEWLINE);
   if (IS_QTHRIFT_DEBUG_NETWORK)
     vty_out (vty, "  QTHRIFT debugging network is on%s", VTY_NEWLINE);
   if (IS_QTHRIFT_DEBUG_CACHE)
@@ -162,6 +164,29 @@ DEFUN (no_debug_qthrift_notification,
        "THRIFT\n")
 {
   qthrift_debug &= ~QTHRIFT_DEBUG_NOTIFICATION;
+  return CMD_SUCCESS;
+}
+
+DEFUN (debug_qthrift_show,
+       debug_qthrift_show_cmd,
+       "debug qthrift show",
+       DEBUG_STR
+       QTHRIFT_STR
+       "THRIFT\n")
+{
+  qthrift_debug |= QTHRIFT_DEBUG_SHOW;
+  return CMD_WARNING;
+}
+
+DEFUN (no_debug_qthrift_show,
+       no_debug_qthrift_show_cmd,
+       "no debug qthrift show",
+       NO_STR
+       DEBUG_STR
+       QTHRIFT_STR
+       "THRIFT\n")
+{
+  qthrift_debug &= ~QTHRIFT_DEBUG_SHOW;
   return CMD_SUCCESS;
 }
 
@@ -254,6 +279,7 @@ qthrift_debug_init (void)
   qthrift_debug = 0;
   qthrift_debug |=QTHRIFT_DEBUG;
   qthrift_debug |=QTHRIFT_DEBUG_NOTIFICATION;
+  qthrift_debug |=QTHRIFT_DEBUG_SHOW;
 
   install_node (&debug_node, config_write_debug);
   install_element (ENABLE_NODE, &show_debugging_qthrift_cmd);
@@ -262,6 +288,8 @@ qthrift_debug_init (void)
   install_element (ENABLE_NODE, &no_debug_qthrift_cmd);
   install_element (ENABLE_NODE, &debug_qthrift_notification_cmd);
   install_element (ENABLE_NODE, &no_debug_qthrift_notification_cmd);
+  install_element (ENABLE_NODE, &debug_qthrift_show_cmd);
+  install_element (ENABLE_NODE, &no_debug_qthrift_show_cmd);
   install_element (ENABLE_NODE, &debug_qthrift_cache_cmd);
   install_element (ENABLE_NODE, &no_debug_qthrift_cache_cmd);
   install_element (ENABLE_NODE, &show_debugging_qthrift_stats_cmd);
