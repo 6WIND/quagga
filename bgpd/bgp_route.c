@@ -1577,7 +1577,7 @@ bgp_process_announce_selected (struct peer *peer, struct bgp_info *selected,
 bool bgp_api_route_get_main (struct bgp_api_route *out, struct bgp_node *bn,
                              int iter_on_multipath, void **next)
 {
-  struct bgp_info *sel, *iter;
+  struct bgp_info *sel, *iter, *sel_start = NULL;
 
   memset(out, 0, sizeof (*out));
   if (bn->p.family == AF_ETHERNET)
@@ -1587,6 +1587,10 @@ bool bgp_api_route_get_main (struct bgp_api_route *out, struct bgp_node *bn,
 
   prefix_copy ((struct prefix *)&out->prefix, &bn->p);
 
+  /* prepare sel_start with start of list to look for multipath entries */
+  /* Since this function should be first called with iter_on_multipath set to 0 */
+  /* sel_start should correspond to the start of the list */
+  sel_start = bn->info;
   for (sel = bn->info; sel; sel = sel->next)
     {
       if (iter_on_multipath)
@@ -1598,13 +1602,7 @@ bool bgp_api_route_get_main (struct bgp_api_route *out, struct bgp_node *bn,
         {
           if (CHECK_FLAG (sel->flags, BGP_INFO_SELECTED))
             break;
-          {
-            /* prepare sel with start of list to look for multipath entries */
-            /* Since this function should be first called with iter_on_multipath set to 0 */
-            /* sel should correspond to the start of the list */
-            sel = bn->info;
-            break;
-          }
+          /* continue to loop, as sel_start already inited before */
         }
     }
 
@@ -1634,7 +1632,7 @@ bool bgp_api_route_get_main (struct bgp_api_route *out, struct bgp_node *bn,
     }
   /* now that an entry with SELECTED flag was found, check for possibly MULTIPATH entries
      in next items */
-  for (iter = sel->next; iter; iter = iter->next)
+  for (iter = sel_start->next; iter; iter = iter->next)
     if (CHECK_FLAG (iter->flags, BGP_INFO_MULTIPATH))
       {
         *next = iter;
@@ -1646,7 +1644,7 @@ bool bgp_api_route_get_main (struct bgp_api_route *out, struct bgp_node *bn,
 bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct bgp_node *bn,
                         int iter_on_multipath, void **next)
 {
-  struct bgp_info *sel, *iter;
+  struct bgp_info *sel, *iter, *sel_start = NULL;
 
   memset(out, 0, sizeof (*out));
   if (bn->p.family == AF_ETHERNET)
@@ -1655,7 +1653,10 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
     return false;
 
   prefix_copy ((struct prefix *)&out->prefix, &bn->p);
-
+  /* prepare sel_start with start of list to look for multipath entries */
+  /* Since this function should be first called with iter_on_multipath set to 0 */
+  /* sel_start should correspond to the start of the list */
+  sel_start = bn->info;
   for (sel = bn->info; sel; sel = sel->next)
     {
       if(sel->type == ZEBRA_ROUTE_BGP
@@ -1670,13 +1671,7 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
         {
           if (CHECK_FLAG (sel->flags, BGP_INFO_SELECTED))
             break;
-          {
-            /* prepare sel with start of list to look for multipath entries */
-            /* Since this function should be first called with iter_on_multipath set to 0 */
-            /* sel should correspond to the start of the list */
-            sel = bn->info;
-            break;
-          }
+          /* continue to loop, as sel_start already inited before */
         }
     }
 
@@ -1767,7 +1762,7 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
     }
   /* now that an entry with SELECTED flag was found, check for possibly MULTIPATH entries
      in next items */
-  for (iter = sel->next; iter; iter = iter->next)
+  for (iter = sel_start->next; iter; iter = iter->next)
     if (CHECK_FLAG (iter->flags, BGP_INFO_MULTIPATH))
       {
         *next = iter;
