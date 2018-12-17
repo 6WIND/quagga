@@ -602,7 +602,7 @@ _qzc_get_bgp_vrf_2(struct bgp_vrf *p,
         rep->datatype = 0x8f217eb4bad6c06f;
         qcapn_BGPVRFRoute_write(outptr, rep->data);
         if (!bgp_api_route_get(&tmpval, val, 0, &next))
-            return;
+          return;
 
         qcapn_BGPVRFRoute_write(outptr, rep->data);
         /* send value of pointer to next  ri which has BGP_INFO_MULTIPATH flag,
