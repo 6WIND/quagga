@@ -2037,6 +2037,11 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
           upd->nexthop = g_strdup(inet_ntop(AF_INET, &(inst_route.nexthop), rdstr, RD_ADDRSTRLEN));
           upd->label = inst_route.label;
           upd->rd = g_strdup(prefix_rd2str(&(entry->outbound_rd), rdstr, RD_ADDRSTRLEN));
+
+          if(IS_QTHRIFT_DEBUG_SHOW)
+            zlog_info("getRoutes(rd %s,pfx %s/%d, nh %s, label %u)",
+                      upd->rd, upd->prefix, upd->prefixlen, upd->nexthop, upd->label);
+
           g_ptr_array_add((*_return)->updates, upd);
           route_updates++;
 
@@ -2100,6 +2105,9 @@ instance_bgp_configurator_handler_get_routes (BgpConfiguratorIf *iface, Routes *
               upd->nexthop = g_strdup(inet_ntop(AF_INET, &(inst_multipath_route.nexthop), rdstr, RD_ADDRSTRLEN));
               upd->label = inst_multipath_route.label;
               upd->rd = g_strdup(prefix_rd2str(&(entry->outbound_rd), rdstr, RD_ADDRSTRLEN));
+              if(IS_QTHRIFT_DEBUG_SHOW)
+                zlog_info("getRoutes(rd %s,pfx %s/%d, nh %s, label %u)",
+                          upd->rd, upd->prefix, upd->prefixlen, upd->nexthop, upd->label);
               g_ptr_array_add((*_return)->updates, upd);
               route_updates++;
 
