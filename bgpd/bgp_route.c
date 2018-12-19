@@ -1593,6 +1593,9 @@ bool bgp_api_route_get_main (struct bgp_api_route *out, struct bgp_node *bn,
   sel_start = bn->info;
   for (sel = bn->info; sel; sel = sel->next)
     {
+      if (sel->type == ZEBRA_ROUTE_BGP
+         && sel->sub_type == BGP_ROUTE_STATIC)
+        continue;
       if (iter_on_multipath)
         {
           if (CHECK_FLAG (sel->flags, BGP_INFO_MULTIPATH))
