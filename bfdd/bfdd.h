@@ -106,6 +106,19 @@ struct bfd
   u_int32_t  ldesmintx;
   u_int32_t  lreqminrx;
 
+  /* number of all bfd neighbors */
+  u_int16_t  nr_all_neighs;
+  /* number of available bfd neighbors. One available bfd neighbor means that
+   * its bfd state is UP and the BFD state has been notified to zebra.
+   */
+  u_int16_t  nr_available_neighs;
+
+  int      underlay_limit_enable;
+  int      never_send_down_event;
+  /* In seconds, after this time NEIGH_DOWN will be sent to zebra */
+  u_int16_t underlay_limit_timeout;
+#define DEFAULT_BFD_UNDERLAY_LIMIT_TIMEOUT 180
+
   char *logFile;
   char *logLevel;
   char *logLevelSyslog;
@@ -216,6 +229,14 @@ struct bfd_neigh
   struct thread *t_debounce_up;   /* A timer to notify zebra the state change to "Up"*/
   struct thread *t_debounce_down; /* A timer to notify zebra the state change to "Down"*/
   int wanted_state;               /* The expected next state, used for debounce timer */
+
+  struct thread *t_underlay_limit;/* A timer to send NEIGH_DOWN which was suppressed by
+                                     underlay limit */
+#define UNDERLAY_LIMIT_STATE_NORMAL     0  /* NEIGH_DOWN is sent immediately */
+#define UNDERLAY_LIMIT_STATE_NEVER_SEND 1  /* NEIGH_DOWN is never sent */
+#define UNDERLAY_LIMIT_STATE_DELAY_SEND 2  /* NEIGH_DOWN is delayed to be sent */
+#define UNDERLAY_LIMIT_STATE_DELAY_SENT 3  /* NEIGH_DOWN is sent at the expiry of underlay limit timer */
+  int underlay_limit_state;       /* BFD underlay limit state of a neighbor */
 
   /* Misc */
   uint32_t flags;		/* Flags (do not confuse with bits from BFDCP).

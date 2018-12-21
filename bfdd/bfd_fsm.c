@@ -181,6 +181,7 @@ bfd_fsm_neigh_del (struct bfd_neigh *neighp)
   BFD_TIMER_OFF (neighp->t_session);
   BFD_TIMER_OFF (neighp->t_debounce_up);
   BFD_TIMER_OFF (neighp->t_debounce_down);
+  BFD_TIMER_OFF (neighp->t_underlay_limit);
   BFD_TIMER_MSEC_ON (neighp->t_delete, bfd_fsm_delete,
 		     MSEC (neighp->negtxint * neighp->lmulti));
 
@@ -254,6 +255,25 @@ bfd_debounce_up_timer_expire (struct thread *thread)
   return BFD_OK;
 }
 
+/* Underlay limit timer expire */
+static int
+bfd_underlay_limit_timer_expire (struct thread *thread)
+{
+  struct bfd_neigh *neighp = THREAD_ARG (thread);
+
+  assert (neighp);
+
+  neighp->t_underlay_limit = NULL;
+
+  if (BFD_IF_DEBUG_FSM)
+      BFD_FSM_LOG_DEBUG_NOARG ("Underlay limit timer expired: Down. (notify zebra)")
+  bfd_signal_neigh_down (neighp);
+  neighp->notify_down_cnt++;
+  neighp->underlay_limit_state = UNDERLAY_LIMIT_STATE_DELAY_SENT;
+
+  return BFD_OK;
+}
+
 static int
 bfd_handle_state_transition (struct bfd_neigh *neighp, int new_state)
 {
@@ -269,6 +289,10 @@ bfd_handle_state_transition (struct bfd_neigh *neighp, int new_state)
     {
       if (new_state == BFD_NEIGH_UP)
         {
+          /* cancel bfd underlay limit timer */
+          BFD_TIMER_OFF (neighp->t_underlay_limit);
+          neighp->underlay_limit_state = UNDERLAY_LIMIT_STATE_NORMAL;
+
           if (BFD_IF_DEBUG_FSM)
             BFD_FSM_LOG_DEBUG_NOARG ("Up. (notify zebra)") bfd_signal_neigh_up (neighp);
 
@@ -277,17 +301,48 @@ bfd_handle_state_transition (struct bfd_neigh *neighp, int new_state)
                              bfd->debounce_down);
           neighp->wanted_state = BFD_NEIGH_DOWN;
           neighp->notify_up_cnt++;
+          bfd->nr_available_neighs++;
         }
       else
         {
-          if (BFD_IF_DEBUG_FSM)
-            BFD_FSM_LOG_DEBUG_NOARG ("Down. (notify zebra)") bfd_signal_neigh_down (neighp);
+          bool send_down_event = true;
 
           BFD_TIMER_MSEC_ON (neighp->t_debounce_up,
                              bfd_debounce_up_timer_expire,
                              bfd->debounce_up);
           neighp->wanted_state = BFD_NEIGH_UP;
-          neighp->notify_down_cnt++;
+          bfd->nr_available_neighs--;
+
+          if (bfd->underlay_limit_enable)
+            {
+              if (bfd->nr_available_neighs * 2 < bfd->nr_all_neighs)
+                {
+                  if (! bfd->never_send_down_event)
+                    {
+                      if (bfd->underlay_limit_timeout)
+                        {
+                          /* start bfd underlay limit timer */
+                          THREAD_TIMER_ON (master, neighp->t_underlay_limit,
+                                           bfd_underlay_limit_timer_expire, neighp,
+                                           bfd->underlay_limit_timeout);
+                          send_down_event = false;
+                          neighp->underlay_limit_state = UNDERLAY_LIMIT_STATE_DELAY_SEND;
+                        }
+                    }
+                  else
+                    {
+                      send_down_event = false;
+                      neighp->underlay_limit_state = UNDERLAY_LIMIT_STATE_NEVER_SEND;
+                    }
+                }
+            }
+
+          if (send_down_event == true)
+            {
+              if (BFD_IF_DEBUG_FSM)
+                BFD_FSM_LOG_DEBUG_NOARG ("Down. (notify zebra)") bfd_signal_neigh_down (neighp);
+              neighp->notify_down_cnt++;
+            }
         }
     }
 

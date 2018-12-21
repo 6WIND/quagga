@@ -300,6 +300,17 @@ DEFUN (show_bfd_global_config,
   vty_out (vty, "debounce-up:    %u%s", bfd->debounce_up, VTY_NEWLINE);
   vty_out (vty, "lreqminrx:      %u%s", bfd->lreqminrx, VTY_NEWLINE);
   vty_out (vty, "ldesmintx:      %u%s", bfd->ldesmintx, VTY_NEWLINE);
+
+  if (bfd->underlay_limit_enable)
+    vty_out (vty, "bfd underlay limit: enabled%s", VTY_NEWLINE);
+  else
+    vty_out (vty, "bfd underlay limit: disabled%s", VTY_NEWLINE);
+  if (bfd->never_send_down_event)
+    vty_out (vty, "bfd underlay limit timeout: never%s", VTY_NEWLINE);
+  else
+    vty_out (vty, "bfd underlay limit timeout: %u%s",
+             bfd->underlay_limit_timeout, VTY_NEWLINE);
+
   return CMD_SUCCESS;
 };
 
@@ -377,6 +388,24 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 			 bfd_flag_1hop_check (neighp) ?
 					"Single Hop" : "Multiple Hops",
 			 VTY_NEWLINE);
+		if (neighp->underlay_limit_state == UNDERLAY_LIMIT_STATE_NEVER_SEND)
+		  {
+		    vty_out (vty,
+			     "Underlay limit called, never send BFD_NEIGH_DOWN msg%s",
+			     VTY_NEWLINE);
+		  }
+		else if (neighp->underlay_limit_state == UNDERLAY_LIMIT_STATE_DELAY_SEND)
+		  {
+		    vty_out (vty,
+			     "Underlay limit called, BFD_NEIGH_DOWN msg is delayed%s",
+			     VTY_NEWLINE);
+		  }
+		else if (neighp->underlay_limit_state == UNDERLAY_LIMIT_STATE_DELAY_SENT)
+		  {
+		    vty_out (vty,
+			     "Underlay limit called, BFD_NEIGH_DOWN msg was sent%s",
+			     VTY_NEWLINE);
+		  }
 		vty_out (vty, "Received MinTxInt: %u, MinRxInt: %u, Multiplier: %u%s",
 			 MSEC(neighp->ldesmintx), MSEC(neighp->lreqminrx), neighp->lmulti,
 			 VTY_NEWLINE);
@@ -840,6 +869,7 @@ bfd_config_write (struct vty *vty)
   int write = 0;
   int write_interval = 0, write_debounce_timer = 0;
   int write_ldesmintx = 0, write_lreqminrx = 0;
+  int write_underlay_limit = 0;
 
   if (bfd->rx_interval != BFD_IF_MINRX_DFT ||
       bfd->tx_interval != BFD_IF_INTERVAL_DFT ||
@@ -857,8 +887,12 @@ bfd_config_write (struct vty *vty)
   if (bfd->lreqminrx != BFD_LREQMINRX_DFT)
     write_lreqminrx = 1;
 
+  if (bfd->underlay_limit_enable)
+    write_underlay_limit = 1;
+
   if (write_interval || write_debounce_timer ||
-      write_ldesmintx || write_lreqminrx)
+      write_ldesmintx || write_lreqminrx ||
+      write_underlay_limit)
     vty_out (vty, "bfd%s", VTY_NEWLINE);
 
   if (write_interval)
@@ -888,6 +922,23 @@ bfd_config_write (struct vty *vty)
       write++;
     }
 
+  if (write_underlay_limit)
+    {
+      vty_out (vty, " bfd underlay limit%s", VTY_NEWLINE);
+      write++;
+      if (bfd->never_send_down_event)
+        {
+          vty_out (vty, " bfd underlay limit timeout never%s", VTY_NEWLINE);
+          write++;
+        }
+      else if (bfd->underlay_limit_timeout != DEFAULT_BFD_UNDERLAY_LIMIT_TIMEOUT)
+        {
+          vty_out (vty, " bfd underlay limit timeout %u%s",
+                   bfd->underlay_limit_timeout, VTY_NEWLINE);
+          write++;
+        }
+    }
+
   return write;
 }
 
@@ -905,6 +956,66 @@ DEFUN (router_bfd,
        "Bidirectional Forwarding Detection\n")
 {
   vty->node = BFD_NODE;
+  return CMD_SUCCESS;
+}
+
+DEFUN (bfd_underlay_limit,
+       bfd_underlay_limit_cmd,
+       "bfd underlay limit",
+       "BFD configuration\n"
+       "configure specific behaviour when under underlay\n"
+       "limit the number of peerdown() events\n")
+{
+  bfd->underlay_limit_enable = 1;
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_bfd_underlay_limit,
+       no_bfd_underlay_limit_cmd,
+       "no bfd underlay limit",
+       NO_STR
+       "BFD configuration\n"
+       "configure specific behaviour when under underlay\n"
+       "limit the number of peerdown() events\n")
+{
+  bfd->underlay_limit_enable = 0;
+  return CMD_SUCCESS;
+}
+
+DEFUN (bfd_underlay_limit_timeout,
+       bfd_underlay_limit_timeout_cmd,
+       "bfd underlay limit timeout (<0-65535>|never)",
+       "BFD configuration\n"
+       "configure specific behaviour when under underlay\n"
+       "limit the number of peerdown() events\n"
+       "timer in seconds before peerdown() event is sent to above layer\n"
+       "timeout value\n")
+{
+  u_int16_t timeout;
+
+  if (strncmp (argv[0], "never", 5) == 0)
+    {
+      bfd->never_send_down_event = 1;
+    }
+  else
+    {
+      VTY_GET_INTEGER_RANGE ("underlay-limit-timeout", timeout, argv[0], 0, 65535);
+      bfd->underlay_limit_timeout = timeout;
+      bfd->never_send_down_event = 0;
+    }
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_bfd_underlay_limit_timeout,
+       no_bfd_underlay_limit_timeout_cmd,
+       "no bfd underlay limit timeout",
+       NO_STR
+       "BFD configuration\n"
+       "configure specific behaviour when under underlay\n"
+       "limit the number of peerdown() events\n"
+       "timer in seconds before peerdown() event is sent to above layer\n")
+{
+  bfd->never_send_down_event = DEFAULT_BFD_UNDERLAY_LIMIT_TIMEOUT;
   return CMD_SUCCESS;
 }
 
@@ -952,6 +1063,11 @@ bfd_vty_cmd_init (void)
   install_element (BFD_NODE, &bfd_debounce_timer_cmd);
   install_element (BFD_NODE, &bfd_lreqminrx_cmd);
   install_element (BFD_NODE, &bfd_ldesmintx_cmd);
+
+  install_element (BFD_NODE, &bfd_underlay_limit_cmd);
+  install_element (BFD_NODE, &no_bfd_underlay_limit_cmd);
+  install_element (BFD_NODE, &bfd_underlay_limit_timeout_cmd);
+  install_element (BFD_NODE, &no_bfd_underlay_limit_timeout_cmd);
 
   install_element (VIEW_NODE, &show_bfd_global_config_cmd);
   install_element (ENABLE_NODE, &show_bfd_global_config_cmd);

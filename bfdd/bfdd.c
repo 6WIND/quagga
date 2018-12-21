@@ -95,6 +95,12 @@ bfd_new (void)
   bfd->global_info.enabled = 1;
   bfd->global_info.passive = 0;
 
+  bfd->nr_all_neighs = 0;
+  bfd->nr_available_neighs = 0;
+  bfd->underlay_limit_enable = 0;
+  bfd->never_send_down_event = 0;
+  bfd->underlay_limit_timeout = DEFAULT_BFD_UNDERLAY_LIMIT_TIMEOUT;
+
   QZC_NODE_REG(bfd, bfd)
 }
 
@@ -325,6 +331,8 @@ bfd_neigh_init (struct bfd_cneigh *cneighp)
   neighp->t_delete = NULL;
   neighp->t_debounce_up = NULL;
   neighp->t_debounce_down = NULL;
+  neighp->t_underlay_limit = NULL;
+  neighp->underlay_limit_state = UNDERLAY_LIMIT_STATE_NORMAL;
   neighp->wanted_state = BFD_NEIGH_UP;
 
   /* Use the same set of flags as candidate */
@@ -520,6 +528,20 @@ bfd_neightbl_raddr_adddel (int cmd, struct bfd_neigh *neighp)
 		  route_unlock_node (node);
 #endif
 		}
+
+	      if (bfd->nr_all_neighs)
+		{
+		  bfd->nr_all_neighs--;
+		  if (BFD_IF_DEBUG_ZEBRA)
+		    zlog_debug ("%s: total bfd neighbor count %u",
+				__func__, bfd->nr_all_neighs);
+		}
+	      else
+		{
+		  if (BFD_IF_DEBUG_ZEBRA)
+		    zlog_debug ("%s: bug report: here should not be reached",
+				__func__);
+		}
 	      return BFD_OK;
 	    }
 	}
@@ -539,6 +561,10 @@ bfd_neightbl_raddr_adddel (int cmd, struct bfd_neigh *neighp)
 	      hdrp->count++;
 	      subnode = route_node_get (hdrp->info, laddr);	/* Add new laddr */
 	      subnode->info = neighp;
+	      bfd->nr_all_neighs++;
+	      if (BFD_IF_DEBUG_ZEBRA)
+	        zlog_debug ("%s: total bfd neighbor count %u",
+			    __func__, bfd->nr_all_neighs);
 	      return BFD_OK;
 	    case BFD_NEIGH_DEL:
 	      if (BFD_IF_DEBUG_ZEBRA)
@@ -561,6 +587,10 @@ bfd_neightbl_raddr_adddel (int cmd, struct bfd_neigh *neighp)
 	  hdrp->count++;
 	  subnode = route_node_get (hdrp->info, laddr);
 	  subnode->info = neighp;
+	  bfd->nr_all_neighs++;
+	  if (BFD_IF_DEBUG_ZEBRA)
+	    zlog_debug ("%s: total bfd neighbor count %u",
+			__func__, bfd->nr_all_neighs);
 	  return BFD_OK;
 	case BFD_NEIGH_DEL:
 	  if (BFD_IF_DEBUG_ZEBRA)
