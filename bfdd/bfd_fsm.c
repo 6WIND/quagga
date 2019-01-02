@@ -311,9 +311,10 @@ bfd_handle_state_transition (struct bfd_neigh *neighp, int new_state)
                              bfd_debounce_up_timer_expire,
                              bfd->debounce_up);
           neighp->wanted_state = BFD_NEIGH_UP;
-          bfd->nr_available_neighs--;
+          if (bfd->nr_available_neighs)
+            bfd->nr_available_neighs--;
 
-          if (bfd->underlay_limit_enable)
+          if (bfd->underlay_limit_enable && (bfd->nr_all_neighs > 1))
             {
               if (bfd->nr_available_neighs * 2 < bfd->nr_all_neighs)
                 {
