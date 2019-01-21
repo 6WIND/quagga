@@ -955,6 +955,19 @@ peer_free (struct peer *peer)
       peer->host = NULL;
     }
 
+  /* Local and remote addresses. */
+  if (peer->su_local)
+    {
+      sockunion_free (peer->su_local);
+      peer->su_local = NULL;
+    }
+
+  if (peer->su_remote)
+    {
+      sockunion_free (peer->su_remote);
+      peer->su_remote = NULL;
+    }
+
   /* Update source configuration.  */
   if (peer->update_source)
     {
@@ -1610,19 +1623,6 @@ peer_delete (struct peer *peer)
       peer->scratch = NULL;
     }
 
-  /* Local and remote addresses. */
-  if (peer->su_local)
-    {
-      sockunion_free (peer->su_local);
-      peer->su_local = NULL;
-    }
-
-  if (peer->su_remote)
-    {
-      sockunion_free (peer->su_remote);
-      peer->su_remote = NULL;
-    }
-  
   /* Free filter related memory.  */
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
