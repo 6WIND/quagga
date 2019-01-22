@@ -857,11 +857,19 @@ bgp_start (struct peer *peer)
       peer->su_local = NULL;
     }
 
+  /* Don't free sockunion of remote address here, because it might
+   * be used later when routes from this peer are withdrawn.
+   * peer->su_remote can be freed in two cases:
+   * - when the peer struct is freed due to peer deletion or bgpd exit
+   * - or when bgp connection is re-established
+   */
+#if 0
   if (peer->su_remote)
     {
       sockunion_free (peer->su_remote);
       peer->su_remote = NULL;
     }
+#endif
 
   /* Clear remote router-id. */
   peer->remote_id.s_addr = 0;
