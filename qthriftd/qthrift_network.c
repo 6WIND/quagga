@@ -305,6 +305,13 @@ gboolean qthrift_client_transport_open (ThriftTransport *transport, gboolean *ne
                 strerror(errno));
       return FALSE;
     }
+  {
+    struct linger sl;
+ 
+    sl.l_onoff = 1;
+    sl.l_linger = 0;
+    setsockopt(tsocket->sd, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl));
+  }
   /* set non blocking */
   set_nonblocking (tsocket->sd);
   zlog_info ("opened socket %u", tsocket->sd);
