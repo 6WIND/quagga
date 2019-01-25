@@ -897,7 +897,7 @@ struct bgp_nlri
 #define BGP_DEFAULT_LOCAL_PREF                 100
 
 /* BGP graceful restart  */
-#define BGP_DEFAULT_RESTART_TIME               120
+#define BGP_DEFAULT_RESTART_TIME               4090
 #define BGP_DEFAULT_STALEPATH_TIME             360
 
 /* RFC4364 */

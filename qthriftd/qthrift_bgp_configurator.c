@@ -820,7 +820,7 @@ instance_bgp_configurator_handler_start_bgp(BgpConfiguratorIf *iface, gint32* _r
       inst.stalepath_time = stalepathTime;
     else
       inst.stalepath_time = BGP_DEFAULT_STALEPATH_TIME;
-    inst.restart_time = 900;
+    inst.restart_time = BGP_DEFAULT_RESTART_TIME;
     bgp_flag_set(&inst, BGP_FLAG_GRACEFUL_RESTART);
     if (announceFbit == TRUE)
       bgp_flag_set(&inst, BGP_FLAG_GR_PRESERVE_FWD);
@@ -1865,6 +1865,7 @@ instance_bgp_configurator_handler_enable_graceful_restart (BgpConfiguratorIf *if
     bgp_flag_set(&inst, BGP_FLAG_GRACEFUL_RESTART);
   else
     bgp_flag_unset(&inst, BGP_FLAG_GRACEFUL_RESTART);
+  inst.restart_time = BGP_DEFAULT_RESTART_TIME;
   qcapn_BGP_write(&inst, bgp);
   qzcclient_setelem (ctxt->p_qzc_sock, &bgp_inst_nid, 1, \
                      &bgp, &bgp_datatype_bgp, NULL, NULL);
