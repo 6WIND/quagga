@@ -279,6 +279,7 @@ gboolean qthrift_client_transport_open (ThriftTransport *transport, gboolean *ne
   int err;
   ThriftSocket *tsocket = THRIFT_SOCKET (transport);
   struct hostent *hp = NULL;
+  int onoff, val;
 
   if (tsocket->sd != THRIFT_INVALID_SOCKET)
     return FALSE;
@@ -326,6 +327,16 @@ gboolean qthrift_client_transport_open (ThriftTransport *transport, gboolean *ne
       zlog_err ("failed to connect to host %s:%d - %s",
                 tsocket->hostname, tsocket->port, strerror(errno));
       return FALSE;
+    }
+  onoff = 0;
+  if (setsockopt (tsocket->sd, IPPROTO_TCP, TCP_CORK, &onoff, sizeof(onoff)))
+    {
+      zlog_info("Couldn't disable TCP_CORK option: %u\n", errno);
+    }
+  val = 1;
+  if (setsockopt (tsocket->sd, IPPROTO_TCP, TCP_NODELAY, (char *) &val, sizeof (val)) < 0)
+    {
+      zlog_info("Couldn't set TCP_NODELAY option: %u\n", errno);
     }
   zlog_info ("connected socket %u with host %s:%d", tsocket->sd,
              tsocket->hostname, tsocket->port);
