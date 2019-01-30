@@ -1141,7 +1141,7 @@ DEFUN (no_bgp_graceful_restart,
 
 DEFUN (bgp_graceful_restart_stalepath_time,
        bgp_graceful_restart_stalepath_time_cmd,
-       "bgp graceful-restart stalepath-time <1-3600>",
+       "bgp graceful-restart stalepath-time <1-4095>",
        "BGP specific commands\n"
        "Graceful restart capability parameters\n"
        "Set the max time to hold onto restarting peer's stale paths\n"
@@ -1154,7 +1154,7 @@ DEFUN (bgp_graceful_restart_stalepath_time,
   if (! bgp)
     return CMD_WARNING;
 
-  VTY_GET_INTEGER_RANGE ("stalepath-time", stalepath, argv[0], 1, 3600);
+  VTY_GET_INTEGER_RANGE ("stalepath-time", stalepath, argv[0], 1, 4095);
   bgp->stalepath_time = stalepath;
   return CMD_SUCCESS;
 }
@@ -1217,7 +1217,7 @@ DEFUN (no_bgp_graceful_restart_restart_time,
 
 ALIAS (no_bgp_graceful_restart_stalepath_time,
        no_bgp_graceful_restart_stalepath_time_val_cmd,
-       "no bgp graceful-restart stalepath-time <1-3600>",
+       "no bgp graceful-restart stalepath-time <1-4095>",
        NO_STR
        "BGP specific commands\n"
        "Graceful restart capability parameters\n"
