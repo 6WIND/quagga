@@ -313,6 +313,8 @@ gboolean qthrift_client_transport_open (ThriftTransport *transport, gboolean *ne
     sl.l_linger = 0;
     setsockopt(tsocket->sd, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl));
   }
+  if (fcntl (tsocket->sd, F_SETFD, FD_CLOEXEC) == -1)
+    zlog_err("qthrift_transport_configures_cloexec : fcntl failed (%s)", strerror (errno));
   /* set non blocking */
   set_nonblocking (tsocket->sd);
   zlog_info ("opened socket %u", tsocket->sd);
