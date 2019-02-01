@@ -54,12 +54,18 @@ pid_t pid;
 
 /* Pacify zclient.o in libzebra, which expects this variable. */
 struct thread_master *master;
+static struct thread *zebra_monitor_thread;
 
 /* Route retain mode flag. */
 int retain_mode = 0;
 
+#define ZEBRA_MONITOR_INTERVAL 5
+
 /* Don't delete kernel route. */
 int keep_kernel_mode = 0;
+
+/* set to 1 to force zebra to kill if parent left */
+int forked_process = 0;
 
 #ifdef HAVE_NETLINK
 /* Receive buffer size for netlink socket */
@@ -80,6 +86,7 @@ struct option longopts[] =
   { "vty_addr",    required_argument, NULL, 'A'},
   { "vty_port",    required_argument, NULL, 'P'},
   { "retain",      no_argument,       NULL, 'r'},
+  { "forked",  no_argument, NULL, 'K'},
   { "dryrun",      no_argument,       NULL, 'C'},
 #ifdef HAVE_NETLINK
   { "nl-bufsize",  required_argument, NULL, 's'},
@@ -118,6 +125,8 @@ char config_default[] = SYSCONFDIR DEFAULT_CONFIG_FILE;
 /* Process ID saved for use by init system */
 const char *pid_file = PATH_ZEBRA_PID;
 
+static void sigint (void);
+
 /* Help information display. */
 static void
 usage (char *progname, int status)
@@ -137,6 +146,7 @@ usage (char *progname, int status)
 	      "-z, --socket       Set path of zebra socket\n"\
 	      "-k, --keep_kernel  Don't delete old routes which installed by "\
 				  "zebra.\n"\
+	      "-K, --fork         Monitor parent process and leave if parent leaves too\n"
 	      "-C, --dryrun       Check configuration for validity and exit\n"\
 	      "-A, --vty_addr     Set vty's bind address\n"\
 	      "-P, --vty_port     Set vty's port number\n"\
@@ -154,6 +164,26 @@ usage (char *progname, int status)
     }
 
   exit (status);
+}
+
+static int zebra_monitor_timer (struct thread *t)
+{
+  if (getppid() == 1)
+    {
+      zlog_notice ("parent program has exited, force zebra to exit");
+      sigint();
+      return 1;
+    }
+  zebra_monitor_thread = thread_add_timer (zebrad.master, zebra_monitor_timer,
+                                             NULL, ZEBRA_MONITOR_INTERVAL);
+  return 0;
+}
+
+static int zebra_new_monitor ()
+{
+  zebra_monitor_thread = thread_add_timer (zebrad.master, zebra_monitor_timer,
+                                            NULL, ZEBRA_MONITOR_INTERVAL);
+  return 0;
 }
 
 /* SIGHUP handler. */
@@ -315,9 +345,9 @@ main (int argc, char **argv)
       int opt;
   
 #ifdef HAVE_NETLINK  
-      opt = getopt_long (argc, argv, "bdkf:F:i:z:hA:P:ru:g:vs:C", longopts, 0);
+      opt = getopt_long (argc, argv, "bdKkf:F:i:z:hA:P:ru:g:vs:C", longopts, 0);
 #else
-      opt = getopt_long (argc, argv, "bdkf:F:i:z:hA:P:ru:g:vC", longopts, 0);
+      opt = getopt_long (argc, argv, "bdKkf:F:i:z:hA:P:ru:g:vC", longopts, 0);
 #endif /* HAVE_NETLINK */
 
       if (opt == EOF)
@@ -334,6 +364,9 @@ main (int argc, char **argv)
 	  break;
 	case 'k':
 	  keep_kernel_mode = 1;
+	  break;
+	case 'K':
+	  forked_process = 1;
 	  break;
 	case 'C':
 	  dryrun = 1;
@@ -491,6 +524,9 @@ main (int argc, char **argv)
 
   /* Make vty server socket. */
   vty_serv_sock (vty_addr, vty_port, ZEBRA_VTYSH_PATH);
+
+  if (forked_process)
+    zebra_new_monitor();
 
   /* Print banner. */
   zlog_notice ("Zebra %s starting: vty@%d pid %d", QUAGGA_VERSION, vty_port, pid);
