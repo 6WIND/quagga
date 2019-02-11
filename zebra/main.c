@@ -21,6 +21,9 @@
 
 #include <zebra.h>
 
+
+#include "sys/prctl.h"
+
 #include <lib/version.h>
 #include "getopt.h"
 #include "command.h"
@@ -458,6 +461,9 @@ main (int argc, char **argv)
 
   /* Initialize VRF module, and make kernel routing socket. */
   zebra_vrf_init ();
+
+  if (prctl(PR_SET_DUMPABLE, 1) == -1)
+    zlog_err("BFD: core dumps will not be enabled: %s", strerror(errno));
 
   /* BFD */
   bfd_cneigh_init();

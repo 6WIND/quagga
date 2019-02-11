@@ -31,6 +31,7 @@
 #include "sigevent.h"
 #include "privs.h"
 #include "qzc.h"
+#include "sys/prctl.h"
 
 #include "bfdd/bfdd.h"
 #include "bfdd/bfd_zebra.h"
@@ -295,6 +296,8 @@ main (int argc, char **argv, char **envp)
   memory_init ();
   vrf_init ();
 
+  if (prctl(PR_SET_DUMPABLE, 1) == -1)
+    zlog_err("BFD: core dumps will not be enabled: %s", strerror(errno));
   /* random seed from time */
   srand (time (NULL));
 
