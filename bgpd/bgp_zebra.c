@@ -357,8 +357,7 @@ bgp_bfd_neigh_del(struct peer *peer)
   if ( !peer->bfd_su_local)
     return -1;
 
-  if(peer->bfd_status != PEER_BFD_STATUS_NEW 
-     && peer->bfd_status !=  PEER_BFD_STATUS_DELETED)
+  if(peer->bfd_status !=  PEER_BFD_STATUS_DELETED)
   {
     struct prefix p1, p2;
     
