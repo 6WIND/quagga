@@ -127,9 +127,6 @@ static void instance_bgp_configurator_handler_finalize(GObject *object);
  * like VRF, and Neighbors
  */
 static uint64_t
-qthrift_bgp_configurator_find_vrf(struct qthrift_vpnservice *ctxt, struct prefix_rd *rd, gint32* _return);
-
-static uint64_t
 qthrift_bgp_configurator_find_peer(struct qthrift_vpnservice *ctxt, const gchar *peerIp, gint32* _return);
 
 /* enable/disable address family bgp neighbor, using capnp */
@@ -290,7 +287,7 @@ static af_safi qthrift_safi_value (safi_t safi)
  * It returns the capnp node identifier related to peer context,
  * 0 otherwise.
  */
-static uint64_t
+uint64_t
 qthrift_bgp_configurator_find_vrf(struct qthrift_vpnservice *ctxt, struct prefix_rd *rd, gint32* _return)
 {
   struct listnode *node, *nnode;

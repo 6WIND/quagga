@@ -170,5 +170,7 @@ gboolean qthrift_vpnservice_set_bgp_context_multipath (struct qthrift_vpnservice
                                                        gint32 *_return, GError **error);
 void qthrift_vpnservice_apply_multipath (struct qthrift_vpnservice_bgp_context *bgp);
 extern int qthrift_vpnservice_get_bgp_updater_socket (struct qthrift_vpnservice *setup);
+extern uint64_t
+qthrift_bgp_configurator_find_vrf(struct qthrift_vpnservice *ctxt, struct prefix_rd *rd, gint32* _return);
 
 #endif /* _QTHRIFT_VPNSERVICE_H */
