@@ -4011,6 +4011,8 @@ peer_connect_with_update_source_only_set (struct peer *peer, int enable)
 
   if (CHECK_FLAG (peer->flags, PEER_FLAG_USE_CONFIGURED_SOURCE) && enable)
       return 0;
+  if (! CHECK_FLAG (peer->flags, PEER_FLAG_USE_CONFIGURED_SOURCE) && !enable)
+      return 0;
   if (enable)
     SET_FLAG (peer->flags, PEER_FLAG_USE_CONFIGURED_SOURCE);
   else
