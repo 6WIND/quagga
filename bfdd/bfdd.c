@@ -439,7 +439,7 @@ bfd_neightbl_neigh_lookup (struct bfd_neigh *neighp)
    at least one neighbor with the same pair or local
    and remote address waits for addition / removal 
    to/from database. */
-static struct bfd_neigh *
+struct bfd_neigh *
 bfd_wqueue_lookup (struct bfd_neigh *neighp)
 {
   struct listnode *node;

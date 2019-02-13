@@ -317,6 +317,7 @@ struct bfd_neigh *bfd_find_neigh (struct prefix *raddr, struct prefix *laddr,
 int bfd_neigh_add (struct bfd_neigh *neighp);
 int bfd_neigh_del (struct bfd_neigh *neighp);
 int bfd_cneigh_del (struct bfd_cneigh *cneighp);
+struct bfd_neigh *bfd_wqueue_lookup (struct bfd_neigh *neighp);
 
 /* BFD uptime string length.  */
 #define BFD_UPTIME_LEN 25

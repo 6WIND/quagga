@@ -173,6 +173,18 @@ bfd_fsm_neigh_del (struct bfd_neigh *neighp)
 		  neighp->ldisc, neighp->rdisc);
     }
 
+  /* If delete flag is already set, we assume that this neighbor should be
+   * absolutely removed, and any neighbor waiting for this one to be deleted
+   * should be removed from waiting queue */
+  if (neighp->del)
+    {
+      struct bfd_neigh *find = bfd_wqueue_lookup (neighp);
+
+      if (find)
+          listnode_delete (bfd->wqueue, find);
+      return BFD_OK;
+    }
+
   /* Set delete flag */
   neighp->del = 1;
 
