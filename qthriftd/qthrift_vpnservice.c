@@ -344,14 +344,19 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
 
           prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
           inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
-          /* if vrf not found, silently don't send message to sdn controller */
-          bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &s->outbound_rd, NULL);
-          if(bgpvrf_nid == 0) {
-            if (IS_QTHRIFT_DEBUG_NOTIFICATION)
-              zlog_debug ("RD %s not present. Cancel onUpdateWithdrawRoute() for %s",
-                          vrf_rd_str, pfx_str);
-            capn_free(&rc);
-            return;
+          /* if qthrift launched with specific option, let withdraw messages
+           * reach the sdn controller
+           */
+          if (!qthrift_withdraw_permit) {
+            /* if vrf not found, silently don't send message to sdn controller */
+            bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &s->outbound_rd, NULL);
+            if(bgpvrf_nid == 0) {
+              if (IS_QTHRIFT_DEBUG_NOTIFICATION)
+                zlog_debug ("RD %s not present. Cancel onUpdateWithdrawRoute() for %s",
+                            vrf_rd_str, pfx_str);
+              capn_free(&rc);
+              return;
+            }
           }
           inet_ntop (p->family, &s->nexthop, nh_str, INET6_BUFSIZ);
           qthrift_bgp_updater_on_update_withdraw_route(vrf_rd_str, pfx_str, (const gint32)s->prefix.prefixlen, nh_str, s->label);

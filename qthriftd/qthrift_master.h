@@ -52,4 +52,5 @@ extern int qthrift_kill_in_progress;
 extern int qthrift_disable_stdout;
 extern int qthrift_stopbgp_called;
 extern int qthrift_silent_leave;
+extern int qthrift_withdraw_permit;
 #endif /* _QTHRIFT_MASTER_H_ */

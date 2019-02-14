@@ -59,6 +59,7 @@ static const struct option longopts[] =
   { "thrift_notif_port",    required_argument, NULL, 'n'},
   { "thrift_notif_address",    required_argument, NULL, 'N'},
   { "select_timeout_max",    required_argument, NULL, 'S'},
+  { "withdraw_if_no_vrf",    no_argument, NULL, 'W'},
   { "help", 0, NULL, 'h'},
   { NULL, 0, NULL, 0}
 };
@@ -108,6 +109,7 @@ char *vty_addr = NULL;
 int qthrift_kill_in_progress = 0;
 int qthrift_disable_stdout = 0;
 int qthrift_stopbgp_called = 0;
+int qthrift_withdraw_permit = 0;
 
 /* privileges */
 static zebra_capabilities_t _caps_p [] =  
@@ -147,6 +149,7 @@ qthrift configuration across thrift defined model : vpnservice.\n\n\
 -p, --thrift_notif_port     Set thrift's notif update port number\n\
 -N, --thrift_notif_address  Set thrift's notif update specified address\n\
 -S, --select_timeout_max    Set thrift's select timeout max calue in seconds\n\
+-W, --withdraw_if_no_vrf    Send back withdraw messages, when VRF not present\n\
 -h, --help                  Display this help and exit\n\
 \n\
 Report bugs to %s\n", progname, ZEBRA_BUG_ADDRESS);
@@ -326,13 +329,16 @@ main (int argc, char **argv)
   /* Command line argument treatment. */
   while (1)
     {
-      opt = getopt_long (argc, argv, "A:P:p:S:N:n:Dh", longopts, 0);
+      opt = getopt_long (argc, argv, "A:P:p:S:N:n:DWh", longopts, 0);
       if (opt == EOF)
 	break;
       switch (opt)
 	{
 	case 'D':
           qthrift_disable_stdout = 1;
+          break;
+	case 'W':
+          qthrift_withdraw_permit = 1;
           break;
 	case 'A':
 	  vty_addr = optarg;
