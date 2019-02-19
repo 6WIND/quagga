@@ -3027,6 +3027,33 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
           if (iter->sub_type != BGP_ROUTE_STATIC || iter->type != ZEBRA_ROUTE_BGP)
             bgp_evpn_auto_discovery_new_entry (vrf, iter);
         }
+      else
+        {
+          if (CHECK_FLAG(iter->flags, BGP_INFO_REMOVED))
+            {
+              if (BGP_DEBUG (events, EVENTS))
+                {
+                  char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[PREFIX_STRLEN];
+
+                  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+                  prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+                  zlog_debug ("vrf[%s]: %s rcvd %s, flapped quicker than processing",
+                              vrf_rd_str, iter->peer->host, pfx_str);
+                }
+
+              bgp_info_restore (vrf_rn, iter);
+              if (action == ROUTE_INFO_TO_ADD)
+                {
+                  /* because onUpdateWithdraw is not sent yet, signify a withdraw */
+                  bgp_vrf_update (vrf, afi_int, vrf_rn, iter, false);
+                  /* update labels labels */
+                  /* update attr part / containing next hop */
+                  bgp_vrf_copy_bgp_info (vrf, rn, safi, select, iter);
+                  bgp_info_set_flag (rn, iter, BGP_INFO_ATTR_CHANGED);
+                  UNSET_FLAG (iter->flags, BGP_INFO_UPDATE_SENT);
+                }
+            }
+        }
       bgp_vrf_process_entry(iter, action, afi, safi);
       bgp_process (iter->peer->bgp, iter->net, afi_int, SAFI_UNICAST);
     }
