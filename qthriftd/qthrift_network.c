@@ -307,6 +307,8 @@ gboolean qthrift_client_transport_open (ThriftTransport *transport, gboolean *ne
     }
   /* set non blocking */
   set_nonblocking (tsocket->sd);
+  zlog_info ("opened socket %u", tsocket->sd);
+
   /* open a connection */
   if (connect (tsocket->sd, (struct sockaddr *) &pin, sizeof(pin)) == -1)
     {
@@ -318,7 +320,8 @@ gboolean qthrift_client_transport_open (ThriftTransport *transport, gboolean *ne
                 tsocket->hostname, tsocket->port, strerror(errno));
       return FALSE;
     }
-
+  zlog_info ("connected socket %u with host %s:%d", tsocket->sd,
+             tsocket->hostname, tsocket->port);
   return TRUE;
 }
 
