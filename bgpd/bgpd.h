@@ -103,6 +103,9 @@ struct bgp
   /* BGP peer. */
   struct list *peer;
 
+  /* Dying BGP peer */
+  struct list *dying_peer;
+
   /* BGP peer group.  */
   struct list *group;
 
@@ -634,6 +637,7 @@ struct peer
 #define PEER_STATUS_CLOSE_SESSION     (1 << 9) /* peer closed session without graceful restart */
 #define PEER_STATUS_PEER_UP_SENT      (1 << 10)/* peerUp() sent */
 #define PEER_STATUS_PEER_DOWN_SENT    (1 << 11)/* peerDown() sent */
+#define PEER_STATUS_SUPPRESSED_BY_DYING_PEER (1 << 12) /* start timer should not be started */
 
   /* Peer status af flags (reset in bgp_stop) */
   u_int16_t af_sflags[AFI_MAX][SAFI_MAX];
@@ -781,6 +785,12 @@ struct peer
 
   struct thread *t_update_delay[AFI_MAX][SAFI_MAX];
   struct thread *t_selection_deferral[AFI_MAX][SAFI_MAX];
+
+  /* Only make sense for a dying peer which has a lot of routes to
+   * be withdrawn. When the dying peer is freed, its attached new
+   * peer will be activated.
+   */
+  struct peer *new_peer;
 
   /* Clear purpose configuration flags. */
   enum bgp_clear_route_type clear_purpose;

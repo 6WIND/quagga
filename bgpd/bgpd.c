@@ -941,7 +941,21 @@ peer_free (struct peer *peer)
   BGP_READ_OFF (peer->t_read);
   BGP_WRITE_OFF (peer->t_write);
   BGP_EVENT_FLUSH (peer);
-  
+
+  if (peer->new_peer)
+    {
+      UNSET_FLAG (peer->new_peer->sflags,
+                  PEER_STATUS_SUPPRESSED_BY_DYING_PEER);
+      /* Set up peer's events and timers. */
+      zlog_debug ("Trying to start suppressed peer %s upon the death of"
+                  " old peer", peer->host);
+      if (peer_active (peer->new_peer))
+        bgp_timer_set (peer->new_peer);
+
+      peer_unlock (peer->new_peer); /* bgp peer list reference */
+      peer->new_peer = NULL;
+    }
+
   if (peer->desc)
     {
       XFREE (MTYPE_PEER_DESC, peer->desc);
@@ -1111,8 +1125,9 @@ peer_create (union sockunion *su, struct bgp *bgp, as_t local_as,
 	     as_t remote_as, afi_t afi, safi_t safi)
 {
   int active;
-  struct peer *peer;
+  struct peer *peer, *dying_peer;
   char buf[SU_ADDRSTRLEN];
+  struct listnode *node, *nnode;
 
   peer = peer_new (bgp);
   peer->su = *su;
@@ -1143,6 +1158,21 @@ peer_create (union sockunion *su, struct bgp *bgp, as_t local_as,
   /* Make peer's address string. */
   sockunion2str (su, buf, SU_ADDRSTRLEN);
   peer->host = XSTRDUP (MTYPE_BGP_PEER_HOST, buf);
+
+  /* Check if this peer should be suppressed because of
+   * possible previous dying peer */
+  for (ALL_LIST_ELEMENTS (bgp->dying_peer, node, nnode, dying_peer))
+    {
+      if (peer_cmp(peer, dying_peer) == 0)
+        {
+          zlog_debug ("new peer %s is suppressed due to a dying same peer",
+                      peer->host);
+          SET_FLAG (peer->sflags, PEER_STATUS_SUPPRESSED_BY_DYING_PEER);
+          peer = peer_lock (peer); /* bgp peer list reference */
+          dying_peer->new_peer = peer;
+          break;
+        }
+    }
 
   /* Set up peer's events and timers. */
   if (! active && peer_active (peer))
@@ -2740,6 +2770,9 @@ bgp_create (as_t *as, const char *name)
   bgp->peer = list_new ();
   bgp->peer->cmp = (int (*)(void *, void *)) peer_cmp;
 
+  bgp->dying_peer = list_new ();
+  bgp->dying_peer->cmp = (int (*)(void *, void *)) peer_cmp;
+
   bgp->group = list_new ();
   bgp->group->cmp = (int (*)(void *, void *)) peer_group_cmp;
 
@@ -2910,7 +2943,7 @@ bgp_get (struct bgp **bgp_val, as_t *as, const char *name)
 int
 bgp_delete (struct bgp *bgp)
 {
-  struct peer *peer;
+  struct peer *peer, *dying_peer;
   struct peer_group *group;
   struct listnode *node, *pnode;
   struct listnode *next, *pnext;
@@ -2979,6 +3012,12 @@ bgp_delete (struct bgp *bgp)
    * for the sake of valgrind.
    */
   bgp_process_queues_drain_immediate();
+
+  for (ALL_LIST_ELEMENTS (bgp->dying_peer, node, next, dying_peer))
+    {
+      peer_unlock (dying_peer); /* bgp peer list reference */
+      list_delete_node (bgp->dying_peer, node);
+    }
 
   /* workqueues hold references to peers */
   for (ALL_LIST_ELEMENTS (bgp->peer, node, next, peer))

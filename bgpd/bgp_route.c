@@ -6058,12 +6058,22 @@ static void
 bgp_clear_node_complete (struct work_queue *wq)
 {
   struct peer *peer = wq->spec.data;
+  struct listnode *pn;
   
   if (peer->clear_purpose != BGP_CLEAR_ROUTE_REFRESH)
     {
       /* Tickle FSM to start moving again */
       BGP_EVENT_ADD (peer, Clearing_Completed);
     }
+
+  /* Delete from bgp dying peer list. */
+  if ((pn = listnode_lookup (peer->bgp->dying_peer, peer)))
+    {
+      zlog_debug ("%s removed from BGP dying list", peer->host);
+      peer = peer_unlock (peer); /* bgp peer list reference */
+      list_delete_node (peer->bgp->dying_peer, pn);
+    }
+
   peer_unlock (peer); /* bgp_clear_route */
 }
 

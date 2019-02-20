@@ -443,8 +443,9 @@ bgp_bfd_neigh_up(struct bfd_cneigh *cneighp)
        (peer->bfd_status == PEER_BFD_STATUS_ADDED))
       {
       /* start BGP */
-      if(peer->status == Idle)
-	 BGP_EVENT_ADD (peer, BGP_Start);
+      if(peer->status == Idle &&
+         !CHECK_FLAG (peer->sflags, PEER_STATUS_SUPPRESSED_BY_DYING_PEER))
+        BGP_EVENT_ADD (peer, BGP_Start);
     }
     /* Change peer status to UP */
     peer->bfd_status = PEER_BFD_STATUS_UP;

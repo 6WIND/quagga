@@ -101,12 +101,18 @@ bgp_timer_set (struct peer *peer)
 	{
 	  BGP_TIMER_OFF (peer->t_start);
 	}
-      else
+      else if (! CHECK_FLAG (peer->sflags, PEER_STATUS_SUPPRESSED_BY_DYING_PEER))
 	{
 	  jitter = bgp_start_jitter (peer->v_start);
 	  BGP_TIMER_ON (peer->t_start, bgp_start_timer,
 			peer->v_start + jitter);
 	}
+      else
+	{
+	  if (BGP_DEBUG (events, EVENTS))
+	    zlog_debug ("new peer %s is suppressed to start", peer->host);
+	}
+
       BGP_TIMER_OFF (peer->t_connect);
       BGP_TIMER_OFF (peer->t_holdtime);
       BGP_TIMER_OFF (peer->t_keepalive);
@@ -432,8 +438,23 @@ bgp_fsm_change_status (struct peer *peer, int status)
        * the state change that happens below, so peer will be in Clearing
        * (or Deleted).
        */
+
       if (!work_queue_is_scheduled (peer->clear_node_queue))
         BGP_EVENT_ADD (peer, Clearing_Completed);
+      else
+        {
+          /* If this peer is to be deleted and clear queue is scheduled,
+           * add the peer to BGP dying list to check if a new same peer should
+           * be suppressed to start FSM when the new peer is created.
+           */
+          if (status == Deleted)
+            {
+              if (BGP_DEBUG (normal, FSM))
+                zlog_debug ("%s added to dying peer list", peer->host);
+              peer = peer_lock (peer); /* bgp peer list reference */
+              listnode_add_sort (peer->bgp->dying_peer, peer);
+            }
+        }
     }
   
   /* Preserve old status and change into new status. */
