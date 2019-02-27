@@ -2893,7 +2893,9 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
   struct prefix_rd *prd;
   char pfx_str[PREFIX_STRLEN];
   afi_t afi_int = AFI_IP;
+  char vrf_rd_str[RD_ADDRSTRLEN];
 
+  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
   if (afi == AFI_L2VPN)
     {
       if (rn->p.family == AF_INET)
@@ -2911,10 +2913,9 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
   prd = &bgp_node_table (rn)->prd;
   if (BGP_DEBUG (events, EVENTS))
     {
-      char vrf_rd_str[RD_ADDRSTRLEN], rd_str[RD_ADDRSTRLEN];
+      char rd_str[RD_ADDRSTRLEN];
       char nh_str[BUFSIZ] = "<?>";
 
-      prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
       prefix_rd2str(prd, rd_str, sizeof(rd_str));
       prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
       if(select && select->attr && select->attr->extra)
@@ -2935,8 +2936,8 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
 
   if (!vrf->afc[afi_int][safi])
     {
-      zlog_info ("ignore vrf processing because VRF table is disabled (afi %d safi %d)",
-                  afi_int, safi);
+      zlog_info ("ignore vrf processing because VRF %s table is disabled (afi %d safi %d)",
+                 vrf_rd_str, afi_int, safi);
       return;
     }
 
