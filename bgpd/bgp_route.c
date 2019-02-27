@@ -2938,6 +2938,8 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
     {
       zlog_info ("ignore vrf processing because VRF %s table is disabled (afi %d safi %d)",
                  vrf_rd_str, afi_int, safi);
+      if (select)
+	SET_FLAG (select->flags, BGP_INFO_VPN_EXPORT_TODO);
       return;
     }
 
@@ -3083,6 +3085,7 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
   int action;
   struct bgp_info *ri;
   int action_add_done = 0, vrf_enabled = 0;
+  int count_missing_export = 0;
 
   if ((safi != SAFI_MPLS_VPN) && (safi != SAFI_EVPN))
     return;
@@ -3110,7 +3113,13 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
     old_ecom = old_select->attr->extra->ecommunity;
   if (new_select && new_select->attr && new_select->attr->extra)
     new_ecom = new_select->attr->extra->ecommunity;
-
+  /* remove the flag vpn_export todo
+   * this flag will be set again,
+   * if an exportation fails to happen,
+   * in bgp_vrf_process_one()
+   */
+  if (ri)
+    UNSET_FLAG (ri->flags, BGP_INFO_VPN_EXPORT_TODO);
   if (old_select
       && old_select->type == ZEBRA_ROUTE_BGP
       && old_select->sub_type == BGP_ROUTE_STATIC
@@ -3121,8 +3130,11 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
       if (!prefix_cmp((struct prefix*)&vrf->outbound_rd,
                       (struct prefix*)prd))
         {
+
           bgp_vrf_process_one(vrf, afi, safi, rn, ri, action);
           vrf_enabled = check_vrf_enabled(vrf, afi, safi, &rn->p);
+          if (!vrf_enabled)
+            count_missing_export++;
           if (action == ROUTE_INFO_TO_ADD && vrf_enabled)
             action_add_done = 1;
         }
@@ -3218,6 +3230,8 @@ bgp_vrf_process_imports (struct bgp *bgp, afi_t afi, safi_t safi,
     {
       UNSET_FLAG (ri->flags, BGP_INFO_VPN_HIDEN);
     }
+  if (ri && ri->extra)
+    ri->extra->vrf_exportation_fail = count_missing_export;
 }
 
 static void bgp_vrf_remove_bgp_info (struct bgp_vrf *vrf, afi_t afi, safi_t safi,
@@ -3390,11 +3404,23 @@ bgp_vrf_update_global_rib_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t saf
 	  for (rm = bgp_table_top (table); rm; rm = bgp_route_next (rm))
 	    for (ri = rm->info; ri; ri = ri->next)
 	      {
-                /* a new vrf just has been added. check hidden vpn information */
+                bool vpn_hidden_presence = false;
+                bool vpn_export_todo_presence = false;
+                int cnt_fail = 0;
+
+                if (ri->extra)
+                  cnt_fail = ri->extra->vrf_exportation_fail;
+
                 if (CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+                  vpn_hidden_presence = true;
+                if (CHECK_FLAG (ri->flags, BGP_INFO_VPN_EXPORT_TODO))
+                  vpn_export_todo_presence = true;
+                /* a new vrf just has been added. check hidden vpn information */
+                if (vpn_hidden_presence || vpn_export_todo_presence)
                   {
                     bgp_vrf_process_imports(bgp, afi, safi, rm, NULL, ri);
-                    if (!CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN))
+                    if ( (!CHECK_FLAG (ri->flags, BGP_INFO_VPN_HIDEN) && vpn_hidden_presence)
+                         || (vpn_export_todo_presence && cnt_fail != ri->extra->vrf_exportation_fail))
                       bgp_process (bgp, rm, afi, safi);
                   }
               }

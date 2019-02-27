@@ -51,6 +51,10 @@ struct bgp_info_extra
 
   struct prefix_rd vrf_rd;
 
+  /* number of exportation that fail due to
+   * targeted vrf not ready, because afi/safi not enabled
+   */
+  u_int8_t vrf_exportation_fail;
 };
 
 struct bgp_info
@@ -107,6 +111,7 @@ struct bgp_info
 #define BGP_INFO_ORIGIN_EVPN    (1 << 15)
 #define BGP_INFO_VPN_HIDEN      (1 << 16)
 #define BGP_INFO_STALE_REFRESH  (1 << 17)
+#define BGP_INFO_VPN_EXPORT_TODO  (1 << 18)
 
   /* BGP route type.  This can be static, RIP, OSPF, BGP etc.  */
   u_char type;
