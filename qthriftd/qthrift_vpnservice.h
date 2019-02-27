@@ -38,6 +38,7 @@
 #define STALEMARKER_TIMER_MAX 3600
 #define STALEMARKER_TIMER_MIN 1
 #define STALEMARKER_TIMER_DEFAULT 1800
+#define BGP_CONFIG_FLAG_STALE (1 << 0)
 
 struct qthrift_vpnservice_client
 {
@@ -65,12 +66,14 @@ struct qthrift_vpnservice_cache_bgpvrf
 {
   uint64_t bgpvrf_nid;
   struct prefix_rd outbound_rd;
+  uint16_t flags;
 };
 
 struct qthrift_cache_peer
 {
   uint64_t peer_nid;
   as_t asNumber;
+  uint16_t flags;
   char *peerIp;
 };
 
@@ -120,6 +123,12 @@ struct qthrift_vpnservice
 
   /* Cache Context for getRoutes */
   struct list *bgp_get_routes_list;
+
+  /* Timer thread for configs marked as STALE. If one STALE config
+   * is received again before this timer expires, STALE flag will
+   * be removed for this config. When this timer expires, all configs
+   * marked as STALE will be deleted. */
+  struct thread *config_stale_thread;
 
   /* Thrift Update Statistics */
   u_int32_t bgp_update_lost_msgs;
@@ -174,9 +183,12 @@ gboolean qthrift_vpnservice_set_bgp_context_multipath (struct qthrift_vpnservice
                                                        gint32 *_return, GError **error);
 void qthrift_vpnservice_apply_multipath (struct qthrift_vpnservice_bgp_context *bgp);
 extern int qthrift_vpnservice_get_bgp_updater_socket (struct qthrift_vpnservice *setup);
-extern uint64_t
+extern struct qthrift_vpnservice_cache_bgpvrf *
 qthrift_bgp_configurator_find_vrf(struct qthrift_vpnservice *ctxt, struct prefix_rd *rd, gint32* _return);
 extern gboolean qthrift_client_transport_open (ThriftTransport *transport, gboolean *needselect);
 extern void qthrift_client_transport_close(ThriftTransport *transport);
+extern void qthrift_config_stale_set(struct qthrift_vpnservice *setup);
+extern void qthrift_delete_stale_vrf(struct qthrift_vpnservice *setup,
+                                     struct qthrift_vpnservice_cache_bgpvrf *vrf);
 
 #endif /* _QTHRIFT_VPNSERVICE_H */

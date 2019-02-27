@@ -287,7 +287,7 @@ static af_safi qthrift_safi_value (safi_t safi)
  * It returns the capnp node identifier related to peer context,
  * 0 otherwise.
  */
-uint64_t
+struct qthrift_vpnservice_cache_bgpvrf *
 qthrift_bgp_configurator_find_vrf(struct qthrift_vpnservice *ctxt, struct prefix_rd *rd, gint32* _return)
 {
   struct listnode *node, *nnode;
@@ -300,9 +300,9 @@ qthrift_bgp_configurator_find_vrf(struct qthrift_vpnservice *ctxt, struct prefix
         {
           if(IS_QTHRIFT_DEBUG_CACHE)
             zlog_debug ("CACHE_VRF: match lookup entry %llx", (long long unsigned int)entry->bgpvrf_nid);
-          return entry->bgpvrf_nid; /* match */
+          return entry; /* match */
         }
-  return 0;
+  return NULL;
 }
 
 /*
@@ -932,6 +932,7 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
   struct qthrift_vpnservice *ctxt = NULL;
   struct bgp_api_route inst;
   struct prefix_rd rd_inst;
+  struct qthrift_vpnservice_cache_bgpvrf *entry;
   uint64_t bgpvrf_nid = 0;
   afi_t afi = AFI_IP;
   struct capn_ptr bgpvrfroute;
@@ -969,13 +970,15 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
     }
 
   /* if vrf not found, return an error */
-  bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
-  if(bgpvrf_nid == 0)
+  entry = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
+  if (!entry)
     {
       *error = ERROR_BGP_RD_NOTFOUND;
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
+  bgpvrf_nid = entry->bgpvrf_nid;
+
   /* prepare route entry for AFI=IP */
   memset(&inst, 0, sizeof(struct bgp_api_route));
   inst.label = label;
@@ -1027,6 +1030,7 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
   struct qthrift_vpnservice *ctxt = NULL;
   struct bgp_api_route inst;
   struct prefix_rd rd_inst;
+  struct qthrift_vpnservice_cache_bgpvrf *entry;
   uint64_t bgpvrf_nid = 0;
   afi_t afi = AFI_IP;
   struct capn_ptr bgpvrfroute;
@@ -1062,13 +1066,15 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
       return FALSE;
     }
   /* if vrf not found, return an error */
-  bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
-  if(bgpvrf_nid == 0)
+  entry = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
+  if (!entry)
     {
       *error = ERROR_BGP_RD_NOTFOUND;
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
+  bgpvrf_nid = entry->bgpvrf_nid;
+
   /* prepare route entry for AFI=IP */
   memset(&inst, 0, sizeof(struct bgp_api_route));
   if (str2prefix_ipv4(prefix,&inst.prefix) == 0)
@@ -1425,8 +1431,8 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
   XFREE(MTYPE_QTHRIFT, rts);
 
   /* retrive bgpvrf context or create new bgpvrf context */
-  bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &instvrf.outbound_rd, _return);
-  if(bgpvrf_nid == 0)
+  entry = qthrift_bgp_configurator_find_vrf(ctxt, &instvrf.outbound_rd, _return);
+  if (!entry)
     {
       /* allocate bgpvrf structure */
       capn_init_malloc(&rc);
@@ -1450,6 +1456,13 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
       listnode_add(ctxt->bgp_vrf_list, entry);
       if(IS_QTHRIFT_DEBUG)
         zlog_info ("addVrf(%s) OK", rd);
+    }
+  else
+    {
+      bgpvrf_nid = entry->bgpvrf_nid;
+      /* unset STALE flag if this vrf is added again */
+      if (CHECK_FLAG(entry->flags, BGP_CONFIG_FLAG_STALE))
+        UNSET_FLAG (entry->flags, BGP_CONFIG_FLAG_STALE);
     }
   /* max_mpath has been set in bgpd with a default value owned by bgpd itself
    * must get back this value before going further else max_mpath will be overwritten
@@ -1521,7 +1534,6 @@ gboolean instance_bgp_configurator_handler_del_vrf(BgpConfiguratorIf *iface, gin
   uint64_t bgpvrf_nid;
   struct prefix_rd rd_inst;
   struct qthrift_vpnservice_cache_bgpvrf *entry;
-  struct listnode *node, *nnode;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -1550,28 +1562,26 @@ gboolean instance_bgp_configurator_handler_del_vrf(BgpConfiguratorIf *iface, gin
       return FALSE;
     }
   /* if vrf not found, return an error */
-  bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
-  if(bgpvrf_nid == 0)
+  entry = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
+  if (!entry)
     {
       *error = ERROR_BGP_RD_NOTFOUND;
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
+  bgpvrf_nid = entry->bgpvrf_nid;
+
   if( qzcclient_deletenode(ctxt->p_qzc_sock, &bgpvrf_nid))
     {
-      for (ALL_LIST_ELEMENTS(ctxt->bgp_vrf_list, node, nnode, entry))
-        if(0 == prefix_rd_cmp(&entry->outbound_rd, &rd_inst))
+      if(IS_QTHRIFT_DEBUG_CACHE)
+        zlog_debug ("CACHE_VRF: del entry %llx", (long long unsigned int)entry->bgpvrf_nid);
+      listnode_delete (ctxt->bgp_vrf_list, entry);
+      XFREE (MTYPE_QTHRIFT, entry);
+      if(IS_QTHRIFT_DEBUG)
         {
-          if(IS_QTHRIFT_DEBUG_CACHE)
-            zlog_debug ("CACHE_VRF: del entry %llx", (long long unsigned int)entry->bgpvrf_nid);
-          listnode_delete (ctxt->bgp_vrf_list, entry);
-          XFREE (MTYPE_QTHRIFT, entry);
-          if(IS_QTHRIFT_DEBUG)
-            {
-              zlog_info ("delVrf(%s) OK", rd);
-            }
-          return TRUE;
+          zlog_info ("delVrf(%s) OK", rd);
         }
+      return TRUE;
     }
   else
     {
@@ -2306,6 +2316,7 @@ instance_bgp_configurator_handler_multipaths(BgpConfiguratorIf *iface, gint32* _
   struct capn rc;
   struct capn_segment *cs;
   struct bgp_vrf instvrf;
+  struct qthrift_vpnservice_cache_bgpvrf *entry;
   uint64_t bgpvrf_nid;
   struct prefix_rd rd_inst;
   struct QZCGetRep *grep_vrf;
@@ -2347,13 +2358,14 @@ instance_bgp_configurator_handler_multipaths(BgpConfiguratorIf *iface, gint32* _
       return FALSE;
     }
   /* if vrf not found, return an error */
-  bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
-  if(bgpvrf_nid == 0)
+  entry = qthrift_bgp_configurator_find_vrf(ctxt, &rd_inst, _return);
+  if (!entry)
     {
       *error = ERROR_BGP_RD_NOTFOUND;
       *_return = BGP_ERR_PARAM;
       return FALSE;
     }
+  bgpvrf_nid = entry->bgpvrf_nid;
 
   grep_vrf = qzcclient_getelem (ctxt->p_qzc_sock, &bgpvrf_nid, 1, \
                                 NULL, NULL, NULL, NULL);
@@ -2612,3 +2624,32 @@ instance_bgp_configurator_handler_init(InstanceBgpConfiguratorHandler *self)
   return;
 }
 
+void qthrift_delete_stale_vrf(struct qthrift_vpnservice *setup,
+	                      struct qthrift_vpnservice_cache_bgpvrf *vrf)
+{
+  if (!setup || !vrf)
+    return;
+
+  if (qzcclient_deletenode(setup->p_qzc_sock, &vrf->bgpvrf_nid))
+    {
+      if (IS_QTHRIFT_DEBUG)
+        {
+          char rdstr[RD_ADDRSTRLEN];
+          prefix_rd2str(&(vrf->outbound_rd), rdstr, RD_ADDRSTRLEN);
+          zlog_debug ("Stale vrf %s(%llx) deleted", rdstr,
+                      (long long unsigned int)vrf->bgpvrf_nid);
+        }
+      listnode_delete (setup->bgp_vrf_list, vrf);
+      XFREE (MTYPE_QTHRIFT, vrf);
+    }
+  else
+    {
+      if (IS_QTHRIFT_DEBUG)
+        {
+          char rdstr[RD_ADDRSTRLEN];
+          prefix_rd2str(&(vrf->outbound_rd), rdstr, RD_ADDRSTRLEN);
+          zlog_err ("Failed to delete stale vrf %s(%llx) (capnproto error)",
+                    rdstr, (long long unsigned int)vrf->bgpvrf_nid);
+        }
+    }
+}

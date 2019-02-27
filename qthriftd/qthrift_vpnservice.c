@@ -78,6 +78,7 @@ void qthrift_transport_change_status(struct qthrift_vpnservice *setup, gboolean 
         qthrift_bgp_updater_on_start_config_resync_notification_quick (setup, FALSE);
       } else {
         qthrift_transport_current_status = QTHRIFT_TO_SDN_FALSE;
+        qthrift_config_stale_set(setup);
       }
     }
 }
@@ -340,7 +341,7 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
         {
           char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[INET6_BUFSIZ], nh_str[INET6_BUFSIZ];
           struct prefix *p = (struct prefix *)&(s->prefix);
-          uint64_t bgpvrf_nid = 0;
+          struct qthrift_vpnservice_cache_bgpvrf *entry;
 
           prefix_rd2str(&s->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
           inet_ntop (p->family, &p->u.prefix, pfx_str, INET6_BUFSIZ);
@@ -349,8 +350,8 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
            */
           if (!qthrift_withdraw_permit) {
             /* if vrf not found, silently don't send message to sdn controller */
-            bgpvrf_nid = qthrift_bgp_configurator_find_vrf(ctxt, &s->outbound_rd, NULL);
-            if(bgpvrf_nid == 0) {
+            entry = qthrift_bgp_configurator_find_vrf(ctxt, &s->outbound_rd, NULL);
+            if (!entry) {
               if (IS_QTHRIFT_DEBUG_NOTIFICATION)
                 zlog_debug ("RD %s not present. Cancel onUpdateWithdrawRoute() for %s",
                             vrf_rd_str, pfx_str);
@@ -694,6 +695,8 @@ void qthrift_vpnservice_terminate_thrift_bgp_cache (struct qthrift_vpnservice *s
   struct qthrift_vpnservice_cache_bgpvrf *entry_bgpvrf;
   struct qthrift_vpnservice_cache_peer *entry_peer;
 
+  THREAD_TIMER_OFF(setup->config_stale_thread);
+
   for (ALL_LIST_ELEMENTS(setup->bgp_vrf_list, node, nnode, entry_bgpvrf))
     {
       listnode_delete(setup->bgp_vrf_list, entry_bgpvrf);
@@ -706,4 +709,54 @@ void qthrift_vpnservice_terminate_thrift_bgp_cache (struct qthrift_vpnservice *s
       XFREE (MTYPE_QTHRIFT, entry_peer);
     }
   setup->bgp_peer_list = NULL;
+}
+
+static int qthrift_config_stale_timer_expire (struct thread *thread)
+{
+  struct qthrift_vpnservice *setup;
+  struct listnode *node, *nnode;
+  struct qthrift_vpnservice_cache_bgpvrf *vrf;
+
+  setup = THREAD_ARG (thread);
+  assert (setup);
+
+  for (ALL_LIST_ELEMENTS(setup->bgp_vrf_list, node, nnode, vrf))
+    {
+      if (CHECK_FLAG(vrf->flags, BGP_CONFIG_FLAG_STALE))
+        {
+          qthrift_delete_stale_vrf(setup, vrf);
+        }
+    }
+
+  return 0;
+}
+
+/* called when TCP 6644 connection to BGP Updater server is disconnected */
+void qthrift_config_stale_set(struct qthrift_vpnservice *setup)
+{
+  struct listnode *node, *nnode;
+  struct qthrift_vpnservice_cache_bgpvrf *vrf;
+
+  if (!setup)
+    return;
+  if (qthrift_vpnservice_get_bgp_context(setup) == NULL ||
+      qthrift_vpnservice_get_bgp_context(setup)->asNumber == 0)
+    return;
+
+  /* lookup in cache context, and set QBGP_CONFIG_STALE flag */
+  for (ALL_LIST_ELEMENTS(setup->bgp_vrf_list, node, nnode, vrf))
+    {
+      if (IS_QTHRIFT_DEBUG)
+        {
+          char rdstr[RD_ADDRSTRLEN];
+          prefix_rd2str(&(vrf->outbound_rd), rdstr, RD_ADDRSTRLEN);
+          zlog_debug ("VRF %s set to STALE state", rdstr);
+        }
+      SET_FLAG (vrf->flags, BGP_CONFIG_FLAG_STALE);
+    }
+
+  THREAD_TIMER_OFF(setup->config_stale_thread);
+  THREAD_TIMER_MSEC_ON(tm->master, setup->config_stale_thread, \
+                       qthrift_config_stale_timer_expire, \
+                       setup, qthrift_stalemarker_timer * 1000);
 }
