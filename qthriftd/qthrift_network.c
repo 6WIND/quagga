@@ -186,12 +186,11 @@ qthrift_read_packet (struct thread *thread)
 {
   GError *error = NULL;
   struct qthrift_peer *peer = THREAD_ARG(thread);
-  gboolean response;
   struct listnode *node;
 
-  response = thrift_dispatch_processor_process (peer->peer->server->processor,\
-                                     peer->peer->protocol,\
-                                     peer->peer->protocol,\
+  thrift_dispatch_processor_process (peer->peer->server->processor, \
+                                     peer->peer->protocol,	    \
+                                     peer->peer->protocol,	    \
                                      &error);
   if (error != NULL)
     {

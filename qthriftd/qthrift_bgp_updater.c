@@ -131,7 +131,7 @@ qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix
     error = NULL;
   }
   if(IS_QTHRIFT_DEBUG_NOTIFICATION && response == TRUE)
-    zlog_info (buff);
+    zlog_info ("%s", buff);
   return response;
 }
 
@@ -163,7 +163,7 @@ qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * pr
     error = NULL;
   }
   if(IS_QTHRIFT_DEBUG_NOTIFICATION && response == TRUE)
-    zlog_info (buff);
+    zlog_info ("%s", buff);
   return response;
 }
 

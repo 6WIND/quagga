@@ -2419,7 +2419,6 @@ instance_bgp_configurator_enable_eor_delay(BgpConfiguratorIf *iface, gint32* _re
   struct capn_segment *cs;
   struct bgp inst;
    struct QZCGetRep *grep;
-  int ret;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -2484,7 +2483,6 @@ instance_bgp_configurator_send_eor(BgpConfiguratorIf *iface, gint32* _return, GE
 {
   struct qthrift_vpnservice *ctxt = NULL;
    struct QZCGetRep *grep;
-  int ret;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)

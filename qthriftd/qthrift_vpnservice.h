@@ -172,5 +172,7 @@ void qthrift_vpnservice_apply_multipath (struct qthrift_vpnservice_bgp_context *
 extern int qthrift_vpnservice_get_bgp_updater_socket (struct qthrift_vpnservice *setup);
 extern uint64_t
 qthrift_bgp_configurator_find_vrf(struct qthrift_vpnservice *ctxt, struct prefix_rd *rd, gint32* _return);
+extern gboolean qthrift_client_transport_open (ThriftTransport *transport, gboolean *needselect);
+extern void qthrift_client_transport_close(ThriftTransport *transport);
 
 #endif /* _QTHRIFT_VPNSERVICE_H */

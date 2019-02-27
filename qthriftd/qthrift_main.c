@@ -175,7 +175,7 @@ sighup (void)
   /* Try to return to normal operation. */
 }
 
-void
+static void
 sigint_internal (void)
 {
   zlog_notice ("Terminating on signal");
@@ -314,7 +314,7 @@ main (int argc, char **argv)
   if (pid != -1)
     { 
       printf("%s: pid %u already present. cancel execution\r\n",argv[0], pid);
-      return;
+      return 0;
     }
   /* Preserve name of myself. */
   progname = ((p = strrchr (argv[0], '/')) ? ++p : argv[0]);

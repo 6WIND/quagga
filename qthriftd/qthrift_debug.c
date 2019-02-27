@@ -97,6 +97,7 @@ DEFUN (show_debugging_qthrift_simulate,
   qthrift_zmq_delay = atoi(argv[0]);
   qthrift_zmq_occurence = atoi(argv[1]);
   qzc_configure_simulation_delay (qthrift_zmq_delay, qthrift_zmq_occurence);
+  return CMD_SUCCESS;
 }
 
 DEFUN (show_debugging_qthrift,
