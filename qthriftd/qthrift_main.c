@@ -60,6 +60,7 @@ static const struct option longopts[] =
   { "thrift_notif_address",    required_argument, NULL, 'N'},
   { "select_timeout_max",    required_argument, NULL, 'S'},
   { "withdraw_if_no_vrf",    no_argument, NULL, 'W'},
+  { "stalemarker", required_argument, NULL, 'M'},
   { "help", 0, NULL, 'h'},
   { NULL, 0, NULL, 0}
 };
@@ -99,6 +100,7 @@ static struct quagga_signal_t qthrift_signals[] =
 /* Route retain mode flag. */
 static int retain_mode = 0;
 int  qthrift_silent_leave = 0;
+int qthrift_stalemarker_timer = 0;
 
 /* Manually specified configuration file name.  */
 char *config_file = NULL;
@@ -150,6 +152,7 @@ qthrift configuration across thrift defined model : vpnservice.\n\n\
 -N, --thrift_notif_address  Set thrift's notif update specified address\n\
 -S, --select_timeout_max    Set thrift's select timeout max calue in seconds\n\
 -W, --withdraw_if_no_vrf    Send back withdraw messages, when VRF not present\n\
+-M, --stalemarker           Change stalemarker expiration timer in seconds\n\
 -h, --help                  Display this help and exit\n\
 \n\
 Report bugs to %s\n", progname, ZEBRA_BUG_ADDRESS);
@@ -325,11 +328,12 @@ main (int argc, char **argv)
   /* THRIFT master init. */
   qthrift_master_init ();
 
+  qthrift_stalemarker_timer = STALEMARKER_TIMER_DEFAULT;
   tm->qthrift_select_time = QTHRIFT_SELECT_TIME_SEC;
   /* Command line argument treatment. */
   while (1)
     {
-      opt = getopt_long (argc, argv, "A:P:p:S:N:n:DWh", longopts, 0);
+      opt = getopt_long (argc, argv, "A:P:p:M:S:N:n:DWh", longopts, 0);
       if (opt == EOF)
 	break;
       switch (opt)
@@ -339,6 +343,12 @@ main (int argc, char **argv)
           break;
 	case 'W':
           qthrift_withdraw_permit = 1;
+          break;
+	case 'M':
+          qthrift_stalemarker_timer = atoi(optarg);
+	  if (qthrift_stalemarker_timer < STALEMARKER_TIMER_MIN
+              || qthrift_stalemarker_timer > STALEMARKER_TIMER_MAX)
+            qthrift_stalemarker_timer = STALEMARKER_TIMER_DEFAULT;
           break;
 	case 'A':
 	  vty_addr = optarg;

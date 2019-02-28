@@ -35,6 +35,10 @@
 #define BGPD_ARGS_STRING_1  "-p"
 #define BGPD_ARGS_STRING_3  "-Z"
 
+#define STALEMARKER_TIMER_MAX 3600
+#define STALEMARKER_TIMER_MIN 1
+#define STALEMARKER_TIMER_DEFAULT 1800
+
 struct qthrift_vpnservice_client
 {
   ThriftProcessor *processor;
