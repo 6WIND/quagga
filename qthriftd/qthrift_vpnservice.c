@@ -20,6 +20,9 @@
  */
 #include <zebra.h>
 
+#include "prefix.h"
+#include "table.h"
+
 #include "thread.h"
 #include "memory.h"
 #include "hash.h"
@@ -694,11 +697,15 @@ void qthrift_vpnservice_terminate_thrift_bgp_cache (struct qthrift_vpnservice *s
   struct listnode *node, *nnode;
   struct qthrift_vpnservice_cache_bgpvrf *entry_bgpvrf;
   struct qthrift_vpnservice_cache_peer *entry_peer;
+  struct route_node *rn;
 
   THREAD_TIMER_OFF(setup->config_stale_thread);
 
   for (ALL_LIST_ELEMENTS(setup->bgp_vrf_list, node, nnode, entry_bgpvrf))
     {
+      /* Clear static route table */
+      qthrift_clear_vrf_route_table(entry_bgpvrf);
+
       listnode_delete(setup->bgp_vrf_list, entry_bgpvrf);
       XFREE (MTYPE_QTHRIFT, entry_bgpvrf);
     }
@@ -721,6 +728,26 @@ void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup)
       if (CHECK_FLAG(vrf->flags, BGP_CONFIG_FLAG_STALE))
         {
           qthrift_delete_stale_vrf(setup, vrf);
+        }
+      else
+        {
+          struct route_node *rn;
+          /* delete the static routes marked as STALE */
+          for (rn = route_top (vrf->route[AFI_IP]); rn; rn = route_next (rn))
+            {
+              struct qthrift_bgp_static *bs;
+
+              if ((bs = rn->info) != NULL)
+                {
+                  if (CHECK_FLAG(bs->flags, BGP_CONFIG_FLAG_STALE))
+                    {
+                      qthrift_delete_stale_route(setup, rn);
+                      XFREE(MTYPE_QTHRIFT, bs);
+                      rn->info = NULL;
+                      route_unlock_node(rn);
+                    }
+                }
+            }
         }
     }
 }
@@ -750,6 +777,8 @@ void qthrift_config_stale_set(struct qthrift_vpnservice *setup)
   /* lookup in cache context, and set QBGP_CONFIG_STALE flag */
   for (ALL_LIST_ELEMENTS(setup->bgp_vrf_list, node, nnode, vrf))
     {
+      struct route_node *rn;
+
       if (IS_QTHRIFT_DEBUG)
         {
           char rdstr[RD_ADDRSTRLEN];
@@ -757,6 +786,25 @@ void qthrift_config_stale_set(struct qthrift_vpnservice *setup)
           zlog_debug ("VRF %s set to STALE state", rdstr);
         }
       SET_FLAG (vrf->flags, BGP_CONFIG_FLAG_STALE);
+
+      for (rn = route_top (vrf->route[AFI_IP]); rn; rn = route_next (rn))
+        {
+          struct qthrift_bgp_static *bs;
+
+          if ((bs = rn->info) != NULL)
+            {
+              if (IS_QTHRIFT_DEBUG)
+                {
+                  char rdstr[RD_ADDRSTRLEN];
+                  char pfx_str[INET6_BUFSIZ];
+
+                  prefix_rd2str(&(vrf->outbound_rd), rdstr, RD_ADDRSTRLEN);
+                  prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+                  zlog_debug ("Route(prefix %s, rd %s) set to STALE state", pfx_str, rdstr);
+                }
+              SET_FLAG(bs->flags, BGP_CONFIG_FLAG_STALE);
+            }
+        }
     }
 
   THREAD_TIMER_OFF(setup->config_stale_thread);

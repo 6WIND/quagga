@@ -25,6 +25,8 @@
 #include "prefix.h"
 #include "linklist.h"
 
+#include "table.h"
+
 #define QTHRIFT_LISTEN_PORT	 7644
 #define QTHRIFT_NOTIFICATION_PORT 6644
 #define QTHRIFT_CLIENT_ADDRESS "0.0.0.0"
@@ -61,12 +63,20 @@ struct qthrift_vpnservice_bgp_context
   uint8_t multipath_on[AFI_MAX][SAFI_MAX];
 };
 
+struct qthrift_bgp_static
+{
+  struct prefix_rd prd;
+  uint16_t flags;
+};
+
 /* qthrift cache contexts */
 struct qthrift_vpnservice_cache_bgpvrf
 {
   uint64_t bgpvrf_nid;
   struct prefix_rd outbound_rd;
   uint16_t flags;
+  /* Static route configuration.  */
+  struct route_table *route[AFI_MAX];
 };
 
 struct qthrift_cache_peer
@@ -191,5 +201,8 @@ extern void qthrift_config_stale_set(struct qthrift_vpnservice *setup);
 extern void qthrift_delete_stale_vrf(struct qthrift_vpnservice *setup,
                                      struct qthrift_vpnservice_cache_bgpvrf *vrf);
 extern void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup);
+extern void qthrift_delete_stale_route(struct qthrift_vpnservice *setup,
+                                       struct route_node *rn);
+extern void qthrift_clear_vrf_route_table(struct qthrift_vpnservice_cache_bgpvrf *entry);
 
 #endif /* _QTHRIFT_VPNSERVICE_H */

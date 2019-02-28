@@ -21,6 +21,9 @@
 #include <zebra.h>
 #include <stdio.h>
 
+#include "prefix.h"
+#include "table.h"
+
 #include "qthriftd/qthrift_thrift_wrapper.h"
 #include "qthriftd/qthrift_master.h"
 #include "qthriftd/qthrift_memory.h"
@@ -940,6 +943,8 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
   struct capn rc;
   struct capn_segment *cs;
   int ret;
+  struct route_node *rn;
+  struct qthrift_bgp_static *bgp_static;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -993,6 +998,29 @@ instance_bgp_configurator_handler_push_route(BgpConfiguratorIf *iface, gint32* _
       return FALSE;
     }
 
+  /* save static route */
+  rn = route_node_get (entry->route[afi], (const struct prefix *)&inst.prefix);
+  if (rn->info)
+    {
+      struct qthrift_bgp_static *bs = rn->info;
+
+      if (CHECK_FLAG(bs->flags, BGP_CONFIG_FLAG_STALE))
+        {
+          UNSET_FLAG(bs->flags, BGP_CONFIG_FLAG_STALE);
+          if (IS_QTHRIFT_DEBUG)
+            zlog_debug ("Route(prefix %s, rd %s) unset STALE state", prefix, rd);
+        }
+      route_unlock_node (rn);
+    }
+  else
+    {
+      bgp_static = XCALLOC (MTYPE_QTHRIFT, sizeof (struct qthrift_bgp_static));
+      bgp_static->prd = rd_inst;
+      rn->info = bgp_static;
+      if (IS_QTHRIFT_DEBUG_CACHE)
+        zlog_debug ("CACHE_ROUTES: add route(prefix %s, rd %s)", prefix, rd);
+    }
+
   capn_init_malloc(&rc);
   cs = capn_root(&rc).seg;
   bgpvrfroute = qcapn_new_BGPVRFRoute(cs, 0);
@@ -1038,6 +1066,7 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
   struct capn rc;
   struct capn_segment *cs;
   int ret;
+  struct route_node *rn;
 
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
@@ -1081,6 +1110,23 @@ instance_bgp_configurator_handler_withdraw_route(BgpConfiguratorIf *iface, gint3
     {
       *error = ERROR_BGP_INVALID_PREFIX;
       return FALSE;
+    }
+
+  /* delete static route */
+  rn = route_node_lookup(entry->route[afi], (const struct prefix *)&inst.prefix);
+  if (rn)
+    {
+      struct qthrift_bgp_static *bs = rn->info;
+
+      if (bs)
+        {
+          if (IS_QTHRIFT_DEBUG_CACHE)
+              zlog_debug ("CACHE_ROUTES: del route(prefix %s, rd %s)", prefix, rd);
+          XFREE(MTYPE_QTHRIFT, bs);
+          rn->info = NULL;
+        }
+      route_unlock_node (rn); /* to free the lookup lock */
+      route_unlock_node (rn); /* to free the original lock */
     }
 
   capn_init_malloc(&rc);
@@ -1451,6 +1497,7 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
       entry = XCALLOC(MTYPE_QTHRIFT, sizeof(struct qthrift_vpnservice_cache_bgpvrf));
       entry->outbound_rd = instvrf.outbound_rd;
       entry->bgpvrf_nid = bgpvrf_nid;
+      entry->route[AFI_IP] = route_table_init();
       if(IS_QTHRIFT_DEBUG_CACHE)
         zlog_debug ("CACHE_VRF: add entry %llx", (long long unsigned int)bgpvrf_nid);
       listnode_add(ctxt->bgp_vrf_list, entry);
@@ -1570,6 +1617,9 @@ gboolean instance_bgp_configurator_handler_del_vrf(BgpConfiguratorIf *iface, gin
       return FALSE;
     }
   bgpvrf_nid = entry->bgpvrf_nid;
+
+  /* Clear static route table */
+  qthrift_clear_vrf_route_table(entry);
 
   if( qzcclient_deletenode(ctxt->p_qzc_sock, &bgpvrf_nid))
     {
@@ -2642,6 +2692,10 @@ void qthrift_delete_stale_vrf(struct qthrift_vpnservice *setup,
           zlog_debug ("Stale vrf %s(%llx) deleted", rdstr,
                       (long long unsigned int)vrf->bgpvrf_nid);
         }
+
+      /* Clear static route table */
+      qthrift_clear_vrf_route_table(vrf);
+
       listnode_delete (setup->bgp_vrf_list, vrf);
       XFREE (MTYPE_QTHRIFT, vrf);
     }
@@ -2655,4 +2709,102 @@ void qthrift_delete_stale_vrf(struct qthrift_vpnservice *setup,
                     rdstr, (long long unsigned int)vrf->bgpvrf_nid);
         }
     }
+}
+
+void qthrift_delete_stale_route(struct qthrift_vpnservice *setup,
+	                        struct route_node *rn)
+{
+  struct bgp_api_route inst;
+  uint64_t bgpvrf_nid = 0;
+  afi_t afi = AFI_IP;
+  struct capn_ptr bgpvrfroute;
+  struct capn_ptr afikey;
+  struct capn rc;
+  struct capn_segment *cs;
+  int ret;
+  struct qthrift_bgp_static *bs = rn->info;
+  struct qthrift_vpnservice_cache_bgpvrf *vrf;
+
+  if (!setup || !rn || !bs)
+    return;
+
+  /* if vrf not found, return */
+  vrf = qthrift_bgp_configurator_find_vrf(setup, &bs->prd, NULL);
+  if (!vrf)
+    return;
+  bgpvrf_nid = vrf->bgpvrf_nid;
+
+  memset(&inst, 0, sizeof(struct bgp_api_route));
+  prefix_copy ((struct prefix *)(&inst.prefix), &rn->p);
+
+  capn_init_malloc(&rc);
+  cs = capn_root(&rc).seg;
+  bgpvrfroute = qcapn_new_BGPVRFRoute(cs, 0);
+  qcapn_BGPVRFRoute_write(&inst, bgpvrfroute);
+  /* prepare afi context */
+  afikey = qcapn_new_AfiKey(cs);
+  capn_write8(afikey, 0, afi);
+  /* set route within afi context using QZC set request */
+  ret = qzcclient_unsetelem (setup->p_qzc_sock, &bgpvrf_nid, 3, \
+                             &bgpvrfroute, &bgp_datatype_bgpvrfroute, \
+                             &afikey, &bgp_ctxttype_afisafi_set_bgp_vrf_3);
+  if (ret)
+    {
+      if (IS_QTHRIFT_DEBUG)
+        {
+          char pfx_str[INET6_BUFSIZ];
+          char vrf_rd_str[RD_ADDRSTRLEN];
+
+          prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+          prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+          zlog_info ("Stale route(prefix %s, rd %s) withdrawn", pfx_str, vrf_rd_str);
+        }
+    }
+  else
+    {
+      if (IS_QTHRIFT_DEBUG)
+        {
+          char pfx_str[INET6_BUFSIZ];
+          char vrf_rd_str[RD_ADDRSTRLEN];
+
+          prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+          prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+          zlog_info ("Failed to withdraw stale route(prefix %s, rd %s)", pfx_str, vrf_rd_str);
+        }
+    }
+
+  capn_free(&rc);
+}
+
+void
+qthrift_clear_vrf_route_table(struct qthrift_vpnservice_cache_bgpvrf *entry)
+{
+  struct route_node *rn;
+
+  if (!entry || !entry->route[AFI_IP])
+    return;
+
+  /* Clear static route table */
+  for (rn = route_top (entry->route[AFI_IP]); rn; rn = route_next (rn))
+    {
+      struct qthrift_bgp_static *bs;
+
+      if ((bs = rn->info) != NULL)
+        {
+          if (IS_QTHRIFT_DEBUG_CACHE)
+            {
+              char pfx_str[INET6_BUFSIZ];
+              char vrf_rd_str[RD_ADDRSTRLEN];
+
+              prefix_rd2str(&entry->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+              prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+              zlog_debug ("CACHE_ROUTES: del route(prefix %s, rd %s)", pfx_str, vrf_rd_str);
+            }
+          XFREE(MTYPE_QTHRIFT, bs);
+          rn->info = NULL;
+          route_unlock_node (rn);
+	}
+    }
+  route_table_finish(entry->route[AFI_IP]);
+  entry->route[AFI_IP] = NULL;
 }
