@@ -190,5 +190,6 @@ extern void qthrift_client_transport_close(ThriftTransport *transport);
 extern void qthrift_config_stale_set(struct qthrift_vpnservice *setup);
 extern void qthrift_delete_stale_vrf(struct qthrift_vpnservice *setup,
                                      struct qthrift_vpnservice_cache_bgpvrf *vrf);
+extern void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup);
 
 #endif /* _QTHRIFT_VPNSERVICE_H */

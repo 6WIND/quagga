@@ -711,14 +711,10 @@ void qthrift_vpnservice_terminate_thrift_bgp_cache (struct qthrift_vpnservice *s
   setup->bgp_peer_list = NULL;
 }
 
-static int qthrift_config_stale_timer_expire (struct thread *thread)
+void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup)
 {
-  struct qthrift_vpnservice *setup;
-  struct listnode *node, *nnode;
   struct qthrift_vpnservice_cache_bgpvrf *vrf;
-
-  setup = THREAD_ARG (thread);
-  assert (setup);
+  struct listnode *node, *nnode;
 
   for (ALL_LIST_ELEMENTS(setup->bgp_vrf_list, node, nnode, vrf))
     {
@@ -727,7 +723,15 @@ static int qthrift_config_stale_timer_expire (struct thread *thread)
           qthrift_delete_stale_vrf(setup, vrf);
         }
     }
+}
 
+static int qthrift_config_stale_timer_expire (struct thread *thread)
+{
+  struct qthrift_vpnservice *setup;
+
+  setup = THREAD_ARG (thread);
+  assert (setup);
+  qthrift_config_stale_timer_flush(setup);
   return 0;
 }
 

@@ -2523,6 +2523,9 @@ instance_bgp_configurator_send_eor(BgpConfiguratorIf *iface, gint32* _return, GE
                      &grep->data, &bgp_datatype_bgp, NULL, NULL);
   qzcclient_qzcgetrep_free( grep);
 
+  THREAD_TIMER_OFF(ctxt->config_stale_thread);
+  qthrift_config_stale_timer_flush(ctxt);
+
   if (IS_QTHRIFT_DEBUG)
     zlog_info ("send EOR() OK");
 
