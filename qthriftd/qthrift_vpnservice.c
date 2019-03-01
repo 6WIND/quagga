@@ -81,7 +81,6 @@ void qthrift_transport_change_status(struct qthrift_vpnservice *setup, gboolean 
         qthrift_bgp_updater_on_start_config_resync_notification_quick (setup, FALSE);
       } else {
         qthrift_transport_current_status = QTHRIFT_TO_SDN_FALSE;
-        qthrift_config_stale_set(setup);
       }
     }
 }

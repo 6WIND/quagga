@@ -86,6 +86,7 @@ qthrift_accept (struct thread *thread)
   ThriftSocket *socket;
   struct listnode *node, *nnode;
   socklen_t len;
+  struct qthrift_vpnservice *ctxt = NULL;
 
   /* Register accept thread. */
   if( THREAD_FD (thread) < 0)
@@ -176,7 +177,13 @@ qthrift_accept (struct thread *thread)
         }
       XFREE(MTYPE_QTHRIFT, peer2);
     }
-
+  qthrift_vpnservice_get_context (&ctxt);
+  if(!ctxt)
+    {
+      *_return = BGP_ERR_FAILED;
+      return FALSE;
+    }
+  qthrift_config_stale_set(ctxt);
   return 0;
 }
 
