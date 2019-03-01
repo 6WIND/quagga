@@ -1509,7 +1509,11 @@ instance_bgp_configurator_handler_add_vrf(BgpConfiguratorIf *iface, gint32* _ret
       bgpvrf_nid = entry->bgpvrf_nid;
       /* unset STALE flag if this vrf is added again */
       if (CHECK_FLAG(entry->flags, BGP_CONFIG_FLAG_STALE))
-        UNSET_FLAG (entry->flags, BGP_CONFIG_FLAG_STALE);
+        {
+          UNSET_FLAG (entry->flags, BGP_CONFIG_FLAG_STALE);
+          if (IS_QTHRIFT_DEBUG)
+            zlog_debug ("VRF(%s) unset STALE state", rd);
+        }
     }
   /* max_mpath has been set in bgpd with a default value owned by bgpd itself
    * must get back this value before going further else max_mpath will be overwritten
