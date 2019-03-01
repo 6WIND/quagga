@@ -722,6 +722,7 @@ void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup)
 {
   struct qthrift_vpnservice_cache_bgpvrf *vrf;
   struct listnode *node, *nnode;
+  struct qthrift_cache_peer *peer;
 
   for (ALL_LIST_ELEMENTS(setup->bgp_vrf_list, node, nnode, vrf))
     {
@@ -750,6 +751,12 @@ void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup)
             }
         }
     }
+
+  for (ALL_LIST_ELEMENTS(setup->bgp_peer_list, node, nnode, peer))
+    {
+      if (CHECK_FLAG(peer->flags, BGP_CONFIG_FLAG_STALE))
+        qthrift_delete_stale_peer(setup, peer);
+    }
 }
 
 static int qthrift_config_stale_timer_expire (struct thread *thread)
@@ -767,6 +774,7 @@ void qthrift_config_stale_set(struct qthrift_vpnservice *setup)
 {
   struct listnode *node, *nnode;
   struct qthrift_vpnservice_cache_bgpvrf *vrf;
+  struct qthrift_cache_peer *peer;
 
   if (!setup)
     return;
@@ -805,6 +813,13 @@ void qthrift_config_stale_set(struct qthrift_vpnservice *setup)
               SET_FLAG(bs->flags, BGP_CONFIG_FLAG_STALE);
             }
         }
+    }
+
+  for (ALL_LIST_ELEMENTS(setup->bgp_peer_list, node, nnode, peer))
+    {
+      if (IS_QTHRIFT_DEBUG)
+        zlog_debug ("Peer %s set to STALE state", peer->peerIp);
+      SET_FLAG (peer->flags, BGP_CONFIG_FLAG_STALE);
     }
 
   THREAD_TIMER_OFF(setup->config_stale_thread);

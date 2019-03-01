@@ -1254,6 +1254,13 @@ instance_bgp_configurator_handler_create_peer(BgpConfiguratorIf *iface, gint32* 
   entry = qthrift_bgp_configurator_find_peer(ctxt, routerId, _return);
   if (entry)
     {
+      if (CHECK_FLAG(entry->flags, BGP_CONFIG_FLAG_STALE))
+        {
+          UNSET_FLAG (entry->flags, BGP_CONFIG_FLAG_STALE);
+          if (IS_QTHRIFT_DEBUG)
+            zlog_info ("Peer(%s) unset STALE state", routerId);
+        }
+
       if(IS_QTHRIFT_DEBUG)
         zlog_info ("createPeer(%s) already present. do nothing.", routerId);
       return TRUE;
@@ -2825,4 +2832,30 @@ qthrift_clear_vrf_route_table(struct qthrift_vpnservice_cache_bgpvrf *entry)
     }
   route_table_finish(entry->route[AFI_IP]);
   entry->route[AFI_IP] = NULL;
+}
+
+void qthrift_delete_stale_peer(struct qthrift_vpnservice *setup,
+                               struct qthrift_cache_peer *peer)
+{
+  if (!setup || !peer)
+    return;
+
+  /* destroy node id */
+  if( qzcclient_deletenode(setup->p_qzc_sock, &peer->peer_nid))
+    {
+      if (IS_QTHRIFT_DEBUG)
+        zlog_info ("Stale peer %s(%llx) deleted",
+                    peer->peerIp, (long long unsigned int)peer->peer_nid);
+
+      listnode_delete (setup->bgp_peer_list, peer);
+      XFREE (MTYPE_QTHRIFT, peer->peerIp);
+      peer->peerIp = NULL;
+      XFREE (MTYPE_QTHRIFT, peer);
+    }
+  else
+    {
+      if(IS_QTHRIFT_DEBUG)
+        zlog_info ("Failed to delete stale peer %s(%llx) (capnproto error)",
+                   peer->peerIp, (long long unsigned int)peer->peer_nid);
+    }
 }

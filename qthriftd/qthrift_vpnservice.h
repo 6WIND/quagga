@@ -204,5 +204,7 @@ extern void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup);
 extern void qthrift_delete_stale_route(struct qthrift_vpnservice *setup,
                                        struct route_node *rn);
 extern void qthrift_clear_vrf_route_table(struct qthrift_vpnservice_cache_bgpvrf *entry);
+extern void qthrift_delete_stale_peer(struct qthrift_vpnservice *setup,
+                                      struct qthrift_cache_peer *peer);
 
 #endif /* _QTHRIFT_VPNSERVICE_H */
