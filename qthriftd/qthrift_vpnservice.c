@@ -775,6 +775,8 @@ void qthrift_config_stale_set(struct qthrift_vpnservice *setup)
   struct qthrift_vpnservice_cache_bgpvrf *vrf;
   struct qthrift_cache_peer *peer;
 
+  if (!qthrift_config_stale_timer_expire)
+    return;
   if (!setup)
     return;
   if (qthrift_vpnservice_get_bgp_context(setup) == NULL ||
