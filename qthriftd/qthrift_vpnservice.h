@@ -200,7 +200,7 @@ extern void qthrift_client_transport_close(ThriftTransport *transport);
 extern void qthrift_config_stale_set(struct qthrift_vpnservice *setup);
 extern void qthrift_delete_stale_vrf(struct qthrift_vpnservice *setup,
                                      struct qthrift_vpnservice_cache_bgpvrf *vrf);
-extern void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup);
+extern void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup, bool donotflush);
 extern void qthrift_delete_stale_route(struct qthrift_vpnservice *setup,
                                        struct route_node *rn);
 extern void qthrift_clear_vrf_route_table(struct qthrift_vpnservice_cache_bgpvrf *entry);

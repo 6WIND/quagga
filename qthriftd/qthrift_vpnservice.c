@@ -717,19 +717,55 @@ void qthrift_vpnservice_terminate_thrift_bgp_cache (struct qthrift_vpnservice *s
   setup->bgp_peer_list = NULL;
 }
 
-void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup)
+void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup, bool donotflush)
 {
   struct qthrift_vpnservice_cache_bgpvrf *vrf;
   struct listnode *node, *nnode;
   struct qthrift_cache_peer *peer;
 
+  if (donotflush) {
+    zlog_err ("ODL/Bgp connection configuration synchronization failed, "
+              "stale timer expired after %d seconds, not REMOVE any "
+              "stale configuration below.", qthrift_stalemarker_timer);
+  }
   for (ALL_LIST_ELEMENTS(setup->bgp_vrf_list, node, nnode, vrf))
     {
       if (CHECK_FLAG(vrf->flags, BGP_CONFIG_FLAG_STALE))
         {
-          qthrift_delete_stale_vrf(setup, vrf);
+          if (donotflush)
+            {
+              if (IS_QTHRIFT_DEBUG)
+                {
+                  char rdstr[RD_ADDRSTRLEN];
+                  struct route_node *rn;
+
+                  /* delete the static routes marked as STALE */
+                  for (rn = route_top (vrf->route[AFI_IP]); rn; rn = route_next (rn))
+                    {
+                      struct qthrift_bgp_static *bs;
+
+                      if ((bs = rn->info) != NULL)
+                        {
+                          if (CHECK_FLAG(bs->flags, BGP_CONFIG_FLAG_STALE))
+                            {
+                              char pfx_str[INET6_BUFSIZ];
+                              char vrf_rd_str[RD_ADDRSTRLEN];
+
+                              prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+                              prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+                              zlog_err ("Stale route(prefix %s, rd %s) should be withdrawn", pfx_str, vrf_rd_str);
+                            }
+                        }
+                    }
+                  prefix_rd2str(&(vrf->outbound_rd), rdstr, RD_ADDRSTRLEN);
+                  zlog_err ("Stale vrf %s(%llx) should be deleted", rdstr,
+                              (long long unsigned int)vrf->bgpvrf_nid);
+                }
+            }
+          else
+            qthrift_delete_stale_vrf(setup, vrf);
         }
-      else
+      else /* vrf is not STALE, while static route is STALE */
         {
           struct route_node *rn;
           /* delete the static routes marked as STALE */
@@ -741,10 +777,25 @@ void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup)
                 {
                   if (CHECK_FLAG(bs->flags, BGP_CONFIG_FLAG_STALE))
                     {
-                      qthrift_delete_stale_route(setup, rn);
-                      XFREE(MTYPE_QTHRIFT, bs);
-                      rn->info = NULL;
-                      route_unlock_node(rn);
+                      if (donotflush)
+                        {
+                          if (IS_QTHRIFT_DEBUG)
+                            {
+                              char pfx_str[INET6_BUFSIZ];
+                              char vrf_rd_str[RD_ADDRSTRLEN];
+
+                              prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+                              prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+                              zlog_err ("Stale route(prefix %s, rd %s) should be withdrawn", pfx_str, vrf_rd_str);
+                            }
+                        }
+                      else
+                        {
+                              qthrift_delete_stale_route(setup, rn);
+                              XFREE(MTYPE_QTHRIFT, bs);
+                              rn->info = NULL;
+                              route_unlock_node(rn);
+                        }
                     }
                 }
             }
@@ -754,7 +805,18 @@ void qthrift_config_stale_timer_flush(struct qthrift_vpnservice *setup)
   for (ALL_LIST_ELEMENTS(setup->bgp_peer_list, node, nnode, peer))
     {
       if (CHECK_FLAG(peer->flags, BGP_CONFIG_FLAG_STALE))
-        qthrift_delete_stale_peer(setup, peer);
+        {
+          if (donotflush)
+            {
+              if (IS_QTHRIFT_DEBUG)
+                {
+                  zlog_info ("Stale peer %s(%llx) should be deleted",
+                             peer->peerIp, (long long unsigned int)peer->peer_nid);
+                }
+            }
+          else
+            qthrift_delete_stale_peer(setup, peer);
+        }
     }
 }
 
@@ -764,7 +826,7 @@ static int qthrift_config_stale_timer_expire (struct thread *thread)
 
   setup = THREAD_ARG (thread);
   assert (setup);
-  qthrift_config_stale_timer_flush(setup);
+  qthrift_config_stale_timer_flush(setup, TRUE);
   return 0;
 }
 
