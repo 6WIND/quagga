@@ -180,7 +180,6 @@ qthrift_accept (struct thread *thread)
   qthrift_vpnservice_get_context (&ctxt);
   if(!ctxt)
     {
-      *_return = BGP_ERR_FAILED;
       return FALSE;
     }
   qthrift_config_stale_set(ctxt);
