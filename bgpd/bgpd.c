@@ -2554,13 +2554,21 @@ void bgp_vrfs_maximum_paths_set(struct bgp *bgp, afi_t afi, safi_t safi,
     }
 }
 
-void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf)
+void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf, bool unconfigured)
 {
   afi_t afi;
   safi_t safi;
 
   if (! vrf)
     return;
+
+  if (unconfigured) {
+    for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
+      if (!bgp_mpath_is_configured(vrf->bgp, afi, safi, NULL)) {
+        vrf->max_mpath[afi][safi] = vrf->max_mpath_configured;
+      }
+  }
 
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)

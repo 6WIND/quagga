@@ -376,10 +376,13 @@ _qzc_create_bgp_3(struct bgp *p,
       {
         struct prefix_rd outbound_rd = qcapn_BGPVRF_get_outbound_rd(req->data);
         uint8_t lt = qcapn_BGPVRF_get_layer_type(req->data);
+	uint32_t mpath = qcapn_BGPVRF_get_mpath(req->data);
 
         ret = bgp_vrf_update_rd(p, NULL, &outbound_rd);
         if (ret)
           bgp_vrf_update_rd_layer(ret, (lt == 1) ? BGP_LAYER_TYPE_2 : BGP_LAYER_TYPE_3);
+	ret->max_mpath_configured = mpath;
+	bgp_vrf_maximum_paths_set(ret, true);
       }
     }
     if (ret)

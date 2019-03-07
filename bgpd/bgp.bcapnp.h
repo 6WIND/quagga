@@ -43,6 +43,7 @@ void qcapn_BGPVRF_write(const struct bgp_vrf *s, capn_ptr p);
 void qcapn_BGPVRF_set(struct bgp_vrf *s, capn_ptr p);
 struct prefix_rd qcapn_BGPVRF_get_outbound_rd(capn_ptr p);
 uint8_t qcapn_BGPVRF_get_layer_type(capn_ptr p);
+uint32_t qcapn_BGPVRF_get_mpath(capn_ptr p);
 capn_ptr qcapn_new_BGPVRF(struct capn_segment *s);
 void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p);
 void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p);

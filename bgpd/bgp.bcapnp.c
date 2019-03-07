@@ -1223,7 +1223,7 @@ void qcapn_BGPVRF_set(struct bgp_vrf *s, capn_ptr p)
     capn_resolve(&p);
     {
       s->max_mpath_configured = capn_read32(p, 8);
-      bgp_vrf_maximum_paths_set(s);
+      bgp_vrf_maximum_paths_set(s, false);
     }
     {
       /* MISSING: outbound_rd */
@@ -1428,6 +1428,17 @@ uint8_t qcapn_BGPVRF_get_layer_type(capn_ptr p)
     ltype = capn_read8(p, 12);
 
     return ltype;
+}
+
+uint32_t qcapn_BGPVRF_get_mpath(capn_ptr p)
+{
+    capn_resolve(&p);
+    uint32_t mpath;
+
+
+    mpath = capn_read32(p, 8);
+
+    return mpath;
 }
 
 void qcapn_BGPVRFRoute_set(struct bgp_api_route *s, capn_ptr p)
