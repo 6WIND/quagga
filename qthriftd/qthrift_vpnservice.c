@@ -351,8 +351,12 @@ static void qthrift_vpnservice_callback (void *arg, void *zmqsock, void *message
            * reach the sdn controller
            */
           if (!qthrift_withdraw_permit) {
+            struct prefix_rd prd_local;
+
+            memset(&prd_local, 0, sizeof(struct prefix_rd));
+            prefix_str2rd (vrf_rd_str, &prd_local);
             /* if vrf not found, silently don't send message to sdn controller */
-            entry = qthrift_bgp_configurator_find_vrf(ctxt, &s->outbound_rd, NULL);
+            entry = qthrift_bgp_configurator_find_vrf(ctxt, &prd_local, NULL);
             if (!entry) {
               if (IS_QTHRIFT_DEBUG_NOTIFICATION)
                 zlog_debug ("RD %s not present. Cancel onUpdateWithdrawRoute() for %s",
