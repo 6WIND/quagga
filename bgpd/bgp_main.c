@@ -518,13 +518,12 @@ main (int argc, char **argv)
   /* BGP related initialization.  */
   bgp_init ();
 
+  /* Parse config file. */
+  vty_read_config (config_file, config_default);
 #ifdef HAVE_ZEROMQ
   if (zmq_sock)
     qzc_sock = qzc_bind (bm->master, zmq_sock, QZC_CLIENT_ZMQ_LIMIT_RX);
 #endif /* HAVE_ZEROMQ */
-
-  /* Parse config file. */
-  vty_read_config (config_file, config_default);
 
   /* Start execution only if not in dry-run mode */
   if(dryrun)
@@ -536,7 +535,6 @@ main (int argc, char **argv)
       zlog_err("BGPd daemon failed: %s", strerror(errno));
       return (1);
     }
-
 
   /* Process ID file creation. */
   pid_output (pid_file);
