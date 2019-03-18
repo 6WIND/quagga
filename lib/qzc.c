@@ -397,6 +397,7 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
     uint64_t socket_size = QZC_SOCKET_SIZE_USER;
     int fd;
     size_t fd_len = sizeof (fd);
+    int val = 0;
 
     zlog_err ("%s : zmq_send failed: resetting connection", __func__);
 
@@ -413,6 +414,7 @@ static void qzc_callback (void *arg, void *zmqsock, zmq_msg_t *msg)
                     sizeof(socket_size));
     zmq_setsockopt (qzc_sock, ZMQ_SNDBUF, &socket_size,
                     sizeof(socket_size));
+    zmq_setsockopt (qzc_sock, ZMQ_LINGER, &val, sizeof(val));
     zmq_close (ctxt->zmq);
 
     if (zmq_bind (qzc_sock, ctxt->path))
@@ -481,6 +483,7 @@ struct qzc_sock *qzc_bind (struct thread_master *master, const char *url,
   void *qzc_sock;
   struct qzc_sock *ret;
   uint64_t socket_size = QZC_SOCKET_SIZE_USER;
+  int val = 0;
 
   qzc_sock = zmq_socket (qzmq_context, ZMQ_REP);
 
@@ -495,6 +498,13 @@ struct qzc_sock *qzc_bind (struct thread_master *master, const char *url,
                   sizeof(socket_size));
   zmq_setsockopt (qzc_sock, ZMQ_SNDBUF, &socket_size,
                   sizeof(socket_size));
+  if (zmq_setsockopt (qzc_sock, ZMQ_LINGER, &val, sizeof(val)))
+    {
+      zlog_err ("zmq_setsockopt failed: %s (%d)", strerror (errno), errno);
+      zmq_close (qzc_sock);
+      return NULL;
+    }
+
   if (zmq_bind (qzc_sock, url))
     {
       zlog_err ("zmq_bind failed: %s (%d)", strerror (errno), errno);
@@ -576,6 +586,7 @@ struct qzc_sock *qzcclient_connect (const char *url, uint32_t limit)
   void *qzc_sock;
   struct qzc_sock *ret;
   uint64_t socket_size = QZC_SOCKET_SIZE_USER;
+  int val;
 
   qzc_sock = zmq_socket (qzmq_context, ZMQ_REQ);
   if (!qzc_sock)
@@ -589,6 +600,9 @@ struct qzc_sock *qzcclient_connect (const char *url, uint32_t limit)
                   sizeof(socket_size));
   zmq_setsockopt (qzc_sock, ZMQ_SNDBUF, &socket_size,
                   sizeof(socket_size));
+  val = 0;
+  zmq_setsockopt (qzc_sock, ZMQ_LINGER, &val, sizeof (val));
+
   if (zmq_connect (qzc_sock, url))
     {
       zlog_err ("zmq_bind failed: %s (%d)", strerror (errno), errno);
@@ -610,6 +624,7 @@ struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *
   void *qzc_sock;
   struct qzc_sock *ret;
   void (*func2)(void *arg, void *zmqsock, struct zmq_msg_t *msg);
+  int val = 0;
 
   qzc_sock = zmq_socket (qzmq_context, ZMQ_SUB);
 
@@ -630,6 +645,13 @@ struct qzc_sock *qzcclient_subscribe (struct thread_master *master, const char *
       zmq_close (qzc_sock);
       return NULL;
     }
+  if (zmq_setsockopt (qzc_sock, ZMQ_LINGER, &val, sizeof(val)))
+    {
+      zlog_err ("zmq_setsockopt failed: %s (%d)", strerror (errno), errno);
+      zmq_close (qzc_sock);
+      return NULL;
+    }
+
   if (limit)
     zmq_setsockopt (qzc_sock, ZMQ_RCVHWM, &limit, sizeof(limit));
   func2 = func;
