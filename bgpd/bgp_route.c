@@ -5980,11 +5980,22 @@ bgp_soft_reconfig_table (struct peer *peer, afi_t afi, safi_t safi,
       {
 	if (ain->peer == peer)
 	  {
-	    struct bgp_info *ri = rn->info;
-	    uint32_t *labels = (ri && ri->extra) ? ri->extra->labels : NULL;
-	    size_t nlabels = (ri && ri->extra) ? ri->extra->nlabels : 0;
+            struct bgp_info *ri = NULL;
+            uint32_t labels[BGP_MAX_LABELS];
+            size_t nlabels = 0;
             struct bgp_route_evpn evpn_copy;
             struct bgp_route_evpn *evpn_ptr = NULL;
+
+            /* Check previously received route. */
+            for (ri = rn->info; ri; ri = ri->next)
+              if (ri->peer == peer)
+                break;
+            if (ri == NULL)
+              continue;
+
+            nlabels = (ri->extra) ? ri->extra->nlabels : 0;
+            if (nlabels)
+              memcpy (labels, ri->extra->labels, sizeof(ri->extra->labels[0]) * nlabels);
 
             if (safi == SAFI_EVPN && ri && ri->attr && ri->attr->extra) {
               evpn_ptr = &evpn_copy;
