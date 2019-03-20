@@ -201,12 +201,14 @@ bfd_neigh_addr_check (struct bfd_neigh *neighp)
      check IP addresses on both sides of connection */
   if (bfd_flag_1hop_check (neighp))
     {
+#if 0
       if (bfd_neigh_raddr_check (neighp->su_remote) < 0)
 	{
 	  if (BFD_IF_DEBUG_ZEBRA)
 	    BFD_LOG_DEBUG_NEIGH_ARG ("%s: remote address error(1hop)",
 				     __func__) return -1;
 	}
+#endif
       if (bfd_neigh_laddr_check (neighp->su_local) < 0)
 	{
 	  if (BFD_IF_DEBUG_ZEBRA)

@@ -227,7 +227,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
       struct prefix *lp = sockunion2hostprefix (loc, &p_loc);
       struct prefix *rp = sockunion2hostprefix (rem, &p_rem);
 
-      if (!(neighp = bfd_find_neigh (rp, lp, bfd->multihop ? 0 : ifindex)))
+      if (!(neighp = bfd_find_neigh (rp, lp, 0)))
 	{
 	  if (BFD_IF_DEBUG_NET)
 	    {
