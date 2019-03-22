@@ -102,6 +102,20 @@ static bool qthrift_bgp_updater_handle_response(struct qthrift_vpnservice *ctxt,
     return should_retry;
 }
 
+/* each time force tcp packet send out immediately in queued */
+static int qthrift_flush_socket(int tcp_sock)
+{
+  int val = 1;
+  int ret = 0;
+
+  if (setsockopt (tcp_sock, IPPROTO_TCP, TCP_NODELAY, (char *) &val, sizeof (val)) < 0)
+  {
+    zlog_info("%s fd=%d TCP_NODELAY failed error=%d\n", __func__, tcp_sock, errno);
+    ret = -1;
+  }
+  return ret;
+}
+
 /*
  * update push route notification message
  * sent when a vpnv4 route is pushed
@@ -130,6 +144,7 @@ qthrift_bgp_updater_on_update_push_route (const gchar * rd, const gchar * prefix
       break;
     error = NULL;
   }
+  qthrift_flush_socket(qthrift_vpnservice_get_bgp_updater_socket(ctxt));
   if(IS_QTHRIFT_DEBUG_NOTIFICATION && response == TRUE)
     zlog_info ("%s", buff);
   return response;
@@ -162,6 +177,7 @@ qthrift_bgp_updater_on_update_withdraw_route (const gchar * rd, const gchar * pr
       break;
     error = NULL;
   }
+  qthrift_flush_socket(qthrift_vpnservice_get_bgp_updater_socket(ctxt));
   if(IS_QTHRIFT_DEBUG_NOTIFICATION && response == TRUE)
     zlog_info ("%s", buff);
   return response;
@@ -183,6 +199,7 @@ qthrift_bgp_updater_on_start_config_resync_notification_quick (struct qthrift_vp
       break;
     error = NULL;
   }
+  qthrift_flush_socket(qthrift_vpnservice_get_bgp_updater_socket(ctxt));
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
     zlog_info ("onStartConfigResyncNotification() %s", response == FALSE?"NOK":"OK");
   return response;
@@ -249,6 +266,7 @@ qthrift_bgp_updater_on_notification_send_event (const gchar * prefix, const gint
       break;
     error = NULL;
   }
+  qthrift_flush_socket(qthrift_vpnservice_get_bgp_updater_socket(ctxt));
   if(IS_QTHRIFT_DEBUG_NOTIFICATION)
     zlog_info ("%s %s", buff, response == FALSE?"NOK":"OK");
   return response;
