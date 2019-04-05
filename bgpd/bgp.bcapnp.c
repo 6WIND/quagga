@@ -1302,13 +1302,12 @@ void qcapn_BGPVRFRoute_read(struct bgp_api_route *s, capn_ptr p)
         else if (s->prefix.family == AF_INET6)
           {
             size_t i;
-            u_int32_t *in6;
+            u_char *in6 = &(s->prefix.u.prefix6);
 
-            for(i=0; i < 4; i++)
+            for(i=0; i < sizeof(struct in6_addr); i++)
               {
-                in6 = (uint32_t *)&(s->prefix.u.prefix6);
-                in6+=i;
-                *in6 = htonl(capn_read32(tmp_p, 4 + 4*i));
+                *in6 = capn_read8(tmp_p, 4 + i);
+                in6++;
               }
           }
         else if (s->prefix.family == AF_L2VPN)
@@ -1391,11 +1390,11 @@ void qcapn_BGPVRFRoute_write(const struct bgp_api_route *s, capn_ptr p)
         else if (s->prefix.family == AF_INET6)
           {
             size_t i;
-            uint32_t *in6 = (uint32_t *)&s->prefix.u.prefix6;
-            for(i=0; i < 4; i++)
+            u_char *in6 = &s->prefix.u.prefix6;
+
+            for(i=0; i < sizeof(struct in6_addr); i++)
               {
-                in6+=i;
-                capn_write32(tempptr, 4 + 4*i, ntohl(*(in6)));
+                capn_write8(tempptr, 4 + i, in6[i]);
               }
           }
         else if (s->prefix.family == AF_L2VPN)
