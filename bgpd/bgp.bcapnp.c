@@ -1650,25 +1650,8 @@ void qcapn_BGPEventShut_read(struct bgp_event_shut *s, capn_ptr p)
     
     {
         capn_ptr tmp_p = capn_getp(p, 0, 1);
-        s->peer.family = capn_read8(tmp_p, 0);
-        s->peer.prefixlen = capn_read8(tmp_p, 1);
 
-        if (s->peer.family == AF_INET)
-          {
-            s->peer.u.prefix4.s_addr = htonl(capn_read32(tmp_p, 4));
-          }
-        else if (s->peer.family == AF_INET6)
-          {
-            size_t i;
-            u_int32_t *in6;
-
-            for(i=0; i < 4; i++)
-              {
-                in6 = (uint32_t *)&(s->peer.u.prefix6);
-                in6+=i;
-                *in6 = htonl(capn_read32(tmp_p, 4 + 4*i));
-              }
-          }
+        qcapn_prefix_ipv4ipv6_read (tmp_p, &(s->peer), 0);
     }
     s->type = capn_read8(p, 0);
     s->subtype = capn_read8(p, 1);
@@ -1810,12 +1793,12 @@ void qcapn_prefix_ipv4ipv6_write (capn_ptr p, const struct prefix *pfx, uint8_t 
   else if (pfx->family == AF_INET6)
     {
       size_t i;
-      uint32_t *in6;
-      for(i=0; i < 4; i++)
+      u_char *in6;
+
+      in6 = (uint8_t *)&(pfx->u.prefix6);
+      for(i=0; i < sizeof(struct in6_addr); i++)
         {
-          in6 = (uint32_t *)&(pfx->u.prefix6);
-          in6+=i;
-          capn_write32(tempptr, 4 + 4*i, ntohl(*(in6)));
+          capn_write8(tempptr, 4 + i, in6[i]);
         }
     }
   capn_setp(p, index, tempptr);
@@ -1834,13 +1817,12 @@ void qcapn_prefix_ipv4ipv6_read(capn_ptr p, struct prefix *pfx, uint8_t index)
   else if (pfx->family == AF_INET6)
     {
       size_t i;
-      u_int32_t *in6;
+      u_char *in6 = &(pfx->u.prefix6);
       
-      for(i=0; i < 4; i++)
+      for(i=0; i < sizeof(struct in6_addr); i++)
         {
-          in6 = (uint32_t *)&(pfx->u.prefix6);
-          in6+=i;
-          *in6 = htonl(capn_read32(tmp_p, 4 + 4*i));
+          *in6 = capn_read8(tmp_p, 4 + i);
+          in6++;
         }
     }
 }
