@@ -1726,13 +1726,13 @@ void qcapn_prefix_macip_read(capn_ptr p, struct prefix *pfx, uint8_t *index)
     *index = *index + 1;
     if (pfx->u.prefix_macip.ip_len == 128)
       {
-        uint32_t *in6;
-        for(i=0; i < 4; i++)
+        u_char *in6 = (u_char *)&(pfx->u.prefix_macip.ip.in6);
+
+        for(i=0; i < sizeof(struct in6_addr); i++)
           {
-            in6 = (uint32_t *)&(pfx->u.prefix_macip.ip.in6);
-            in6+=i;
-            *in6 = ntohl(capn_read32(p, *index));
-            *index = *index + 4;
+            *in6 = capn_read8(p, *index);
+            in6++;
+            *index = *index + 1;
           }
       }
     else
@@ -1757,13 +1757,12 @@ void qcapn_prefix_macip_write(capn_ptr p, const struct prefix *pfx, uint8_t *ind
     *index = *index + 1;
     if (pfx->u.prefix_macip.ip_len == 128)
       {
-        for(i=0; i < 4; i++)
+        u_char *in6 = (u_char *)&(pfx->u.prefix_macip.ip.in6);
+
+        for(i=0; i < sizeof(struct in6_addr); i++)
           {
-            uint32_t *in6;
-            in6 = (uint32_t *)&(pfx->u.prefix_macip.ip.in6);
-            in6+=i;
-            capn_write32(p, *index, ntohl(*(in6)));
-            *index = *index + 4;
+            capn_write8(p, *index, in6[i]);
+            *index = *index + 1;
           }
       }
     else
