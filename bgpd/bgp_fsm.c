@@ -1447,6 +1447,8 @@ void bgp_selection_deferral_timer_begin (struct peer *peer, afi_t afi, safi_t sa
   eor->peer = peer;
   eor->afi = afi;
   eor->safi = safi;
+  zlog_debug("%s: %s runs deferral timer for afi %u safi %u for %u seconds",
+	     __func__, peer->host, afi, safi, bgp->v_selection_deferral);
   THREAD_TIMER_MSEC_ON(bm->master, peer->t_selection_deferral[afi][safi],
                        bgp_selection_deferral_timer, eor,
                        bgp->v_selection_deferral);

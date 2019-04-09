@@ -4014,11 +4014,13 @@ bgp_trigger_bgp_selection_check (struct peer *peer, afi_t afi, safi_t safi,
   bool all_peers_eor_received = true;
   bool has_peer = false;
   int is_origin_evpn = 0;
-
+  bool ret;
   assert (rn && peer);
 
-  if (!CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE))
-    return false;
+  if (!CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE)) {
+    ret = false;
+    goto end_trigger_check;
+  }
 
   for (ri = rn->info; ri; ri = ri->next)
     {
@@ -4048,14 +4050,20 @@ bgp_trigger_bgp_selection_check (struct peer *peer, afi_t afi, safi_t safi,
       bgp_node_table (rn)->type == BGP_TABLE_VRF)
     {
       if ((safi == SAFI_MPLS_VPN && is_origin_evpn) ||
-          (safi == SAFI_EVPN && !is_origin_evpn))
-        return false;
+          (safi == SAFI_EVPN && !is_origin_evpn)) {
+        ret = false;
+        goto end_trigger_check;
+      }
     }
 
   if (all_peers_eor_received == true && has_peer == true)
-    return true;
+    ret = true;
   else
-    return false;
+    ret = false;
+ end_trigger_check:
+  zlog_debug("%s: %s, check deferral trigger process afi %u safi %u returns %s",
+	     __func__, peer->host, afi, safi, ret == true ? "TRUE" : "FALSE");
+  return ret;
 }
 
 void
