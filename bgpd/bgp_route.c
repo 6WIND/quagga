@@ -4029,8 +4029,11 @@ bgp_trigger_bgp_selection_check (struct peer *peer, afi_t afi, safi_t safi,
         is_origin_evpn = 1;
 
       /* if graceful restart is disabled, assume eor is not active */
-      if (!CHECK_FLAG(ri->peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_RCV))
+      if (!CHECK_FLAG(ri->peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_RCV)) {
+        if (ri->peer == peer)
+          has_peer = true;
         continue;
+      }
       if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED) &&
           !CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED))
         {
