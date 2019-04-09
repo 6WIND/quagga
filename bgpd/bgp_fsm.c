@@ -1043,7 +1043,7 @@ bgp_establish (struct peer *peer)
         /* launch bgp selection deferral timer for each afi/safi handled by peer
          * only if remote peer is able to perform graceful restart */
         if (peer->afc_nego[afi][safi] &&
-            CHECK_FLAG (peer->cap, PEER_CAP_RESTART_RCV) &&
+            CHECK_FLAG (peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_RCV) &&
             peer->bgp->v_selection_deferral &&
             !bgp_selection_deferral_timer_active (peer, afi, safi))
           bgp_selection_deferral_timer_begin (peer, afi, safi);
