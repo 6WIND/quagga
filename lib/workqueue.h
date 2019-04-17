@@ -118,6 +118,7 @@ extern void work_queue_add (struct work_queue *, void *);
 extern void work_queue_plug (struct work_queue *wq);
 /* unplug the queue, allow it to be drained again */
 extern void work_queue_unplug (struct work_queue *wq);
+extern void work_queue_cleanup (struct work_queue *wq);
 
 bool work_queue_is_scheduled (struct work_queue *);
 
