@@ -240,6 +240,23 @@ work_queue_unplug (struct work_queue *wq)
   work_queue_schedule (wq, wq->spec.hold);
 }
 
+/* 'clean' a queue: clean all nodes in a queue */
+void
+work_queue_cleanup (struct work_queue *wq)
+{
+  struct work_queue_item *item;
+  struct listnode *node, *nnode;
+
+  if (!wq)
+    return;
+  if (listcount (wq->items) == 0)
+    return;
+
+  for (ALL_LIST_ELEMENTS (wq->items, node, nnode, item))
+    {
+      work_queue_item_remove (wq, node);
+    }
+}
 /* timer thread to process a work queue
  * will reschedule itself if required,
  * otherwise work_queue_item_add 
