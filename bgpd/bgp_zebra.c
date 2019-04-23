@@ -226,7 +226,13 @@ bgp_bfd_estab(struct peer *peer)
     /* We BGP is using different addrees than before 
        remove and add neighbor(session) to reflect
        address change */
-    if(!sockunion_same(peer->bfd_su_local, peer->su_local))
+    if(!sockunion_same(peer->bfd_su_local, peer->su_local) ||
+       ((CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_MODE) &&
+         CHECK_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT)) ||
+        (!CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_MODE) &&
+         !CHECK_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT))
+       )
+      )
     {
       bgp_bfd_neigh_del(peer);
       //peer->bfd_flags = 0;
@@ -266,11 +272,13 @@ bgp_bfd_neigh_add(struct peer *peer)
         if (ifp)
           peer->bfd_ifindex = ifp->ifindex;
       }
-
-    if (!CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_MODE))
-      SET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
-    else
-      UNSET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
+    if (peer->status == Established)
+      {
+        if (!CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_MODE))
+          SET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
+        else
+          UNSET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
+      }
 
     if (BGP_DEBUG (events, EVENTS))
       {
