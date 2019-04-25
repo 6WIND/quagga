@@ -2973,6 +2973,7 @@ bgp_delete (struct bgp *bgp)
           peer->status == OpenSent ||
           peer->status == OpenConfirm)
         {
+          if (!bgp_exit_procedure)
             bgp_notify_send (peer, BGP_NOTIFY_CEASE,
                              BGP_NOTIFY_CEASE_PEER_UNCONFIG);
         }
