@@ -67,135 +67,6 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 		  sockunion2str (loc, buf_loc, SU_ADDRSTRLEN), lport,
 		  ifindex2ifname (ifindex));
     }
-  /* If we operate in "Signle Hop" mode:
-     "All received BFD Control packets that are demultiplexed to the
-     session MUST be discarded if the received TTL or Hop Count is not
-     equal to 255." */
-#define IPV6_NOTTL_CHECK
-#ifndef IPV6_NOTTL_CHECK
-  if ((lport == BFD_PORT_1HOP) && (ttl < 255))
-    {
-      if (BFD_IF_DEBUG_NET)
-	zlog_debug ("%s: wrong ttl value for 1-hop session (ttl<255).",
-		    __func__);
-      return BFD_ERR;
-    }
-#else
-  if ((sockunion_family (loc) == AF_INET) &&
-      (lport == BFD_PORT_1HOP) && (ttl < 255))
-    {
-      if (BFD_IF_DEBUG_NET)
-	zlog_debug ("%s: wrong ttl value for 1-hop session (ttl<255).",
-		    __func__);
-      return BFD_ERR;
-    }
-#endif
-
-  /* "The source port MUST be in the range 49152 through 65535." */
-#ifdef STRICT_NEIGHBOR_CHECK
-  if (rport < BFD_SOURCEPORT_MIN)
-    {
-      if (BFD_IF_DEBUG_NET)
-	zlog_debug ("%s: source port not within allowed range.", __func__);
-      return BFD_ERR;
-    }
-#endif
-
-  /* Check if incoming interface is known */
-  ifp = if_lookup_by_index (ifindex);
-  if (ifp == NULL)
-    {
-      if (BFD_IF_DEBUG_NET)
-	{
-	  char buf_rem[SU_ADDRSTRLEN];
-	  zlog_debug ("%s: cannot find interface for packet from %s port %d",
-		      __func__, sockunion2str (rem, buf_rem, SU_ADDRSTRLEN), rport);
-	}
-      return -1;
-    }
-  /* "If the version number is not correct (1), 
-     the packet MUST be discarded." */
-  if (bp->vers != 1)
-    {
-      if (BFD_IF_DEBUG_NET)
-	zlog_debug ("%s: wrong packet version (%d!=1).", __func__, bp->vers);
-      return BFD_ERR;
-    }
-
-  /* "If the Length field is less than the minimum correct value (24 if
-     the A bit is clear, or 26 if the A bit is set), the packet MUST be
-     discarded." */
-  if (((bp->length < BFD_PACKET_SIZE_NOAUTH) && (bp->a == 0))
-      || ((bp->length < BFD_PACKET_SIZE_AUTH) && (bp->a == 1)))
-    {
-      if (BFD_IF_DEBUG_NET)
-	zlog_debug ("%s: too short packet (length=%d,A=%d).", __func__,
-		    bp->length, bp->a);
-      return BFD_ERR;
-    }
-
-  /* "If the Length field is greater than the payload of the
-     encapsulating protocol, the packet MUST be discarded." */
-  if (bp->length > len)
-    {
-      if (BFD_IF_DEBUG_NET)
-	zlog_debug
-	  ("%s: length value from packet suggest that packet is longer "
-	   "than payload of the encapsulating protocol "
-	   "(packet length=%d, payload length=%d).",
-	   __func__, bp->length, len);
-      return BFD_ERR;
-    }
-
-  /* "If the Detect Mult field is zero, the packet MUST be discarded." */
-  if (bp->multiplier == 0)
-    {
-      if (BFD_IF_DEBUG_NET)
-	zlog_debug ("%s: illegal Detection Multiplier (equal to zero).",
-		    __func__);
-      return BFD_ERR;
-    }
-
-  /* "If the Multipoint (M) bit is nonzero, the packet MUST be discarded." */
-  if (bp->m)
-    {
-      if (BFD_IF_DEBUG_NET)
-	zlog_debug ("%s: Non-zero value of M-bit detected.", __func__);
-      return BFD_ERR;
-    }
-
-  /* "A BFD Control packet MUST NOT have both 
-     the Poll (P) and Final (F) bits set." */
-#ifdef STRICT_NEIGHBOR_CHECK
-  if ((bp->p) && (bp->f))
-    {
-      if (BFD_IF_DEBUG_NET)
-	zlog_debug ("%s: P and F-bit set together are not allowed.",
-		    __func__);
-      return BFD_ERR;
-    }
-#endif
-
-  /* "If the My Discriminator field is zero, the packet MUST be discarded." */
-  if (bp->mydisc == 0)
-    {
-      if (BFD_IF_DEBUG_NET)
-	zlog_debug ("%s: illegal My Discriminator (equal to zero).",
-		    __func__);
-      return BFD_ERR;
-    }
-
-  /* "If the Your Discriminator field is zero and the State field is not
-     Down or AdminDown, the packet MUST be discarded." */
-  if ((bp->yourdisc == 0)
-      && (!(bp->sta == BFD_STATE_DOWN || bp->sta == BFD_STATE_ADMINDOWN)))
-    {
-      if (BFD_IF_DEBUG_NET)
-	zlog_debug
-	  ("%s: Your discriminator field is equal to zero "
-	   "while state is not Down or AdminDown.", __func__);
-      return BFD_ERR;
-    }
 
   /* "If the Your Discriminator field is nonzero, it MUST be used to select 
      the session with which this BFD packet is associated.  
@@ -227,7 +98,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
       struct prefix *lp = sockunion2hostprefix (loc, &p_loc);
       struct prefix *rp = sockunion2hostprefix (rem, &p_rem);
 
-      if (!(neighp = bfd_find_neigh (rp, lp, bfd->multihop ? 0 : ifindex)))
+      if (!(neighp = bfd_find_neigh (rp, lp, 0)))
 	{
 	  if (BFD_IF_DEBUG_NET)
 	    {
@@ -245,6 +116,148 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	}
     }
 
+  /* If we operate in "Signle Hop" mode:
+     "All received BFD Control packets that are demultiplexed to the
+     session MUST be discarded if the received TTL or Hop Count is not
+     equal to 255." */
+#define IPV6_NOTTL_CHECK
+#ifndef IPV6_NOTTL_CHECK
+  if ((lport == BFD_PORT_1HOP) && (ttl < 255))
+    {
+      if (BFD_IF_DEBUG_NET)
+	zlog_debug ("%s: wrong ttl value for 1-hop session (ttl<255).",
+		    __func__);
+      neighp->discard_cnt++;
+      return BFD_ERR;
+    }
+#else
+  if ((sockunion_family (loc) == AF_INET) &&
+      (lport == BFD_PORT_1HOP) && (ttl < 255))
+    {
+      if (BFD_IF_DEBUG_NET)
+	zlog_debug ("%s: wrong ttl value for 1-hop session (ttl<255).",
+		    __func__);
+      neighp->discard_cnt++;
+      return BFD_ERR;
+    }
+#endif
+
+  /* "The source port MUST be in the range 49152 through 65535." */
+#ifdef STRICT_NEIGHBOR_CHECK
+  if (rport < BFD_SOURCEPORT_MIN)
+    {
+      if (BFD_IF_DEBUG_NET)
+	zlog_debug ("%s: source port not within allowed range.", __func__);
+      neighp->discard_cnt++;
+      return BFD_ERR;
+    }
+#endif
+
+  /* Check if incoming interface is known */
+  ifp = if_lookup_by_index (ifindex);
+  if (ifp == NULL)
+    {
+      if (BFD_IF_DEBUG_NET)
+	{
+	  char buf_rem[SU_ADDRSTRLEN];
+	  zlog_debug ("%s: cannot find interface for packet from %s port %d",
+		      __func__, sockunion2str (rem, buf_rem, SU_ADDRSTRLEN), rport);
+	}
+      neighp->discard_cnt++;
+      return -1;
+    }
+  /* "If the version number is not correct (1), 
+     the packet MUST be discarded." */
+  if (bp->vers != 1)
+    {
+      if (BFD_IF_DEBUG_NET)
+	zlog_debug ("%s: wrong packet version (%d!=1).", __func__, bp->vers);
+      neighp->discard_cnt++;
+      return BFD_ERR;
+    }
+
+  /* "If the Length field is less than the minimum correct value (24 if
+     the A bit is clear, or 26 if the A bit is set), the packet MUST be
+     discarded." */
+  if (((bp->length < BFD_PACKET_SIZE_NOAUTH) && (bp->a == 0))
+      || ((bp->length < BFD_PACKET_SIZE_AUTH) && (bp->a == 1)))
+    {
+      if (BFD_IF_DEBUG_NET)
+	zlog_debug ("%s: too short packet (length=%d,A=%d).", __func__,
+		    bp->length, bp->a);
+      neighp->discard_cnt++;
+      return BFD_ERR;
+    }
+
+  /* "If the Length field is greater than the payload of the
+     encapsulating protocol, the packet MUST be discarded." */
+  if (bp->length > len)
+    {
+      if (BFD_IF_DEBUG_NET)
+	zlog_debug
+	  ("%s: length value from packet suggest that packet is longer "
+	   "than payload of the encapsulating protocol "
+	   "(packet length=%d, payload length=%d).",
+	   __func__, bp->length, len);
+      neighp->discard_cnt++;
+      return BFD_ERR;
+    }
+
+  /* "If the Detect Mult field is zero, the packet MUST be discarded." */
+  if (bp->multiplier == 0)
+    {
+      if (BFD_IF_DEBUG_NET)
+	zlog_debug ("%s: illegal Detection Multiplier (equal to zero).",
+		    __func__);
+      neighp->discard_cnt++;
+      return BFD_ERR;
+    }
+
+  /* "If the Multipoint (M) bit is nonzero, the packet MUST be discarded." */
+  if (bp->m)
+    {
+      if (BFD_IF_DEBUG_NET)
+	zlog_debug ("%s: Non-zero value of M-bit detected.", __func__);
+      neighp->discard_cnt++;
+      return BFD_ERR;
+    }
+
+  /* "A BFD Control packet MUST NOT have both 
+     the Poll (P) and Final (F) bits set." */
+#ifdef STRICT_NEIGHBOR_CHECK
+  if ((bp->p) && (bp->f))
+    {
+      if (BFD_IF_DEBUG_NET)
+	zlog_debug ("%s: P and F-bit set together are not allowed.",
+		    __func__);
+      neighp->discard_cnt++;
+      return BFD_ERR;
+    }
+#endif
+
+  /* "If the My Discriminator field is zero, the packet MUST be discarded." */
+  if (bp->mydisc == 0)
+    {
+      if (BFD_IF_DEBUG_NET)
+	zlog_debug ("%s: illegal My Discriminator (equal to zero).",
+		    __func__);
+      neighp->discard_cnt++;
+      return BFD_ERR;
+    }
+
+  /* "If the Your Discriminator field is zero and the State field is not
+     Down or AdminDown, the packet MUST be discarded." */
+  if ((bp->yourdisc == 0)
+      && (!(bp->sta == BFD_STATE_DOWN || bp->sta == BFD_STATE_ADMINDOWN)))
+    {
+      if (BFD_IF_DEBUG_NET)
+	zlog_debug
+	  ("%s: Your discriminator field is equal to zero "
+	   "while state is not Down or AdminDown.", __func__);
+      neighp->discard_cnt++;
+      return BFD_ERR;
+    }
+
   if (bp->length > BFD_PACKET_SIZE_NOAUTH)
     {
       /* If the A bit is set and no authentication is in use (bfd.AuthType
@@ -254,6 +267,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	  if (BFD_IF_DEBUG_NET)
 	    zlog_debug ("%s: A-bit set but no authentication in use.",
 			__func__);
+	  neighp->discard_cnt++;
 	  return BFD_ERR;
 	}
 
@@ -264,6 +278,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	  if (BFD_IF_DEBUG_NET)
 	    zlog_debug ("%s: A-bit clear but authentication in use.",
 			__func__);
+	  neighp->discard_cnt++;
 	  return BFD_ERR;
 	}
     }

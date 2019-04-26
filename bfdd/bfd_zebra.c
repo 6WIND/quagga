@@ -428,6 +428,8 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 			 VTY_NEWLINE);
 		vty_out (vty, "Tx Count: %u%s", neighp->xmit_cnt,
 			 VTY_NEWLINE);
+		vty_out (vty, "Discard Count: %u%s", neighp->discard_cnt,
+			 VTY_NEWLINE);
 		vty_out (vty,
 			 "Last packet: Version: %u               - Diagnostic: %u%s",
 			 neighp->rver, neighp->rdiag, VTY_NEWLINE);

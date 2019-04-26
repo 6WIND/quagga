@@ -355,6 +355,7 @@ bfd_neigh_init (struct bfd_cneigh *cneighp)
   neighp->last_recv = 0;
   neighp->xmit_cnt = 0;
   neighp->recv_cnt = 0;
+  neighp->discard_cnt = 0;
   neighp->orecv_cnt = 0;
   neighp->timer_cnt = 0;
   neighp->down_cnt = 0;

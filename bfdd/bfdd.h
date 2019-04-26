@@ -261,6 +261,7 @@ struct bfd_neigh
   time_t last_recv;		/* Time of last received packet  */
   uint32_t xmit_cnt;		/* Total number of transmitted packets */
   uint32_t recv_cnt;		/* Total number of received not discarded packets */
+  uint32_t discard_cnt; 	/* Total number of discarded packets */
   uint32_t orecv_cnt;		/* Snapshot of recv_cnt for session timeout detect. */
   uint32_t timer_cnt;		/* Number of "TIMER" events */
   uint32_t down_cnt;		/* Number of bfd "DOWN" events */
