@@ -272,8 +272,13 @@ bgp_bfd_neigh_add(struct peer *peer)
         if (ifp)
           peer->bfd_ifindex = ifp->ifindex;
       }
-    /* hack to always unset C BIT */
-    UNSET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
+    if (peer->status == Established)
+      {
+        if (!CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_MODE))
+          SET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
+        else
+          UNSET_FLAG(peer->bfd_flags, BFD_CNEIGH_FLAGS_CBIT);
+      }
 
     if (BGP_DEBUG (events, EVENTS))
       {
