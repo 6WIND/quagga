@@ -315,7 +315,8 @@ bfd_neigh_init (struct bfd_cneigh *cneighp)
 
   /* Local and remote BFD CP flags (bits) */
   neighp->lbits = 0;
-  if (CHECK_FLAG (cneighp->flags, BFD_CNEIGH_FLAGS_CBIT))
+  if (!force_cbit_to_unset &&
+      CHECK_FLAG (cneighp->flags, BFD_CNEIGH_FLAGS_CBIT))
     neighp->lbits |= BFD_BIT_C;
   neighp->rbits = 0;
 

@@ -30,6 +30,7 @@
 extern struct thread_master *master;
 extern struct bfd *bfd;
 extern struct neightbl *neightbl;
+extern int force_cbit_to_unset;
 
 #define BFDD_VERSION "0.90.1"
 

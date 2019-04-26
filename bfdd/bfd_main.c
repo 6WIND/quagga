@@ -61,6 +61,7 @@ struct zebra_privs_t bfdd_privs = {
 char config_default[] = SYSCONFDIR BFDD_DEFAULT_CONFIG;
 
 /* Manually specified configuration file name.  */
+int force_cbit_to_unset = 0;
 char *config_file = NULL;
 
 /* Process ID saved for use by init system */
@@ -82,6 +83,7 @@ usage (char *progname, int status)
 BFD Deamon\n\n\
 -d, --daemon       Runs in daemon mode\n\
 -f, --config_file  Set configuration file name\n\
+-c, --cbitunset    Force C-bit to be unset\n\
 -i, --pid_file     Set process identifier file name\n\
 -z, --socket       Set path of zebra socket\n\
 -A, --vty_addr     Set vty's bind address\n\
@@ -120,6 +122,7 @@ static struct option longopts[] = {
   {"group", required_argument, NULL, 'g'},
   {"zeromq",required_argument, NULL, 'Z'},
   {"version", no_argument, NULL, 'v'},
+  {"cbitunset", no_argument, NULL, 'c'},
   {0}
 };
 
@@ -218,7 +221,7 @@ main (int argc, char **argv, char **envp)
     {
       int opt;
 
-      opt = getopt_long (argc, argv, "df:i:z:hA:P:u:g:Z:vC", longopts, 0);
+      opt = getopt_long (argc, argv, "df:i:z:hA:P:u:g:Z:vcC", longopts, 0);
 
       if (opt == EOF)
 	break;
@@ -232,6 +235,9 @@ main (int argc, char **argv, char **envp)
 	  break;
 	case 'f':
 	  config_file = optarg;
+	  break;
+	case 'c':
+	  force_cbit_to_unset = 1;
 	  break;
 	case 'A':
 	  vty_addr = optarg;
