@@ -125,6 +125,8 @@ struct bfd
   char *logLevelSyslog;
 
   struct bfd_if_info global_info;
+  uint32_t total_rx_cnt;
+  uint32_t total_rx_cnt_drop;
 
   QZC_NODE
 };

@@ -49,9 +49,11 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
   uint16_t rport;
   int ret = BFD_ERR;
 
+  bfd->total_rx_cnt++;
   if (len < 0)
     {
       zlog_info ("bfd_recvmsg failed: %s", safe_strerror (errno));
+      bfd->total_rx_cnt_drop++;
       return len;
     }
 
@@ -80,6 +82,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	  if (BFD_IF_DEBUG_NET)
 	    zlog_debug ("%s: No session exists (0x%08x/%d).", __func__,
 			key.ldisc, key.ldisc);
+          bfd->total_rx_cnt_drop++;
 	  return BFD_ERR;
 	}
     }
@@ -112,6 +115,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 		 ntohs (loc->sin.sin_port),
 		 ifindex2ifname (ifindex));
 	    }
+          bfd->total_rx_cnt_drop++;
 	  return BFD_ERR;
 	}
     }
@@ -128,6 +132,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	zlog_debug ("%s: wrong ttl value for 1-hop session (ttl<255).",
 		    __func__);
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return BFD_ERR;
     }
 #else
@@ -138,6 +143,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	zlog_debug ("%s: wrong ttl value for 1-hop session (ttl<255).",
 		    __func__);
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return BFD_ERR;
     }
 #endif
@@ -149,6 +155,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
       if (BFD_IF_DEBUG_NET)
 	zlog_debug ("%s: source port not within allowed range.", __func__);
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return BFD_ERR;
     }
 #endif
@@ -164,6 +171,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 		      __func__, sockunion2str (rem, buf_rem, SU_ADDRSTRLEN), rport);
 	}
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return -1;
     }
   /* "If the version number is not correct (1), 
@@ -173,6 +181,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
       if (BFD_IF_DEBUG_NET)
 	zlog_debug ("%s: wrong packet version (%d!=1).", __func__, bp->vers);
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return BFD_ERR;
     }
 
@@ -186,6 +195,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	zlog_debug ("%s: too short packet (length=%d,A=%d).", __func__,
 		    bp->length, bp->a);
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return BFD_ERR;
     }
 
@@ -200,6 +210,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	   "(packet length=%d, payload length=%d).",
 	   __func__, bp->length, len);
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return BFD_ERR;
     }
 
@@ -210,6 +221,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	zlog_debug ("%s: illegal Detection Multiplier (equal to zero).",
 		    __func__);
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return BFD_ERR;
     }
 
@@ -219,6 +231,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
       if (BFD_IF_DEBUG_NET)
 	zlog_debug ("%s: Non-zero value of M-bit detected.", __func__);
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return BFD_ERR;
     }
 
@@ -231,6 +244,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	zlog_debug ("%s: P and F-bit set together are not allowed.",
 		    __func__);
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return BFD_ERR;
     }
 #endif
@@ -242,6 +256,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	zlog_debug ("%s: illegal My Discriminator (equal to zero).",
 		    __func__);
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return BFD_ERR;
     }
 
@@ -255,6 +270,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	  ("%s: Your discriminator field is equal to zero "
 	   "while state is not Down or AdminDown.", __func__);
       neighp->discard_cnt++;
+      bfd->total_rx_cnt_drop++;
       return BFD_ERR;
     }
 
@@ -268,6 +284,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	    zlog_debug ("%s: A-bit set but no authentication in use.",
 			__func__);
 	  neighp->discard_cnt++;
+	  bfd->total_rx_cnt_drop++;
 	  return BFD_ERR;
 	}
 
@@ -279,6 +296,7 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
 	    zlog_debug ("%s: A-bit clear but authentication in use.",
 			__func__);
 	  neighp->discard_cnt++;
+	  bfd->total_rx_cnt_drop++;
 	  return BFD_ERR;
 	}
     }

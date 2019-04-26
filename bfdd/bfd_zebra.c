@@ -300,6 +300,8 @@ DEFUN (show_bfd_global_config,
   vty_out (vty, "debounce-up:    %u%s", bfd->debounce_up, VTY_NEWLINE);
   vty_out (vty, "lreqminrx:      %u%s", bfd->lreqminrx, VTY_NEWLINE);
   vty_out (vty, "ldesmintx:      %u%s", bfd->ldesmintx, VTY_NEWLINE);
+  vty_out (vty, "Total Rx count: %u%s", bfd->total_rx_cnt, VTY_NEWLINE);
+  vty_out (vty, "Total Rx drop:  %u%s", bfd->total_rx_cnt_drop, VTY_NEWLINE);
 
   if (bfd->underlay_limit_enable)
     vty_out (vty, "bfd underlay limit: enabled%s", VTY_NEWLINE);
