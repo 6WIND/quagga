@@ -4061,8 +4061,6 @@ bgp_trigger_bgp_selection_check (struct peer *peer, afi_t afi, safi_t safi,
   else
     ret = false;
  end_trigger_check:
-  zlog_debug("%s: %s, check deferral trigger process afi %u safi %u returns %s",
-	     __func__, peer->host, afi, safi, ret == true ? "TRUE" : "FALSE");
   return ret;
 }
 
