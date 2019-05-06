@@ -650,6 +650,7 @@ struct peer
 #define PEER_STATUS_EOR_RECEIVED      (1 << 6) /* end-of-rib received from peer */
 #define PEER_STATUS_EORR_READY_TO_SEND (1 << 7) /* end-of-rib marker for sender */
 #define PEER_STATUS_SELECTION_DEFERRAL_EXPIRED (1 << 8) /* bgp path selection deferral timer expired */
+#define PEER_STATUS_FIRST_KEEPALIVE_RECEIVED   (1 << 9) /* keepalive received from peer */
 
 
   /* Default attribute value for the peer. */

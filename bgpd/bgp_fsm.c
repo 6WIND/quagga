@@ -1145,6 +1145,16 @@ bgp_fsm_keepalive (struct peer *peer)
   peer->keepalive_in++;
 
   BGP_TIMER_OFF (peer->t_holdtime);
+  /* from https://blog.ine.com/2010/11/22/understanding-bgp-convergence
+   * BGP process determines the end of UPDATE messages flow in either
+   * of two ways: receiving BGP KEEPALIVE message or receiving BGP End-of-RIB message.
+   * The last message is normally used for BGP graceful restart (see [13]), but could
+   * also be used to explicitly signalize the end of BGP UPDATE exchange process. Even
+   * if BGP process does not support the End-of-RIB marker, Cisco's BGP implementation
+   * always sends a KEEPALIVE message when it finishes sending updates to a peer.
+   */
+  bgp_trigger_bgp_selection_peer (peer);
+
   return 0;
 }
 

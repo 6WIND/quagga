@@ -336,6 +336,8 @@ extern void
 bgp_vrf_update_global_rib_perafisafi (struct bgp_vrf *vrf, afi_t afi, safi_t safi);
 extern void
 bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi);
+extern void
+bgp_trigger_bgp_selection_peer (struct peer *peer);
 
 extern void
 bgp_vrf_update_global_rib_l2vpn (struct bgp_vrf *vrf, afi_t afi);

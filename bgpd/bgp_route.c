@@ -4037,7 +4037,8 @@ bgp_trigger_bgp_selection_check (struct peer *peer, afi_t afi, safi_t safi,
         continue;
       }
       if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED) &&
-          !CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED))
+          !CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED) &&
+          !CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_FIRST_KEEPALIVE_RECEIVED))
         {
           all_peers_eor_received = false;
           break;
@@ -4158,6 +4159,43 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
   return;
 }
 
+void
+bgp_trigger_bgp_selection_peer (struct peer *peer)
+{
+  afi_t afi;
+  safi_t safi;
+
+  /* check established */
+  if (peer->status != Established)
+    return;
+  /* check afc selected */
+
+  for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
+      if (peer->afc[afi][safi])
+        {
+	  /* End-of-RIB received */
+	  if (CHECK_FLAG (peer->af_sflags[afi][safi],
+                          PEER_STATUS_EOR_RECEIVED))
+            continue;
+
+          /* first keepalive message received */
+	  if (CHECK_FLAG (peer->af_sflags[afi][safi],
+                          PEER_STATUS_FIRST_KEEPALIVE_RECEIVED))
+            continue;
+
+	  if (BGP_DEBUG (normal, NORMAL))
+	    zlog (peer->log, LOG_DEBUG, "rcvd Keepalive for %s from %s",
+		  peer->host, afi_safi_print (afi, safi));
+
+	  SET_FLAG (peer->af_sflags[afi][safi],
+                    PEER_STATUS_FIRST_KEEPALIVE_RECEIVED);
+          bgp_trigger_bgp_selection (peer, afi, safi);
+          /* Stop bgp selection deferral timer */
+          if (bgp_selection_deferral_timer_active (peer, afi, safi))
+            bgp_selection_deferral_timer_end (peer, afi, safi);
+        }
+}
 static void
 bgp_process_send (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
 {
@@ -4268,7 +4306,8 @@ bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
       continue;
     /* if eor is not received yet, cancel enqueuing of rm */
     if (!CHECK_FLAG (ri->peer->af_sflags[orig_afi][orig_safi], PEER_STATUS_EOR_RECEIVED) &&
-        !CHECK_FLAG (ri->peer->af_sflags[orig_afi][orig_safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED)) {
+        !CHECK_FLAG (ri->peer->af_sflags[orig_afi][orig_safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED) &&
+        !CHECK_FLAG (ri->peer->af_sflags[orig_afi][orig_safi], PEER_STATUS_FIRST_KEEPALIVE_RECEIVED)) {
       SET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
       return;
     }

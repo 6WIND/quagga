@@ -1131,8 +1131,10 @@ bgp_write_packet (struct peer *peer)
                                       PEER_CAP_RESTART_BIT_ADV))
 		    && ! CHECK_FLAG (adv->binfo->flags, BGP_INFO_STALE))
 		  {
-		    if (CHECK_FLAG (adv->binfo->peer->af_sflags[afi][safi],
-			PEER_STATUS_EOR_RECEIVED))
+		    if ((CHECK_FLAG (adv->binfo->peer->af_sflags[afi][safi],
+                                     PEER_STATUS_EOR_RECEIVED)) ||
+                         (CHECK_FLAG (adv->binfo->peer->af_sflags[afi][safi],
+                                      PEER_STATUS_FIRST_KEEPALIVE_RECEIVED)))
 		      s = bgp_update_packet (peer, afi, safi);
 		  }
 		else
