@@ -741,16 +741,19 @@ bgp_stop (struct peer *peer)
 
   peer->update_time = 0;
 
+  /* using this counter to account for reception of prefixes or not
+   * for the last establishement of peer,r reset must be done here
+   */
   /* Until we are sure that there is no problem about prefix count
      this should be commented out.*/
-#if 0
+
   /* Reset prefix count */
   peer->pcount[AFI_IP][SAFI_UNICAST] = 0;
   peer->pcount[AFI_IP][SAFI_MULTICAST] = 0;
   peer->pcount[AFI_IP][SAFI_MPLS_VPN] = 0;
   peer->pcount[AFI_IP6][SAFI_UNICAST] = 0;
   peer->pcount[AFI_IP6][SAFI_MULTICAST] = 0;
-#endif /* 0 */
+  peer->pcount[AFI_IP6][SAFI_MPLS_VPN] = 0;
 
   /* Delete all nodes of VPNv4 and EVPN default routes list */
   if (peer->def_route_rd_vpnv4)

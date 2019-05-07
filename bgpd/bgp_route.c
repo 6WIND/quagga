@@ -4164,12 +4164,26 @@ bgp_trigger_bgp_selection_peer (struct peer *peer)
 {
   afi_t afi;
   safi_t safi;
+  bool prefixes_received = false;
 
   /* check established */
   if (peer->status != Established)
     return;
-  /* check afc selected */
 
+  /* check  updates have been received
+   * if not, do not trigger bgp selection
+   */
+  for (afi = AFI_IP; afi < AFI_MAX; afi++)
+    for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
+      if (ri->peer->pcount[afi][safi]) {
+        prefixes_received = true;
+        break;
+      }
+
+  if (!prefixes_received)
+    return;
+
+  /* check afc selected */
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
       if (peer->afc[afi][safi])
