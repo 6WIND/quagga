@@ -4164,23 +4164,9 @@ bgp_trigger_bgp_selection_peer (struct peer *peer)
 {
   afi_t afi;
   safi_t safi;
-  bool prefixes_received = false;
 
   /* check established */
   if (peer->status != Established)
-    return;
-
-  /* check  updates have been received
-   * if not, do not trigger bgp selection
-   */
-  for (afi = AFI_IP; afi < AFI_MAX; afi++)
-    for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
-      if (ri->peer->pcount[afi][safi]) {
-        prefixes_received = true;
-        break;
-      }
-
-  if (!prefixes_received)
     return;
 
   /* check afc selected */
@@ -4188,28 +4174,35 @@ bgp_trigger_bgp_selection_peer (struct peer *peer)
     for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
       if (peer->afc[afi][safi])
         {
-	  /* End-of-RIB received */
-	  if (CHECK_FLAG (peer->af_sflags[afi][safi],
-                          PEER_STATUS_EOR_RECEIVED))
-            continue;
-
-          /* first keepalive message received */
-	  if (CHECK_FLAG (peer->af_sflags[afi][safi],
+          /* End-of-RIB received */
+          if (CHECK_FLAG (peer->af_sflags[afi][safi],
+                          PEER_STATUS_EOR_RECEIVED) ||
+              CHECK_FLAG (peer->af_sflags[afi][safi],
+                          PEER_STATUS_SELECTION_DEFERRAL_EXPIRED) ||
+              CHECK_FLAG (peer->af_sflags[afi][safi],
                           PEER_STATUS_FIRST_KEEPALIVE_RECEIVED))
             continue;
 
-	  if (BGP_DEBUG (normal, NORMAL))
-	    zlog (peer->log, LOG_DEBUG, "rcvd Keepalive for %s from %s",
-		  peer->host, afi_safi_print (afi, safi));
+          /* If BGP UPDATE messages have been received, trigger
+           * bgp best selection.
+           */
+          if (peer->pcount[afi][safi])
+            {
+              if (BGP_DEBUG (normal, NORMAL))
+                zlog (peer->log, LOG_DEBUG,
+                      "KEEPALIVE rcvd %s, trigger bgp best selection for %s",
+                      peer->host, afi_safi_print (afi, safi));
 
-	  SET_FLAG (peer->af_sflags[afi][safi],
-                    PEER_STATUS_FIRST_KEEPALIVE_RECEIVED);
-          bgp_trigger_bgp_selection (peer, afi, safi);
-          /* Stop bgp selection deferral timer */
-          if (bgp_selection_deferral_timer_active (peer, afi, safi))
-            bgp_selection_deferral_timer_end (peer, afi, safi);
+              SET_FLAG (peer->af_sflags[afi][safi],
+                        PEER_STATUS_FIRST_KEEPALIVE_RECEIVED);
+              bgp_trigger_bgp_selection (peer, afi, safi);
+              /* Stop bgp selection deferral timer */
+              if (bgp_selection_deferral_timer_active (peer, afi, safi))
+                bgp_selection_deferral_timer_end (peer, afi, safi);
+            }
         }
 }
+
 static void
 bgp_process_send (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
 {
