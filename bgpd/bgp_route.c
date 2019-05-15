@@ -302,6 +302,7 @@ bgp_pcount_adjust (struct bgp_node *rn, struct bgp_info *ri)
       /* slight hack, but more robust against errors. */
       if (ri->peer->pcount[table->afi][table->safi])
         ri->peer->pcount[table->afi][table->safi]--;
+#if 0
       else
         {
           zlog_warn ("%s: Asked to decrement 0 prefix count for peer %s",
@@ -309,6 +310,7 @@ bgp_pcount_adjust (struct bgp_node *rn, struct bgp_info *ri)
           zlog_backtrace (LOG_WARNING);
           zlog_warn ("%s: Please report to Quagga bugzilla", __func__);
         }      
+#endif
     }
   else if (BGP_INFO_COUNTABLE (ri)
            && !CHECK_FLAG (ri->flags, BGP_INFO_COUNTED))
