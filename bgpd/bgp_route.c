@@ -10151,6 +10151,7 @@ route_vty_out_detail (struct vty *vty, struct bgp *bgp, struct prefix *p,
 #define BGP_SHOW_HEADER "   Network          Next Hop            Metric LocPrf Weight Path%s"
 #define BGP_SHOW_DAMP_HEADER "   Network          From             Reuse    Path%s"
 #define BGP_SHOW_FLAP_HEADER "   Network          From            Flaps Duration Reuse    Path%s"
+#define BGP_SHOW_TAG_HEADER  "   Network          Next Hop      In tag/Out tag%s"
 
 enum bgp_show_type
 {
@@ -10178,7 +10179,8 @@ enum bgp_show_type
   bgp_show_type_flap_route_map,
   bgp_show_type_flap_neighbor,
   bgp_show_type_dampend_paths,
-  bgp_show_type_damp_neighbor
+  bgp_show_type_damp_neighbor,
+  bgp_show_type_tags
 };
 
 static int
@@ -10369,7 +10371,9 @@ bgp_show_table (struct vty *vty, struct bgp_table *table, struct in_addr *router
 			 || type == bgp_show_type_flap_route_map
 			 || type == bgp_show_type_flap_neighbor)
 		  vty_out (vty, BGP_SHOW_FLAP_HEADER, VTY_NEWLINE);
-		else
+		else if (type == bgp_show_type_tags)
+                  vty_out (vty, BGP_SHOW_TAG_HEADER, VTY_NEWLINE);
+                else
 		  vty_out (vty, BGP_SHOW_HEADER, VTY_NEWLINE);
 		header = 0;
 	      }
@@ -10388,7 +10392,9 @@ bgp_show_table (struct vty *vty, struct bgp_table *table, struct in_addr *router
 		     || type == bgp_show_type_flap_route_map
 		     || type == bgp_show_type_flap_neighbor)
 	      flap_route_vty_out (vty, &rn->p, ri, display, safi);
-	    else
+	    else if (type == bgp_show_type_tags)
+              route_vty_out_tag (vty, &rn->p, ri, 0, safi);
+            else
               if(display_all)
                 route_vty_out (vty, &rn->p, ri, 0, safi);
               else
@@ -10599,13 +10605,26 @@ bgp_show_vrf (struct vty *vty, const char *vrf_name, afi_t afi,
          enum bgp_show_type type, void *output_arg)
 {
   struct bgp *bgp = bgp_get_default();
-  struct bgp_vrf *vrf;
+  struct bgp_vrf *vrf = NULL;
   struct prefix_rd prd;
+  struct listnode *node;
+  char buf[RD_ADDRSTRLEN];
 
   if (! bgp)
     {
       vty_out (vty, "%% No default BGP instance%s", VTY_NEWLINE);
       return CMD_WARNING;
+    }
+  if (!vrf_name)
+    {
+      for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+        {
+          prefix_rd2str (&(vrf->outbound_rd), buf, RD_ADDRSTRLEN);
+          vty_out (vty, "Route Distinguisher: %s%s", buf, VTY_NEWLINE);
+          bgp_show_table (vty, vrf->rib[afi],
+                          &bgp->router_id, type, output_arg, 1);
+        }
+        return;
     }
   if (! str2prefix_rd (vrf_name, &prd))
     {
@@ -10908,6 +10927,42 @@ DEFUN (show_ip_bgp_vrf,
   return bgp_show_vrf (vty, argv[0], AFI_IP, bgp_show_type_normal, NULL);
 }
 
+DEFUN (show_ip_bgp_vrf_all,
+       show_ip_bgp_vrf_all_cmd,
+       "show ip bgp vrf-all",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "All VRFs\n")
+{
+  return bgp_show_vrf (vty, NULL, AFI_IP, bgp_show_type_normal, NULL);
+}
+
+DEFUN (show_ip_bgp_vrf_all_tags,
+       show_ip_bgp_vrf_all_tags_cmd,
+       "show ip bgp vrf-all tags",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "All VRFs\n"
+       "Tags\n")
+{
+  return bgp_show_vrf (vty, NULL, AFI_IP, bgp_show_type_tags, NULL);
+}
+
+DEFUN (show_ip_bgp_vrf_tags,
+       show_ip_bgp_vrf_tags_cmd,
+       "show ip bgp vrf WORD tags",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "VRF\n"
+       "Route Distinguisher\n"
+       "Tags\n")
+{
+  return bgp_show_vrf (vty, argv[0], AFI_IP, bgp_show_type_tags, NULL);
+}
+
 DEFUN (show_ip_bgp_vrf_neighbor_received,
        show_ip_bgp_vrf_neighbor_received_cmd,
        "show ip bgp vrf WORD neighbor A.B.C.D received-routes",
@@ -10933,6 +10988,42 @@ DEFUN (show_ipv6_bgp_vrf,
        "Route Distinguisher\n")
 {
   return bgp_show_vrf (vty, argv[0], AFI_IP6, bgp_show_type_normal, NULL);
+}
+
+DEFUN (show_ipv6_bgp_vrf_all,
+       show_ipv6_bgp_vrf_all_cmd,
+       "show ipv6 bgp vrf-all",
+       SHOW_STR
+       IPV6_STR
+       BGP_STR
+       "All VRFs\n")
+{
+  return bgp_show_vrf (vty, NULL, AFI_IP6, bgp_show_type_normal, NULL);
+}
+
+DEFUN (show_ipv6_bgp_vrf_all_tags,
+       show_ipv6_bgp_vrf_all_tags_cmd,
+       "show ipv6 bgp vrf-all tags",
+       SHOW_STR
+       IPV6_STR
+       BGP_STR
+       "All VRFs\n"
+       "Tags\n")
+{
+  return bgp_show_vrf (vty, NULL, AFI_IP6, bgp_show_type_tags, NULL);
+}
+
+DEFUN (show_ipv6_bgp_vrf_tags,
+       show_ipv6_bgp_vrf_tags_cmd,
+       "show ipv6 bgp vrf WORD tags",
+       SHOW_STR
+       IPV6_STR
+       BGP_STR
+       "VRF\n"
+       "Route Distinguisher\n"
+       "Tags\n")
+{
+  return bgp_show_vrf (vty, argv[0], AFI_IP6, bgp_show_type_tags, NULL);
 }
 
 DEFUN (show_ip_bgp_ipv4,
@@ -20982,8 +21073,14 @@ bgp_route_init (void)
   /* old style commands */
   install_element (VIEW_NODE, &show_ip_bgp_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vrf_cmd);
+  install_element (VIEW_NODE, &show_ip_bgp_vrf_tags_cmd);
+  install_element (VIEW_NODE, &show_ip_bgp_vrf_all_cmd);
+  install_element (VIEW_NODE, &show_ip_bgp_vrf_all_tags_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_vrf_neighbor_received_cmd);
   install_element (VIEW_NODE, &show_ipv6_bgp_vrf_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_vrf_tags_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_vrf_all_cmd);
+  install_element (VIEW_NODE, &show_ipv6_bgp_vrf_all_tags_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_route_pathtype_cmd);
