@@ -597,6 +597,9 @@ bgp_stop (struct peer *peer)
 	    }
 	  else
 	    {
+              struct thread *old_t_gr_restart = peer->t_gr_restart;
+              struct thread *old_t_gr_stale = peer->t_gr_stale;
+
 	      if (BGP_DEBUG (events, EVENTS))
 		{
 		  zlog_debug ("%s graceful restart timer started for %d sec",
@@ -606,9 +609,18 @@ bgp_stop (struct peer *peer)
 		}
 	      BGP_TIMER_ON (peer->t_gr_restart, bgp_graceful_restart_timer_expire,
 			    peer->v_gr_restart);
+              if (old_t_gr_restart) {
+                BGP_TIMER_OFF(peer->t_gr_restart);
+                BGP_TIMER_ON (peer->t_gr_restart, bgp_graceful_restart_timer_expire,
+                              peer->v_gr_restart);
+              }
 	      BGP_TIMER_ON (peer->t_gr_stale, bgp_graceful_stale_timer_expire,
 			    peer->bgp->stalepath_time);
-
+              if (old_t_gr_stale) {
+                BGP_TIMER_OFF(peer->t_gr_stale);
+                BGP_TIMER_ON (peer->t_gr_stale, bgp_graceful_stale_timer_expire,
+                              peer->bgp->stalepath_time);
+              }
 	      /* peerUp() is expected when bgp session is established again */
 	      SET_FLAG (peer->sflags, PEER_STATUS_PEER_DOWN_SENT);
 	      UNSET_FLAG (peer->sflags, PEER_STATUS_PEER_UP_SENT);
