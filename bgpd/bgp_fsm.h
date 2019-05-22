@@ -51,6 +51,9 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
   do {						\
     if (!(T) && (peer->status != Deleted))	\
       THREAD_TIMER_ON(bm->master,(T),(F),peer,(V)); \
+    else if (T)                                 \
+      zlog_warn("thread already launched, remain %u sec", \
+                thread_timer_remain_second(T)); \
   } while (0)
 
 #define BGP_TIMER_OFF(T)			\
