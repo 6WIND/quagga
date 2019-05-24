@@ -2059,6 +2059,47 @@ static void bgp_vrf_process_two (struct bgp_vrf *vrf, afi_t afi, safi_t safi, st
           bgp_info_add (vrf_rn, iter);
           bgp_unlock_node (vrf_rn);
         }
+      else
+        {
+          if (CHECK_FLAG(iter->flags, BGP_INFO_REMOVED))
+            {
+              if (BGP_DEBUG (events, EVENTS))
+                {
+                  char vrf_rd_str[RD_ADDRSTRLEN], pfx_str[PREFIX_STRLEN];
+
+                  prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+                  prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
+                  zlog_debug ("vrf[%s]: %s rcvd %s, flapped quicker than processing",
+                              vrf_rd_str, iter->peer->host, pfx_str);
+                }
+
+              bgp_info_restore (vrf_rn, iter);
+              if (action == ROUTE_INFO_TO_ADD)
+                {
+                  /* because onUpdateWithdraw is not sent yet, signify a withdraw */
+                  bgp_vrf_update (vrf, afi, vrf_rn, iter, false);
+                  /* update labels labels */
+                  /* update attr part / containing next hop */
+                  if(select->extra)
+                    {
+                      iter->extra->nlabels = select->extra->nlabels;
+                      memcpy (iter->extra->labels, select->extra->labels,
+                              select->extra->nlabels * sizeof(select->extra->labels[0]));
+                    }
+                  if(select->attr)
+                    {
+                      if(iter->attr)
+                        bgp_attr_unintern(&iter->attr);
+                      iter->attr = bgp_attr_intern (select->attr);
+                    }
+                  /* if changes, update, and permit resending
+                     information */
+                  bgp_info_set_flag (rn, iter, BGP_INFO_ATTR_CHANGED);
+                  UNSET_FLAG (iter->flags, BGP_INFO_UPDATE_SENT);
+                }
+            }
+        }
+
       if (BGP_DEBUG (events, EVENTS))
         {
           char nh_str[BUFSIZ] = "<?>";
