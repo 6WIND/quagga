@@ -5643,6 +5643,7 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
           /* Process change. */
           bgp_aggregate_increment (bgp, p, ri, afi, safi);
           bgp_process (bgp, rn, afi, safi);
+          bgp_vrf_process_imports2(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri);
           bgp_unlock_node (rn);
           aspath_unintern (&attr.aspath);
           bgp_attr_extra_free (&attr);
