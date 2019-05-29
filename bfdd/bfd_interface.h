@@ -27,10 +27,11 @@
 /* in msec */
 #define BFD_IF_INTERVAL_DFT	60000
 #define BFD_IF_INTERVAL_MIN	200
-#define BFD_IF_INTERVAL_MAX	60000
+/* maximum value that can be stored in uint32, if value has to x ed by 1000 */
+#define BFD_IF_INTERVAL_MAX	4294967
 #define BFD_IF_MINRX_DFT	500
 #define BFD_IF_MINRX_MIN	20
-#define BFD_IF_MINRX_MAX	30000
+#define BFD_IF_MINRX_MAX	4294967
 
 #define MIN_BFD_DEBOUNCE_DOWN 100
 #define MAX_BFD_DEBOUNCE_DOWN 5000

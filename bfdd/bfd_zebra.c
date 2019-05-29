@@ -65,7 +65,7 @@ bfd_zclient_reset (void)
 
 DEFUN (bfd_interval,
        bfd_interval_cmd,
-       "bfd interval <200-30000> min_rx <200-30000> multiplier <1-20>",
+       "bfd interval <200-4294967> min_rx <200-4294967> multiplier <1-255>",
        "BFD configuration\n"
        "desired transmit interval\n"
        "msec\n"
@@ -201,7 +201,7 @@ DEFUN (clear_bfd_neighbors_peer_stats,
 
 DEFUN (bfd_rx_interval,
        bfd_rx_interval_cmd,
-       "bfd rx-interval <20-30000> tx-interval <200-60000> threshold <1-20> (single-hop|multihop)",
+       "bfd rx-interval <20-4294967> tx-interval <200-4294967> threshold <1-20> (single-hop|multihop)",
        "BFD configuration\n"
        "desired receive interval\n"
        "msec\n"
@@ -267,23 +267,23 @@ DEFUN (bfd_debounce_timer,
 
 DEFUN (bfd_lreqminrx,
        bfd_lreqminrx_cmd,
-       "bfd lreqminrx <0-30000>",
+       "bfd lreqminrx <0-4294967>",
        "BFD configuration\n"
        "Local required min rx interval\n"
        "msec\n")
 {
-  bfd->lreqminrx = atoi (argv[0]);
+  bfd->lreqminrx = atol (argv[0]);
   return CMD_SUCCESS;
 }
 
 DEFUN (bfd_ldesmintx,
        bfd_ldesmintx_cmd,
-       "bfd ldesmintx <0-60000>",
+       "bfd ldesmintx <0-4294967>",
        "BFD configuration\n"
        "Local desired min tx interval\n"
        "msec\n")
 {
-  bfd->ldesmintx = atoi (argv[0]);
+  bfd->ldesmintx = atol (argv[0]);
   return CMD_SUCCESS;
 }
 
