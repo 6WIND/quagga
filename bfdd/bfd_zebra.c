@@ -337,7 +337,6 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 	    char buf[INET6_ADDRSTRLEN];
 	    char rbuf[INET6_ADDRSTRLEN];
 	    char lbuf[INET6_ADDRSTRLEN];
-	    struct interface *ifp;
 	    struct bfd_neigh *neighp = (struct bfd_neigh *) subnode->info;
 
 	    if ((type == show_peer) && su &&
@@ -352,16 +351,15 @@ bfd_sh_bfd_neigh_tbl (struct vty *vty, int mode,
 	    if (*header || (mode == BFD_SH_NEIGH_DET))
 	      {
 		vty_out (vty,
-			 "OutAddr          NeighAddr         LD/RD Holdown(mult) State     Int%s",
+			 "OutAddr          NeighAddr         LD/RD Holdown(mult) State%s",
 			 VTY_NEWLINE);
 		*header = 0;
 	      }
-	    ifp = if_lookup_by_index_vrf(neighp->ifindex,VRF_DEFAULT);
-	    vty_out (vty, "%-16s %-16s %3u/%-3u %4u(%d) %9s %8s%s",
+	    vty_out (vty, "%-16s %-16s %3u/%-3u %4u(%d) %9s%s",
 		     lbuf, rbuf, neighp->ldisc, neighp->rdisc,
 		     MSEC (neighp->dtime), neighp->rmulti,
 		     bfd_state_str[neighp->lstate],
-		     ifp ? ifp->name : "", VTY_NEWLINE);
+		     VTY_NEWLINE);
 
 	    if (mode == BFD_SH_NEIGH_DET)
 	      {
