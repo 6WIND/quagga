@@ -210,6 +210,8 @@ bfd_fsm_neigh_del (struct bfd_neigh *neighp)
 static int
 bfd_fsm_ignore (struct bfd_neigh *neighp)
 {
+  neighp->discard_cnt++;
+  bfd->total_rx_cnt_drop++;
   if (BFD_IF_DEBUG_FSM)
     BFD_FSM_LOG_DEBUG_NOARG ("ignoring packet") return BFD_OK;
 }
@@ -217,6 +219,8 @@ bfd_fsm_ignore (struct bfd_neigh *neighp)
 static int
 bfd_fsm_discard (struct bfd_neigh *neighp)
 {
+  neighp->discard_cnt++;
+  bfd->total_rx_cnt_drop++;
   if (BFD_IF_DEBUG_FSM)
     BFD_FSM_LOG_DEBUG_NOARG ("discarding packet") return BFD_ERR;
 }
