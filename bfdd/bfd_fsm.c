@@ -209,8 +209,7 @@ bfd_fsm_neigh_del (struct bfd_neigh *neighp)
   BFD_TIMER_OFF (neighp->t_debounce_up);
   BFD_TIMER_OFF (neighp->t_debounce_down);
   BFD_TIMER_OFF (neighp->t_underlay_limit);
-  BFD_TIMER_MSEC_ON (neighp->t_delete, bfd_fsm_delete,
-		     MSEC (neighp->negtxint * neighp->lmulti));
+  BFD_TIMER_MSEC_ON (neighp->t_delete, bfd_fsm_delete, 1000);
 
   neighp->uptime = 0;
 
