@@ -270,9 +270,6 @@ bfd_neigh_init (struct bfd_cneigh *cneighp)
   /* Local and Remote session state */
   neighp->lstate = BFD_STATE_DOWN;	/* "MUST be initialized to Down." */
   neighp->rstate = BFD_STATE_DOWN;	/* "MUST be initialized to Down." */
-  /* Local and Remote discriminators */
-  neighp->ldisc = bfd_get_mydisc ();	/* Get unique local discriminator */
-  neighp->rdisc = 0;		/* "MUST be initialized to zero." */
 
   /* Local and remote diagnostic 
      "This MUST be initialized to zero (No Diagnostic.)" */
@@ -350,6 +347,13 @@ bfd_neigh_init (struct bfd_cneigh *cneighp)
   neighp->lport = 0;
   neighp->su_local = hostprefix2sockunion (&cneighp->laddr);
   neighp->su_remote = hostprefix2sockunion (&cneighp->raddr);
+
+  /* Local and Remote discriminators */
+  if (neighp->su_local->sa.sa_family == AF_INET)
+    neighp->ldisc = ntohl(sockunion2ip(neighp->su_remote));
+  else
+    neighp->ldisc = bfd_get_mydisc ();	/* Get unique local discriminator */
+  neighp->rdisc = 0;		/* "MUST be initialized to zero." */
 
   /* Statistics */
   neighp->uptime = 0;
