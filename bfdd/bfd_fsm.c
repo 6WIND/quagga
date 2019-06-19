@@ -114,7 +114,7 @@ bfd_fsm_stimeout (struct thread *thread)
       /* Update passive flag in case interface state has changed */
       bfd_neigh_if_passive_update (neighp);
       /* If passive mode is desired stop transmission of periodic BFDCP */
-      if (bfd_neigh_check_lbit_p (neighp))
+      if (bfd_flag_passive_check (neighp))
 	BFD_TIMER_OFF (neighp->t_hello);
     }
   return BFD_OK;
