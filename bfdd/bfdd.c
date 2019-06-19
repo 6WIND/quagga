@@ -666,6 +666,11 @@ bfd_neigh_start (struct bfd_neigh *neighp)
   bfd_neigh_if_passive_update (neighp);
   if (!bfd_flag_passive_check (neighp))
     bfd_fsm_neigh_add (neighp);
+  else
+    {
+      if (bfd->passive_startup_only)
+        bfd_event (neighp, FSM_E_RecvDown);
+    }
   return BFD_OK;
 }
 
