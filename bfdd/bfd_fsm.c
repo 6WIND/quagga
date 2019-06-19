@@ -199,6 +199,11 @@ bfd_fsm_neigh_del (struct bfd_neigh *neighp)
 		     MSEC (neighp->negtxint * neighp->lmulti));
 
   neighp->uptime = 0;
+  if (neighp->status == FSM_S_Up)
+    {
+      if (bfd->nr_available_neighs)
+        bfd->nr_available_neighs--;
+    }
 
   /* Change state to "AdminDown" */
   bfd_event (neighp, FSM_E_Delete);
