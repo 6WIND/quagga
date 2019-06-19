@@ -124,6 +124,9 @@ struct bfd
   char *logLevel;
   char *logLevelSyslog;
 
+  /* passive is applicable only at the start time of one bfd session */
+  int    passive_startup_only;
+
   struct bfd_if_info global_info;
   uint32_t total_rx_cnt;
   uint32_t total_rx_cnt_drop;

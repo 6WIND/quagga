@@ -51,7 +51,7 @@ bfd_if_info_new ()
       bii->minrx = bfd->rx_interval;
       bii->multiplier = bfd->failure_threshold;
       bii->enabled = 1;
-      bii->passive = 0;
+      bii->passive = bfd->global_info.passive;
     }
   else
     {
@@ -81,6 +81,7 @@ void bfd_if_info_update(void)
           bii->interval = bfd->tx_interval;
           bii->minrx = bfd->rx_interval;
           bii->multiplier = bfd->failure_threshold;
+          bii->passive = bfd->global_info.passive;
 	}
     }
 }
