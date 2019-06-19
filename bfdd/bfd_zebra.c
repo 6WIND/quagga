@@ -287,6 +287,50 @@ DEFUN (bfd_ldesmintx,
   return CMD_SUCCESS;
 }
 
+DEFUN (bfd_global_passive,
+       bfd_global_passive_cmd,
+       "bfd passive",
+       "BFD configuration\n"
+       "Don't send BFD control packets first.\n")
+{
+  bfd->global_info.passive = 1;
+  bfd_if_info_update();
+  return CMD_SUCCESS;
+};
+
+DEFUN (no_bfd_global_passive,
+       no_bfd_global_passive_cmd,
+       "no bfd passive",
+       NO_STR "BFD configuration\n"
+       "Don't send BFD control packets first.\n")
+{
+  bfd->global_info.passive = 0;
+  bfd_if_info_update();
+  return CMD_SUCCESS;
+};
+
+DEFUN (bfd_global_passive_startup_only,
+       bfd_global_passive_startup_only_cmd,
+       "bfd passive startup-only",
+       "BFD configuration\n"
+       "Don't send BFD control packets first.\n"
+       "enter passive mode only at the start time of one bfd session.\n")
+{
+  bfd->passive_startup_only = 1;
+  return CMD_SUCCESS;
+};
+
+DEFUN (no_bfd_global_passive_startup_only,
+       no_bfd_global_passive_startup_only_cmd,
+       "no bfd passive startup-only",
+       NO_STR "BFD configuration\n"
+       "Don't send BFD control packets first.\n"
+       "enter passive mode only at the start time of one bfd session.\n")
+{
+  bfd->passive_startup_only = 0;
+  return CMD_SUCCESS;
+};
+
 DEFUN (show_bfd_global_config,
        show_bfd_global_config_cmd,
        "show bfd global-config", SHOW_STR BFD_STR "Show BFD global config\n")
@@ -298,6 +342,10 @@ DEFUN (show_bfd_global_config,
   vty_out (vty, "multihop:       %s%s", bfd->multihop ? "yes" : "no", VTY_NEWLINE);
   vty_out (vty, "debounce-down:  %u%s", bfd->debounce_down, VTY_NEWLINE);
   vty_out (vty, "debounce-up:    %u%s", bfd->debounce_up, VTY_NEWLINE);
+  vty_out (vty, "passive:        %s%s",
+           bfd->global_info.passive ? "enable" : "disable", VTY_NEWLINE);
+  vty_out (vty, "passive startup only: %s%s",
+           bfd->passive_startup_only ? "yes" : "no", VTY_NEWLINE);
   vty_out (vty, "lreqminrx:      %u%s", bfd->lreqminrx, VTY_NEWLINE);
   vty_out (vty, "ldesmintx:      %u%s", bfd->ldesmintx, VTY_NEWLINE);
   vty_out (vty, "Total Rx count: %u%s", bfd->total_rx_cnt, VTY_NEWLINE);
@@ -871,7 +919,7 @@ bfd_config_write (struct vty *vty)
   int write = 0;
   int write_interval = 0, write_debounce_timer = 0;
   int write_ldesmintx = 0, write_lreqminrx = 0;
-  int write_underlay_limit = 0;
+  int write_underlay_limit = 0, write_passive = 0;
 
   if (bfd->rx_interval != BFD_IF_MINRX_DFT ||
       bfd->tx_interval != BFD_IF_INTERVAL_DFT ||
@@ -892,10 +940,25 @@ bfd_config_write (struct vty *vty)
   if (bfd->underlay_limit_enable)
     write_underlay_limit = 1;
 
+  if (bfd->global_info.passive)
+    write_passive = 1;
+
   if (write_interval || write_debounce_timer ||
       write_ldesmintx || write_lreqminrx ||
-      write_underlay_limit)
+      write_underlay_limit || write_passive)
     vty_out (vty, "bfd%s", VTY_NEWLINE);
+
+  if (write_passive)
+    {
+      vty_out (vty, " bfd passive%s", VTY_NEWLINE);
+      write++;
+
+      if (bfd->passive_startup_only)
+        {
+          vty_out (vty, " bfd passive startup-only%s", VTY_NEWLINE);
+          write++;
+        }
+    }
 
   if (write_interval)
     {
@@ -1073,6 +1136,11 @@ bfd_vty_cmd_init (void)
 
   install_element (VIEW_NODE, &show_bfd_global_config_cmd);
   install_element (ENABLE_NODE, &show_bfd_global_config_cmd);
+
+  install_element (BFD_NODE, &bfd_global_passive_cmd);
+  install_element (BFD_NODE, &no_bfd_global_passive_cmd);
+  install_element (BFD_NODE, &bfd_global_passive_startup_only_cmd);
+  install_element (BFD_NODE, &no_bfd_global_passive_startup_only_cmd);
 };
 
 

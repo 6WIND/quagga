@@ -89,6 +89,7 @@ bfd_new (void)
   bfd->ldesmintx = BFD_LDESMINTX_DFT;
   bfd->lreqminrx = BFD_LREQMINRX_DFT;
 
+  bfd->passive_startup_only = 0;
   bfd->global_info.interval = BFD_IF_INTERVAL_DFT;
   bfd->global_info.minrx = BFD_IF_MINRX_DFT;
   bfd->global_info.multiplier = BFD_IF_MULTIPLIER_DFT;
