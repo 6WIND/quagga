@@ -940,7 +940,7 @@ bfd_config_write (struct vty *vty)
   if (bfd->underlay_limit_enable)
     write_underlay_limit = 1;
 
-  if (bfd->global_info.passive)
+  if (!bfd->global_info.passive)
     write_passive = 1;
 
   if (write_interval || write_debounce_timer ||
@@ -950,12 +950,11 @@ bfd_config_write (struct vty *vty)
 
   if (write_passive)
     {
-      vty_out (vty, " bfd passive%s", VTY_NEWLINE);
+      vty_out (vty, " no bfd passive%s", VTY_NEWLINE);
       write++;
-
-      if (bfd->passive_startup_only)
+      if (!bfd->passive_startup_only)
         {
-          vty_out (vty, " bfd passive startup-only%s", VTY_NEWLINE);
+          vty_out (vty, " no bfd passive startup-only%s", VTY_NEWLINE);
           write++;
         }
     }
