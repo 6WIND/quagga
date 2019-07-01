@@ -236,12 +236,14 @@ bgp_start_timer (struct thread *thread)
     zlog (peer->log, LOG_DEBUG,
 	  "%s [FSM] Timer (start timer expire).", peer->host);
 
+#if 0
   /* Check if peer uses BFD in SYNC mode and it's  BFD session is down.
      If yes, do not send "BGP_Start" event because 
      of possible link failure. */
   if(CHECK_FLAG (peer->flags, PEER_FLAG_BFD_SYNC) 
      && peer->bfd_status == PEER_BFD_STATUS_DOWN)
     return 0;
+#endif
 
   THREAD_VAL (thread) = BGP_Start;
   bgp_event (thread);  /* bgp_event unlocks peer */
