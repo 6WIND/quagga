@@ -117,6 +117,20 @@ bfd_fsm_stimeout (struct thread *thread)
       if (bfd_flag_passive_check (neighp) && !bfd->passive_startup_only)
 	BFD_TIMER_OFF (neighp->t_hello);
     }
+
+  if (neighp->status == FSM_S_Down)
+    {
+      /* Update passive flag in case interface state has changed */
+      bfd_neigh_if_passive_update (neighp);
+      /* If passive mode is desired and passive_startup_only is enabled */
+      if (bfd_flag_passive_check (neighp) && bfd->passive_startup_only)
+        {
+          bfd_event (neighp, FSM_E_RecvDown);
+          BFD_TIMER_OFF (neighp->t_hello);
+          BFD_TIMER_MSEC_ON (neighp->t_hello, bfd_pkt_xmit, 0);
+        }
+    }
+
   return BFD_OK;
 }
 
