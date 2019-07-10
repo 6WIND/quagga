@@ -127,7 +127,6 @@ bfd_fsm_stimeout (struct thread *thread)
         {
           bfd_event (neighp, FSM_E_RecvDown);
           BFD_TIMER_OFF (neighp->t_hello);
-          BFD_TIMER_MSEC_ON (neighp->t_hello, bfd_pkt_xmit, 0);
         }
     }
 
