@@ -5108,6 +5108,21 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       bgp_evpn_process_imports(bgp, NULL, ad);
       return 0;
     }
+
+  /* Update Overlay Index */
+  if(afi == AFI_L2VPN)
+    {
+      overlay_index_update(attr, evpn==NULL?NULL:&evpn->eth_s_id,
+                           evpn==NULL?NULL:&evpn->gw_ip);
+      if(attr && attr->extra)
+        {
+          if(evpn && evpn->eth_t_id)
+            attr->extra->eth_t_id = evpn->eth_t_id;
+          else
+            attr->extra->eth_t_id = 0;
+        }
+    }
+
   rn = bgp_afi_node_get (bgp->rib[afi][safi], afi, safi, p, prd);
   
   /* When peer's soft reconfiguration enabled.  Record input packet in
@@ -5339,19 +5354,6 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       else if (ri->extra)
         ri->extra->nlabels = 0;
 
-      /* Update Overlay Index */
-      if(afi == AFI_L2VPN)
-        {
-          overlay_index_update(ri->attr, evpn==NULL?NULL:&evpn->eth_s_id,
-                               evpn==NULL?NULL:&evpn->gw_ip);
-          if(ri->attr && ri->attr->extra)
-            {
-              if(evpn && evpn->eth_t_id)
-                ri->attr->extra->eth_t_id = evpn->eth_t_id;
-              else
-                ri->attr->extra->eth_t_id = 0;
-            }
-        }
       bgp_attr_flush (&new_attr);
 
       /* Update bgp route dampening information.  */
@@ -5426,20 +5428,6 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
     {
       bgp_info_extra_get (new)->nlabels = nlabels;
       memcpy (new->extra->labels, labels, sizeof(*labels) * nlabels);
-    }
-
-  /* Update Overlay Index */
-  if(afi == AFI_L2VPN)
-    {
-      overlay_index_update(new->attr, evpn==NULL?NULL:&evpn->eth_s_id,
-                           evpn==NULL?NULL:&evpn->gw_ip);
-      if(new->attr && new->attr->extra)
-        {
-          if(evpn && evpn->eth_t_id)
-            new->attr->extra->eth_t_id = evpn->eth_t_id;
-          else
-            new->attr->extra->eth_t_id = 0;
-        }
     }
 
   if ((safi == SAFI_MPLS_VPN) || (safi == SAFI_ENCAP) || (safi == SAFI_EVPN))
