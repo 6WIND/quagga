@@ -133,6 +133,80 @@ bfd_fsm_stimeout (struct thread *thread)
   return BFD_OK;
 }
 
+/* Session admindown timeout timer, activated each time
+   BFD CP with "AdminDown" state is received from remote. */
+int
+bfd_fsm_admindown_timeout (struct thread *thread)
+{
+  struct bfd_neigh *neighp;
+
+  neighp = THREAD_ARG (thread);
+  neighp->t_session = NULL;
+
+  /* Stop session timeout timer if it has been activated */
+  BFD_TIMER_OFF (neighp->t_session);
+
+  /* Check if session state is down and if it was any
+     activity since timer has been fired */
+  if (neighp->status != FSM_S_Up)
+    {
+      if (BFD_IF_DEBUG_FSM)
+	BFD_FSM_LOG_DEBUG_NOARG ("Session admindown timeout.")
+	  /* Reset "Your discriminator" */
+	  neighp->rdisc = 0;
+
+      /* Reset diagnostic */
+      neighp->ldiag = 0;
+
+      /* Reset timers to default values */
+      neighp->ldesmintx = USEC (bfd->ldesmintx);
+      neighp->ldesmintx_a = USEC (bfd->ldesmintx);
+      neighp->rreqminrx = BFD_RREQMINRX_DFT;
+      neighp->txint = USEC (bfd->ldesmintx);
+
+      neighp->lreqminrx = USEC (bfd->lreqminrx);
+      neighp->lreqminrx_a = USEC (bfd->lreqminrx);
+      neighp->rdesmintx = BFD_RREQMINRX_DFT;
+
+      neighp->lreqminechorx = BFD_REQMINECHORX_DFT;
+      neighp->rreqminechorx = BFD_REQMINECHORX_DFT;
+
+      neighp->lmulti = BFD_DFT_MULTI;
+      neighp->rmulti = BFD_DFT_MULTI;
+
+      /* Clear flags (bits) */
+      neighp->lbits = 0;
+      if (!force_cbit_to_unset &&
+          CHECK_FLAG (neighp->flags, BFD_CNEIGH_FLAGS_CBIT))
+        neighp->lbits |= BFD_BIT_C;
+      neighp->rbits = 0;
+
+      if ((neighp->notify == FSM_S_Init) && BFD_IF_DEBUG_FSM)
+        BFD_FSM_LOG_DEBUG_NOARG ("Down.")
+      /* FSM status and old status */
+      neighp->status = FSM_S_Down;
+      neighp->ostatus = FSM_S_Down;
+      neighp->lstate = BFD_STATE_DOWN;
+      neighp->rstate = BFD_STATE_DOWN;
+
+      neighp->notify = 0;
+
+      /* Update passive flag in case interface state has changed */
+      bfd_neigh_if_passive_update (neighp);
+      /* If passive mode is desired stop transmission of periodic BFDCP */
+      if (bfd_flag_passive_check (neighp) && !bfd->passive_startup_only)
+	BFD_TIMER_OFF (neighp->t_hello);
+      else
+        {
+	  BFD_TIMER_OFF (neighp->t_hello);
+	  BFD_TIMER_MSEC_ON (neighp->t_hello, bfd_pkt_xmit,
+			     BFD_TXINT (neighp));
+        }
+    }
+
+  return BFD_OK;
+}
+
 /* Delete timer
    If neighbor removal is requested by zebra (because 
    of administrative purpose), we have to first signalize "AdminDown" 
@@ -205,6 +279,7 @@ bfd_fsm_neigh_del (struct bfd_neigh *neighp)
   /* Stop timers (session, timer) and schedule delete timer */
   BFD_TIMER_OFF (neighp->t_timer);
   BFD_TIMER_OFF (neighp->t_session);
+  BFD_TIMER_OFF (neighp->t_admindown);
   BFD_TIMER_OFF (neighp->t_debounce_up);
   BFD_TIMER_OFF (neighp->t_debounce_down);
   BFD_TIMER_OFF (neighp->t_underlay_limit);
@@ -463,6 +538,9 @@ bfd_fsm_up (struct bfd_neigh *neighp)
 	      BFD_TIMER_MSEC_ON (neighp->t_hello, bfd_pkt_xmit, 0);
 	    }
 	}
+
+      /* If bfd state is Up, stop session admindown thread */
+      BFD_TIMER_OFF (neighp->t_admindown);
     }
   return BFD_OK;
 }
@@ -495,6 +573,12 @@ bfd_fsm_admdown (struct bfd_neigh *neighp)
     {
       neighp->lstate = BFD_STATE_DOWN;
       neighp->ldiag = BFD_DIAG_SESSIONDOWN;
+
+      /* stop detection timer */
+      BFD_TIMER_OFF (neighp->t_timer);
+      BFD_TIMER_OFF (neighp->t_admindown);
+      BFD_TIMER_MSEC_ON (neighp->t_admindown, bfd_fsm_admindown_timeout,
+                         BFD_ADMINDOWN_TIMEOUT);
     }
 
   neighp->uptime = 0;
