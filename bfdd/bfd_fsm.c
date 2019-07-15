@@ -73,15 +73,16 @@ bfd_fsm_stimeout (struct thread *thread)
 
   /* Check if session state is down and if it was any
      activity since timer has been fired */
-  if ((neighp->status == FSM_S_Down)
-      && (neighp->orecv_cnt == neighp->recv_cnt))
+  if (neighp->status != FSM_S_Up)
     {
       /* There wasn't any activity our link neighbor 
          is most probably dead or was administratively disabled */
       if (BFD_IF_DEBUG_FSM)
 	BFD_FSM_LOG_DEBUG_NOARG ("Session timeout.")
-	  /* Reset "Your discriminator" */
-	  neighp->rdisc = 0;
+
+      if (neighp->status == FSM_S_Down)
+	/* Reset "Your discriminator" */
+	neighp->rdisc = 0;
 
       /* Reset diagnostic */
       neighp->ldiag = 0;
@@ -114,20 +115,15 @@ bfd_fsm_stimeout (struct thread *thread)
       /* Update passive flag in case interface state has changed */
       bfd_neigh_if_passive_update (neighp);
       /* If passive mode is desired stop transmission of periodic BFDCP */
-      if (bfd_flag_passive_check (neighp) && !bfd->passive_startup_only)
-	BFD_TIMER_OFF (neighp->t_hello);
-    }
-
-  if (neighp->status == FSM_S_Down)
-    {
-      /* Update passive flag in case interface state has changed */
-      bfd_neigh_if_passive_update (neighp);
-      /* If passive mode is desired and passive_startup_only is enabled */
-      if (bfd_flag_passive_check (neighp) && bfd->passive_startup_only)
-        {
+      BFD_TIMER_OFF (neighp->t_hello);
+      if (! bfd_flag_passive_check (neighp))
+	{
+	  BFD_TIMER_MSEC_ON (neighp->t_hello, bfd_pkt_xmit, BFD_TXINT (neighp));
+	}
+      else if (bfd->passive_startup_only)
+	{
           bfd_event (neighp, FSM_E_RecvDown);
-          BFD_TIMER_OFF (neighp->t_hello);
-        }
+	}
     }
 
   return BFD_OK;
