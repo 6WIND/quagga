@@ -46,6 +46,7 @@ extern int force_cbit_to_unset;
 
 				 /* 15sec */
 #define BFD_STIMEOUT		15000
+#define BFD_ADMINDOWN_TIMEOUT	10000
 
 #define BFD_NEIGH_MAX		2048
 #define BFD_NEIGH_HASH_SIZE	BFD_NEIGH_MAX
@@ -229,6 +230,9 @@ struct bfd_neigh
 				   we maintain the session in "Down" state when 
 				   no BFD CP are received). When timer elapses session
 				   is cleared */
+  struct thread *t_admindown;	/* Session admindown timeout, the thread is launched after
+				   BFD CP with "AdminDown" state is received from remote in
+				   order to reset bfd timers */
   struct thread *t_delete;	/* Session delete timer (period of time that we xmit
 				   BFD control packets  with "AdminDown" state 
 				   after which neighbor(session) is removed */

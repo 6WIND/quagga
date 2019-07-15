@@ -327,6 +327,7 @@ bfd_neigh_init (struct bfd_cneigh *cneighp)
   neighp->t_timer = NULL;
   neighp->t_hello = NULL;
   neighp->t_session = NULL;
+  neighp->t_admindown = NULL;
   neighp->t_delete = NULL;
   neighp->t_debounce_up = NULL;
   neighp->t_debounce_down = NULL;
