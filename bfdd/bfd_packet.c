@@ -395,9 +395,11 @@ bfd_pkt_recv (union sockunion *loc, union sockunion *rem,
          of the Detection Time expiration" */
       BFD_TIMER_OFF (neighp->t_timer);
 
-      /* If remote system do not operate in demand mode 
-         and session is not being deleted start the timer thread */
-      if (!bfd_neigh_check_rbit_d (neighp) && !neighp->del)
+      /* If remote system do not operate in demand mode,
+         and session is not being deleted, and admindown
+         timeout timer is not activated, start the timer
+         thread */
+      if (!bfd_neigh_check_rbit_d (neighp) && !neighp->del && !neighp->t_admindown)
 	BFD_TIMER_MSEC_ON (neighp->t_timer, bfd_fsm_timer,
 			   MSEC (neighp->dtime));
 

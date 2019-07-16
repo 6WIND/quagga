@@ -137,7 +137,7 @@ bfd_fsm_admindown_timeout (struct thread *thread)
   struct bfd_neigh *neighp;
 
   neighp = THREAD_ARG (thread);
-  neighp->t_session = NULL;
+  neighp->t_admindown = NULL;
 
   /* Stop session timeout timer if it has been activated */
   BFD_TIMER_OFF (neighp->t_session);
