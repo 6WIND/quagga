@@ -2271,7 +2271,8 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
               if ( (rn->p.family == AF_INET) || (rn->p.family == AF_INET6))
                 {
                   if (selected->attr->extra->evpn_overlay.gw_ip.ipv4.s_addr != 0)
-                    event.gatewayIp = inet_ntop(rn->p.family, &(selected->attr->extra->evpn_overlay.gw_ip.ipv4), gw_str, BUFSIZ);
+                    event.gatewayIp = inet_ntop(rn->p.family, &(selected->attr->extra->evpn_overlay.gw_ip.ipv4),
+						gw_str, (socklen_t)BUFSIZ);
                   else
                     event.gatewayIp = NULL;
                 }
@@ -4050,7 +4051,6 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
 {
   struct bgp_node *rn;
   struct bgp_vrf *vrf;
-  struct bgp_info *ri;
   struct listnode *node;
   uint32_t nb_prefixes = 0;
 
@@ -7239,7 +7239,6 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
   if(safi == SAFI_EVPN)
     {
       struct bgp_encap_type_vxlan bet;
-      struct attr_extra *extra;
 
       memset(&bet, 0, sizeof(struct bgp_encap_type_vxlan));
       if ((PREFIX_FAMILY(p) == AF_INET) || (PREFIX_FAMILY(p) == AF_INET6)) {
@@ -9478,7 +9477,6 @@ static void
 route_vty_out_route (struct prefix *p, struct vty *vty)
 {
   int len;
-  u_int32_t destination; 
   char buf[BUFSIZ];
 
   if (p->family == AF_L2VPN)
@@ -10650,7 +10648,7 @@ bgp_show_vrf (struct vty *vty, const char *vrf_name, afi_t afi,
           bgp_show_table (vty, vrf->rib[afi],
                           &bgp->router_id, type, output_arg, 1);
         }
-        return;
+        return CMD_SUCCESS;
     }
   if (! str2prefix_rd (vrf_name, &prd))
     {

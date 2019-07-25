@@ -445,7 +445,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           if ((pnt - route_length) != pnt2 && 
               (pnt + 3 - route_length) != pnt2)
             {
-              zlog_err ("Route Type 2, NLRI length mismatch %d observed %u", route_length, pnt - pnt2);
+              zlog_err ("Route Type 2, NLRI length mismatch %d observed %d", route_length, (int)(pnt - pnt2));
               return -1;
             }
           if ( (pnt + 3 - route_length) == pnt2)
@@ -597,7 +597,7 @@ show_adj_route_evpn (struct vty *vty, struct peer *peer, struct prefix_rd *prd, 
                           header1 = 0;
                         }
                       if (CHECK_FLAG (rm->flags, BGP_INFO_VPN_HIDEN))
-                        return;
+			return CMD_SUCCESS;
                       if (rd_header)
                         {
                           ptr = prefix_rd2str ((struct prefix_rd *)rn->p.u.val, buf, RD_ADDRSTRLEN);
@@ -1318,7 +1318,7 @@ struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
   if (vrf == NULL) {
     char rd_str[RD_ADDRSTRLEN];
     prefix_rd2str(prd, rd_str, sizeof(rd_str));
-    zlog_debug ("RD from %s received in AD. Unconfigured. Ignoring", rd_str, peer->host);
+    zlog_debug ("RD %s from %s received in AD. Unconfigured. Ignoring", rd_str, peer->host);
     return NULL;
   }
   /* Check if previous AD received */

@@ -2617,7 +2617,6 @@ bgp_packet_mpattr_route_type_2 (struct stream *s,
       int len;
       uint8_t ip_len, len_label = 3;
       char temp[16];
-      size_t i;
 
       ip_len = p->u.prefix_evpn.u.prefix_macip.ip_len;
       memset(&temp, 0, 16);
