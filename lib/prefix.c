@@ -323,14 +323,42 @@ prefix_copy (struct prefix *dest, const struct prefix *src)
     }
   else if (src->family == AF_L2VPN)
     {
-      dest->u.prefix_macip.eth_tag_id = src->u.prefix_macip.eth_tag_id;
-      memcpy(&dest->u.prefix_macip.mac, &src->u.prefix_macip.mac, sizeof(dest->u.prefix_macip.mac));
-      dest->u.prefix_macip.mac_len = src->u.prefix_macip.mac_len;
-      dest->u.prefix_macip.ip_len = src->u.prefix_macip.ip_len;
-      if (dest->u.prefix_macip.ip_len == 32)
-        memcpy(&dest->u.prefix_macip.ip.in4, &src->u.prefix_macip.ip.in4, sizeof(dest->u.prefix_macip.ip.in4));
+      dest->u.prefix_evpn.route_type =
+        src->u.prefix_evpn.route_type;
+      if (dest->u.prefix_evpn.route_type == 3)
+        {
+          dest->u.prefix_evpn.u.prefix_imethtag.eth_tag_id =
+            src->u.prefix_evpn.u.prefix_imethtag.eth_tag_id;
+          dest->u.prefix_evpn.u.prefix_imethtag.ip_len =
+            src->u.prefix_evpn.u.prefix_imethtag.ip_len;
+          if (dest->u.prefix_evpn.u.prefix_imethtag.ip_len == IPV4_MAX_BITLEN)
+            dest->u.prefix_evpn.u.prefix_imethtag.ip.in4.s_addr =
+              src->u.prefix_evpn.u.prefix_imethtag.ip.in4.s_addr;
+          else
+            memcpy(&dest->u.prefix_evpn.u.prefix_imethtag.ip.in6,
+                   &src->u.prefix_evpn.u.prefix_imethtag.ip.in6,
+                   sizeof(struct in6_addr));
+        }
       else
-        memcpy(&dest->u.prefix_macip.ip.in6, &src->u.prefix_macip.ip.in6, sizeof(dest->u.prefix_macip.ip.in6));
+        {
+          dest->u.prefix_evpn.u.prefix_macip.eth_tag_id =
+            src->u.prefix_evpn.u.prefix_macip.eth_tag_id;
+          memcpy(&dest->u.prefix_evpn.u.prefix_macip.mac,
+                 &src->u.prefix_evpn.u.prefix_macip.mac,
+                 sizeof(dest->u.prefix_evpn.u.prefix_macip.mac));
+          dest->u.prefix_evpn.u.prefix_macip.mac_len =
+            src->u.prefix_evpn.u.prefix_macip.mac_len;
+          dest->u.prefix_evpn.u.prefix_macip.ip_len =
+            src->u.prefix_evpn.u.prefix_macip.ip_len;
+          if (dest->u.prefix_evpn.u.prefix_macip.ip_len == 32)
+            memcpy(&dest->u.prefix_evpn.u.prefix_macip.ip.in4,
+                   &src->u.prefix_evpn.u.prefix_macip.ip.in4,
+                   sizeof(dest->u.prefix_evpn.u.prefix_macip.ip.in4));
+          else
+            memcpy(&dest->u.prefix_evpn.u.prefix_macip.ip.in6,
+                   &src->u.prefix_evpn.u.prefix_macip.ip.in6,
+                   sizeof(dest->u.prefix_evpn.u.prefix_macip.ip.in6));
+        }
     }
   else
     {
@@ -365,11 +393,40 @@ prefix_same (const struct prefix *p1, const struct prefix *p2)
         if (!memcmp(p1->u.prefix_eth.octet, p2->u.prefix_eth.octet, ETHER_ADDR_LEN))
             return 1;
       if (p1->family == AF_L2VPN)
-        if (   (p1->u.prefix_macip.eth_tag_id == p2->u.prefix_macip.eth_tag_id)
-            && (!memcmp(p1->u.prefix_macip.mac.octet, p2->u.prefix_macip.mac.octet, ETHER_ADDR_LEN))
-            && (p1->u.prefix_macip.ip_len == p2->u.prefix_macip.ip_len)
-            && (!memcmp(&p1->u.prefix_macip.ip, &p2->u.prefix_macip.ip, p2->u.prefix_macip.ip_len/8)))
-            return 1;
+        {
+          if (p1->u.prefix_evpn.route_type == 3 &&
+	      p1->u.prefix_evpn.route_type == p2->u.prefix_evpn.route_type)
+            {
+              if (p1->u.prefix_evpn.u.prefix_imethtag.ip_len !=
+                  p2->u.prefix_evpn.u.prefix_imethtag.ip_len)
+                return 0;
+              if (p1->u.prefix_evpn.u.prefix_imethtag.eth_tag_id !=
+                  p2->u.prefix_evpn.u.prefix_imethtag.eth_tag_id)
+                return 0;
+              if (p1->u.prefix_evpn.u.prefix_imethtag.ip_len == IPV4_MAX_BITLEN &&
+                  p1->u.prefix_evpn.u.prefix_imethtag.ip.in4.s_addr ==
+                  p2->u.prefix_evpn.u.prefix_imethtag.ip.in4.s_addr)
+                return 1;
+              if (p1->u.prefix_evpn.u.prefix_imethtag.ip_len != IPV4_MAX_BITLEN &&
+                  !memcmp(&p1->u.prefix_evpn.u.prefix_imethtag.ip.in6,
+                         &p2->u.prefix_evpn.u.prefix_imethtag.ip.in6,
+                          sizeof(struct in6_addr)))
+                return 1;
+            }
+          else
+            {
+              if ((p1->u.prefix_evpn.u.prefix_macip.eth_tag_id ==
+                   p2->u.prefix_evpn.u.prefix_macip.eth_tag_id)
+                  && (!memcmp(p1->u.prefix_evpn.u.prefix_macip.mac.octet,
+                              p2->u.prefix_evpn.u.prefix_macip.mac.octet, ETHER_ADDR_LEN))
+                  && (p1->u.prefix_evpn.u.prefix_macip.ip_len ==
+                      p2->u.prefix_evpn.u.prefix_macip.ip_len)
+                  && (!memcmp(&p1->u.prefix_evpn.u.prefix_macip.ip,
+                              &p2->u.prefix_evpn.u.prefix_macip.ip,
+                              p2->u.prefix_evpn.u.prefix_macip.ip_len/8)))
+                return 1;
+            }
+	}
     }
   return 0;
 }
@@ -963,23 +1020,34 @@ prefix2str (union prefix46constptr pu, char *str, int size)
 
       assert(size >= PREFIX_STRLEN);
 
-      if (L2VPN_PREFIX_HAS_IPV4(p))
-        inet_ntop (AF_INET, &p->u.prefix_macip.ip.in4, buf, BUFSIZ);
-      else if (L2VPN_PREFIX_HAS_IPV6(p))
-        inet_ntop (AF_INET6, &p->u.prefix_macip.ip.in6, buf, BUFSIZ);
-      else if (L2VPN_PREFIX_HAS_NOIP(p))
-        strcpy(buf, "none");
-      snprintf (s, BUFSIZ, "[%u][%02x:%02x:%02x:%02x:%02x:%02x/%d][%s/%d]",
-                p->u.prefix_macip.eth_tag_id,
-                p->u.prefix_macip.mac.octet[0],
-                p->u.prefix_macip.mac.octet[1],
-                p->u.prefix_macip.mac.octet[2],
-                p->u.prefix_macip.mac.octet[3],
-                p->u.prefix_macip.mac.octet[4],
-                p->u.prefix_macip.mac.octet[5],
-                p->u.prefix_macip.mac_len,
-                buf,
-                p->u.prefix_macip.ip_len);
+      if (p->u.prefix_evpn.route_type == 3) {
+        if (p->u.prefix_evpn.u.prefix_imethtag.ip_len == IPV4_MAX_BITLEN)
+          inet_ntop (AF_INET, &p->u.prefix_evpn.u.prefix_imethtag.ip.in4, buf, BUFSIZ);
+        else
+          inet_ntop (AF_INET6, &p->u.prefix_evpn.u.prefix_imethtag.ip.in4, buf, BUFSIZ);
+        snprintf (s, BUFSIZ, "[%u][%d][%s]",
+                  p->u.prefix_evpn.u.prefix_imethtag.eth_tag_id,
+                  p->u.prefix_evpn.u.prefix_imethtag.ip_len,
+                  buf);
+      } else {
+        if (L2VPN_PREFIX_HAS_IPV4(p))
+          inet_ntop (AF_INET, &p->u.prefix_evpn.u.prefix_macip.ip.in4, buf, BUFSIZ);
+        else if (L2VPN_PREFIX_HAS_IPV6(p))
+          inet_ntop (AF_INET6, &p->u.prefix_evpn.u.prefix_macip.ip.in6, buf, BUFSIZ);
+        else if (L2VPN_PREFIX_HAS_NOIP(p))
+          strcpy(buf, "none");
+        snprintf (s, BUFSIZ, "[%u][%02x:%02x:%02x:%02x:%02x:%02x/%d][%s/%d]",
+                  p->u.prefix_evpn.u.prefix_macip.eth_tag_id,
+                  p->u.prefix_evpn.u.prefix_macip.mac.octet[0],
+                  p->u.prefix_evpn.u.prefix_macip.mac.octet[1],
+                  p->u.prefix_evpn.u.prefix_macip.mac.octet[2],
+                  p->u.prefix_evpn.u.prefix_macip.mac.octet[3],
+                  p->u.prefix_evpn.u.prefix_macip.mac.octet[4],
+                  p->u.prefix_evpn.u.prefix_macip.mac.octet[5],
+                  p->u.prefix_evpn.u.prefix_macip.mac_len,
+                  buf,
+                  p->u.prefix_evpn.u.prefix_macip.ip_len);
+      }
       return 0;
     }
 

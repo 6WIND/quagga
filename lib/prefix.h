@@ -66,6 +66,18 @@ struct macipaddr {
   } ip __attribute__ ((packed));
 } __attribute__ ((packed));
 
+struct imet_tag {
+  u_int32_t eth_tag_id;
+  u_int8_t ip_len;
+  union
+  {
+    struct in_addr in4;             /* AF_INET */
+#ifdef HAVE_IPV6
+    struct in6_addr in6;            /* AF_INET6 */
+#endif /* HAVE_IPV6 */
+  } ip __attribute__ ((packed));
+} __attribute__ ((packed));
+
 struct ipvrfaddr {
   u_int32_t eth_tag_id;
   u_int8_t ip_len;
@@ -101,9 +113,25 @@ struct ipvrfaddr {
  * include/linux/socket.h
  */
 #define AF_L2VPN 44
-#define L2VPN_NOIP_PREFIX_LEN ((ETHER_ADDR_LEN + 4 /*ethtag*/+ 2 /*mac len + ip len*/) * 8)
-#define L2VPN_IPV4_PREFIX_LEN ((ETHER_ADDR_LEN + 4 /*ethtag*/+ 4 /*IP address*/ + 2 /*mac len + ip len*/) * 8)
-#define L2VPN_IPV6_PREFIX_LEN ((ETHER_ADDR_LEN + 4 /*ethtag*/+ 16 /*IP address*/ + 2 /*mac len + ip len*/) * 8)
+/* for EVPN route type 2 */
+#define L2VPN_NOIP_PREFIX_LEN ((ETHER_ADDR_LEN + 4 /*ethtag*/+ 2 /*mac len + ip len*/ + 1 /* route type */) * 8)
+#define L2VPN_IPV4_PREFIX_LEN ((ETHER_ADDR_LEN + 4 /*ethtag*/+ 4 /*IP address*/ \
+                                + 2 /*mac len + ip len*/ + 1 /* route type */) * 8)
+#define L2VPN_IPV6_PREFIX_LEN ((ETHER_ADDR_LEN + 4 /*ethtag*/+ 16 /*IP address*/ \
+                                + 2 /*mac len + ip len*/ + 1 /* route type */) * 8)
+/* for EVPN route type 3 */
+#define L2VPN_MCAST_PREFIX_LEN (( 4 /* ethtag */ + 1 /* IP length */ \
+                                  + 16 /* IP Address */ + 1 /* route type */) * 8)
+
+struct evpn_addr {
+	uint8_t route_type;
+	union {
+          struct macipaddr prefix_macip;      /* AF_L2VPN */
+          struct macipaddr prefix_ipvrf;      /* AF_L2VPN */
+          struct imet_tag prefix_imethtag; /* AF_L2VPN */
+	} u;
+};
+
 
 /* IPv4 and IPv6 unified prefix structure. */
 struct prefix
@@ -123,8 +151,7 @@ struct prefix
       struct in_addr adv_router;
     } lp;
     struct ethaddr prefix_eth;          /* AF_ETHERNET */
-    struct macipaddr prefix_macip;      /* AF_L2VPN */
-    struct macipaddr prefix_ipvrf;      /* AF_L2VPN */
+    struct evpn_addr prefix_evpn;
     u_char val[8];
     uintptr_t ptr;
   } u __attribute__ ((aligned (8)));
@@ -269,10 +296,10 @@ union prefix46constptr
                               + L2VPN_PREFIX_MACADDRLEN \
                               + L2VPN_PREFIX_IPV6LEN)
 #define L2VPN_MAX_PREFIXLEN    L2VPN_MAX_BITLEN
-#define L2VPN_PREFIX_IPLEN(p)  ((p)->u.prefix_macip.ip_len)
-#define L2VPN_PREFIX_HAS_IPV4(p)  ((p)->u.prefix_macip.ip_len == IPV4_MAX_PREFIXLEN)
-#define L2VPN_PREFIX_HAS_IPV6(p)  ((p)->u.prefix_macip.ip_len == IPV6_MAX_PREFIXLEN)
-#define L2VPN_PREFIX_HAS_NOIP(p)  ((p)->u.prefix_macip.ip_len == 0)
+#define L2VPN_PREFIX_IPLEN(p)  ((p)->u.prefix_evpn.u.prefix_macip.ip_len)
+#define L2VPN_PREFIX_HAS_IPV4(p)  ((p)->u.prefix_evpn.u.prefix_macip.ip_len == IPV4_MAX_PREFIXLEN)
+#define L2VPN_PREFIX_HAS_IPV6(p)  ((p)->u.prefix_evpn.u.prefix_macip.ip_len == IPV6_MAX_PREFIXLEN)
+#define L2VPN_PREFIX_HAS_NOIP(p)  ((p)->u.prefix_evpn.u.prefix_macip.ip_len == 0)
 
 /* Count prefix size from mask length */
 #define PSIZE(a) (((a) + 7) / (8))
@@ -280,7 +307,7 @@ union prefix46constptr
 /* Prefix's family member. */
 #define PREFIX_FAMILY(p)  ((p)->family)
 #define PREFIX_IS_L2VPN(p)  ((p)->family == AF_L2VPN)
-#define PREFIX_IS_L2VPN_AD(p)  ((p)->family == AF_L2VPN && !(p)->u.prefix_macip.mac_len)
+#define PREFIX_IS_L2VPN_AD(p)  ((p)->family == AF_L2VPN && !(p)->u.prefix_evpn.u.prefix_macip.mac_len)
 
 /* glibc defines s6_addr32 to __in6_u.__u6_addr32 if __USE_{MISC || GNU} */
 #ifndef s6_addr32
