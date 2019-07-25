@@ -2661,6 +2661,33 @@ bgp_packet_mpattr_route_type_5 (struct stream *s,
 }
 
 static void
+bgp_packet_mpattr_route_type_3(struct stream *s,
+                               struct prefix *p, struct prefix_rd *prd)
+{
+  uint8_t ip_len;
+  int len;
+
+  ip_len = p->u.prefix_evpn.u.prefix_imethtag.ip_len;
+  if(ip_len == 32)
+    len = 4; /* ipv4 */
+  else if (ip_len == 128)
+    len = 16; /* ipv6 */
+  else
+    return;
+  stream_putc (s, EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG);
+  stream_putc (s, 8 /* RD */ + 4 /* EthTag */ + 1 /* IP len */
+               + len /* Router IPv4 or IPv6 */);
+
+  stream_put(s, prd->val, 8);
+  stream_putl(s, p->u.prefix_evpn.u.prefix_imethtag.eth_tag_id);
+  stream_putc(s, ip_len);
+  if(ip_len == 32)
+    stream_put_in_addr(s, &p->u.prefix_evpn.u.prefix_imethtag.ip.in4);
+  else
+    stream_put(s, &p->u.prefix_evpn.u.prefix_imethtag.ip.in6, len);
+}
+
+static void
 bgp_packet_mpattr_route_type_2 (struct stream *s,
                                 struct prefix *p, struct prefix_rd *prd,
                                 uint32_t *labels, size_t nlabels, struct attr *attr)
@@ -2777,11 +2804,18 @@ bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
     {
       if (p->family == AF_L2VPN)
         {
-	  /* no mac len, this is A/D route */
-          if (p->u.prefix_evpn.u.prefix_macip.mac_len)
-            bgp_packet_mpattr_route_type_2(s, p, prd, labels, nlabels, attr);
+          if (p->u.prefix_evpn.route_type == 3)
+            {
+              bgp_packet_mpattr_route_type_3(s, p, prd);
+            }
           else
-            bgp_packet_mpattr_route_type_1(s, p, prd, labels[0], attr);
+            {
+              /* no mac len, this is A/D route */
+              if (p->u.prefix_evpn.u.prefix_macip.mac_len)
+                bgp_packet_mpattr_route_type_2(s, p, prd, labels, nlabels, attr);
+              else
+                bgp_packet_mpattr_route_type_1(s, p, prd, labels[0], attr);
+            }
         }
       else
         bgp_packet_mpattr_route_type_5(s, p, prd, labels, nlabels, attr);
@@ -2811,9 +2845,23 @@ bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
 size_t
 bgp_packet_mpattr_prefix_size (afi_t afi, safi_t safi, struct prefix *p)
 {
-  int size = PSIZE (p->prefixlen);
+  int size;
   if (safi == SAFI_MPLS_VPN)
+    {
+      size = PSIZE (p->prefixlen);
       size += 88;
+    }
+  else if (safi == SAFI_EVPN)
+    {
+      /* the value is used to encode prefix size.
+       * substract the extra 8 bits used to store internally the route type
+       */
+      size = PSIZE (p->prefixlen - 8);
+    }
+  else
+    {
+      size = PSIZE (p->prefixlen);
+    }
   return size;
 }
 
