@@ -9769,10 +9769,17 @@ route_vty_out_tag (struct vty *vty, struct prefix *p,
   /* EVPN RT2/RT5 encode vni in label. encoding uses full 24 bits */
   if (safi == SAFI_EVPN)
     {
+      if (p->u.prefix_evpn.route_type != EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
+        {
       if(binfo->extra->nlabels == 1)
         sprintf(buf,"%u", binfo->extra->labels[0]);
       else if (binfo->extra->nlabels == 2)
         sprintf(buf,"%u:%u", binfo->extra->labels[0], binfo->extra->labels[1] >> 4);
+        }
+      else
+        {
+          sprintf(buf, "%u", attr->label);
+        }
     }
   else
     {

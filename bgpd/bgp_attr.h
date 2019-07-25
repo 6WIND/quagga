@@ -49,6 +49,18 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #define BGP_ATTR_MIN_LEN        3       /* Attribute flag, type length. */
 #define BGP_ATTR_DEFAULT_WEIGHT 32768
 
+enum pmsi_tunnel_mode
+{
+  NO_TUN_INFO=0,
+  RSVP_TE_P2MP,
+  MLDP_P2MP,
+  PIM_SSM,
+  PIM_SM,
+  PIM_BIDIR,
+  INGRESS_REPLICATION,
+  MLDP_MP2MP
+};
+
 struct bgp_attr_encap_subtlv {
     struct bgp_attr_encap_subtlv	*next;		/* for chaining */
     uint16_t				type;
@@ -136,6 +148,10 @@ struct attr
   
   /* Path origin attribute */
   u_char origin;
+
+  /* RFC 6514 */
+  enum pmsi_tunnel_mode pmsi_tnl_mode;
+  uint32_t label;
 };
 
 /* Router Reflector related structure. */

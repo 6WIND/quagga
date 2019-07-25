@@ -166,6 +166,7 @@ struct bgp_static
   char *router_mac;
   struct prefix gatewayIp;
   uint32_t bgp_encapsulation_type;
+  bool pmsi_tunnel_id_ingress_replication;
 };
 
 extern struct bgp_info *bgp_last_bgp_info_configured[AFI_MAX][SAFI_MAX];

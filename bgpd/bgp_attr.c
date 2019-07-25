@@ -66,6 +66,7 @@ static const struct message attr_str [] =
   { BGP_ATTR_AS4_AGGREGATOR,   "AS4_AGGREGATOR" }, 
   { BGP_ATTR_AS_PATHLIMIT,     "AS_PATHLIMIT" },
   { BGP_ATTR_ENCAP,            "ENCAP" },
+  { BGP_ATTR_PMSI_TUNNEL,      "PMSI_TUNNEL" },
 };
 static const int attr_str_max = array_size(attr_str);
 
@@ -505,7 +506,9 @@ attrhash_key_make (void *p)
   key += attr->nexthop.s_addr;
   key += attr->med;
   key += attr->local_pref;
-  
+  key += attr->pmsi_tnl_mode;
+  key += attr->label;
+
   if (extra)
     {
       MIX(extra->aggregator_as);
@@ -550,7 +553,9 @@ attrhash_cmp (const void *p1, const void *p2)
       && attr1->aspath == attr2->aspath
       && attr1->community == attr2->community
       && attr1->med == attr2->med
-      && attr1->local_pref == attr2->local_pref)
+      && attr1->local_pref == attr2->local_pref
+      && attr1->pmsi_tnl_mode == attr2->pmsi_tnl_mode
+      && attr1->label == attr2->label)
     {
       const struct attr_extra *ae1 = attr1->extra;
       const struct attr_extra *ae2 = attr2->extra;
@@ -954,6 +959,7 @@ bgp_attr_malformed (struct bgp_attr_parser_args *args, u_char subcode,
     case BGP_ATTR_MP_REACH_NLRI:
     case BGP_ATTR_MP_UNREACH_NLRI:
     case BGP_ATTR_EXT_COMMUNITIES:
+    case BGP_ATTR_PMSI_TUNNEL:
       bgp_notify_send_with_data (peer, BGP_NOTIFY_UPDATE_ERR, subcode,
                                  notify_datap, length);
       return BGP_ATTR_PARSE_ERROR;
@@ -1030,6 +1036,7 @@ const u_int8_t attr_flags_values [] = {
   [BGP_ATTR_EXT_COMMUNITIES] =  BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS,
   [BGP_ATTR_AS4_PATH] =         BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS,
   [BGP_ATTR_AS4_AGGREGATOR] =   BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS,
+  [BGP_ATTR_PMSI_TUNNEL] =      BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS,
 };
 static const size_t attr_flags_values_max = array_size(attr_flags_values) - 1;
 
@@ -1977,6 +1984,47 @@ bgp_attr_encap(
   return 0;
 }
 
+static bgp_attr_parse_ret_t
+bgp_attr_pmsi_tunnel(struct bgp_attr_parser_args *args)
+{
+  struct peer *const peer = args->peer;
+  const u_char flag = args->flags;
+  const bgp_size_t length = args->length;
+  uint8_t tnl_mode;
+  struct attr *const attr = args->attr;
+
+  if (!CHECK_FLAG(flag, BGP_ATTR_FLAG_TRANS)
+       || !CHECK_FLAG(flag, BGP_ATTR_FLAG_OPTIONAL))
+    {
+      zlog (peer->log, LOG_ERR,
+	    "Tunnel Encap attribute flag isn't optional and transitive %d", flag);
+      return bgp_attr_malformed (args,
+                                 BGP_NOTIFY_UPDATE_UNREC_ATTR,
+                                 args->total);
+    }
+
+  stream_getc (BGP_INPUT (peer));
+  tnl_mode = stream_getc (BGP_INPUT (peer));
+  /* label and tunnel id are completely ignored */
+  if (tnl_mode > MLDP_MP2MP)
+    {
+      zlog (peer->log, LOG_ERR, "Invalid PMSI tunnel type %d", tnl_mode);
+      return bgp_attr_malformed (args,
+                                 BGP_NOTIFY_UPDATE_UNREC_ATTR,
+                                 args->total);
+    }
+  if (tnl_mode != INGRESS_REPLICATION)
+    {
+      zlog (peer->log, LOG_ERR, "PMSI tunnel type not supported %d, ignoring", tnl_mode);
+    }
+  else
+    {
+      attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_PMSI_TUNNEL);
+      stream_get(&attr->label, BGP_INPUT (peer), 3);
+      stream_forward_getp (BGP_INPUT (peer), length - 5);
+    }
+  return BGP_ATTR_PARSE_PROCEED;
+}
 /* BGP unknown attribute treatment. */
 static bgp_attr_parse_ret_t
 bgp_attr_unknown (struct bgp_attr_parser_args *args)
@@ -2281,6 +2329,9 @@ bgp_attr_parse (struct peer *peer, struct attr *attr, bgp_size_t size,
 	  break;
         case BGP_ATTR_ENCAP:
           ret = bgp_attr_encap (type, peer, length, attr, flag, startp);
+          break;
+        case BGP_ATTR_PMSI_TUNNEL:
+          ret = bgp_attr_pmsi_tunnel (&attr_args);
           break;
 	default:
 	  ret = bgp_attr_unknown (&attr_args);
@@ -3222,6 +3273,21 @@ bgp_packet_attribute (struct bgp *bgp, struct peer *peer,
 	/* Tunnel Encap attribute */
 	bgp_packet_mpattr_tea(bgp, peer, s, attr, BGP_ATTR_ENCAP);
     }
+
+  if (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_PMSI_TUNNEL))
+    {
+      stream_putc (s, BGP_ATTR_FLAG_OPTIONAL|BGP_ATTR_FLAG_TRANS);
+      stream_putc (s, BGP_ATTR_PMSI_TUNNEL);
+      stream_putc (s, 9);
+      /* tunnel identifier is 4 byte length + 5 byte for other fields */
+      stream_putc(s, 0);
+      stream_putc(s, INGRESS_REPLICATION);
+      /* MPLS label and tunnel identifier set to 0 */
+      stream_putc(s, 0);
+      stream_putc(s, 0);
+      stream_putc(s, 0);
+      stream_putl(s, 0);
+  }
 
   /* Unknown transit attribute. */
   if (attr->extra && attr->extra->transit)
