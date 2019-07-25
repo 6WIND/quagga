@@ -280,6 +280,12 @@ extern int bgp_static_unset_safi (safi_t safi, struct vty *, const char *,
                                   const char *, const char *,
                                   const char *, const char *, const char *,
                                   const char *);
+extern int
+bgp_static_set_evpn_rt3 (struct vty *vty, const char *rd_str,
+                         const char *ethtag, const char *routerip);
+extern int
+bgp_static_unset_evpn_rt3 (struct vty *vty, const char *rd_str,
+                           const char *ethta, const char *routerip);
 
 /* this is primarily for MPLS-VPN */
 extern int bgp_update (struct peer *, struct prefix *, struct attr *,

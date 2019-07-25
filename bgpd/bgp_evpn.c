@@ -1275,6 +1275,37 @@ DEFUN (no_evpnrt2_network,
                                 NULL, argv[4], NULL, argv[2], argv[3]);
 }
 
+/* For testing purpose, static route of MPLS-VPN. */
+DEFUN (evpnrt3_network,
+       evpnrt3_network_cmd,
+       "network rt3 rd ASN:nn_or_IP-address:nn ethtag WORD routerip A.B.C.D",
+       "Route type 3 messages\n"
+       "Specify Route Distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "Ethernet Tag\n"
+       "Ethernet Tag Value\n"
+       "Router IP Address\n"
+       "Router IP ( A.B.C.D )\n")
+{
+  return bgp_static_set_evpn_rt3 (vty, argv[0], argv[1], argv[2]);
+}
+
+/* For testing purpose, static route of MPLS-VPN. */
+DEFUN (no_evpnrt3_network,
+       no_evpnrt3_network_cmd,
+       "no network rt3 rd ASN:nn_or_IP-address:nn ethtag WORD routerip A.B.C.D",
+       NO_STR
+       "Route type 3 messages\n"
+       "Specify Route Distinguisher\n"
+       "VPN Route Distinguisher\n"
+       "Ethernet Tag\n"
+       "Ethernet Tag Value\n"
+       "Router IP Address\n"
+       "Router IP ( A.B.C.D )\n")
+{
+  return bgp_static_unset_evpn_rt3 (vty, argv[0], argv[1], argv[2]);
+}
+
 void
 bgp_ethernetvpn_init (void)
 {
@@ -1297,6 +1328,8 @@ bgp_ethernetvpn_init (void)
   install_element (BGP_EVPN_NODE, &evpnrt5_network_cmd);
   install_element (BGP_EVPN_NODE, &no_evpnrt2_network_cmd);
   install_element (BGP_EVPN_NODE, &evpnrt2_network_cmd);
+  install_element (BGP_EVPN_NODE, &no_evpnrt3_network_cmd);
+  install_element (BGP_EVPN_NODE, &evpnrt3_network_cmd);
 }
 
 int

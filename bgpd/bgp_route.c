@@ -7220,6 +7220,9 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
     rn = bgp_afi_node_get (bgp->rib[afi][safi], afi, safi, p, NULL);
   bgp_attr_default_set (&attr, BGP_ORIGIN_IGP);
 
+  if (bgp_static->pmsi_tunnel_id_ingress_replication)
+    attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_PMSI_TUNNEL);
+
   attr.nexthop = bgp_static->igpnexthop;
   attr.med = bgp_static->igpmetric;
   attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_MULTI_EXIT_DISC);
@@ -7236,7 +7239,8 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
     add.ipv4.s_addr = bgp_static->gatewayIp.u.prefix4.s_addr;
   else if (bgp_static->gatewayIp.family == AF_INET6)
     memcpy( &(add.ipv6), &(bgp_static->gatewayIp.u.prefix6), sizeof (struct in6_addr));
-  if(safi == SAFI_EVPN)
+  if((safi == SAFI_EVPN) &&
+     p->u.prefix_evpn.route_type != EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
     {
       struct bgp_encap_type_vxlan bet;
 
@@ -7611,6 +7615,163 @@ bgp_static_delete (struct bgp *bgp)
 	  }
 }
 
+int
+bgp_static_unset_evpn_rt3 (struct vty *vty, const char *rd_str,
+                         const char *eth_tag, const char *routerip)
+{
+  int ret;
+  struct prefix p;
+  struct prefix_rd prd;
+  struct bgp *bgp;
+  struct bgp_node *prn;
+  struct bgp_node *rn;
+  struct bgp_table *table;
+  struct bgp_static *bgp_static;
+  afi_t afi;
+  safi_t safi;
+  struct in_addr router_ip_addr;
+
+  afi = AFI_L2VPN;
+  safi = SAFI_EVPN;
+
+  bgp = vty->index;
+
+  memset (&p, 0, sizeof (struct prefix));
+  p.family = AF_L2VPN;
+  p.prefixlen = L2VPN_MCAST_PREFIX_LEN;
+  p.u.prefix_evpn.route_type = EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG;
+  p.u.prefix_evpn.u.prefix_imethtag.eth_tag_id = atol(eth_tag);
+  p.u.prefix_evpn.u.prefix_imethtag.ip_len = IPV4_MAX_BITLEN;
+
+  if (1 != inet_pton(AF_INET, routerip, &router_ip_addr))
+    {
+      vty_out (vty, "%% Malformed router IP%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  p.u.prefix_evpn.u.prefix_imethtag.ip.in4.s_addr = router_ip_addr.s_addr;
+
+  ret = str2prefix_rd (rd_str, &prd);
+  if (! ret)
+    {
+      vty_out (vty, "%% Malformed rd%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  prn = bgp_node_get (bgp->route[afi][safi],
+                      (struct prefix *)&prd);
+  if (prn->info == NULL)
+    prn->info = bgp_table_init (afi, safi);
+  else
+    bgp_unlock_node (prn);
+  table = prn->info;
+
+  rn = bgp_node_lookup (table, &p);
+  if (!rn || !rn->info)
+    {
+      vty_out (vty, "%% Can't find the route%s", VTY_NEWLINE);
+      return CMD_SUCCESS;
+    }
+
+  bgp_static = rn->info;
+
+  /* Update BGP RIB. */
+  bgp_static_withdraw_safi (bgp, &p, afi, safi, &prd, NULL, 0);
+
+  /* Clear configuration. */
+  bgp_static_free (bgp_static);
+  rn->info = NULL;
+  bgp_unlock_node (rn);
+  bgp_unlock_node (rn);
+  return CMD_SUCCESS;
+}
+
+int
+bgp_static_set_evpn_rt3 (struct vty *vty, const char *rd_str,
+                         const char *eth_tag, const char *routerip)
+{
+  int ret;
+  struct prefix p;
+  struct prefix_rd prd;
+  struct bgp *bgp;
+  struct bgp_node *prn;
+  struct bgp_node *rn;
+  struct bgp_table *table;
+  struct bgp_static *bgp_static;
+  struct bgp_vrf *vrf;
+  afi_t afi;
+  safi_t safi;
+  struct in_addr router_ip_addr;
+
+  afi = AFI_L2VPN;
+  safi = SAFI_EVPN;
+
+  bgp = vty->index;
+
+  memset (&p, 0, sizeof (struct prefix));
+  p.family = AF_L2VPN;
+  p.prefixlen = L2VPN_MCAST_PREFIX_LEN;
+  p.u.prefix_evpn.route_type = EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG;
+  p.u.prefix_evpn.u.prefix_imethtag.eth_tag_id = atol(eth_tag);
+  p.u.prefix_evpn.u.prefix_imethtag.ip_len = IPV4_MAX_BITLEN;
+
+  if (1 != inet_pton(AF_INET, routerip, &router_ip_addr))
+    {
+      vty_out (vty, "%% Malformed router IP%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+  p.u.prefix_evpn.u.prefix_imethtag.ip.in4.s_addr = router_ip_addr.s_addr;
+
+  ret = str2prefix_rd (rd_str, &prd);
+  if (! ret)
+    {
+      vty_out (vty, "%% Malformed rd%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  prn = bgp_node_get (bgp->route[afi][safi],
+                      (struct prefix *)&prd);
+  if (prn->info == NULL)
+    prn->info = bgp_table_init (afi, safi);
+  else
+    bgp_unlock_node (prn);
+  table = prn->info;
+  rn = bgp_node_get (table, &p);
+
+  if (rn->info)
+    {
+      vty_out (vty, "%% Same network configuration exists%s", VTY_NEWLINE);
+      bgp_unlock_node (rn);
+    }
+  else
+    {
+      /* New configuration. */
+      bgp_static = bgp_static_new ();
+      bgp_static->backdoor = 0;
+      bgp_static->valid = 0;
+      bgp_static->igpmetric = 0;
+      /* by default: nexthop bgp router id */
+      bgp_static->igpnexthop = bgp->router_id;
+      if (rd_str)
+        {
+          vrf = bgp_vrf_lookup(bgp, &prd);
+          if (vrf)
+            {
+              bgp_static->ecomm = vrf->rt_export;
+            }
+          bgp_static->prd = prd;
+        }
+
+      bgp_static->eth_t_id = atol(eth_tag);
+      bgp_static->pmsi_tunnel_id_ingress_replication = true;
+      rn->info = bgp_static;
+
+      bgp_static->valid = 1;
+      bgp_static_update_safi (bgp, &p, bgp_static, afi, safi);
+    }
+
+  return CMD_SUCCESS;
+}
+
 /*
  * gpz 110624
  * Currently this is used to set static routes for VPN and ENCAP.
@@ -7684,6 +7845,7 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
 
           p.family = AF_L2VPN;
           p.prefixlen = L2VPN_IPV4_PREFIX_LEN;
+          p.u.prefix_evpn.route_type = EVPN_MACIP_ADVERTISEMENT;
 
           str2mac(macaddress, (char*) &m->mac);
           if (strncmp(ip_str, "0.0.0.0", 8))
@@ -20444,14 +20606,34 @@ bgp_config_write_network_evpn (struct vty *vty, struct bgp *bgp,
 
             if(p->family == AF_L2VPN)
               {
-                char *mac = mac2str((char *)&p->u.prefix_evpn.u.prefix_macip);
-                vty_out (vty, " network %s rd %s ethtag %u mac %s esi %s l2label %u l3label %u routermac %s",
-                         inet_ntop (AF_INET, &(p->u.prefix_evpn.u.prefix_macip.ip.in4), buf2, SU_ADDRSTRLEN),
-                         rdbuf, bgp_static->eth_t_id, mac, esi, 
-                         bgp_static->labels[0], bgp_static->labels[1] >> 4 ,
-                         macrouter);
-                if (mac)
-                  XFREE (MTYPE_BGP_MAC, mac);
+                if (p->u.prefix_evpn.route_type == 3)
+                  {
+
+                    if (p->u.prefix_evpn.u.prefix_imethtag.ip_len == IPV4_MAX_BITLEN)
+                      inet_ntop (AF_INET, &(p->u.prefix_evpn.u.prefix_imethtag.ip.in4),
+                                 buf2, SU_ADDRSTRLEN);
+                    else
+                      inet_ntop (AF_INET6, &(p->u.prefix_evpn.u.prefix_imethtag.ip.in6),
+                                 buf2, SU_ADDRSTRLEN);
+
+                    vty_out (vty, " network rt3 rd %s ethtag %u routerip %s",
+                             rdbuf,
+                             p->u.prefix_evpn.u.prefix_imethtag.eth_tag_id,
+                             buf2);
+
+                  }
+                else
+                  {
+                    char *mac = mac2str((char *)&p->u.prefix_evpn.u.prefix_macip);
+                    vty_out (vty, " network %s rd %s ethtag %u mac %s esi %s l2label %u l3label %u routermac %s",
+                             inet_ntop (AF_INET, &(p->u.prefix_evpn.u.prefix_macip.ip.in4),
+                                        buf2, SU_ADDRSTRLEN),
+                             rdbuf, bgp_static->eth_t_id, mac, esi,
+                             bgp_static->labels[0], bgp_static->labels[1] >> 4 ,
+                             macrouter);
+                    if (mac)
+                      XFREE (MTYPE_BGP_MAC, mac);
+                  }
               } 
             else
               {
