@@ -986,8 +986,8 @@ bgp_auto_discovery_update_send(struct peer *peer, struct prefix_rd *rd,
   /* Fill these prefix field to help bgp_packet_mpattr_prefix guessing it's a RT1 */
   p.family = AF_L2VPN;
   p.prefixlen = L2VPN_PREFIX_ETHTAGLEN + ESI_LEN * sizeof(char);
-  p.u.prefix_macip.eth_tag_id = ethtag;
-  p.u.prefix_macip.mac_len = 0;
+  p.u.prefix_evpn.u.prefix_macip.eth_tag_id = ethtag;
+  p.u.prefix_evpn.u.prefix_macip.mac_len = 0;
 
   total_attr_len = bgp_packet_attribute (NULL, peer, s,
                                          attr, &p, AFI_L2VPN, SAFI_EVPN,
@@ -1066,8 +1066,8 @@ bgp_auto_discovery_withdraw_send (struct peer *peer, struct prefix_rd *rd,
   /* Fill these prefix field to help bgp_packet_mpattr_prefix guessing it's a RT1 */
   p.family = AF_L2VPN;
   p.prefixlen = L2VPN_PREFIX_ETHTAGLEN + ESI_LEN * sizeof(char);
-  p.u.prefix_macip.eth_tag_id = ethtag;
-  p.u.prefix_macip.mac_len = 0;
+  p.u.prefix_evpn.u.prefix_macip.eth_tag_id = ethtag;
+  p.u.prefix_evpn.u.prefix_macip.mac_len = 0;
 
   /* Encode the prefix in MP_UNREACH_NLRI attribute */
   bgp_packet_mpunreach_prefix(s, &p, AFI_L2VPN, SAFI_EVPN, rd, &label, 1, attr);

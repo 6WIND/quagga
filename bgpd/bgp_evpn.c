@@ -187,7 +187,7 @@ bgp_evpn_process_auto_discovery_propagate (struct bgp_vrf *vrf,
 
       entry_found = 0;
       /* check for eth tag if incoming eth tag is not set to 0 */
-      if(ad->eth_t_id != MAX_ET && rn->p.u.prefix_macip.eth_tag_id != ad->eth_t_id)
+      if(ad->eth_t_id != MAX_ET && rn->p.u.prefix_evpn.u.prefix_macip.eth_tag_id != ad->eth_t_id)
             continue;
 
       /* first loop to look for already present entries */
@@ -346,52 +346,53 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           zlog_err ("not enough bytes for Eth Tag left in NLRI?");
           return -1;
         }
+      p.u.prefix_evpn.route_type = route_type;
       if (route_type == EVPN_MACIP_ADVERTISEMENT ||
           route_type == EVPN_ETHERNET_AUTO_DISCOVERY)
         {
           p.family = AF_L2VPN;
-          memcpy(&p.u.prefix_macip.eth_tag_id, pnt, 4);
-          p.u.prefix_macip.eth_tag_id = ntohl(p.u.prefix_macip.eth_tag_id);
+          memcpy(&p.u.prefix_evpn.u.prefix_macip.eth_tag_id, pnt, 4);
+          p.u.prefix_evpn.u.prefix_macip.eth_tag_id = ntohl(p.u.prefix_evpn.u.prefix_macip.eth_tag_id);
           pnt += 4;
         }
       if (route_type == EVPN_MACIP_ADVERTISEMENT)
         {
           /* MAC address len in bits */
-          p.u.prefix_macip.mac_len = *pnt++;
+          p.u.prefix_evpn.u.prefix_macip.mac_len = *pnt++;
 
-          if (p.u.prefix_macip.mac_len != 8*ETHER_ADDR_LEN)
+          if (p.u.prefix_evpn.u.prefix_macip.mac_len != 8*ETHER_ADDR_LEN)
             {
               zlog_err ("invalid mac length %d in RT2 NLRI, should be 48",
-                         p.u.prefix_macip.mac_len);
+                         p.u.prefix_evpn.u.prefix_macip.mac_len);
               return -1;
             }
 
           /* MAC address */
-          memcpy(&p.u.prefix_macip.mac, pnt, ETHER_ADDR_LEN);
+          memcpy(&p.u.prefix_evpn.u.prefix_macip.mac, pnt, ETHER_ADDR_LEN);
           pnt += ETHER_ADDR_LEN;
 
           /* IP Address lenght in bits */
-          p.u.prefix_macip.ip_len = *pnt++;
-          if (p.u.prefix_macip.ip_len == IPV4_MAX_PREFIXLEN)
+          p.u.prefix_evpn.u.prefix_macip.ip_len = *pnt++;
+          if (p.u.prefix_evpn.u.prefix_macip.ip_len == IPV4_MAX_PREFIXLEN)
             {
               p.prefixlen = L2VPN_IPV4_PREFIX_LEN;
-              memcpy (&p.u.prefix_macip.ip.in4, pnt, 4);
+              memcpy (&p.u.prefix_evpn.u.prefix_macip.ip.in4, pnt, 4);
               pnt += 4;
               p.prefixlen = L2VPN_MAX_PREFIXLEN - IPV6_MAX_PREFIXLEN + IPV4_MAX_PREFIXLEN;
             }
-          else if (p.u.prefix_macip.ip_len == IPV6_MAX_PREFIXLEN)
+          else if (p.u.prefix_evpn.u.prefix_macip.ip_len == IPV6_MAX_PREFIXLEN)
             {
               p.prefixlen = L2VPN_IPV6_PREFIX_LEN;
-              memcpy (&p.u.prefix_macip.ip.in6, pnt, 16);
+              memcpy (&p.u.prefix_evpn.u.prefix_macip.ip.in6, pnt, 16);
               pnt += 16;
               p.prefixlen = L2VPN_MAX_PREFIXLEN;
             }
-          else if (p.u.prefix_macip.ip_len == 0)
+          else if (p.u.prefix_evpn.u.prefix_macip.ip_len == 0)
             p.prefixlen = L2VPN_MAX_PREFIXLEN - IPV6_MAX_PREFIXLEN + IPV4_MAX_PREFIXLEN;
           else
             {
               zlog_err ("invalid IP length %d in RT2 NLRI, should be 0, 32 or 128",
-                         p.u.prefix_macip.ip_len);
+                         p.u.prefix_evpn.u.prefix_macip.ip_len);
               return -1;
             }
         }
@@ -471,16 +472,16 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
       if (route_type == EVPN_ETHERNET_AUTO_DISCOVERY)
         {
           /* EVPN RT1 encode vni in label. encoding uses full 24 bits */
-          if (p.u.prefix_macip.eth_tag_id == MAX_ET && (labels[0] >> 4) == 0)
+          if (p.u.prefix_evpn.u.prefix_macip.eth_tag_id == MAX_ET && (labels[0] >> 4) == 0)
             evpn.auto_discovery_type = EVPN_ETHERNET_AD_PER_ESI;
-          else if (p.u.prefix_macip.eth_tag_id == 0)
+          else if (p.u.prefix_evpn.u.prefix_macip.eth_tag_id == 0)
             evpn.auto_discovery_type = EVPN_ETHERNET_AD_PER_EVI;
           else
             {
               plog_err (peer->log,
                         "%s [Error] Update packet error / EVPN"
                         " (Auto Discovery with eth tag %08x and MPLS label %d not supported)",
-                        peer->host, p.u.prefix_macip.eth_tag_id, labels[0]);
+                        peer->host, p.u.prefix_evpn.u.prefix_macip.eth_tag_id, labels[0]);
               return -1;
             }
         }
@@ -1324,7 +1325,7 @@ struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
   for (ALL_LIST_ELEMENTS_RO(vrf->rx_evpn_ad, node, ad))
     {
       if (0 == bgp_evpn_ad_cmp(ad, peer, &vrf->outbound_rd,
-                               &evpn->eth_s_id, p->u.prefix_macip.eth_tag_id))
+                               &evpn->eth_s_id, p->u.prefix_evpn.u.prefix_macip.eth_tag_id))
         break;
     }
   if (ad)
@@ -1552,7 +1553,7 @@ bgp_evpn_auto_discovery_new_entry (struct bgp_vrf *vrf,
       if (ri->peer == ad->peer)
         continue;
       if (ad->eth_t_id != MAX_ET &&
-         rn->p.u.prefix_macip.eth_tag_id != ad->eth_t_id)
+         rn->p.u.prefix_evpn.u.prefix_macip.eth_tag_id != ad->eth_t_id)
         continue;
       if (!ri->attr || !ri->attr->extra || !ri->extra)
         continue;

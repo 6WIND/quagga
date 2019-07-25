@@ -2619,7 +2619,7 @@ bgp_packet_mpattr_route_type_2 (struct stream *s,
       char temp[16];
       size_t i;
 
-      ip_len = p->u.prefix_macip.ip_len;
+      ip_len = p->u.prefix_evpn.u.prefix_macip.ip_len;
       memset(&temp, 0, 16);
 
       if(ip_len == 32)
@@ -2645,22 +2645,22 @@ bgp_packet_mpattr_route_type_2 (struct stream *s,
         stream_put (s, &temp, 10);
 
       /* Ethernet Tag Id (VNI), MSB must be null */
-      stream_putl (s, p->u.prefix_macip.eth_tag_id);
+      stream_putl (s, p->u.prefix_evpn.u.prefix_macip.eth_tag_id);
 
       /* MAC address lenght in bits */
       stream_putc (s, ETHER_ADDR_LEN * 8);
 
       /* MAC address */
-      stream_put(s, &p->u.prefix_macip.mac, ETHER_ADDR_LEN);
+      stream_put(s, &p->u.prefix_evpn.u.prefix_macip.mac, ETHER_ADDR_LEN);
 
       /* IP address lenght in bits */
       stream_putc (s, ip_len);
 
       /* IP address */
       if (ip_len == 32)
-        stream_put_ipv4 (s, p->u.prefix_macip.ip.in4.s_addr);
+        stream_put_ipv4 (s, p->u.prefix_evpn.u.prefix_macip.ip.in4.s_addr);
       else if (ip_len == 128)
-        stream_put (s, &p->u.prefix_macip.ip.in6, 16);
+        stream_put (s, &p->u.prefix_evpn.u.prefix_macip.ip.in6, 16);
 
       /* labels */
       if (nlabels == 0)
@@ -2693,7 +2693,7 @@ bgp_packet_mpattr_route_type_1 (struct stream *s,
         stream_put (s, &temp, 10);
 
       /* Ethernet Tag Id (VNI), MSB must be null */
-      stream_putl (s, p->u.prefix_macip.eth_tag_id);
+      stream_putl (s, p->u.prefix_evpn.u.prefix_macip.eth_tag_id);
 
       /*  MPLS label */
       stream_put3 (s, label);
@@ -2728,7 +2728,7 @@ bgp_packet_mpattr_prefix (struct stream *s, afi_t afi, safi_t safi,
       if (p->family == AF_L2VPN)
         {
 	  /* no mac len, this is A/D route */
-          if (p->u.prefix_macip.mac_len)
+          if (p->u.prefix_evpn.u.prefix_macip.mac_len)
             bgp_packet_mpattr_route_type_2(s, p, prd, labels, nlabels, attr);
           else
             bgp_packet_mpattr_route_type_1(s, p, prd, labels[0], attr);

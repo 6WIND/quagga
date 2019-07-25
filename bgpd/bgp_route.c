@@ -1736,7 +1736,7 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
                    sizeof(struct in6_addr));
         }
       if (bn->p.family == AF_L2VPN)
-        out->ethtag = bn->p.u.prefix_macip.eth_tag_id;
+        out->ethtag = bn->p.u.prefix_evpn.u.prefix_macip.eth_tag_id;
       else
         out->ethtag = sel->attr->extra->eth_t_id;
       /* only router mac is filled in for VRF RIB layer 3 */
@@ -1757,9 +1757,9 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
                   if(ecommunity_lookup (sel->attr->extra->ecommunity,
                                         ECOMMUNITY_ENCODE_EVPN,
                                         ECOMMUNITY_EVPN_SUBTYPE_DEF_GW))
-                    if ((bn->p).u.prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
+                    if ((bn->p).u.prefix_evpn.u.prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
                   {
-                    out->mac_router = ecom_mac2str((char *)(&(bn->p).u.prefix_macip.mac));
+                    out->mac_router = ecom_mac2str((char *)(&(bn->p).u.prefix_evpn.u.prefix_macip.mac));
                   }
                 }
             }
@@ -2190,7 +2190,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
           esi = esi2str(&(selected->attr->extra->evpn_overlay.eth_s_id));
           if (rn->p.family == AF_L2VPN)
             {
-              ethtag = rn->p.u.prefix_macip.eth_tag_id;
+              ethtag = rn->p.u.prefix_evpn.u.prefix_macip.eth_tag_id;
             }
           else
             ethtag = selected->attr->extra->eth_t_id;
@@ -2214,9 +2214,9 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                       if(ecommunity_lookup (selected->attr->extra->ecommunity,
                                             ECOMMUNITY_ENCODE_EVPN,
                                             ECOMMUNITY_EVPN_SUBTYPE_DEF_GW))
-                        if ((rn->p).u.prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
+                        if ((rn->p).u.prefix_evpn.u.prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
                           {
-                            mac_router = ecom_mac2str((char *)(&(rn->p).u.prefix_macip.mac));
+                            mac_router = ecom_mac2str((char *)(&(rn->p).u.prefix_evpn.u.prefix_macip.mac));
                           }
                     }
                 }
@@ -2264,7 +2264,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
               event.esi = esi2str(&(selected->attr->extra->evpn_overlay.eth_s_id));
               if (rn->p.family == AF_L2VPN)
                 {
-                  event.ethtag = rn->p.u.prefix_macip.eth_tag_id;
+                  event.ethtag = rn->p.u.prefix_evpn.u.prefix_macip.eth_tag_id;
                 }
               else
                 event.ethtag = selected->attr->extra->eth_t_id;
@@ -2300,9 +2300,9 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                       if(ecommunity_lookup (selected->attr->extra->ecommunity,
                                             ECOMMUNITY_ENCODE_EVPN,
                                             ECOMMUNITY_EVPN_SUBTYPE_DEF_GW))
-                        if (                            (rn->p).u.prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
+                        if (                            (rn->p).u.prefix_evpn.u.prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
                           {
-                            event.mac_router = ecom_mac2str((char *)(&(rn->p).u.prefix_macip.mac));
+                            event.mac_router = ecom_mac2str((char *)(&(rn->p).u.prefix_evpn.u.prefix_macip.mac));
                           }
                     }
                 }
@@ -2317,7 +2317,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
           event.mac_router = NULL;
           if (rn->p.family == AF_L2VPN)
             {
-              event.ethtag = rn->p.u.prefix_macip.eth_tag_id;
+              event.ethtag = rn->p.u.prefix_evpn.u.prefix_macip.eth_tag_id;
             }
         }
 #ifdef HAVE_ZEROMQ
@@ -2393,7 +2393,7 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
           if (peer && peer->status == Established && peer->afc_nego[afi][safi])
             {
               struct bgp_evpn_ad *ad, *ad_found = NULL;
-              u_int32_t ethtag = p->u.prefix_macip.eth_tag_id;
+              u_int32_t ethtag = p->u.prefix_evpn.u.prefix_macip.eth_tag_id;
               struct eth_segment_id esi;
               uint32_t ret2 = 1;
 
@@ -2625,7 +2625,7 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
           if (peer && peer->status == Established && peer->afc_nego[afi][safi])
             {
               struct bgp_evpn_ad *ad, *ad_found = NULL;
-              u_int32_t ethtag = p->u.prefix_macip.eth_tag_id;
+              u_int32_t ethtag = p->u.prefix_evpn.u.prefix_macip.eth_tag_id;
               struct eth_segment_id esi;
 
               str2esi(route->esi, &esi);
@@ -2651,7 +2651,7 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
                   struct eth_segment_id esi;
                   u_int32_t ethtag;
 
-                  ethtag = p->u.prefix_macip.eth_tag_id;
+                  ethtag = p->u.prefix_evpn.u.prefix_macip.eth_tag_id;
                   str2esi(route->esi, &esi);
                   zlog_err("No Auto Discovery message for ESI %s ethtag %d. Sending withdraw however !",
                             route->esi, ethtag);
@@ -7680,7 +7680,7 @@ bgp_static_set_safi (safi_t safi, struct vty *vty, const char *ip_str,
     {
       if( macaddress && str2mac (macaddress, NULL) != 0)
         {
-          struct macipaddr *m = &p.u.prefix_macip;
+          struct macipaddr *m = &p.u.prefix_evpn.u.prefix_macip;
           struct prefix_ipv4 dummy;
 
           p.family = AF_L2VPN;
@@ -9864,8 +9864,8 @@ route_vty_out_overlay (struct vty *vty, struct prefix *p,
               if(ecommunity_lookup (attr->extra->ecommunity, 
                                     ECOMMUNITY_ENCODE_EVPN,
                                     ECOMMUNITY_EVPN_SUBTYPE_ROUTERMAC))
-                if ((p->u).prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
-                  mac = ecom_mac2str((char *)&(p->u).prefix_macip.mac);
+                if ((p->u).prefix_evpn.u.prefix_macip.mac_len == 8*ETHER_ADDR_LEN)
+                  mac = ecom_mac2str((char *)&(p->u).prefix_evpn.u.prefix_macip.mac);
             }
           if(mac)
             {
@@ -20439,9 +20439,9 @@ bgp_config_write_network_evpn (struct vty *vty, struct bgp *bgp,
 
             if(p->family == AF_L2VPN)
               {
-                char *mac = mac2str((char *)&p->u.prefix_macip);
+                char *mac = mac2str((char *)&p->u.prefix_evpn.u.prefix_macip);
                 vty_out (vty, " network %s rd %s ethtag %u mac %s esi %s l2label %u l3label %u routermac %s",
-                         inet_ntop (AF_INET, &(p->u.prefix_macip.ip.in4), buf2, SU_ADDRSTRLEN),
+                         inet_ntop (AF_INET, &(p->u.prefix_evpn.u.prefix_macip.ip.in4), buf2, SU_ADDRSTRLEN),
                          rdbuf, bgp_static->eth_t_id, mac, esi, 
                          bgp_static->labels[0], bgp_static->labels[1] >> 4 ,
                          macrouter);

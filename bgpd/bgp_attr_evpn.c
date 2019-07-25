@@ -380,7 +380,7 @@ struct bgp_evpn_ad* bgp_evpn_ad_new_from_update(struct peer *peer,
   if (prd)
     evpn_ad->prd = *prd;
 
-  evpn_ad->eth_t_id = p->u.prefix_macip.eth_tag_id;
+  evpn_ad->eth_t_id = p->u.prefix_evpn.u.prefix_macip.eth_tag_id;
   memcpy(&evpn_ad->eth_s_id, &evpn->eth_s_id, sizeof(struct eth_segment_id));
 
   if (attr)
