@@ -11,6 +11,7 @@ static const capn_text capn_val0 = {0, ""};
 #include "zebra.h"
 #include "bgpd.h"
 #include "bgp_lu.h"
+#include "bgp_evpn.h"
 
 afi_t qcapn_AfiSafiKey_get_afi(capn_ptr p)
 {
@@ -1487,9 +1488,14 @@ void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
          }
        else if (s->prefix.family == AF_L2VPN)
           {
-            uint8_t index = 2;
+            uint8_t index = 3;
+            uint8_t route_type = capn_read8(tmp_p, 2);
 
-            qcapn_prefix_macip_read (tmp_p, &s->prefix, &index);
+            s->prefix.u.prefix_evpn.route_type = route_type;
+            if (route_type == EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
+              qcapn_prefix_imethtag_read (tmp_p, &s->prefix, &index);
+            else
+              qcapn_prefix_macip_read (tmp_p, &s->prefix, &index);
           }
     }
 
@@ -1500,7 +1506,20 @@ void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
         capn_ptr tmp_p = capn_getp(p, 2, 1);
 	s->label = capn_read32(tmp_p, 0);
 	s->ethtag = capn_read32(tmp_p, 4);
-        s->l2label = capn_read32(tmp_p, 8);
+	if (s->prefix.family == AF_L2VPN &&
+            s->prefix.u.prefix_evpn.route_type ==
+                EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
+          {
+            s->tunnel_type = capn_read8(tmp_p, 8);
+            s->single_active_mode = capn_read8(tmp_p, 9);
+            s->l2label = 0;
+          }
+        else
+          {
+            s->l2label = capn_read32(tmp_p, 8);
+            s->tunnel_type = 0;
+            s->single_active_mode = 0;
+          }
     }
     {
       const char * esi = NULL;
@@ -1540,16 +1559,27 @@ void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
       len = tp.len;
       if (gateway_ip && len != 0)
         {
-          s->gatewayIp  = strdup(gateway_ip);
+          if (s->prefix.family == AF_L2VPN &&
+              s->prefix.u.prefix_evpn.route_type ==
+	           EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
+            {
+              /* For EVPN RT3, this text field stands for tunnel id */
+              s->tunnel_id  = strdup(gateway_ip);
+              s->gatewayIp = NULL;
+            }
+          else
+            {
+              s->gatewayIp  = strdup(gateway_ip);
+              s->tunnel_id = NULL;
+            }
         }
       else
         {
           s->gatewayIp = NULL;
+          s->tunnel_id = NULL;
         }
     }
 }
-
-
 
 void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
 {
@@ -1585,17 +1615,37 @@ void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
           }
         else if (s->prefix.family == AF_L2VPN)
           {
-            uint8_t index = 2;
-            uint8_t size;
-            if (s->prefix.u.prefix_evpn.u.prefix_macip.ip_len == 128)
-              size = 30; /* ipv6 replaced by ipv4 */
+            if (s->prefix.u.prefix_evpn.route_type == EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
+              {
+                uint8_t index = 3;
+                uint8_t size;
+                if (s->prefix.u.prefix_evpn.u.prefix_imethtag.ip_len == 128)
+                  size = 24; /* ipv6 replaced by ipv4 */
+                else
+                  size = 12;
+                capn_ptr tempptr = capn_new_struct(p.seg, size, 0);
+                capn_write8(tempptr, 0, s->prefix.family);
+                capn_write8(tempptr, 1, s->prefix.prefixlen);
+                capn_write8(tempptr, 2, s->prefix.u.prefix_evpn.route_type);
+                qcapn_prefix_imethtag_write(tempptr, &s->prefix, &index);
+                capn_setp(p, 0, tempptr);
+
+              }
             else
-              size = 18;
-            capn_ptr tempptr = capn_new_struct(p.seg, size, 0);
-            capn_write8(tempptr, 0, s->prefix.family);
-            capn_write8(tempptr, 1, s->prefix.prefixlen);
-            qcapn_prefix_macip_write(tempptr, &s->prefix, &index);
-            capn_setp(p, 0, tempptr);
+              {
+                uint8_t index = 3;
+                uint8_t size;
+                if (s->prefix.u.prefix_evpn.u.prefix_macip.ip_len == 128)
+                  size = 30; /* ipv6 replaced by ipv4 */
+                else
+                  size = 18;
+                capn_ptr tempptr = capn_new_struct(p.seg, size, 0);
+                capn_write8(tempptr, 0, s->prefix.family);
+                capn_write8(tempptr, 1, s->prefix.prefixlen);
+                capn_write8(tempptr, 2, s->prefix.u.prefix_evpn.route_type);
+                qcapn_prefix_macip_write(tempptr, &s->prefix, &index);
+                capn_setp(p, 0, tempptr);
+              }
           }
     }
     
@@ -1606,12 +1656,37 @@ void qcapn_BGPEventVRFRoute_write(const struct bgp_event_vrf *s, capn_ptr p)
         capn_ptr tempptr = capn_new_struct(p.seg, 12, 0);
 	capn_write32(tempptr, 0, s->label);
 	capn_write32(tempptr, 4, s->ethtag);
-	capn_write32(tempptr, 8, s->l2label);
+        if (s->prefix.family == AF_L2VPN &&
+            s->prefix.u.prefix_evpn.route_type ==
+                EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
+          {
+            capn_write8(tempptr, 8, s->tunnel_type); /* PSMI tunnel type */
+            capn_write8(tempptr, 9, s->single_active_mode);
+            capn_write16(tempptr, 10, 0);
+          }
+        else
+          {
+	    capn_write32(tempptr, 8, s->l2label);
+          }
         capn_setp(p, 2, tempptr);
     }
     { capn_text tp = { .str = s->esi, .len = s->esi ? strlen((const char *)s->esi) : 0 }; capn_set_text(p, 3, tp); }
     { capn_text tp = { .str = s->mac_router, .len = s->mac_router ? strlen((const char *)s->mac_router) : 0 }; capn_set_text(p, 4, tp); }
-    { capn_text tp = { .str = s->gatewayIp, .len = s->gatewayIp ? strlen((const char *)s->gatewayIp) : 0 }; capn_set_text(p, 5, tp); }
+
+    {
+      if (s->prefix.family == AF_L2VPN &&
+          s->prefix.u.prefix_evpn.route_type ==
+	       EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
+        {
+          capn_text tp = { .str = s->tunnel_id, .len = s->tunnel_id ? strlen((const char *)s->tunnel_id) : 0 };
+          capn_set_text(p, 5, tp);
+        }
+      else
+        {
+          capn_text tp = { .str = s->gatewayIp, .len = s->gatewayIp ? strlen((const char *)s->gatewayIp) : 0 };
+          capn_set_text(p, 5, tp);
+        }
+    }
 }
 
 
@@ -1770,6 +1845,59 @@ void qcapn_prefix_macip_write(capn_ptr p, const struct prefix *pfx, uint8_t *ind
       {
         capn_write32(p, *index,
                      ntohl(pfx->u.prefix_evpn.u.prefix_macip.ip.in4.s_addr));
+        *index = *index + 4;
+      }
+}
+
+void qcapn_prefix_imethtag_read(capn_ptr p, struct prefix *pfx, uint8_t *index)
+{
+    size_t i;
+
+    pfx->u.prefix_evpn.u.prefix_imethtag.eth_tag_id = htonl(capn_read32(p, *index));
+    *index = *index + 4;
+    pfx->u.prefix_evpn.u.prefix_imethtag.ip_len = capn_read8(p, *index);
+    *index = *index + 1;
+    if (pfx->u.prefix_evpn.u.prefix_imethtag.ip_len == IPV6_MAX_BITLEN)
+      {
+        u_char *in6 = (u_char *)&(pfx->u.prefix_evpn.u.prefix_imethtag.ip.in6);
+
+        for(i=0; i < sizeof(struct in6_addr); i++)
+          {
+            *in6 = capn_read8(p, *index);
+            in6++;
+            *index = *index + 1;
+          }
+      }
+    else
+      {
+        pfx->u.prefix_evpn.u.prefix_imethtag.ip.in4.s_addr =
+          ntohl(capn_read32(p, *index));
+        *index = *index + 4;
+      }
+}
+
+void qcapn_prefix_imethtag_write(capn_ptr p, const struct prefix *pfx, uint8_t *index)
+{
+    size_t i;
+
+    capn_write32(p, *index, ntohl(pfx->u.prefix_evpn.u.prefix_imethtag.eth_tag_id));
+    *index = *index + 4;
+    capn_write8(p, *index, pfx->u.prefix_evpn.u.prefix_imethtag.ip_len);
+    *index = *index + 1;
+    if (pfx->u.prefix_evpn.u.prefix_imethtag.ip_len == IPV6_MAX_BITLEN)
+      {
+        u_char *in6 = (u_char *)&(pfx->u.prefix_evpn.u.prefix_imethtag.ip.in6);
+
+        for(i=0; i < sizeof(struct in6_addr); i++)
+          {
+            capn_write8(p, *index, in6[i]);
+            *index = *index + 1;
+          }
+      }
+    else
+      {
+        capn_write32(p, *index,
+                     ntohl(pfx->u.prefix_evpn.u.prefix_imethtag.ip.in4.s_addr));
         *index = *index + 4;
       }
 }

@@ -2109,10 +2109,12 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
 {
   char *esi = NULL, *mac_router = NULL;
   uint32_t ethtag = 0, l3label = 0, l2label = 0;
+  int is_evpn_rt3 = 0;
 
   struct bgp_event_vrf event = {
     .announce         = announce,
-    .outbound_rd      = vrf->outbound_rd
+    .outbound_rd      = vrf->outbound_rd,
+    .tunnel_id        = NULL,
   };
 
   prefix_copy (&event.prefix, &rn->p);
@@ -2136,6 +2138,33 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
         return;
       if(CHECK_FLAG (selected->flags, BGP_INFO_WITHDRAW_SENT))
         return;
+    }
+
+  if (CHECK_FLAG (selected->flags, BGP_INFO_ORIGIN_EVPN))
+    {
+      if (rn->p.u.prefix_evpn.route_type == EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
+        {
+          is_evpn_rt3 = 1;
+
+          if (announce)
+            event.announce = BGP_EVENT_PUSH_EVPN_RT;
+          else
+            event.announce = BGP_EVENT_WITHDRAW_EVPN_RT;
+	  event.tunnel_type = INGRESS_REPLICATION;
+	  event.label = selected->attr->label;
+          /* set event.tunnel_id, TODO */
+        }
+
+      if (rn->p.family == AF_L2VPN)
+        {
+          if (is_evpn_rt3)
+            ethtag = rn->p.u.prefix_evpn.u.prefix_imethtag.eth_tag_id;
+          else
+            ethtag = rn->p.u.prefix_evpn.u.prefix_macip.eth_tag_id;
+        }
+      else
+        ethtag = selected->attr->extra->eth_t_id;
+
     }
 
   if (selected->extra)
@@ -2188,12 +2217,6 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
       if(CHECK_FLAG (selected->flags, BGP_INFO_ORIGIN_EVPN))
         {
           esi = esi2str(&(selected->attr->extra->evpn_overlay.eth_s_id));
-          if (rn->p.family == AF_L2VPN)
-            {
-              ethtag = rn->p.u.prefix_evpn.u.prefix_macip.eth_tag_id;
-            }
-          else
-            ethtag = selected->attr->extra->eth_t_id;
 
           if(selected->extra)
             bgp_vrf_update_labels (vrf, rn, 0, selected, &l3label, &l2label);
@@ -2262,18 +2285,18 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
             {
               char gw_str[BUFSIZ];
               event.esi = esi2str(&(selected->attr->extra->evpn_overlay.eth_s_id));
-              if (rn->p.family == AF_L2VPN)
-                {
-                  event.ethtag = rn->p.u.prefix_evpn.u.prefix_macip.eth_tag_id;
-                }
-              else
-                event.ethtag = selected->attr->extra->eth_t_id;
+              event.ethtag = ethtag;
+
               if ( (rn->p.family == AF_INET) || (rn->p.family == AF_INET6))
                 {
                   if (selected->attr->extra->evpn_overlay.gw_ip.ipv4.s_addr != 0)
                     event.gatewayIp = inet_ntop(rn->p.family, &(selected->attr->extra->evpn_overlay.gw_ip.ipv4),
 						gw_str, (socklen_t)BUFSIZ);
                   else
+                    event.gatewayIp = NULL;
+                }
+              else
+                {
                     event.gatewayIp = NULL;
                 }
             }
@@ -2318,7 +2341,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
           event.mac_router = NULL;
           if (rn->p.family == AF_L2VPN)
             {
-              event.ethtag = rn->p.u.prefix_evpn.u.prefix_macip.eth_tag_id;
+              event.ethtag = ethtag;
             }
         }
 #ifdef HAVE_ZEROMQ

@@ -310,6 +310,8 @@ struct bgp_event_vrf
 #define BGP_EVENT_MASK_ANNOUNCE 0x1
 #define BGP_EVENT_SHUT 0x2
 #define BGP_EVENT_BFD_STATUS 0x3
+#define BGP_EVENT_PUSH_EVPN_RT     0x4
+#define BGP_EVENT_WITHDRAW_EVPN_RT 0x5
   uint8_t announce;
   struct prefix_rd outbound_rd; /* dummy for event_shut */
   struct prefix prefix; /* alias subtype */
@@ -317,9 +319,12 @@ struct bgp_event_vrf
   uint32_t label; /* alias type */
   uint32_t ethtag;
   uint32_t l2label;
+  uint8_t  tunnel_type; /* PMSI tunnel type, only available for EVPN RT3 */
+  uint8_t  single_active_mode; /* for EVPN RT1 */
   char *esi;
   char *mac_router;
   char *gatewayIp;
+  char *tunnel_id; /* PMSI tunnel id, only available for EVPN RT3 */
 };
 
 struct bgp_event_shut

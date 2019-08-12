@@ -501,6 +501,7 @@ attrhash_key_make (void *p)
   MIX(attr->nexthop.s_addr);
   MIX(attr->med);
   MIX(attr->local_pref);
+  MIX(attr->label);
 
   key += attr->origin;
   key += attr->nexthop.s_addr;
@@ -3330,11 +3331,10 @@ bgp_packet_attribute (struct bgp *bgp, struct peer *peer,
       /* tunnel identifier is 4 byte length + 5 byte for other fields */
       stream_putc(s, 0);
       stream_putc(s, INGRESS_REPLICATION);
-      /* MPLS label and tunnel identifier set to 0 */
-      stream_putc(s, 0);
-      stream_putc(s, 0);
-      stream_putc(s, 0);
-      stream_putl(s, 0);
+      /* MPLS label */
+      stream_put3 (s, attr->label);
+      /* tunnel identifier */
+      stream_put_ipv4 (s, attr->nexthop.s_addr);
   }
 
   /* Unknown transit attribute. */
