@@ -2208,11 +2208,13 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
           sprintf(pre_str, "bgp->mngr");
         }
       if (announce)
-        zlog_info ("%s vrf[%s] Route %s : advertised %s (RD %s label %s nh %s)",
-                    pre_str, vrf_rd_str, pfx_str, post_str, rd_str, label_str, nh_str);
+        zlog_info ("%s vrf[%s] Route %s%s : advertised %s (RD %s label %s nh %s)",
+                    pre_str, vrf_rd_str, pfx_str, EVPN_RT3_STR(&rn->p),
+                    post_str, rd_str, label_str, nh_str);
       else
-        zlog_info ("%s vrf[%s] Route %s : withdrawn %s (RD %s label %d nh %s)",
-                    pre_str, vrf_rd_str, pfx_str, post_str, rd_str, event.label, nh_str);
+        zlog_info ("%s vrf[%s] Route %s%s : withdrawn %s (RD %s label %d nh %s)",
+                    pre_str, vrf_rd_str, pfx_str, EVPN_RT3_STR(&rn->p),
+                    post_str, rd_str, event.label, nh_str);
 
       if(CHECK_FLAG (selected->flags, BGP_INFO_ORIGIN_EVPN))
         {
@@ -2245,14 +2247,14 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
                 }
             }
           if(vrf->ltype == BGP_LAYER_TYPE_3)
-            zlog_debug ("vrf[layer3] pfx %s ethtag %u esi %s  mac_router %s label l3 %u",
-                        pfx_str, ethtag,
+            zlog_debug ("vrf[layer3] pfx %s%s ethtag %u esi %s  mac_router %s label l3 %u",
+                        pfx_str, EVPN_RT3_STR(&rn->p), ethtag,
                         esi == NULL?"<none>":esi,
                         mac_router == NULL?"<none>":mac_router,
                         l3label);
           else
-            zlog_debug ("vrf[layer2] pfx %s ethtag %u esi %s  label l2 %u",
-                        pfx_str, ethtag,
+            zlog_debug ("vrf[layer2] pfx %s%s ethtag %u esi %s  label l2 %u",
+                        pfx_str, EVPN_RT3_STR(&rn->p), ethtag,
                         esi == NULL?"<none>":esi,
                         l2label);
           if (esi)
@@ -2844,8 +2846,9 @@ void bgp_vrf_process_entry (struct bgp_info *iter,
           {
             char pfx_str[PREFIX_STRLEN];
             prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
-            zlog (iter->peer->log, LOG_DEBUG, "%s withdrawing route %s "
-                  "not in adj-in", iter->peer->host, pfx_str);
+            zlog (iter->peer->log, LOG_DEBUG, "%s withdrawing route %s%s "
+                  "not in adj-in", iter->peer->host, pfx_str,
+                  EVPN_RT3_STR(&vrf_rn->p));
           }
       bgp_info_delete(vrf_rn, iter);
       
@@ -2866,8 +2869,9 @@ void bgp_vrf_process_entry (struct bgp_info *iter,
                          nh_str, sizeof (nh_str));
             }
           prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
-          zlog_debug ("%s: processing entry (for removal) from %s [ nh %s label %u]", 
-                      pfx_str, iter->peer->host, nh_str, label);
+          zlog_debug ("%s%s: processing entry (for removal) from %s [ nh %s label %u]",
+                      pfx_str, EVPN_RT3_STR(&vrf_rn->p),
+                      iter->peer->host, nh_str, label);
         }
     }
   else
@@ -2890,8 +2894,9 @@ void bgp_vrf_process_entry (struct bgp_info *iter,
                          nh_str, sizeof (nh_str));
             }
           prefix2str(&vrf_rn->p, pfx_str, sizeof(pfx_str));
-          zlog_debug ("%s: processing entry (for %s) from %s [ nh %s label %u]",
-                      pfx_str, action == ROUTE_INFO_TO_UPDATE?"upgrading":"adding",
+          zlog_debug ("%s%s: processing entry (for %s) from %s [ nh %s label %u]",
+                      pfx_str, EVPN_RT3_STR(&vrf_rn->p),
+                      action == ROUTE_INFO_TO_UPDATE?"upgrading":"adding",
                       iter->peer->host, nh_str, label);
         }
       /* When peer's soft reconfiguration enabled.  Record input packet in
@@ -2956,8 +2961,9 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
           inet_ntop (AF_INET, &select->attr->nexthop,
                      nh_str, sizeof (nh_str));
         }
-      zlog_debug ("vrf[%s] %s: [%s] [nh %s] %s ", vrf_rd_str, pfx_str, rd_str, nh_str,
-                action == ROUTE_INFO_TO_REMOVE? "withdrawing" : "updating");
+      zlog_debug ("vrf[%s] %s%s: [%s] [nh %s] %s ", vrf_rd_str, pfx_str,
+                  EVPN_RT3_STR(&rn->p), rd_str, nh_str,
+                  action == ROUTE_INFO_TO_REMOVE? "withdrawing" : "updating");
     }  
 
   if (!vrf->afc[afi_int][safi])
@@ -3064,8 +3070,9 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
 
                   prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
                   prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
-                  zlog_debug ("vrf[%s]: %s rcvd %s, flapped quicker than processing",
-                              vrf_rd_str, iter->peer->host, pfx_str);
+                  zlog_debug ("vrf[%s]: %s rcvd %s%s, flapped quicker than processing",
+                              vrf_rd_str, iter->peer->host, pfx_str,
+                              EVPN_RT3_STR(&rn->p));
                 }
 
               bgp_info_restore (vrf_rn, iter);
@@ -5154,9 +5161,10 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 
 	      if (BGP_DEBUG (update, UPDATE_IN))
 	        {
-                  zlog (peer->log, LOG_DEBUG, "%s rcvd %s",
+                  zlog (peer->log, LOG_DEBUG, "%s rcvd %s%s",
                         peer->host,
-                        pstr);
+                        pstr,
+                        EVPN_RT3_STR(p));
                   for (i = 0; i < nlabels; i++)
                     zlog (peer->log, LOG_DEBUG, "    : label[%lu]=%x", i, labels[i]);
                 }
@@ -5173,9 +5181,10 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
                 {
                   size_t i;
                   zlog (peer->log, LOG_DEBUG,
-                        "%s rcvd %s...duplicate ignored",
+                        "%s rcvd %s%s...duplicate ignored",
                         peer->host,
-                        pstr);
+                        pstr,
+                        EVPN_RT3_STR(p));
                   for (i = 0; i < nlabels; i++)
                     zlog (peer->log, LOG_DEBUG, "    : label[%lu]=%x", i, labels[i]);
                 }
@@ -5211,18 +5220,19 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       if (CHECK_FLAG(ri->flags, BGP_INFO_REMOVED))
         {
           if (BGP_DEBUG (update, UPDATE_IN))
-            zlog (peer->log, LOG_DEBUG, "%s rcvd %s, flapped quicker than processing",
+            zlog (peer->log, LOG_DEBUG, "%s rcvd %s%s, flapped quicker than processing",
             peer->host,
-            pstr);
+            pstr, EVPN_RT3_STR(p));
           bgp_info_restore (rn, ri);
           bgp_vrf_info_restore (bgp, afi, safi, rn, ri);
         }
 
       /* Received Logging. */
       if (BGP_DEBUG (update, UPDATE_IN))
-        zlog (peer->log, LOG_DEBUG, "%s rcvd %s",
+        zlog (peer->log, LOG_DEBUG, "%s rcvd %s%s",
               peer->host,
-              pstr);
+              pstr,
+              EVPN_RT3_STR(p));
 
       /* graceful restart STALE flag unset. */
       if (CHECK_FLAG (ri->flags, BGP_INFO_STALE))
@@ -5337,10 +5347,13 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
   /* Received Logging. */
   if (BGP_DEBUG (update, UPDATE_IN))  
     {
-      zlog (peer->log, LOG_DEBUG, "%s rcvd %s/%d",
+      char pstr[PREFIX_STRLEN];
+
+      prefix2str(p, pstr, PREFIX_STRLEN);
+      zlog (peer->log, LOG_DEBUG, "%s rcvd %s%s",
 	    peer->host,
-	    inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-	    p->prefixlen);
+	    pstr,
+	    EVPN_RT3_STR(p));
     }
 
   /* Make new BGP info. */
@@ -5502,10 +5515,9 @@ bgp_withdraw (struct peer *peer, struct prefix *p, struct attr *attr,
     if (!bgp_adj_in_unset (rn, peer))
       {
         if (BGP_DEBUG (update, UPDATE_IN))
-          zlog (peer->log, LOG_DEBUG, "%s withdrawing route %s/%d "
+          zlog (peer->log, LOG_DEBUG, "%s withdrawing route %s "
                 "not in adj-in", peer->host,
-                inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-                p->prefixlen);
+                EVPN_RT3_STR(p));
         bgp_unlock_node (rn);
         return 0;
       }
@@ -5519,10 +5531,9 @@ bgp_withdraw (struct peer *peer, struct prefix *p, struct attr *attr,
 
   /* Logging. */
   if (BGP_DEBUG (update, UPDATE_IN))  
-    zlog (peer->log, LOG_DEBUG, "%s rcvd UPDATE about %s/%d -- withdrawn",
+    zlog (peer->log, LOG_DEBUG, "%s rcvd UPDATE about %s -- withdrawn",
 	  peer->host,
-	  inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-	  p->prefixlen);
+	  EVPN_RT3_STR(p));
 
   /* Lookup withdrawn route. */
   for (ri = rn->info; ri; ri = ri->next)
@@ -5534,9 +5545,8 @@ bgp_withdraw (struct peer *peer, struct prefix *p, struct attr *attr,
     bgp_rib_withdraw (rn, ri, peer, afi, safi, prd);
   else if (BGP_DEBUG (update, UPDATE_IN))
     zlog (peer->log, LOG_DEBUG, 
-	  "%s Can't find the route %s/%d", peer->host,
-	  inet_ntop (p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-	  p->prefixlen);
+	  "%s Can't find the route %s", peer->host,
+	  EVPN_RT3_STR(p));
 
   /* Unlock bgp_node_get() lock. */
   bgp_unlock_node (rn);
