@@ -3585,42 +3585,22 @@ bgp_vrf_apply_new_imports_internal (struct bgp_vrf *vrf, afi_t afi, safi_t safi)
         for (rn = bgp_table_top (table); rn; rn = bgp_route_next (rn))
           {
             for (sel = rn->info; sel; sel = sel->next)
-              if (CHECK_FLAG (sel->flags, BGP_INFO_SELECTED))
-                break;
-            if (!sel)
-              continue;
-            for (mp = rn->info; mp; mp = mp->next)
-              if(mp != sel &&  bgp_is_mpath_entry(mp, sel))
-                {
-                  /* call bgp_vrf_process_two */
-                  if (!mp->attr || !mp->attr->extra)
-                    continue;
-                  ecom = mp->attr->extra->ecommunity;
-                  if (!ecom)
-                    continue;
-                  found = false;
-                  for (i = 0; i < (size_t)ecom->size && !found; i++)
-                    for (j = 0; j < (size_t)vrf->rt_import->size && !found; j++)
-                      if (!memcmp(ecom->val + i * 8, vrf->rt_import->val + j * 8, 8))
-                        found = true;
-                  if (!found)
-                    continue;
-                  bgp_vrf_process_one(vrf, afi, safi, rn, mp, 0);
-                }
-            if (!sel->attr || !sel->attr->extra)
-              continue;
-            ecom = sel->attr->extra->ecommunity;
-            if (!ecom)
-              continue;
+              {
+                if (!sel->attr || !sel->attr->extra)
+                  continue;
+                ecom = sel->attr->extra->ecommunity;
+                if (!ecom)
+                  continue;
 
-            found = false;
-            for (i = 0; i < (size_t)ecom->size && !found; i++)
-              for (j = 0; j < (size_t)vrf->rt_import->size && !found; j++)
-                if (!memcmp(ecom->val + i * 8, vrf->rt_import->val + j * 8, 8))
-                  found = true;
-            if (!found)
-              continue;
-            bgp_vrf_process_one(vrf, afi, safi, rn, sel, 0);
+                found = false;
+                for (i = 0; i < (size_t)ecom->size && !found; i++)
+                  for (j = 0; j < (size_t)vrf->rt_import->size && !found; j++)
+                    if (!memcmp(ecom->val + i * 8, vrf->rt_import->val + j * 8, 8))
+                      found = true;
+                if (!found)
+                  continue;
+                bgp_vrf_process_one(vrf, afi, safi, rn, sel, 0);
+              }
           }
       }
 }
