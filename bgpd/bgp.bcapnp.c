@@ -1461,6 +1461,126 @@ capn_ptr qcapn_new_BGPVRFRoute(struct capn_segment *s, uint8_t extend_by)
     return capn_new_struct(s, CAPN_BGPVRF_ROUTE_DEF_SIZE + extend_by, 5);
 }
 
+capn_ptr qcapn_new_BGPVRFEvpnRTRoute(struct capn_segment *s, uint8_t extend_by)
+{
+    return capn_new_struct(s, CAPN_BGPVRF_EVPN_RT_ROUTE_DEF_SIZE + extend_by, 4);
+}
+
+void qcapn_BGPVRFEvpnRTRoute_read(struct bgp_api_route *s, capn_ptr p)
+{
+    capn_resolve(&p);
+
+    {
+        capn_ptr tmp_p = capn_getp(p, 0, 1);
+
+        s->prefix.family = capn_read8(tmp_p, 0);
+        s->prefix.prefixlen = capn_read8(tmp_p, 1);
+
+        if (s->prefix.family == AF_L2VPN)
+          {
+            uint8_t index = 3;
+            uint8_t route_type = capn_read8(tmp_p, 2);
+
+            s->prefix.u.prefix_evpn.route_type = route_type;
+            if (route_type == EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
+              qcapn_prefix_imethtag_read (tmp_p, &s->prefix, &index);
+          }
+
+    }
+
+    s->label = capn_read32(p, 0);
+    s->ethtag = capn_read32(p, 4);
+    s->tunnel_type = capn_read8(p, 8);
+    s->single_active_mode = capn_read8(p, 9);
+
+    {
+        capn_ptr tmp_p = capn_getp(p, 1, 1);
+        capn_list64 listptr = { .p = capn_getp(tmp_p, 0, 1) };
+        size_t listsize = capn_len(listptr);
+        uint64_t buf[listsize];
+        capn_getv64(listptr, 0, buf, listsize);
+        if (s->rt_export)
+            ecommunity_unintern(&s->rt_export);
+        s->rt_export = ecommunity_parse ((uint8_t *)buf, listsize * 8);
+    }
+    {
+      char * esi = NULL;
+      int len;
+      capn_text tp = capn_get_text(p, 2, capn_val0);
+      esi = (char *)tp.str;
+      len = tp.len;
+      if (esi && len != 0)
+        {
+          s->esi = (char *)strdup(esi);
+        }
+      else
+        {
+          s->esi = NULL;
+        }
+    }
+    {
+      char * tunnel_id = NULL;
+      int len;
+      capn_text tp = capn_get_text(p, 3, capn_val0);
+      tunnel_id = (char *) tp.str;
+      len = tp.len;
+      if (tunnel_id && len != 0)
+        {
+          s->tunnel_id = (char *)strdup(tunnel_id);
+        }
+      else
+        {
+          s->tunnel_id = NULL;
+        }
+    }
+}
+
+void qcapn_BGPVRFEvpnRTRoute_write(const struct bgp_api_route *s, capn_ptr p)
+{
+    if (s->prefix.family != AF_L2VPN)
+      return;
+    if (s->prefix.u.prefix_evpn.route_type != EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
+      return;
+
+    capn_resolve(&p);
+
+    {
+       capn_ptr tempptr;
+       int size;
+       uint8_t index = 3;
+
+       if (s->prefix.u.prefix_evpn.u.prefix_imethtag.ip_len == 128)
+         size = 24;
+       else
+         size = 12;
+
+       tempptr = capn_new_struct(p.seg, size, 0);
+       capn_write8(tempptr, 0, s->prefix.family);
+       capn_write8(tempptr, 1, s->prefix.prefixlen);
+       capn_write8(tempptr, 2, s->prefix.u.prefix_evpn.route_type);
+       qcapn_prefix_imethtag_write(tempptr, &s->prefix, &index);
+       capn_setp(p, 0, tempptr);
+    }
+
+    capn_write32(p, 0, s->label);
+    capn_write32(p, 4, s->ethtag);
+    capn_write8(p, 8, s->tunnel_type);
+    capn_write8(p, 9, s->single_active_mode);
+
+    {
+      capn_ptr tempptr = capn_new_struct(p.seg, 0, 1);
+      size_t size = s->rt_export ? s->rt_export->size : 0;
+      capn_list64 listptr = capn_new_list64(p.seg, size);
+      if (size)
+          capn_setv64(listptr, 0, (uint64_t *)s->rt_export->val, size);
+      capn_setp(tempptr, 0, listptr.p);
+      capn_setp(p, 1, tempptr);
+    }
+
+    { capn_text tp = { .str = s->esi, .len = s->esi ? strlen((const char *)s->esi) : 0 }; capn_set_text(p, 2, tp); }
+    { capn_text tp = { .str = s->tunnel_id, .len = s->tunnel_id ? strlen((const char *)s->tunnel_id) : 0 }; capn_set_text(p, 3, tp); }
+}
+
 void qcapn_BGPEventVRFRoute_read(struct bgp_event_vrf *s, capn_ptr p)
 {
     uint64_t tmp;

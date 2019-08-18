@@ -67,5 +67,10 @@ void qcapn_prefix_imethtag_read(capn_ptr p, struct prefix *pfx, uint8_t *index);
 void qcapn_prefix_ipv4ipv6_write (capn_ptr p, const struct prefix *pfx, uint8_t index);
 void qcapn_prefix_ipv4ipv6_read(capn_ptr p, struct prefix *pfx, uint8_t index);
 
+capn_ptr qcapn_new_BGPVRFEvpnRTRoute(struct capn_segment *s, uint8_t extend_by);
+void qcapn_BGPVRFEvpnRTRoute_read(struct bgp_api_route *s, capn_ptr p);
+void qcapn_BGPVRFEvpnRTRoute_write(const struct bgp_api_route *s, capn_ptr p);
+
 #define  CAPN_BGPVRF_ROUTE_DEF_SIZE  12
+#define  CAPN_BGPVRF_EVPN_RT_ROUTE_DEF_SIZE  10
 #endif /* CAPN_C4C948A17D3B2250 */

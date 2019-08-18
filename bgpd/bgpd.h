@@ -353,9 +353,14 @@ struct bgp_api_route
   uint32_t label;
   uint32_t l2label;
   uint32_t ethtag;
+  uint8_t  tunnel_type; /* PMSI tunnel type, only available for EVPN RT3 */
+  uint8_t  single_active_mode; /* for EVPN RT1 */
   char *esi;
   char *mac_router;
+  char *tunnel_id; /* PMSI tunnel id, only available for EVPN RT3 */
   struct prefix gatewayIp;
+  /* EVPN RT3 export lists */
+  struct ecommunity *rt_export;
 };
 
 /* BGP peer-group support. */
