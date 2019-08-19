@@ -2477,10 +2477,13 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   str2prefix ("0.0.0.0/0", &def_route);
   str2prefix ("::/0", &def_route_ipv6);
 
+#define IS_EVPN_RT3_PREFIX(p) ((p)->family == AF_L2VPN && \
+                               (p)->u.prefix_evpn.route_type == \
+                                EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
   /* if we try to install a default route, set flag accordingly */
   if ( ( (0 == prefix_cmp(&def_route, p)) ||
          (0 == prefix_cmp(&def_route_ipv6, p))) &&
-       ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN)))
+       ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN)) && !IS_EVPN_RT3_PREFIX(p))
     {
       struct bgp_vrf *v;
       struct bgp *bgp;
@@ -2518,30 +2521,43 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   bgp_static->backdoor = 0;
   bgp_static->valid = 1;
   bgp_static->igpmetric = 0;
-  if (route->nexthop.family == AF_INET)
-    bgp_static->igpnexthop = route->nexthop.u.prefix4;
-  else if (route->nexthop.family == AF_INET6)
-    memcpy (&bgp_static->ipv6nexthop, &route->nexthop.u.prefix6, sizeof(struct in6_addr));
 
-  prefix_copy (&(bgp_static->gatewayIp), &(route->gatewayIp)); 
-  if (route->label != 0xFFFFFFFF)
+  if (IS_EVPN_RT3_PREFIX(p))
     {
-      if (safi == SAFI_EVPN)
-        {
-          /* EVPN RT2/RT5 encode vni in label. encoding uses full 24 bits */
-           bgp_static->labels[0] = route->label;
-        } else {
-           bgp_static->labels[0] = (route->label << 4) | 1;
-        }
-       bgp_static->nlabels = 1;
+        bgp_static->pmsi_tunnel_id_ingress_replication = true;
+        /* by default: nexthop bgp router id */
+        bgp_static->igpnexthop = vrf->bgp->router_id;
+        bgp_static->nlabels = 0;
     }
   else
-    bgp_static->nlabels = 0;
+    {
+      if (route->nexthop.family == AF_INET)
+        bgp_static->igpnexthop = route->nexthop.u.prefix4;
+      else if (route->nexthop.family == AF_INET6)
+        memcpy (&bgp_static->ipv6nexthop, &route->nexthop.u.prefix6, sizeof(struct in6_addr));
+
+      prefix_copy (&(bgp_static->gatewayIp), &(route->gatewayIp));
+      if (route->label != 0xFFFFFFFF)
+        {
+          if (safi == SAFI_EVPN)
+            {
+              /* EVPN RT2/RT5 encode vni in label. encoding uses full 24 bits */
+              bgp_static->labels[0] = route->label;
+            } else {
+              bgp_static->labels[0] = (route->label << 4) | 1;
+            }
+           bgp_static->nlabels = 1;
+        }
+      else
+        bgp_static->nlabels = 0;
+    }
 
   if (vrf)
     {
       bgp_static->prd = vrf->outbound_rd;
       bgp_static->ecomm = vrf->rt_export;
+      if (IS_EVPN_RT3_PREFIX(p) && route->rt_export)
+        bgp_static->ecomm = route->rt_export;
     }
   if(afi == AFI_L2VPN)
     {
@@ -2550,13 +2566,18 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
           bgp_static->eth_s_id = XCALLOC (MTYPE_ATTR, sizeof(struct eth_segment_id));
           str2esi (route->esi, bgp_static->eth_s_id);
         }
-      bgp_static->eth_t_id = route->ethtag;
+
+      if (IS_EVPN_RT3_PREFIX(p))
+        bgp_static->eth_t_id = p->u.prefix_evpn.u.prefix_imethtag.eth_tag_id;
+      else
+        bgp_static->eth_t_id = route->ethtag;
+
       if(route->mac_router)
         {
           bgp_static->router_mac = XCALLOC (MTYPE_ATTR, MAC_LEN+1);
           str2mac ((const char *)route->mac_router, bgp_static->router_mac);
         }
-      if(p->family == AF_L2VPN)
+      if(p->family == AF_L2VPN && !IS_EVPN_RT3_PREFIX(p))
         {
           /* case of RT2 route, l2 label must be considered as mpls label 1 in message */
           if ( (vrf->ltype != BGP_LAYER_TYPE_3) && (route->l2label != 0))
@@ -2708,7 +2729,7 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
   /* if we try to withdraw a default route, unset flag accordingly */
   if ( ( (0 == prefix_cmp(&def_route, p)) ||
          (0 == prefix_cmp(&def_route_ipv6, p))) &&
-       ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN)))
+       ( (safi == SAFI_MPLS_VPN) || (safi == SAFI_EVPN)) && !IS_EVPN_RT3_PREFIX(p))
     {
       int ret = -1;
       struct bgp_vrf *v;

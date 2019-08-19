@@ -1065,6 +1065,45 @@ _qzc_set_bgp_vrf_3(struct bgp_vrf *p,
     return ret;
 }
 
+/* Iterated item SET bgp_vrf:4 <> bgp_vrf-> ()*/
+static int
+_qzc_set_bgp_vrf_4(struct bgp_vrf *p,
+        struct QZCSetReq *req,
+        struct QZCSetRep *rep,
+        struct capn_segment *seg)
+{
+    afi_t afi;
+    int ret = 0;
+
+    if (req->ctxtype != 0xac25a73c3ff455c0)
+        /* error */
+        return 0;
+
+    afi = qcapn_AfiKey_get_afi (req->ctxdata);
+
+    if (req->datatype != 0x8f217eb4bad6c06f)
+        /* error */
+        return 0;
+
+    struct bgp_api_route data;
+    memset(&data, 0, sizeof(data));
+    qcapn_BGPVRFEvpnRTRoute_read(&data, req->data);
+
+    ret = bgp_vrf_static_set(p, afi, &data);
+
+    if (ret)
+      ret = 0;
+    else
+      ret = 1;
+    rep->datatype = req->datatype;
+
+    if (data.esi)
+      free (data.esi);
+    if (data.tunnel_id)
+      free (data.tunnel_id);
+    data.esi = data.tunnel_id = NULL;
+    return ret;
+}
 /* Iterated item SET bgp_vrf:1 <> bgp_vrf-> ()*/
 static int
 _qzc_unset_bgp_vrf_1(struct bgp_vrf *p,
@@ -1130,7 +1169,45 @@ _qzc_unset_bgp_vrf_3(struct bgp_vrf *p,
     return ret;
 }
 
+/* Iterated item SET bgp_vrf:4 <> bgp_vrf-> ()*/
 
+static int
+_qzc_unset_bgp_vrf_4(struct bgp_vrf *p,
+        struct QZCSetReq *req,
+        struct QZCSetRep *rep,
+        struct capn_segment *seg)
+{
+    afi_t afi;
+    int ret = 0;
+
+    if (req->ctxtype != 0xac25a73c3ff455c0)
+        /* error */
+        return 0;
+
+    afi = qcapn_AfiKey_get_afi (req->ctxdata);
+
+    if (req->datatype != 0x8f217eb4bad6c06f)
+        /* error */
+        return 0;
+
+    struct bgp_api_route data;
+    memset(&data, 0, sizeof(data));
+    qcapn_BGPVRFEvpnRTRoute_read(&data, req->data);
+
+    ret = bgp_vrf_static_unset(p, afi, &data);
+    if (ret)
+      ret = 0;
+    else
+      ret = 1;
+
+    rep->datatype = req->datatype;
+    if (data.esi)
+      free (data.esi);
+    if (data.tunnel_id)
+      free (data.tunnel_id);
+    data.tunnel_id = data.esi = NULL;
+    return ret;
+}
 
 /* [cda67afc021c23cf] bgp_vrf <> bgp_vrf */
 static void
@@ -1173,6 +1250,9 @@ _qzc_set_bgp_vrf(void *entity,
     case 3:
         ret = _qzc_set_bgp_vrf_3(p, req, rep, seg);
         break;
+    case 4:
+        ret = _qzc_set_bgp_vrf_4(p, req, rep, seg);
+        break;
     default:
         break;
     }
@@ -1195,6 +1275,9 @@ _qzc_unset_bgp_vrf(void *entity,
         break;
     case 3:
         ret = _qzc_unset_bgp_vrf_3(p, req, rep, seg);
+        break;
+    case 4:
+        ret = _qzc_unset_bgp_vrf_4(p, req, rep, seg);
         break;
     default:
         break;
