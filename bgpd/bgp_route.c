@@ -2992,23 +2992,21 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
           if (!rd_same (&iter->extra->vrf_rd, &select->extra->vrf_rd))
             continue;
           /* search associated old entry.
-           * assume with same nexthop and same peer */
+           * assume with same peer */
           if(iter->peer->remote_id.s_addr != select->peer->remote_id.s_addr)
             continue;
-          if (0 == bgp_info_nexthop_cmp (iter, select))
+
+          if(action == ROUTE_INFO_TO_UPDATE)
             {
-              if(action == ROUTE_INFO_TO_UPDATE)
-                {
-                  /* because there is an update, signify a withdraw */
-                  bgp_vrf_update (vrf, afi_int, vrf_rn, iter, false);
-                  /* update labels labels */
-                  /* update attr part / containing next hop */
-                  bgp_vrf_copy_bgp_info (vrf, rn, safi, select, iter);
-                  bgp_info_set_flag (rn, iter, BGP_INFO_ATTR_CHANGED);
-                  UNSET_FLAG (iter->flags, BGP_INFO_UPDATE_SENT);
-                }
-              break;
+              /* because there is an update, signify a withdraw */
+              bgp_vrf_update (vrf, afi_int, vrf_rn, iter, false);
+              /* update labels labels */
+              /* update attr part / containing next hop */
+              bgp_vrf_copy_bgp_info (vrf, rn, safi, select, iter);
+              bgp_info_set_flag (rn, iter, BGP_INFO_ATTR_CHANGED);
+              UNSET_FLAG (iter->flags, BGP_INFO_UPDATE_SENT);
             }
+          break;
         }
       /* silently add new entry to rn */
       if(!iter)
