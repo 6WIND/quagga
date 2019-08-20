@@ -1650,13 +1650,17 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
                         int iter_on_multipath, void **next)
 {
   struct bgp_info *sel, *iter, *sel_start = NULL;
+  struct prefix *p;
 
   memset(out, 0, sizeof (*out));
   if (bn->p.family == AF_ETHERNET)
     return false;
   if (!bn->info)
     return false;
-
+  p = &bn->p;
+  if (p->family == AF_L2VPN &&
+      p->u.prefix_evpn.route_type == EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
+    return false;
   prefix_copy ((struct prefix *)&out->prefix, &bn->p);
   /* prepare sel_start with start of list to look for multipath entries */
   /* Since this function should be first called with iter_on_multipath set to 0 */
