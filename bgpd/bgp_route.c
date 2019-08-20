@@ -20697,7 +20697,7 @@ bgp_config_write_network_evpn (struct vty *vty, struct bgp *bgp,
               {
                 if (safi == SAFI_EVPN && bgp_static->nlabels == 1)
                   sprintf(lblbuf, "%d", bgp_static->labels[0]);
-                vty_out (vty, " network %s/%d rd %s ethtag %u tag %s esi %s gwip %s routermac %s",
+                vty_out (vty, " network %s/%d rd %s ethtag %u label %s esi %s gwip %s routermac %s",
                          inet_ntop (p->family, &p->u.prefix, buf, SU_ADDRSTRLEN), 
                          p->prefixlen,
                          rdbuf, bgp_static->eth_t_id, lblbuf, esi, buf2 , macrouter);
