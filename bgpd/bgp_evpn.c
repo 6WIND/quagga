@@ -507,7 +507,7 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
         }
       else
         {
-          if((pnt - route_length != pnt2))
+          if((pnt - route_length) != pnt2)
             {
               zlog_err ("Route Type %u, NLRI length mismatch %d observed %ld)",
                         route_type, route_length, pnt - pnt2);

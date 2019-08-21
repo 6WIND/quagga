@@ -2760,7 +2760,7 @@ bgp_packet_mpattr_route_type_1 (struct stream *s,
 
       stream_putc (s, EVPN_ETHERNET_AUTO_DISCOVERY);
       stream_putc (s, 8 /* RD */ + 10 /* ESI */  + 4 /* EthTag */
-                    + 3 /* MPLS label */ + 1 /* len from TLV */);
+                    + 3 /* MPLS label */);
       /* route distinguisher */
       stream_put (s, prd->val, 8);
 
