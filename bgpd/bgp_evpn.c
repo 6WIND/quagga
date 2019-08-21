@@ -858,8 +858,7 @@ DEFUN (show_bgp_l2vpn_evpn_route_type,
        "Multicast (Type-3) route\n"
        "Prefix (Type-5) route\n")
 {
-  char *route_type_str = argv[0];
-  bool found = false;
+  const char *route_type_str = argv[0];
 
   if (route_type_str)
     {
@@ -883,6 +882,58 @@ DEFUN (show_bgp_l2vpn_evpn_route_type,
     return bgp_show_ethernet_vpn (vty, NULL, bgp_show_type_normal, NULL,
 				  SHOW_DISPLAY_STANDARD);
 }
+
+DEFUN (show_bgp_l2vpn_evpn_rd_route_type,
+       show_bgp_l2vpn_evpn_rd_route_type_cmd,
+       "show bgp l2vpn evpn rd ASN:nn_or_IP-address:nn route type (discovery|macip|multicast|prefix)",
+       SHOW_STR
+       BGP_STR
+       "Display L2VPN AFI information\n"
+       "Display EVPN NLRI specific information\n"
+       "Display information for a route distinguisher\n"
+       "ASN:NN_OR_IP-ADDRESS:NN  VPN Route Distinguisher\n"
+       "Display information about specific route entry\n"
+       "Filtering inforamtion with evpn route type\n"
+       "Discovery (Type-1) route\n"
+       "MAC-IP (Type-2) route\n"
+       "Multicast (Type-3) route\n"
+       "Prefix (Type-5) route\n")
+{
+  char *route_type_str = argv[1];
+  bool found = false;
+  struct prefix_rd prd;
+  int ret;
+
+  ret = str2prefix_rd (argv[0], &prd);
+  if (! ret)
+    {
+      vty_out (vty, "%% Malformed Route Distinguisher%s", VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  if (route_type_str)
+    {
+      if (route_type_str[0] == 'd')
+	return bgp_show_ethernet_vpn (vty, &prd, bgp_show_type_normal, NULL,
+                                      SHOW_DISPLAY_EVPN_RT1);
+      if (route_type_str[0] == 'p')
+	return bgp_show_ethernet_vpn (vty, &prd, bgp_show_type_normal, NULL,
+                                      SHOW_DISPLAY_EVPN_RT5);
+      if (strlen(route_type_str) > 1 && route_type_str[0] == 'm')
+	{
+	  if (route_type_str[1] == 'u')
+            return bgp_show_ethernet_vpn (vty, &prd, bgp_show_type_normal, NULL,
+                                          SHOW_DISPLAY_EVPN_RT3);
+	  else
+	      return bgp_show_ethernet_vpn (vty, &prd, bgp_show_type_normal, NULL,
+					    SHOW_DISPLAY_EVPN_RT2);
+	}
+    }
+  /* fallback */
+  return bgp_show_ethernet_vpn (vty, &prd, bgp_show_type_normal, NULL,
+                                SHOW_DISPLAY_STANDARD);
+}
+
 DEFUN (show_bgp_l2vpn_evpn_all,
        show_bgp_l2vpn_evpn_all_cmd,
        "show bgp l2vpn evpn all",
@@ -916,7 +967,7 @@ DEFUN (show_bgp_evpn_rd,
        BGP_STR
        "Display EVPN NLRI specific information\n"
        "Display information for a route distinguisher\n"
-       "VPN Route Distinguisher\n")
+       "ASN:NN_OR_IP-ADDRESS:NN  VPN Route Distinguisher\n")
 {
   int ret;
   struct prefix_rd prd;
@@ -938,7 +989,7 @@ ALIAS (show_bgp_evpn_rd,
        BGP_STR
        "Display L2VPN AFI information\n"
        "Display information for a route distinguisher\n"
-       "VPN Route Distinguisher\n")
+       "ASN:NN_OR_IP-ADDRESS:NN  VPN Route Distinguisher\n")
 
 DEFUN (show_bgp_l2vpn_evpn_all_tags,
        show_bgp_l2vpn_evpn_all_tags_cmd,
@@ -1374,6 +1425,7 @@ bgp_ethernetvpn_init (void)
 {
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_cmd);
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_route_type_cmd);
+  install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_route_type_cmd);
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_all_hidden_cmd);
   install_element (VIEW_NODE, &show_bgp_l2vpn_evpn_rd_cmd);
   install_element (VIEW_NODE, &show_bgp_evpn_rd_cmd);
