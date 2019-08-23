@@ -2605,7 +2605,7 @@ void bgp_vrf_maximum_paths_set(struct bgp_vrf *vrf, bool unconfigured)
         }
       else
         {
-          vrf->max_mpath[afi][safi] = BGP_DEFAULT_MAXPATHS;
+          vrf->max_mpath[afi][safi] = vrf->max_mpath_configured;
         }
 }
 
