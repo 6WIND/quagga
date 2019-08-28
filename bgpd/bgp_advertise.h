@@ -101,6 +101,7 @@ struct bgp_adj_in
 struct bgp_synchronize
 {
   struct fifo update;
+  struct fifo update_high;
   struct fifo withdraw;
   struct fifo withdraw_low;
 };

@@ -36,6 +36,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_packet.h"
 #include "bgpd/bgp_fsm.h"
 #include "bgpd/bgp_mplsvpn.h"
+#include "bgpd/bgp_evpn.h"
 
 /* BGP advertise attribute is used for pack same attribute update into
    one packet.  To do that we maintain attribute hash in struct
@@ -187,11 +188,17 @@ bgp_advertise_clean (struct peer *peer, struct bgp_adj_out *adj,
   struct bgp_advertise_attr *baa;
   struct bgp_advertise *next;
   struct bgp_advertise_fifo *fhead;
+  struct prefix *p;
 
   adv = adj->adv;
   baa = adv->baa;
   next = NULL;
-  fhead = (struct bgp_advertise_fifo *)&peer->sync[afi][safi]->withdraw;
+
+  p = &adv->rn->p;
+  if (IS_EVPN_RT3_PREFIX(p))
+    fhead = (struct bgp_advertise_fifo *)&peer->sync[afi][safi]->withdraw_low;
+  else
+    fhead = (struct bgp_advertise_fifo *)&peer->sync[afi][safi]->withdraw;
 
   if (baa)
     {
@@ -204,7 +211,10 @@ bgp_advertise_clean (struct peer *peer, struct bgp_adj_out *adj,
       /* Unintern BGP advertise attribute.  */
       bgp_advertise_unintern (peer->hash[afi][safi], baa);
 
-      fhead = (struct bgp_advertise_fifo *)&peer->sync[afi][safi]->update;
+      if (IS_EVPN_RT3_PREFIX(p))
+        fhead = (struct bgp_advertise_fifo *)&peer->sync[afi][safi]->update_high;
+      else
+        fhead = (struct bgp_advertise_fifo *)&peer->sync[afi][safi]->update;
     }
 
   /* Unlink myself from advertisement FIFO.  */
@@ -267,7 +277,11 @@ bgp_adj_out_set (struct bgp_node *rn, struct peer *peer, struct prefix *p,
   /* Add new advertisement to advertisement attribute list. */
   bgp_advertise_add (adv->baa, adv);
 
-  BGP_ADV_FIFO_ADD (&peer->sync[afi][safi]->update, &adv->fifo);
+  if (IS_EVPN_RT3_PREFIX(p))
+    /* add EVPN RT3 advertisement to high FIFO */
+    BGP_ADV_FIFO_ADD (&peer->sync[afi][safi]->update_high, &adv->fifo);
+  else
+    BGP_ADV_FIFO_ADD (&peer->sync[afi][safi]->update, &adv->fifo);
 }
 
 void
@@ -301,7 +315,11 @@ bgp_adj_out_unset (struct bgp_node *rn, struct peer *peer, struct prefix *p,
       adv->adj = adj;
 
       /* Add to synchronization entry for withdraw announcement.  */
-      BGP_ADV_FIFO_ADD (&peer->sync[afi][safi]->withdraw, &adv->fifo);
+      if (IS_EVPN_RT3_PREFIX(p))
+        /* Add EVPN RT3 advertisement to low FIFO */
+        BGP_ADV_FIFO_ADD (&peer->sync[afi][safi]->withdraw_low, &adv->fifo);
+      else
+        BGP_ADV_FIFO_ADD (&peer->sync[afi][safi]->withdraw, &adv->fifo);
 
       /* Schedule packet write. */
       BGP_WRITE_ON (peer->t_write, bgp_write, peer->fd);
@@ -395,6 +413,7 @@ bgp_sync_init (struct peer *peer)
 	sync = XCALLOC (MTYPE_BGP_SYNCHRONISE, 
 	                sizeof (struct bgp_synchronize));
 	BGP_ADV_FIFO_INIT (&sync->update);
+	BGP_ADV_FIFO_INIT (&sync->update_high);
 	BGP_ADV_FIFO_INIT (&sync->withdraw);
 	BGP_ADV_FIFO_INIT (&sync->withdraw_low);
 	peer->sync[afi][safi] = sync;

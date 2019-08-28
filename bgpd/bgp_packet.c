@@ -147,12 +147,12 @@ bgp_connect_check (struct peer *peer)
 
 /* Make BGP update packet.  */
 static struct stream *
-bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
+bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi,
+                   struct bgp_advertise *adv)
 {
   struct stream *s;
   struct stream *snlri;
   struct bgp_adj_out *adj;
-  struct bgp_advertise *adv;
   struct stream *packet;
   struct bgp_node *rn = NULL;
   struct bgp_info *binfo = NULL;
@@ -168,7 +168,6 @@ bgp_update_packet (struct peer *peer, afi_t afi, safi_t safi)
   snlri = peer->scratch;
   stream_reset (snlri);
 
-  adv = BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->update);
   while (adv)
     {
       assert (adv->rn);
@@ -394,7 +393,7 @@ bgp_update_packet_eor (struct peer *peer, afi_t afi, safi_t safi)
      mp_unreach attr type | attr len | afi | safi | withdrawn prefixes
 */
 static struct stream *
-bgp_withdraw_packet (struct peer *peer, afi_t afi, safi_t safi)
+bgp_withdraw_packet (struct peer *peer, afi_t afi, safi_t safi, int low)
 {
   struct stream *s;
   struct stream *packet;
@@ -413,7 +412,8 @@ bgp_withdraw_packet (struct peer *peer, afi_t afi, safi_t safi)
   s = peer->work;
   stream_reset (s);
 
-  while ((adv = BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->withdraw)) != NULL)
+  while ((adv = (low ? BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->withdraw_low) :
+                       BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->withdraw))) != NULL)
     {
       assert (adv->rn);
       adj = adv->adj;
@@ -1109,7 +1109,15 @@ bgp_write_packet (struct peer *peer)
 	adv = BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->withdraw);
 	if (adv)
 	  {
-	    s = bgp_withdraw_packet (peer, afi, safi);
+	    s = bgp_withdraw_packet (peer, afi, safi, 0);
+	    if (s)
+	      return s;
+	  }
+
+	adv = BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->withdraw_low);
+	if (adv)
+	  {
+	    s = bgp_withdraw_packet (peer, afi, safi, 1);
 	    if (s)
 	      return s;
 	  }
@@ -1118,6 +1126,33 @@ bgp_write_packet (struct peer *peer)
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
       {
+	adv = BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->update_high);
+	if (adv)
+	  {
+            if (adv->binfo && adv->binfo->uptime < peer->synctime)
+	      {
+		if (CHECK_FLAG (adv->binfo->peer->cap, PEER_CAP_RESTART_RCV)
+		    && CHECK_FLAG (adv->binfo->peer->cap, PEER_CAP_RESTART_ADV)
+		    && ! (CHECK_FLAG (adv->binfo->peer->cap,
+                                      PEER_CAP_RESTART_BIT_RCV) &&
+		          CHECK_FLAG (adv->binfo->peer->cap,
+                                      PEER_CAP_RESTART_BIT_ADV))
+		    && ! CHECK_FLAG (adv->binfo->flags, BGP_INFO_STALE))
+		  {
+		    if ((CHECK_FLAG (adv->binfo->peer->af_sflags[afi][safi],
+                                     PEER_STATUS_EOR_RECEIVED)) ||
+                         (CHECK_FLAG (adv->binfo->peer->af_sflags[afi][safi],
+                                      PEER_STATUS_FIRST_KEEPALIVE_RECEIVED)))
+		      s = bgp_update_packet (peer, afi, safi, adv);
+		  }
+		else
+		  s = bgp_update_packet (peer, afi, safi, adv);
+	      }
+
+	    if (s)
+	      return s;
+	  }
+
 	adv = BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->update);
 	if (adv)
 	  {
@@ -1135,10 +1170,10 @@ bgp_write_packet (struct peer *peer)
                                      PEER_STATUS_EOR_RECEIVED)) ||
                          (CHECK_FLAG (adv->binfo->peer->af_sflags[afi][safi],
                                       PEER_STATUS_FIRST_KEEPALIVE_RECEIVED)))
-		      s = bgp_update_packet (peer, afi, safi);
+		      s = bgp_update_packet (peer, afi, safi, adv);
 		  }
 		else
-		  s = bgp_update_packet (peer, afi, safi);
+		  s = bgp_update_packet (peer, afi, safi, adv);
 	      }
 
 	    if (s)
@@ -1195,14 +1230,21 @@ bgp_write_proceed (struct peer *peer)
 
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
-      if (FIFO_HEAD (&peer->sync[afi][safi]->withdraw))
+      if (FIFO_HEAD (&peer->sync[afi][safi]->withdraw) ||
+	  FIFO_HEAD (&peer->sync[afi][safi]->withdraw_low))
 	return 1;
 
   for (afi = AFI_IP; afi < AFI_MAX; afi++)
     for (safi = SAFI_UNICAST; safi < SAFI_MAX; safi++)
-      if ((adv = BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->update)) != NULL)
-	if (adv->binfo->uptime < peer->synctime)
-	  return 1;
+      {
+	if ((adv = BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->update_high)) != NULL)
+	  if (adv->binfo->uptime < peer->synctime)
+	    return 1;
+
+	if ((adv = BGP_ADV_FIFO_HEAD (&peer->sync[afi][safi]->update)) != NULL)
+	  if (adv->binfo->uptime < peer->synctime)
+	    return 1;
+      }
 
   return 0;
 }

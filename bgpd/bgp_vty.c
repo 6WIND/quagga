@@ -8060,7 +8060,9 @@ bgp_show_summary (struct vty *vty, struct bgp *bgp, int afi, int safi)
 		   + peer->dynamic_cap_out,
 		   0, 0,
 		   peer->sync[afi][safi]->update.count +
-		   peer->sync[afi][safi]->withdraw.count);
+		   peer->sync[afi][safi]->withdraw.count +
+		   peer->sync[afi][safi]->update_high.count +
+		   peer->sync[afi][safi]->withdraw_low.count);
 
 	  vty_out (vty, "%8s", 
 		   peer_uptime (peer->uptime, timebuf, BGP_UPTIME_LEN));
