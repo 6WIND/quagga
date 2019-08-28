@@ -2481,9 +2481,6 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
   str2prefix ("0.0.0.0/0", &def_route);
   str2prefix ("::/0", &def_route_ipv6);
 
-#define IS_EVPN_RT3_PREFIX(p) ((p)->family == AF_L2VPN && \
-                               (p)->u.prefix_evpn.route_type == \
-                                EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
   /* if we try to install a default route, set flag accordingly */
   if ( ( (0 == prefix_cmp(&def_route, p)) ||
          (0 == prefix_cmp(&def_route_ipv6, p))) &&

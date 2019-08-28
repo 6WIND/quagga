@@ -69,6 +69,9 @@ bgp_evpn_auto_discovery_new_entry (struct bgp_vrf *vrf,
 #define BGP_ENCAPSULATION_MPLSOGRE  11
 #define BGP_ENCAPSULATION_VXLANGPE  12
 
+#define IS_EVPN_RT3_PREFIX(p) ((p)->family == AF_L2VPN && \
+                               (p)->u.prefix_evpn.route_type == \
+                                EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
 #define EVPN_RT3_STR(p) (((p)->family == AF_L2VPN) ? \
                           (((p)->u.prefix_evpn.route_type == 3) ? \
                            "(Inclusive Multicast Route)" : "") \
