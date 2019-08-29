@@ -1942,7 +1942,10 @@ static int check_vrf_enabled(struct bgp_vrf *vrf, afi_t afi, safi_t safi,
         afi_int = AFI_IP6;
       else if (p->family == AF_L2VPN)
         {
-          if (p->prefixlen == L2VPN_IPV6_PREFIX_LEN)
+          if (IS_EVPN_RT3_PREFIX(p))
+            /* VRF(AFI_IP, SAFI_EVPN) should be enabled for EVPN RT3 */
+            afi_int = AFI_IP;
+          else if (p->prefixlen == L2VPN_IPV6_PREFIX_LEN)
             afi_int = AFI_IP6;
           else
             afi_int = AFI_IP;
@@ -2268,7 +2271,7 @@ bgp_vrf_update (struct bgp_vrf *vrf, afi_t afi, struct bgp_node *rn,
         }
     }
 
-  if (afi == AFI_IP || afi == AFI_IP6)
+  if (afi == AFI_IP || afi == AFI_IP6 || afi == AFI_L2VPN)
     {
       if (selected->attr && selected->attr->extra)
         {
@@ -2853,10 +2856,14 @@ void bgp_vrf_process_entry (struct bgp_info *iter,
       else if (vrf_rn->p.family == AF_INET6)
         afi_int = AFI_IP6;
       else if (vrf_rn->p.family == AF_L2VPN)
-        if (vrf_rn->p.prefixlen == L2VPN_IPV6_PREFIX_LEN)
-          afi_int = AFI_IP6;
-        else
-          afi_int = AFI_IP;
+        {
+          if (IS_EVPN_RT3_PREFIX(&vrf_rn->p))
+            afi_int = AFI_IP;
+	  else if (vrf_rn->p.prefixlen == L2VPN_IPV6_PREFIX_LEN)
+            afi_int = AFI_IP6;
+          else
+            afi_int = AFI_IP;
+        }
     }
   else
     afi_int = afi;
@@ -2956,10 +2963,15 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
       else if (rn->p.family == AF_INET6)
         afi_int = AFI_IP6;
       else if (rn->p.family == AF_L2VPN)
-        if (rn->p.prefixlen == L2VPN_IPV6_PREFIX_LEN)
-          afi_int = AFI_IP6;
-        else
-          afi_int = AFI_IP;
+        {
+          if (IS_EVPN_RT3_PREFIX(&rn->p))
+            /* VRF(AFI_IP, SAFI_EVPN) should be enabled for EVPN RT3 */
+            afi_int = AFI_IP;
+	  else if (rn->p.prefixlen == L2VPN_IPV6_PREFIX_LEN)
+            afi_int = AFI_IP6;
+          else
+            afi_int = AFI_IP;
+        }
     }
   else
     afi_int = afi;
@@ -3004,6 +3016,10 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
   /* check if global RIB plans for destroying initial entry
    * if yes, then suppress it
    */
+
+  if (IS_EVPN_RT3_PREFIX(&rn->p))
+    afi_int = AFI_L2VPN; /* store EVPN RT3 prefix in vrf->rib[AFI_L2VPN] */
+
   if(!vrf || !vrf->rib[afi_int] || !select)
     {
       return;
@@ -3303,10 +3319,14 @@ static void bgp_vrf_remove_bgp_info (struct bgp_vrf *vrf, afi_t afi, safi_t safi
       else if (rn->p.family == AF_INET6)
         afi_int = AFI_IP6;
       else if (rn->p.family == AF_L2VPN)
-        if (rn->p.prefixlen == L2VPN_IPV6_PREFIX_LEN)
-          afi_int = AFI_IP6;
-        else
-          afi_int = AFI_IP;
+        {
+          if (IS_EVPN_RT3_PREFIX(&rn->p))
+            afi_int = AFI_IP;
+	  else if (rn->p.prefixlen == L2VPN_IPV6_PREFIX_LEN)
+            afi_int = AFI_IP6;
+          else
+            afi_int = AFI_IP;
+        }
     }
   else
     afi_int = afi;
@@ -3341,6 +3361,9 @@ static void bgp_vrf_remove_bgp_info (struct bgp_vrf *vrf, afi_t afi, safi_t safi
                   afi_int, safi);
       return;
     }
+
+  if (IS_EVPN_RT3_PREFIX(&rn->p))
+    afi_int = AFI_L2VPN; /* store EVPN RT3 prefix in vrf->rib[AFI_L2VPN] */
 
   if(!vrf || !vrf->rib[afi_int] || !select)
     {
@@ -3516,7 +3539,9 @@ bgp_vrf_update_global_rib_l2vpn (struct bgp_vrf *vrf, afi_t afi)
                 afi_int = AFI_IP6;
               else if (p->family == AF_L2VPN)
                 {
-                  if (p->prefixlen == L2VPN_IPV6_PREFIX_LEN)
+                  if (IS_EVPN_RT3_PREFIX(p))
+                    afi_int = AFI_IP;
+                  else if (p->prefixlen == L2VPN_IPV6_PREFIX_LEN)
                     afi_int = AFI_IP6;
                   else
                     afi_int = AFI_IP;
@@ -4164,6 +4189,15 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
   else
     {
       for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf)) {
+        for (rn = bgp_table_top (vrf->rib[AFI_L2VPN]); rn; rn = bgp_route_next (rn))
+          {
+            if (bgp_trigger_bgp_selection_check (peer, afi, safi, rn))
+              {
+                UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
+                bgp_process(peer->bgp, rn, AFI_L2VPN, SAFI_UNICAST);
+                nb_prefixes++;
+              }
+          }
         for (rn = bgp_table_top (vrf->rib[AFI_IP]); rn; rn = bgp_route_next (rn))
           {
             if (bgp_trigger_bgp_selection_check (peer, afi, safi, rn))
@@ -4892,7 +4926,9 @@ bgp_vrf_restore_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
         afi_int = AFI_IP6;
       else if (rn->p.family == AF_L2VPN)
         {
-          if (rn->p.prefixlen == L2VPN_IPV6_PREFIX_LEN)
+          if (IS_EVPN_RT3_PREFIX(&rn->p))
+            afi_int = AFI_IP;
+          else if (rn->p.prefixlen == L2VPN_IPV6_PREFIX_LEN)
             afi_int = AFI_IP6;
           else
             afi_int = AFI_IP;
@@ -4925,6 +4961,10 @@ bgp_vrf_restore_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
       zlog_debug ("vrf[%s] %s: [%s] [nh %s] %s ", vrf_rd_str, pfx_str, rd_str, nh_str,
                 "restoring");
     }
+
+  /* EVPN RT3 prefix is stored in vrf->rib[AFI_L2VPN] */
+  if (IS_EVPN_RT3_PREFIX(&rn->p))
+    afi_int = AF_L2VPN;
 
   if(!vrf || !vrf->rib[afi_int] || !select)
     {
