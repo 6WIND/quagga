@@ -11314,6 +11314,54 @@ DEFUN (show_ipv6_bgp_vrf_tags,
   return bgp_show_vrf (vty, argv[0], AFI_IP6, bgp_show_type_tags, NULL);
 }
 
+DEFUN (show_l2vpn_bgp_vrf,
+       show_l2vpn_bgp_vrf_cmd,
+       "show l2vpn bgp vrf WORD",
+       SHOW_STR
+       "Display L2VPN AFI information\n"
+       BGP_STR
+       "VRF\n"
+       "Route Distinguisher\n")
+{
+  return bgp_show_vrf (vty, argv[0], AFI_L2VPN, bgp_show_type_normal, NULL);
+}
+
+DEFUN (show_l2vpn_bgp_vrf_all,
+       show_l2vpn_bgp_vrf_all_cmd,
+       "show l2vpn bgp vrf-all",
+       SHOW_STR
+       "Display L2VPN AFI information\n"
+       BGP_STR
+       "All VRFs\n")
+{
+  return bgp_show_vrf (vty, NULL, AFI_L2VPN, bgp_show_type_normal, NULL);
+}
+
+DEFUN (show_l2vpn_bgp_vrf_all_tags,
+       show_l2vpn_bgp_vrf_all_tags_cmd,
+       "show l2vpn bgp vrf-all tags",
+       SHOW_STR
+       "Display L2VPN AFI information\n"
+       BGP_STR
+       "All VRFs\n"
+       "Tags\n")
+{
+  return bgp_show_vrf (vty, NULL, AFI_L2VPN, bgp_show_type_tags, NULL);
+}
+
+DEFUN (show_l2vpn_bgp_vrf_tags,
+       show_l2vpn_bgp_vrf_tags_cmd,
+       "show l2vpn bgp vrf WORD tags",
+       SHOW_STR
+       "Display L2VPN AFI information\n"
+       BGP_STR
+       "VRF\n"
+       "Route Distinguisher\n"
+       "Tags\n")
+{
+  return bgp_show_vrf (vty, argv[0], AFI_L2VPN, bgp_show_type_tags, NULL);
+}
+
 DEFUN (show_ip_bgp_ipv4,
        show_ip_bgp_ipv4_cmd,
        "show ip bgp ipv4 (unicast|multicast)",
@@ -21389,6 +21437,10 @@ bgp_route_init (void)
   install_element (VIEW_NODE, &show_ipv6_bgp_vrf_tags_cmd);
   install_element (VIEW_NODE, &show_ipv6_bgp_vrf_all_cmd);
   install_element (VIEW_NODE, &show_ipv6_bgp_vrf_all_tags_cmd);
+  install_element (VIEW_NODE, &show_l2vpn_bgp_vrf_cmd);
+  install_element (VIEW_NODE, &show_l2vpn_bgp_vrf_tags_cmd);
+  install_element (VIEW_NODE, &show_l2vpn_bgp_vrf_all_cmd);
+  install_element (VIEW_NODE, &show_l2vpn_bgp_vrf_all_tags_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_ipv4_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_route_cmd);
   install_element (VIEW_NODE, &show_ip_bgp_route_pathtype_cmd);
