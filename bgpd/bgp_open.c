@@ -420,17 +420,16 @@ bgp_capability_restart (struct peer *peer, struct capability_header *caphdr)
         }
       else
         {
+          SET_FLAG (peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_RCV);
+          if (CHECK_FLAG (flag, RESTART_F_BIT))
+            SET_FLAG (peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_PRESERVE_RCV);
+
           if (BGP_DEBUG (normal, NORMAL))
             zlog_debug ("%s Address family %s is%spreserved", peer->host,
                         afi_safi_print (afi, safi),
                         CHECK_FLAG (peer->af_cap[afi][safi],
                                     PEER_CAP_RESTART_AF_PRESERVE_RCV)
                         ? " " : " not ");
-
-          SET_FLAG (peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_RCV);
-          if (CHECK_FLAG (flag, RESTART_F_BIT))
-            SET_FLAG (peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_PRESERVE_RCV);
-          
         }
     }
   return 0;
