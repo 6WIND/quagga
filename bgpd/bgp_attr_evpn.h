@@ -33,15 +33,9 @@ struct bgp_vrf;
 #define ESI_TYPE_ROUTER    4 /* <RouterId-4B>:<Local Discriminator Value-4B> */
 #define ESI_TYPE_AS        5 /* <AS-4B>:<Local Discriminator Value-4B> */
 #define MAX_ESI {0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff}
-#define ESI_LEN 10
 
 #define MAX_ET 0xffffffff
 u_long eth_tag_id;
-
-struct eth_segment_id
-{
-  u_char val[ESI_LEN];
-};
 
 #if defined(ETHER_ADDR_LEN)
 #define MAC_LEN ETHER_ADDR_LEN

@@ -325,7 +325,15 @@ prefix_copy (struct prefix *dest, const struct prefix *src)
     {
       dest->u.prefix_evpn.route_type =
         src->u.prefix_evpn.route_type;
-      if (dest->u.prefix_evpn.route_type == 3)
+      if (dest->u.prefix_evpn.route_type == 1)
+        {
+          dest->u.prefix_evpn.u.prefix_imethtag.eth_tag_id =
+            src->u.prefix_evpn.u.prefix_imethtag.eth_tag_id;
+          memcpy(&dest->u.prefix_evpn.u.prefix_ad.esi,
+                 &src->u.prefix_evpn.u.prefix_ad.esi,
+                 sizeof(struct eth_segment_id));
+        }
+      else if (dest->u.prefix_evpn.route_type == 3)
         {
           dest->u.prefix_evpn.u.prefix_imethtag.eth_tag_id =
             src->u.prefix_evpn.u.prefix_imethtag.eth_tag_id;
@@ -394,8 +402,19 @@ prefix_same (const struct prefix *p1, const struct prefix *p2)
             return 1;
       if (p1->family == AF_L2VPN)
         {
-          if (p1->u.prefix_evpn.route_type == 3 &&
-	      p1->u.prefix_evpn.route_type == p2->u.prefix_evpn.route_type)
+          if (p1->u.prefix_evpn.route_type != p2->u.prefix_evpn.route_type)
+            return 0;
+          if (p1->u.prefix_evpn.route_type == 1)
+            {
+              if (p1->u.prefix_evpn.u.prefix_ad.eth_tag_id !=
+                  p2->u.prefix_evpn.u.prefix_ad.eth_tag_id)
+                return 0;
+              if (!memcmp(&p1->u.prefix_evpn.u.prefix_ad.esi,
+                          &p2->u.prefix_evpn.u.prefix_ad.esi,
+                          sizeof(struct eth_segment_id)))
+                return 1;
+            }
+	  else if (p1->u.prefix_evpn.route_type == 3)
             {
               if (p1->u.prefix_evpn.u.prefix_imethtag.ip_len !=
                   p2->u.prefix_evpn.u.prefix_imethtag.ip_len)
@@ -1020,7 +1039,13 @@ prefix2str (union prefix46constptr pu, char *str, int size)
 
       assert(size >= PREFIX_STRLEN);
 
-      if (p->u.prefix_evpn.route_type == 3) {
+      if (p->u.prefix_evpn.route_type == 1) {
+        uint8_t *val = (uint8_t *)&p->u.prefix_evpn.u.prefix_ad.esi.val[0];
+        snprintf (s, BUFSIZ, "[%u][%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x]",
+                  p->u.prefix_evpn.u.prefix_ad.eth_tag_id,
+                  val[0], val[1], val[2], val[3], val[4],
+                  val[5], val[6], val[7], val[8], val[9]);
+      } else if (p->u.prefix_evpn.route_type == 3) {
         if (p->u.prefix_evpn.u.prefix_imethtag.ip_len == IPV4_MAX_BITLEN)
           inet_ntop (AF_INET, &p->u.prefix_evpn.u.prefix_imethtag.ip.in4, buf, BUFSIZ);
         else

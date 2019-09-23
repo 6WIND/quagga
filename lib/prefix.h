@@ -52,6 +52,16 @@ struct ethaddr {
  * "the Ethernet Tag ID, MAC Address Length, MAC Address, IP Address Length,
  * and IP Address fields are considered to be part of the prefix in the NLRI"
  */
+#define ESI_LEN 10
+struct eth_segment_id {
+  uint8_t val[ESI_LEN];
+} __attribute__ ((packed));
+
+struct adaddr {
+  u_int32_t eth_tag_id;
+  struct eth_segment_id esi;
+} __attribute__ ((packed));
+
 struct macipaddr {
   u_int32_t eth_tag_id;
   u_int8_t mac_len;
@@ -113,6 +123,8 @@ struct ipvrfaddr {
  * include/linux/socket.h
  */
 #define AF_L2VPN 44
+/* for EVPN route type 1 */
+#define L2VPN_PREFIX_AD_LEN ((ESI_LEN /* esi */ + 4 /* ethtag */ + 1 /* route type */)  * 8)
 /* for EVPN route type 2 */
 #define L2VPN_NOIP_PREFIX_LEN ((ETHER_ADDR_LEN + 4 /*ethtag*/+ 2 /*mac len + ip len*/ + 1 /* route type */) * 8)
 #define L2VPN_IPV4_PREFIX_LEN ((ETHER_ADDR_LEN + 4 /*ethtag*/+ 4 /*IP address*/ \
@@ -126,6 +138,7 @@ struct ipvrfaddr {
 struct evpn_addr {
 	uint8_t route_type;
 	union {
+          struct adaddr    prefix_ad;         /* EVPN route type 1 */
           struct macipaddr prefix_macip;      /* AF_L2VPN */
           struct macipaddr prefix_ipvrf;      /* AF_L2VPN */
           struct imet_tag prefix_imethtag; /* AF_L2VPN */

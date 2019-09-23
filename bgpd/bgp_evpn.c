@@ -350,15 +350,9 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
           zlog_err ("not enough bytes for Eth Tag left in NLRI?");
           return -1;
         }
+
       p.u.prefix_evpn.route_type = route_type;
-      if (route_type == EVPN_MACIP_ADVERTISEMENT ||
-          route_type == EVPN_ETHERNET_AUTO_DISCOVERY)
-        {
-          p.family = AF_L2VPN;
-          memcpy(&p.u.prefix_evpn.u.prefix_macip.eth_tag_id, pnt, 4);
-          p.u.prefix_evpn.u.prefix_macip.eth_tag_id = ntohl(p.u.prefix_evpn.u.prefix_macip.eth_tag_id);
-          pnt += 4;
-        }
+
       if (route_type == EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
         {
           p.family = AF_L2VPN;
@@ -402,6 +396,11 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
         }
       else if (route_type == EVPN_MACIP_ADVERTISEMENT)
         {
+          p.family = AF_L2VPN;
+          memcpy(&p.u.prefix_evpn.u.prefix_macip.eth_tag_id, pnt, 4);
+          p.u.prefix_evpn.u.prefix_macip.eth_tag_id = ntohl(p.u.prefix_evpn.u.prefix_macip.eth_tag_id);
+          pnt += 4;
+
           /* MAC address len in bits */
           p.u.prefix_evpn.u.prefix_macip.mac_len = *pnt++;
 
@@ -472,6 +471,15 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
               pnt += 4;
             }
         }
+      else if (route_type == EVPN_ETHERNET_AUTO_DISCOVERY)
+        {
+          p.family = AF_L2VPN;
+          memcpy(&p.u.prefix_evpn.u.prefix_ad.eth_tag_id, pnt, 4);
+          p.u.prefix_evpn.u.prefix_ad.eth_tag_id = ntohl(p.u.prefix_evpn.u.prefix_ad.eth_tag_id);
+          pnt += 4;
+          memcpy(&p.u.prefix_evpn.u.prefix_ad.esi, &evpn.eth_s_id.val, ESI_LEN);
+          p.prefixlen = L2VPN_PREFIX_AD_LEN;
+        }
 
       if (route_type != EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
         {
@@ -517,16 +525,16 @@ bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
       if (route_type == EVPN_ETHERNET_AUTO_DISCOVERY)
         {
           /* EVPN RT1 encode vni in label. encoding uses full 24 bits */
-          if (p.u.prefix_evpn.u.prefix_macip.eth_tag_id == MAX_ET && (labels[0] >> 4) == 0)
+          if (p.u.prefix_evpn.u.prefix_ad.eth_tag_id == MAX_ET && (labels[0] >> 4) == 0)
             evpn.auto_discovery_type = EVPN_ETHERNET_AD_PER_ESI;
-          else if (p.u.prefix_evpn.u.prefix_macip.eth_tag_id == 0)
+          else if (p.u.prefix_evpn.u.prefix_ad.eth_tag_id == 0)
             evpn.auto_discovery_type = EVPN_ETHERNET_AD_PER_EVI;
           else
             {
               plog_err (peer->log,
                         "%s [Error] Update packet error / EVPN"
                         " (Auto Discovery with eth tag %08x and MPLS label %d not supported)",
-                        peer->host, p.u.prefix_evpn.u.prefix_macip.eth_tag_id, labels[0]);
+                        peer->host, p.u.prefix_evpn.u.prefix_ad.eth_tag_id, labels[0]);
               return -1;
             }
         }
