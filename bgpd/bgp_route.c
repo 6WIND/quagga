@@ -4507,7 +4507,8 @@ bgp_rib_remove (struct bgp_node *rn, struct bgp_info *ri, struct peer *peer,
   if (!CHECK_FLAG (ri->flags, BGP_INFO_HISTORY))
     bgp_info_delete (rn, ri); /* keep historical info */
 
-  if (!CHECK_FLAG(peer->bgp->flags, BGP_FLAG_DELETING))
+  if (!CHECK_FLAG(peer->bgp->flags, BGP_FLAG_DELETING) &&
+      !IS_EVPN_RT1_PREFIX(&rn->p))
     bgp_vrf_process_imports (peer->bgp, afi, safi, rn, ri, NULL);
   bgp_process (peer->bgp, rn, afi, safi);
 }
@@ -5100,14 +5101,6 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
   memset (&new_extra, 0, sizeof(struct attr_extra));
 
   bgp = peer->bgp;
-  if (evpn && ((evpn->auto_discovery_type & EVPN_ETHERNET_AD_PER_ESI)
-               ||(evpn->auto_discovery_type & EVPN_ETHERNET_AD_PER_EVI)))
-    {
-      struct bgp_evpn_ad *ad;
-      ad = bgp_evpn_process_auto_discovery(peer, prd, evpn, p, labels[0], attr);
-      bgp_evpn_process_imports(bgp, NULL, ad);
-      return 0;
-    }
 
   /* Update Overlay Index */
   if(afi == AFI_L2VPN)
@@ -5274,15 +5267,25 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
                       bgp_info_unset_flag (rn, ri, BGP_INFO_STALE);
                   else if (CHECK_FLAG (ri->flags, BGP_INFO_STALE_REFRESH))
                     bgp_info_unset_flag (rn, ri, BGP_INFO_STALE_REFRESH);
-		  bgp_process (bgp, rn, afi, safi);
 
-		  if (soft_reconfig)
-		    {
-		      if (bgp_target_subscribers_mpath_check(bgp, ri->attr))
+		  bgp_process (bgp, rn, afi, safi);
+		  if (evpn && ((evpn->auto_discovery_type & EVPN_ETHERNET_AD_PER_ESI)
+                               ||(evpn->auto_discovery_type & EVPN_ETHERNET_AD_PER_EVI)))
+                    {
+                      struct bgp_evpn_ad *ad;
+                      ad = bgp_evpn_process_auto_discovery(peer, prd, evpn, p, labels[0], attr);
+                      bgp_evpn_process_imports(bgp, NULL, ad);
+                    }
+                  else
+                    {
+		      if (soft_reconfig)
+			{
+			  if (bgp_target_subscribers_mpath_check(bgp, ri->attr))
+			    bgp_vrf_process_imports(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri);
+			}
+		      else
 			bgp_vrf_process_imports(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri);
-		    }
-		  else
-		    bgp_vrf_process_imports(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri);
+                    }
 		}
 	    }
 
@@ -5400,7 +5403,17 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
       bgp_aggregate_increment (bgp, p, ri, afi, safi);
 
       bgp_process (bgp, rn, afi, safi);
-      bgp_vrf_process_imports(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri);                           
+      if (evpn && ((evpn->auto_discovery_type & EVPN_ETHERNET_AD_PER_ESI)
+               ||(evpn->auto_discovery_type & EVPN_ETHERNET_AD_PER_EVI)))
+        {
+          struct bgp_evpn_ad *ad;
+          ad = bgp_evpn_process_auto_discovery(peer, prd, evpn, p, labels[0], attr);
+          bgp_evpn_process_imports(bgp, NULL, ad);
+        }
+      else
+        {
+          bgp_vrf_process_imports(bgp, afi, safi, rn, (struct bgp_info *)0xffffffff, ri);
+        }
 
       /* non null value for old_select to inform update */
       bgp_unlock_node (rn);
@@ -5475,7 +5488,17 @@ bgp_update_main (struct peer *peer, struct prefix *p, struct attr *attr,
 
   /* Process change. */
   bgp_process (bgp, rn, afi, safi);
-  bgp_vrf_process_imports(peer->bgp, afi, safi, rn, NULL, new);
+  if (evpn && ((evpn->auto_discovery_type & EVPN_ETHERNET_AD_PER_ESI)
+               ||(evpn->auto_discovery_type & EVPN_ETHERNET_AD_PER_EVI)))
+    {
+      struct bgp_evpn_ad *ad;
+      ad = bgp_evpn_process_auto_discovery(peer, prd, evpn, p, labels[0], attr);
+      bgp_evpn_process_imports(bgp, NULL, ad);
+    }
+  else
+    {
+      bgp_vrf_process_imports(peer->bgp, afi, safi, rn, NULL, new);
+    }
 
   return 0;
 
@@ -5543,15 +5566,6 @@ bgp_withdraw (struct peer *peer, struct prefix *p, struct attr *attr,
 
   bgp = peer->bgp;
 
-  if(evpn && evpn->auto_discovery_type & (EVPN_ETHERNET_AD_PER_ESI|EVPN_ETHERNET_AD_PER_EVI))
-    {
-      struct bgp_evpn_ad *ad;
-      ad = bgp_evpn_process_auto_discovery(peer, prd, evpn, p, labels[0], attr);
-      ad->type = BGP_EVPN_AD_TYPE_MP_UNREACH;
-      bgp_evpn_process_imports(bgp, ad, NULL);
-      return 0;
-    }
-
   /* Lookup node. */
   rn = bgp_afi_node_get (bgp->rib[afi][safi], afi, safi, p, prd);
 
@@ -5589,6 +5603,14 @@ bgp_withdraw (struct peer *peer, struct prefix *p, struct attr *attr,
   for (ri = rn->info; ri; ri = ri->next)
     if (ri->peer == peer && ri->type == type && ri->sub_type == sub_type)
       break;
+
+  if (evpn && evpn->auto_discovery_type & (EVPN_ETHERNET_AD_PER_ESI|EVPN_ETHERNET_AD_PER_EVI))
+    {
+      struct bgp_evpn_ad *ad;
+      ad = bgp_evpn_process_auto_discovery(peer, prd, evpn, p, labels[0], attr);
+      ad->type = BGP_EVPN_AD_TYPE_MP_UNREACH;
+      bgp_evpn_process_imports(bgp, ad, NULL);
+    }
 
   /* Withdraw specified route from routing table. */
   if (ri && ! CHECK_FLAG (ri->flags, BGP_INFO_HISTORY))
