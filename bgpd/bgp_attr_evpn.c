@@ -32,6 +32,9 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_attr_evpn.h"
 #include "bgpd/bgp_mplsvpn.h"
 #include "bgpd/bgp_route.h"
+#include "bgpd/bgp_encap_types.h"
+#include "bgpd/bgp_encap_tlv.h"
+#include "bgpd/bgp_aspath.h"
 
 static uint8_t convertchartohexa (uint8_t *hexa, int *error)
 {
@@ -271,17 +274,30 @@ int bgp_evpn_ad_update(struct bgp_evpn_ad *ad, struct in_addr *nexthop, u_int32_
 {
   struct attr_extra *extra;
   int ret = 0;
+  struct attr new_attr, *attr_new;
+  struct attr_extra new_extra;
+
+  memset (&new_attr, 0, sizeof(struct attr));
+  memset (&new_extra, 0, sizeof(struct attr_extra));
+  new_attr.extra = &new_extra;
+  bgp_attr_dup (&new_attr, ad->attr);
 
   if (ad->label != label)
     ret = 1;
-  extra = bgp_attr_extra_get(ad->attr);
+
+  extra = bgp_attr_extra_get(&new_attr);
   extra->mp_nexthop_global_in = *nexthop;
   if ((nexthop->s_addr != extra->mp_nexthop_global_in.s_addr) ||
       (nexthop->s_addr != ad->attr->nexthop.s_addr))
     ret = 1;
 
-  ad->attr->nexthop = *nexthop;
+  new_attr.nexthop = *nexthop;
   ad->label = label;
+
+  attr_new = bgp_attr_intern(&new_attr);
+  bgp_attr_unintern (&ad->attr);
+  ad->attr = attr_new;
+  bgp_attr_flush (&new_attr);
   return ret;
 }
 
@@ -290,6 +306,7 @@ struct bgp_evpn_ad* bgp_evpn_ad_new(struct peer *peer,
                                     struct bgp_vrf *vrf,
                                     struct eth_segment_id *esi,
                                     u_int32_t ethtag,
+                                    struct prefix *nexthop,
                                     u_int32_t label)
 {
   struct attr attr;
@@ -304,19 +321,61 @@ struct bgp_evpn_ad* bgp_evpn_ad_new(struct peer *peer,
 
   evpn_ad->eth_t_id = ethtag;
   evpn_ad->eth_s_id = *esi;
+  evpn_ad->label = label;
 
+  memset (&attr, 0, sizeof(struct attr));
   bgp_attr_default_set (&attr, BGP_ORIGIN_IGP);
   extra = bgp_attr_extra_get(&attr);
   if (!extra)
     return NULL;
+
   if (vrf->rt_export)
     {
       extra->ecommunity = ecommunity_dup (vrf->rt_export);
       attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
     }
+
+  attr.flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
+  if (nexthop->family == AF_INET)
+    {
+      extra->mp_nexthop_len = IPV4_MAX_BYTELEN;
+      extra->mp_nexthop_global_in = nexthop->u.prefix4;
+    }
+  else
+    {
+      extra->mp_nexthop_len = IPV6_MAX_BYTELEN;
+      memcpy (&extra->mp_nexthop_global, &(nexthop->u.prefix6), sizeof (struct in6_addr));
+    }
+  /* routermac if present */
+  if(vrf->mac_router)
+    {
+      char routermac_int[MAC_LEN+1];
+
+      str2mac (vrf->mac_router, routermac_int);
+      bgp_add_routermac_ecom (&attr, routermac_int);
+    }
+
+  /* VXLAN type if present */
+  if(ethtag)
+    {
+      struct bgp_encap_type_vxlan bet;
+
+      memset(&bet, 0, sizeof(struct bgp_encap_type_vxlan));
+      bet.vnid = ethtag;
+      bgp_encap_type_vxlan_to_tlv(&bet, &attr);
+      bgp_attr_extra_get (&attr);
+      /* It may be advertised along with BGP Encapsulation Extended Community define
+       * in section 4.5 of [RFC5512].
+       */
+      bgp_add_encapsulation_type (&attr, BGP_ENCAP_TYPE_VXLAN);
+    }
+
   extra->evpn_overlay.eth_s_id = *esi;
   evpn_ad->attr = bgp_attr_intern (&attr);
-  evpn_ad->label = label;
+
+  /* Unintern original. */
+  aspath_unintern (&attr.aspath);
+  bgp_attr_extra_free (&attr);
 
   return evpn_ad;
 }
@@ -441,6 +500,7 @@ struct bgp_info *bgp_evpn_new_bgp_info_from_ad(struct bgp_info *ri, struct bgp_e
 
   iter->attr = bgp_attr_intern (&attr);
   bgp_info_add (rn, iter);
+  bgp_attr_extra_free (&attr);
   return iter;
 }
 

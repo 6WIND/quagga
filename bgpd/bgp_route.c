@@ -2463,7 +2463,9 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
               if (!ad_found)
                 {
                   ad_found = bgp_evpn_ad_new(peer, vrf,
-                                       &esi, ethtag, route->l2label);
+                                             &esi, ethtag,
+                                             (struct prefix *)&route->nexthop,
+                                             route->l2label);
                   if (!ad_found)
                     {
                       zlog_err("Not enough memory to store AD message for ESI %s!", route->esi);
@@ -2472,9 +2474,8 @@ bgp_vrf_static_set (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route *
 
                   listnode_add(vrf->static_evpn_ad, ad_found);
                 }
-
               peer_evpn_auto_discovery_set (peer, vrf, ad_found->attr,
-                                            &esi, ethtag, (struct prefix *)&route->nexthop,
+                                            &esi, ethtag,
                                             route->l2label);
             }
         }
@@ -2707,7 +2708,9 @@ bgp_vrf_static_unset (struct bgp_vrf *vrf, afi_t afi, const struct bgp_api_route
                   zlog_err("No Auto Discovery message for ESI %s ethtag %d. Sending withdraw however !",
                             route->esi, ethtag);
                   ad_found = bgp_evpn_ad_new(peer, vrf,
-                                       &esi, ethtag, route->l2label);
+                                             &esi, ethtag,
+                                             (struct prefix *)&route->nexthop,
+                                             route->l2label);
                   if (!ad_found)
                     {
                       zlog_err("Not enough memory to store AD message for ESI %s!", route->esi);
@@ -5610,6 +5613,7 @@ bgp_withdraw (struct peer *peer, struct prefix *p, struct attr *attr,
       ad = bgp_evpn_process_auto_discovery(peer, prd, evpn, p, labels[0], attr);
       ad->type = BGP_EVPN_AD_TYPE_MP_UNREACH;
       bgp_evpn_process_imports(bgp, ad, NULL);
+      bgp_evpn_process_remove_auto_discovery(bgp, peer, prd, ad);
     }
 
   /* Withdraw specified route from routing table. */
@@ -5727,7 +5731,7 @@ bgp_default_originate (struct peer *peer, afi_t afi, safi_t safi, int withdraw)
   aspath_unintern (&aspath);
 }
 
-static void bgp_add_encapsulation_type (struct attr *attr, int bgp_encapsulation_type)
+void bgp_add_encapsulation_type (struct attr *attr, int bgp_encapsulation_type)
 {
   struct ecommunity_val bgp_encaps_ecom;
   if(attr->extra)
@@ -5743,7 +5747,7 @@ static void bgp_add_encapsulation_type (struct attr *attr, int bgp_encapsulation
     }
 }
 
-static void bgp_add_routermac_ecom (struct attr* attr, char * routermac)
+void bgp_add_routermac_ecom (struct attr* attr, char * routermac)
 {
   struct ecommunity_val routermac_ecom;
 
@@ -5882,7 +5886,7 @@ bgp_default_originate_rd (struct peer *peer, afi_t afi, safi_t safi, struct pref
 void
 bgp_auto_discovery_evpn (struct peer *peer, struct bgp_vrf *vrf, struct attr * attr,
                          struct eth_segment_id *esi, u_int32_t ethtag,
-                         struct prefix *nexthop, u_int32_t label, int withdraw)
+                         u_int32_t label, int withdraw)
 {
   if (withdraw)
     {
@@ -5891,42 +5895,6 @@ bgp_auto_discovery_evpn (struct peer *peer, struct bgp_vrf *vrf, struct attr * a
     }
   else
     {
-      struct attr_extra *extra;
-      extra = bgp_attr_extra_get(attr);
-      attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
-      if (nexthop->family == AF_INET)
-        {
-          extra->mp_nexthop_len = IPV4_MAX_BYTELEN;
-          extra->mp_nexthop_global_in = nexthop->u.prefix4;
-        }
-      else
-        {
-          extra->mp_nexthop_len = IPV6_MAX_BYTELEN;
-          memcpy (&extra->mp_nexthop_global, &(nexthop->u.prefix6), sizeof (struct in6_addr));
-        }
-      /* routermac if present */
-      if(vrf->mac_router)
-        {
-          char routermac_int[MAC_LEN+1];
-
-          str2mac (vrf->mac_router, routermac_int);
-          bgp_add_routermac_ecom (attr, routermac_int);
-        }
-
-      /* VXLAN type if present */
-      if(ethtag)
-        {
-          struct bgp_encap_type_vxlan bet;
-
-          memset(&bet, 0, sizeof(struct bgp_encap_type_vxlan));
-          bet.vnid = ethtag;
-          bgp_encap_type_vxlan_to_tlv(&bet, attr);
-          bgp_attr_extra_get (attr);
-          /* It may be advertised along with BGP Encapsulation Extended Community define
-           * in section 4.5 of [RFC5512].
-           */
-          bgp_add_encapsulation_type (attr, BGP_ENCAP_TYPE_VXLAN);
-        }
       bgp_auto_discovery_update_send(peer, &vrf->outbound_rd, attr, ethtag, label);
     }
 }

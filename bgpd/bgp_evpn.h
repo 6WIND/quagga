@@ -21,14 +21,15 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #ifndef _QUAGGA_BGP_EVPN_H
 #define _QUAGGA_BGP_EVPN_H
 
+struct bgp_route_evpn;
+
 extern void bgp_ethernetvpn_init (void);
 extern int bgp_nlri_parse_evpn (struct peer *peer, struct attr *attr,
                                 struct bgp_nlri *packet, int withdraw);
 
 extern int peer_evpn_auto_discovery_set (struct peer *peer, struct bgp_vrf *vrf,
                                          struct attr * attr, struct eth_segment_id *esi,
-                                         u_int32_t ethtag, struct prefix *nexthop,
-                                         u_int32_t label);
+                                         u_int32_t ethtag, u_int32_t label);
 extern int peer_evpn_auto_discovery_unset (struct peer *peer, struct bgp_vrf *vrf,
                                            struct attr * attr, struct eth_segment_id *esi,
                                            u_int32_t ethtag, u_int32_t label);
@@ -39,7 +40,10 @@ extern struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
                                                            struct prefix *p,
                                                            u_int32_t label,
                                                            struct attr *attr);
-
+void bgp_evpn_process_remove_auto_discovery(struct bgp *bgp,
+                                            struct peer *peer,
+                                            struct prefix_rd *prd,
+                                            struct bgp_evpn_ad *ad);
 extern void bgp_vrf_peer_notification (struct peer *peer, int down);
 
 /* propagates a change in the RT configured for each RD

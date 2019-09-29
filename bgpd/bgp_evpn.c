@@ -1459,7 +1459,7 @@ bgp_ethernetvpn_init (void)
 int
 peer_evpn_auto_discovery_set (struct peer *peer, struct bgp_vrf *vrf, struct attr * attr,
                               struct eth_segment_id *esi, u_int32_t ethtag,
-                              struct prefix *nexthop, u_int32_t label)
+                              u_int32_t label)
 {
   /* Adress family must be activated.  */
   if (! peer->afc[AFI_L2VPN][SAFI_EVPN])
@@ -1470,7 +1470,7 @@ peer_evpn_auto_discovery_set (struct peer *peer, struct bgp_vrf *vrf, struct att
    * MAC Advertisement Ethernet AD per EVI ... is used to carry the VNI.
    * the entire 24-bit field is used to encode the VNI value.
    */
-  bgp_auto_discovery_evpn (peer, vrf, attr, esi, ethtag, nexthop, label, 0);
+  bgp_auto_discovery_evpn (peer, vrf, attr, esi, ethtag, label, 0);
 
   return 0;
 }
@@ -1484,7 +1484,7 @@ peer_evpn_auto_discovery_unset (struct peer *peer, struct bgp_vrf *vrf, struct a
   if (! peer->afc[AFI_L2VPN][SAFI_EVPN])
     return BGP_ERR_PEER_INACTIVE;
 
-  bgp_auto_discovery_evpn (peer, vrf, attr, esi, ethtag, NULL, (label << 4) | 1, 1);
+  bgp_auto_discovery_evpn (peer, vrf, attr, esi, ethtag, (label << 4) | 1, 1);
 
   return 0;
 }
@@ -1562,6 +1562,37 @@ struct bgp_evpn_ad *bgp_evpn_process_auto_discovery(struct peer *peer,
   return evpn_ad;
 }
 
+void bgp_evpn_process_remove_auto_discovery(struct bgp *bgp,
+                                            struct peer *peer,
+                                            struct prefix_rd *prd,
+                                            struct bgp_evpn_ad *ad)
+{
+  struct bgp_vrf *vrf = NULL;
+  struct listnode *node;
+
+  if (!bgp || !prd || !ad || !peer)
+    return;
+
+  for (ALL_LIST_ELEMENTS_RO(bgp->vrfs, node, vrf))
+    {
+      if (0 == prefix_rd_cmp(prd, &vrf->outbound_rd))
+        {
+          break;
+        }
+    }
+  if (vrf == NULL)
+    {
+      char rd_str[RD_ADDRSTRLEN];
+      prefix_rd2str(prd, rd_str, sizeof(rd_str));
+      zlog_debug ("RD %s from %s received in AD. Unconfigured. Ignoring",
+                  rd_str, peer->host);
+      return;
+    }
+
+  listnode_delete (vrf->rx_evpn_ad, ad);
+  bgp_evpn_ad_free (ad);
+}
+
 void bgp_vrf_peer_notification (struct peer *peer, int down)
 {
   struct bgp_evpn_ad *ad;
@@ -1583,25 +1614,10 @@ void bgp_vrf_peer_notification (struct peer *peer, int down)
             }
           if (ad->status != 0)
             {
-              struct prefix nexthop;
-
               ad->status = 0;
               /* force sending XXX */
-              if (ad->attr->extra->mp_nexthop_len == IPV4_MAX_BYTELEN)
-                {
-                  nexthop.family = AF_INET;
-                  nexthop.prefixlen = IPV4_MAX_PREFIXLEN;
-                  nexthop.u.prefix4 = ad->attr->extra->mp_nexthop_global_in;
-                }
-              else
-                {
-                  nexthop.family = AF_INET6;
-                  nexthop.prefixlen = IPV6_MAX_PREFIXLEN;
-                  memcpy (&nexthop.u.prefix6, &(ad->attr->extra->mp_nexthop_global), sizeof(struct in6_addr));
-                }
               peer_evpn_auto_discovery_set (peer, vrf, ad->attr,
                                             &ad->eth_s_id, ad->eth_t_id,
-                                            &nexthop,
                                             ad->label);
             }
         }

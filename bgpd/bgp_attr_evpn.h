@@ -96,6 +96,7 @@ extern struct bgp_evpn_ad* bgp_evpn_ad_new(struct peer *peer,
                                            struct bgp_vrf *vrf,
                                            struct eth_segment_id *esi,
                                            u_int32_t ethtag,
+                                           struct prefix *nexthop,
                                            u_int32_t label);
 extern int bgp_evpn_ad_update(struct bgp_evpn_ad *ad, struct in_addr *nexthop, u_int32_t label);
 
