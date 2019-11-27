@@ -11648,6 +11648,8 @@ bgp_vty_init (void)
   install_element (BGP_VPNV6_NODE, &no_neighbor_default_originate_rd_cmd);
   install_element (BGP_EVPN_NODE, &neighbor_default_originate_rd_evpn_cmd);
   install_element (BGP_EVPN_NODE, &no_neighbor_default_originate_rd_cmd);
+  install_element (BGP_EVPN_NODE, &neighbor_route_reflector_client_cmd);
+  install_element (BGP_EVPN_NODE, &no_neighbor_route_reflector_client_cmd);
 
   /* "neighbor port" commands. */
   install_element (BGP_NODE, &neighbor_port_cmd);
