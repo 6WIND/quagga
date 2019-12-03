@@ -641,6 +641,21 @@ void qcapn_BGPPeer_read(struct peer *s, capn_ptr p)
           s->update_if = NULL;
         }
     }
+    {
+      const char * password = NULL;
+      int len;
+      capn_text tp = capn_get_text(p, 3, capn_val0);
+      password = tp.str;
+      len = tp.len;
+      if (password && len != 0)
+        {
+          s->password = strdup(password);
+        }
+      else
+        {
+          s->password = NULL;
+        }
+    }
 }
 
 
@@ -681,6 +696,20 @@ void qcapn_BGPPeer_write(const struct peer *s, capn_ptr p)
           tp.len = 0;
         }
       capn_set_text(p, 2, tp);
+    }
+    {
+      capn_text tp;
+      if(s->password)
+        {
+          tp.str = s->password;
+          tp.len = strlen (s->password);
+        }
+      else
+        {
+          tp.str = NULL;
+          tp.len = 0;
+        }
+      capn_set_text(p, 3, tp);
     }
 }
 
@@ -833,6 +862,21 @@ void qcapn_BGPPeer_set(struct peer *s, capn_ptr p)
           peer_update_source_unset (s);
         }
     }
+    {
+      const char * password = NULL;
+      int len;
+      capn_text tp = capn_get_text(p, 3, capn_val0);
+      password = tp.str;
+      len = tp.len;
+      if (password && len != 0)
+        {
+          peer_password_set (s, password);
+        }
+      else
+        {
+          peer_password_unset (s);
+        }
+    }
 }
 
 
@@ -852,7 +896,7 @@ const char * qcapn_BGPPeer_get_host(capn_ptr p)
 
 capn_ptr qcapn_new_BGPPeer(struct capn_segment *s)
 {
-    return capn_new_struct(s, 24, 3);
+    return capn_new_struct(s, 24, 4);
 }
 
 capn_ptr qcapn_new_BGPPeerStatus(struct capn_segment *s)
