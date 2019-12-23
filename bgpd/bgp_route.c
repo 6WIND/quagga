@@ -4918,7 +4918,7 @@ overlay_index_equal(afi_t afi, struct bgp_info *info, struct eth_segment_id *eth
     info_eth_s_id_remote =  (struct eth_segment_id *)&temp;
   else
     info_eth_s_id_remote =  eth_s_id;
-  if(!memcmp(info_gw_ip, info_gw_ip_remote, sizeof(union gw_addr)))
+  if (memcmp(info_gw_ip, info_gw_ip_remote, sizeof(union gw_addr)))
     return false;
   return !memcmp(info_eth_s_id, info_eth_s_id_remote, sizeof(struct eth_segment_id));
 }
