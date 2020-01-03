@@ -2166,6 +2166,57 @@ DEFUN (no_neighbor_activate,
   return bgp_vty_return (vty, ret);
 }
 
+DEFUN (bgp_set_bind_addr,
+	bgp_set_bind_addr_cmd,
+	"bgp listen bind (A.B.C.D|X:X::X:X)",
+	BGP_STR
+	"For socket listen\n"
+	"For socket bind\n"
+	"IPv4 address for bind\n"
+	"IPv6 address for bind\n"
+	)
+{
+	int ret;
+	struct in_addr ipv4_addr;
+	struct in6_addr ipv6_addr;
+
+	if (argc != 1) {
+		vty_out(vty, "%s: no bgp ip address for bind\n", __func__);
+		return CMD_WARNING;
+	}
+	ret = inet_pton(AF_INET, argv[0], &ipv4_addr);
+	if (ret == 1) {
+		memcpy(&bm->address.ipv4_addr, &ipv4_addr, sizeof(ipv4_addr));
+		bgp_close();
+		bgp_socket(bm->port);
+		return CMD_SUCCESS;
+	}
+	ret = inet_pton(AF_INET6, argv[0], &ipv6_addr);
+	if (ret == 1) {
+		memcpy(&bm->address.ipv6_addr, &ipv6_addr, sizeof(ipv6_addr));
+		bgp_close();
+		bgp_socket(bm->port);
+		return CMD_SUCCESS;
+	}
+	vty_out(vty, "%s: invalid bgp ip address for bind\n", __func__);
+	return CMD_WARNING;
+}
+
+DEFUN (bgp_unset_bind_addr,
+	bgp_unset_bind_addr_cmd,
+	"no bgp listen bind",
+	NO_STR
+	BGP_STR
+	"For socket listen\n"
+	"For socket bind\n"
+	)
+{
+	memset(&bm->address, 0, sizeof(bm->address));
+	bgp_close();
+	bgp_socket(bm->port);
+	return CMD_SUCCESS;
+}
+
 DEFUN (neighbor_set_peer_group,
        neighbor_set_peer_group_cmd,
        NEIGHBOR_CMD "peer-group WORD",
@@ -10964,6 +11015,10 @@ bgp_vty_init (void)
   /* bgp bestpath selection deferral commands */
   install_element (CONFIG_NODE, &bgp_bestpath_selection_deferral_cmd);
   install_element (CONFIG_NODE, &no_bgp_bestpath_selection_deferral_cmd);
+
+  /* bgp set bind/no bgp set bind */
+  install_element (CONFIG_NODE, &bgp_set_bind_addr_cmd);
+  install_element (CONFIG_NODE, &bgp_unset_bind_addr_cmd);
 
   /* Dummy commands (Currently not supported) */
   install_element (BGP_NODE, &no_synchronization_cmd);

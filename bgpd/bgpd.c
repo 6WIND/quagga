@@ -2873,7 +2873,7 @@ bgp_create_api (struct bgp_master *ignore, as_t as)
   /* Create BGP server socket, if first instance.  */
   if (list_isempty(bm->bgp)
       && !bgp_option_check (BGP_OPT_NO_LISTEN))
-    if (bgp_socket (bm->port, bm->address) < 0)
+    if (bgp_socket (bm->port) < 0)
       {
         bgp_delete (bgp);
         return NULL;
@@ -2938,7 +2938,7 @@ bgp_get (struct bgp **bgp_val, as_t *as, const char *name)
   if (list_isempty(bm->bgp)
       && !bgp_option_check (BGP_OPT_NO_LISTEN))
     {
-      if (bgp_socket (bm->port, bm->address) < 0)
+      if (bgp_socket (bm->port) < 0)
 	return BGP_ERR_INVALID_VALUE;
     }
 
@@ -6660,6 +6660,23 @@ bgp_config_write (struct vty *vty)
   struct peer *peer;
   struct listnode *node, *nnode;
   struct listnode *mnode, *mnnode;
+  struct bgp_srv_addr zero_addr;
+  char ipv4_addr[INET_ADDRSTRLEN], ipv6_addr[INET6_ADDRSTRLEN];
+
+  /* bgp socket listen bind ipv4/ipv6 address */
+  memset(&zero_addr, 0, sizeof(zero_addr));
+  if (memcmp(&bm->address.ipv4_addr, &zero_addr.ipv4_addr, sizeof(zero_addr.ipv4_addr)))
+  {
+    inet_ntop(AF_INET, &bm->address.ipv4_addr, ipv4_addr, sizeof(ipv4_addr));
+    vty_out (vty, "bgp listen bind %s%s", ipv4_addr, VTY_NEWLINE);
+    write ++;
+  }
+  if (memcmp(&bm->address.ipv6_addr, &zero_addr.ipv6_addr, sizeof(zero_addr.ipv6_addr)))
+  {
+    inet_ntop(AF_INET6, &bm->address.ipv6_addr, ipv6_addr, sizeof(ipv6_addr));
+    vty_out (vty, "bgp listen bind %s%s", ipv6_addr, VTY_NEWLINE);
+    write ++;
+  }
 
   /* BGP Multiple instance. */
   if (bgp_option_check (BGP_OPT_MULTIPLE_INSTANCE))

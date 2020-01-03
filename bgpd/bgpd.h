@@ -45,6 +45,12 @@ struct bgp_rd
   u_char val[BGP_RD_SIZE];
 };
 
+struct bgp_srv_addr
+{
+	struct in_addr ipv4_addr;
+	struct in6_addr ipv6_addr;
+};
+
 /* BGP master for system wide configurations and variables.  */
 struct bgp_master
 {
@@ -70,7 +76,7 @@ struct bgp_master
   u_int16_t port;
 
   /* Listener address */
-  char *address;
+  struct bgp_srv_addr address;
 
   /* BGP start time.  */
   time_t start_time;

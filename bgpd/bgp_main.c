@@ -404,6 +404,10 @@ main (int argc, char **argv)
   struct thread thread;
   int tmp_port;
   int skip_runas = 0;
+  struct in_addr ipv4_addr;
+  struct in6_addr ipv6_addr;
+  int ret;
+  char ipv4_addr_buf[INET_ADDRSTRLEN] = {0};
 
   /* Set umask before anything for security */
   umask (0027);
@@ -467,7 +471,18 @@ main (int argc, char **argv)
 	  retain_mode = 1;
 	  break;
 	case 'l':
-	  bm->address = optarg;
+	  ret = inet_pton(AF_INET, optarg, &ipv4_addr);
+	  if (ret == 1) {
+	    memcpy(&bm->address.ipv4_addr, &ipv4_addr, sizeof(ipv4_addr));
+	    break;
+	  }
+	  ret = inet_pton(AF_INET6, optarg, &ipv6_addr);
+	  if (ret == 1) {
+	    memcpy(&bm->address.ipv6_addr, &ipv6_addr, sizeof(ipv6_addr));
+	    break;
+	  }
+	  break;
+
 	  /* listenon implies -n */
 	case 'n':
 	  bgp_option_set (BGP_OPT_NO_FIB);
@@ -549,9 +564,9 @@ main (int argc, char **argv)
     bgp_monitor_start();
 
   /* Print banner. */
+  inet_ntop(AF_INET, &bm->address.ipv4_addr, ipv4_addr_buf, INET_ADDRSTRLEN);
   zlog_notice ("BGPd %s starting: vty@%d, bgp@%s:%d pid %d", QUAGGA_VERSION,
-	       vty_port, 
-	       (bm->address ? bm->address : "<all>"),
+	       vty_port, ipv4_addr_buf,
 	       bm->port,
 	       getpid ());
 

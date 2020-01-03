@@ -535,60 +535,55 @@ bgp_listener (int sock, struct sockaddr *sa, socklen_t salen)
 
 /* IPv6 supported version of BGP server socket setup.  */
 int
-bgp_socket (unsigned short port, const char *address)
+bgp_socket (unsigned short port)
 {
-  struct addrinfo *ainfo;
-  struct addrinfo *ainfo_save;
-  static const struct addrinfo req = {
-    .ai_family = AF_UNSPEC,
-    .ai_flags = AI_PASSIVE,
-    .ai_socktype = SOCK_STREAM,
-  };
-  int ret, count;
-  char port_str[BUFSIZ];
+#define FAMILY_TYPE_MAX 2
+	int family_type[FAMILY_TYPE_MAX] = {AF_INET, AF_INET6};
+	int idx;
+	struct sockaddr *sock_addr;
+	struct sockaddr_in ipv4;
+	struct sockaddr_in6 ipv6;
+	int addr_len;
+	int ret, count, sock;
 
-  snprintf (port_str, sizeof(port_str), "%d", port);
-  port_str[sizeof (port_str) - 1] = '\0';
-
-  ret = getaddrinfo (address, port_str, &req, &ainfo_save);
-  if (ret != 0)
-    {
-      zlog_err ("getaddrinfo: %s", gai_strerror (ret));
-      return -1;
-    }
-
-  count = 0;
-  for (ainfo = ainfo_save; ainfo; ainfo = ainfo->ai_next)
-    {
-      int sock;
-
-      if (ainfo->ai_family != AF_INET && ainfo->ai_family != AF_INET6)
-	continue;
-     
-      sock = socket (ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
-      if (sock < 0)
+	count = 0;
+	for (idx = 0; idx < FAMILY_TYPE_MAX; idx ++)
 	{
-	  zlog_err ("socket: %s", safe_strerror (errno));
-	  continue;
+		sock = socket (family_type[idx], SOCK_STREAM, 0);
+		if (sock < 0)
+		{
+			zlog_err ("socket: %s", safe_strerror (errno));
+			continue;
+		}
+		/* if we intend to implement ttl-security, this socket needs ttl=255 */
+		sockopt_ttl (family_type[idx], sock, MAXTTL);
+		if (family_type[idx] == AF_INET) {
+			memset(&ipv4, 0, sizeof(ipv4));
+			ipv4.sin_family = AF_INET;
+			ipv4.sin_port = htons(port);
+			memcpy(&ipv4.sin_addr, &bm->address.ipv4_addr, sizeof(ipv4.sin_addr));
+			addr_len = sizeof(ipv4);
+			sock_addr = (struct sockaddr *)&ipv4;
+		} else {
+			memset(&ipv6, 0, sizeof(ipv6));
+			ipv6.sin6_family = AF_INET6;
+			ipv6.sin6_port = htons(port);
+			memcpy(&ipv6.sin6_addr, &bm->address.ipv6_addr, sizeof(ipv6.sin6_addr));
+			addr_len = sizeof(ipv6);
+			sock_addr = (struct sockaddr *)&ipv6;
+		}
+		ret = bgp_listener (sock, sock_addr, addr_len);
+		if (ret == 0)
+			++count;
+		else
+			close(sock);
 	}
-	
-      /* if we intend to implement ttl-security, this socket needs ttl=255 */
-      sockopt_ttl (ainfo->ai_family, sock, MAXTTL);
-      
-      ret = bgp_listener (sock, ainfo->ai_addr, ainfo->ai_addrlen);
-      if (ret == 0)
-	++count;
-      else
-	close(sock);
-    }
-  freeaddrinfo (ainfo_save);
-  if (count == 0)
-    {
-      zlog_err ("%s: no usable addresses", __func__);
-      return -1;
-    }
-
-  return 0;
+	if (count == 0)
+	{
+		zlog_err ("%s: no usable addresses", __func__);
+		return -1;
+	}
+	return 0;
 }
 
 void
