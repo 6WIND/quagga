@@ -164,6 +164,12 @@ struct bfd_lport
 #endif				/* HAVE_IPV6 */
 };
 
+struct bfd_server_addr
+{
+  struct in_addr ipv4_addr;
+  struct in6_addr ipv6_addr;
+};
+
 struct bfd_neigh
 {
   /* Sesion ID, state and diagnostic */
@@ -306,6 +312,7 @@ struct bfd_neigh
 					? BFD_PACKET_SIZE_AUTH \
 					: BFD_PACKET_SIZE_NOAUTH )
 
+extern struct bfd_server_addr bfd_srv_addr;
 
 void bfd_init (void);
 void bfd_terminate (void);

@@ -23,6 +23,7 @@
 #define _QUAGGA_BFD_NET_H
 
 int bfd_server_socket_init (int family, uint16_t port);
+void bfd_sock_restart(void);
 void bfd_sendsock_init (struct bfd_neigh *neighp);
 void bfd_sockclose (int sock);
 

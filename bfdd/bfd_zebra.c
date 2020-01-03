@@ -62,6 +62,56 @@ bfd_zclient_reset (void)
   zclient_reset (zclient);
 };
 
+DEFUN (bfd_set_bind_addr,
+	bfd_set_bind_addr_cmd,
+	"bfd listen bind (A.B.C.D|X:X::X:X)",
+	BFD_STR
+	"For socket listen\n"
+	"For socket bind\n"
+	"IPv4 address for bind\n"
+	"IPv6 address for bind\n"
+	)
+{
+	int ret;
+	struct in_addr ipv4_addr;
+	struct in6_addr ipv6_addr;
+
+	if (argc != 1) {
+		vty_out(vty, "%s: no bfd ip address for bind\n", __func__);
+		return CMD_WARNING;
+	}
+	ret = inet_pton(AF_INET, argv[0], &ipv4_addr);
+	if (ret == 1) {
+		memcpy(&bfd_srv_addr.ipv4_addr, &ipv4_addr, sizeof(ipv4_addr));
+		bfd_sock_restart();
+		vty_out(vty, "bfd re-create socket with new ipv4 bind address\n");
+		return CMD_SUCCESS;
+	}
+	ret = inet_pton(AF_INET6, argv[0], &ipv6_addr);
+	if (ret == 1) {
+		memcpy(&bfd_srv_addr.ipv6_addr, &ipv6_addr, sizeof(ipv6_addr));
+		bfd_sock_restart();
+		vty_out(vty, "bfd re-create socket with new ipv6 bind address\n");
+		return CMD_SUCCESS;
+	}
+	vty_out(vty, "%s: invalid bfd ip address for bind\n", __func__);
+	return CMD_WARNING;
+}
+
+DEFUN (bfd_unset_bind_addr,
+	bfd_unset_bind_addr_cmd,
+	"no bfd listen bind",
+	NO_STR
+	BFD_STR
+	"For socket listen\n"
+	"For socket bind\n"
+	)
+{
+	memset(&bfd_srv_addr, 0, sizeof(bfd_srv_addr));
+	bfd_sock_restart();
+	vty_out(vty, "bfd re-create socket with zero ipv4 and ipv6 bind address\n");
+	return CMD_SUCCESS;
+}
 
 DEFUN (bfd_interval,
        bfd_interval_cmd,
@@ -921,6 +971,24 @@ bfd_config_write (struct vty *vty)
   int write_ldesmintx = 0, write_lreqminrx = 0;
   int write_underlay_limit = 0, write_passive = 0;
 
+  struct bfd_server_addr zero_addr;
+  char ipv4_addr[INET_ADDRSTRLEN], ipv6_addr[INET6_ADDRSTRLEN];
+
+  /* bfd socket listen bind ipv4/ipv6 address */
+  memset(&zero_addr, 0, sizeof(zero_addr));
+  if (memcmp(&bfd_srv_addr.ipv4_addr, &zero_addr.ipv4_addr, sizeof(zero_addr.ipv4_addr)))
+  {
+    inet_ntop(AF_INET, &bfd_srv_addr.ipv4_addr, ipv4_addr, sizeof(ipv4_addr));
+    vty_out (vty, "bfd listen bind %s%s", ipv4_addr, VTY_NEWLINE);
+    write ++;
+  }
+  if (memcmp(&bfd_srv_addr.ipv6_addr, &zero_addr.ipv6_addr, sizeof(zero_addr.ipv6_addr)))
+  {
+    inet_ntop(AF_INET6, &bfd_srv_addr.ipv6_addr, ipv6_addr, sizeof(ipv6_addr));
+    vty_out (vty, "bfd listen bind %s%s", ipv6_addr, VTY_NEWLINE);
+    write ++;
+  }
+
   if (bfd->rx_interval != BFD_IF_MINRX_DFT ||
       bfd->tx_interval != BFD_IF_INTERVAL_DFT ||
       bfd->failure_threshold != BFD_IF_MULTIPLIER_DFT ||
@@ -1115,6 +1183,9 @@ bfd_vty_cmd_init (void)
 
   install_element (CONFIG_NODE, &interface_cmd);
   install_element (CONFIG_NODE, &no_interface_cmd);
+  install_element (CONFIG_NODE, &bfd_set_bind_addr_cmd);
+  install_element (CONFIG_NODE, &bfd_unset_bind_addr_cmd);
+
   install_default (INTERFACE_NODE);
   install_element (INTERFACE_NODE, &bfd_interval_cmd);
   install_element (INTERFACE_NODE, &bfd_passive_cmd);

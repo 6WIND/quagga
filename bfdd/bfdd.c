@@ -57,6 +57,7 @@ struct bfd_lport *bfd_lport;
 struct neightbl *neightbl;
 struct bfd *bfd = NULL;
 uint32_t mydisc = 0;
+struct bfd_server_addr bfd_srv_addr;
 
 
 /* Create a new BFD structure */
@@ -223,6 +224,7 @@ bfd_lport_init (void)
 void
 bfd_init (void)
 {
+  memset(&bfd_srv_addr, 0, sizeof(bfd_srv_addr));
   bfd_new ();
 
   bfd_neightbl_init ();

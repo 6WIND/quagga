@@ -277,7 +277,7 @@ bfd_server_socket_init (int family, uint16_t port)
     case AF_INET:
       memset (&addr, 0, sizeof (struct sockaddr_in));
       addr.sin_family = AF_INET;
-      addr.sin_addr.s_addr = INADDR_ANY;
+      addr.sin_addr = bfd_srv_addr.ipv4_addr;
 //#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
 //      addr.sin_len = sizeof (struct sockaddr_in);
 //#endif /* HAVE_STRUCT_SOCKADDR_IN_SIN_LEN */
@@ -318,7 +318,7 @@ bfd_server_socket_init (int family, uint16_t port)
     case AF_INET6:
       memset (&addr6, 0, sizeof (struct sockaddr_in6));
       addr6.sin6_family = AF_INET6;
-      addr6.sin6_addr = in6addr_any;
+      addr6.sin6_addr = bfd_srv_addr.ipv6_addr;
       addr6.sin6_port = htons (port);
       if ((sock = socket (AF_INET6, SOCK_DGRAM, 0)) < 0)
 	{
@@ -367,6 +367,52 @@ bfd_server_socket_init (int family, uint16_t port)
   if (bfdd_privs.change (ZPRIVS_LOWER))
     zlog_err ("bfd_socket_init: could not lower privs");
   return sock;
+}
+
+void bfd_sock_restart(void)
+{
+	THREAD_OFF(bfd->t_read4_1hop);
+	THREAD_OFF(bfd->t_read4_mhop);
+	if (bfd->sock4_1hop_echo) {
+		close(bfd->sock4_1hop_echo);
+		bfd->sock4_1hop_echo = 0;
+	}
+	if (bfd->sock4_1hop) {
+		close(bfd->sock4_1hop);
+		bfd->sock4_1hop = 0;
+	}
+	if (bfd->sock4_mhop) {
+		close(bfd->sock4_mhop);
+		bfd->sock4_mhop = 0;
+	}
+	bfd->sock4_1hop = bfd_server_socket_init (AF_INET, BFD_PORT_1HOP);
+	bfd->sock4_mhop = bfd_server_socket_init (AF_INET, BFD_PORT_MHOP);
+	bfd->sock4_1hop_echo = bfd_server_socket_init (AF_INET, BFD_PORT_1HOP_ECHO);
+	BFD_READ_ON (bfd->t_read4_1hop, bfd_read4_1hop, bfd->sock4_1hop);
+	BFD_READ_ON (bfd->t_read4_mhop, bfd_read4_mhop, bfd->sock4_mhop);
+
+#ifdef HAVE_IPV6
+	THREAD_OFF(bfd->t_read6_1hop);
+	THREAD_OFF(bfd->t_read6_mhop);
+	if (bfd->sock6_1hop_echo) {
+		close(bfd->sock6_1hop_echo);
+		bfd->sock6_1hop_echo = 0;
+	}
+	if (bfd->sock6_1hop) {
+		close(bfd->sock6_1hop);
+		bfd->sock6_1hop = 0;
+	}
+	if (bfd->sock6_mhop) {
+		close(bfd->sock6_mhop);
+		bfd->sock6_mhop = 0;
+	}
+	bfd->sock6_1hop = bfd_server_socket_init (AF_INET6, BFD_PORT_1HOP);
+	bfd->sock6_mhop = bfd_server_socket_init (AF_INET6, BFD_PORT_MHOP);
+	bfd->sock6_1hop_echo = bfd_server_socket_init (AF_INET6, BFD_PORT_1HOP_ECHO);
+	BFD_READ_ON (bfd->t_read6_1hop, bfd_read6_1hop, bfd->sock6_1hop);
+	BFD_READ_ON (bfd->t_read6_mhop, bfd_read6_mhop, bfd->sock6_mhop);
+#endif /* HAVE_IPV6 */
+
 }
 
 /* Receive IPv4 packet */
