@@ -113,4 +113,5 @@ struct bgp_info *bgp_evpn_new_bgp_info_from_ad(struct bgp_info *ri, struct bgp_e
 
 struct bgp_evpn_ad* bgp_evpn_ad_duplicate_from_ad(struct bgp_evpn_ad *evpn);
 
+extern int bgp_attr_mac_mobility_seqnum(struct attr *attr);
 #endif /* _QUAGGA_BGP_ATTR_EVPN_H */

@@ -528,3 +528,51 @@ struct bgp_evpn_ad* bgp_evpn_ad_duplicate_from_ad(struct bgp_evpn_ad *evpn)
   evpn_ad->label = evpn->label;
   return evpn_ad;
 }
+
+/*
+ * Fetch and return the sequence number from MAC Mobility extended
+ * community, if present, else 0.
+ */
+int bgp_attr_mac_mobility_seqnum(struct attr *attr)
+{
+  struct ecommunity *ecom;
+  struct attr_extra *extra;
+  int i;
+  uint8_t flags = 0;
+
+  extra = bgp_attr_extra_get(attr);
+  if (!extra)
+    return 0;
+
+  ecom = extra->ecommunity;
+  if (!ecom || !ecom->size)
+    return 0;
+
+  /* If there is a MAC Mobility extended community, return its
+   * sequence number.
+   * TODO: RFC is silent on handling of multiple MAC mobility extended
+   * communities for the same route. We will bail out upon the first
+   * one.
+   */
+  for (i = 0; i < ecom->size; i++)
+    {
+      uint8_t *pnt;
+      uint8_t type, sub_type;
+      uint32_t seq_num, tmp;
+
+      pnt = (ecom->val + (i * ECOMMUNITY_SIZE));
+      type = *pnt++;
+      sub_type = *pnt++;
+      if (!(type == ECOMMUNITY_ENCODE_EVPN &&
+            sub_type == ECOMMUNITY_EVPN_SUBTYPE_MACMOBILITY))
+        continue;
+      flags = *pnt++;
+
+      pnt++;
+      memcpy(&tmp, pnt, sizeof(tmp));
+      seq_num = ntohl(tmp);
+      return seq_num;
+    }
+
+  return 0;
+}

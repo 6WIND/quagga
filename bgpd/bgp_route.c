@@ -2943,6 +2943,71 @@ void bgp_vrf_process_entry (struct bgp_info *iter,
     }
 }
 
+/*
+ * Add MAC mobility extended community to attribute.
+ */
+static void
+bgp_add_mac_mobility_to_attr(uint32_t seq_num, struct attr *attr)
+{
+  struct ecommunity ecom_tmp;
+  struct ecommunity_val eval;
+  uint8_t *ecom_val_ptr = NULL;
+  int i;
+  uint8_t *pnt;
+  int type = 0;
+  int sub_type = 0;
+  struct attr_extra *ae;
+
+  if (!seq_num)
+    return;
+
+  ae = attr->extra;
+  if (!ae)
+    return;
+
+  memset(&eval, 0, sizeof(eval));
+  eval.val[0] = ECOMMUNITY_ENCODE_EVPN;
+  eval.val[1] = ECOMMUNITY_EVPN_SUBTYPE_MACMOBILITY;
+  eval.val[4] = (seq_num >> 24) & 0xff;
+  eval.val[5] = (seq_num >> 16) & 0xff;
+  eval.val[6] = (seq_num >> 8) & 0xff;
+  eval.val[7] = seq_num & 0xff;
+
+  /* Find current MM ecommunity */
+  if (ae->ecommunity)
+    {
+      for (i = 0; i < ae->ecommunity->size; i++)
+        {
+          pnt = ae->ecommunity->val + (i * 8);
+          type = *pnt++;
+          sub_type = *pnt++;
+
+          if (type == ECOMMUNITY_ENCODE_EVPN &&
+              sub_type == ECOMMUNITY_EVPN_SUBTYPE_MACMOBILITY)
+            {
+              ecom_val_ptr = (uint8_t *)(ae->ecommunity->val + (i * 8));
+              break;
+            }
+        }
+    }
+
+  /* Update the existing MM ecommunity */
+  if (ecom_val_ptr)
+    memcpy(ecom_val_ptr, eval.val, sizeof(char) * ECOMMUNITY_SIZE);
+  else /* Add MM to existing */
+    {
+      memset(&ecom_tmp, 0, sizeof(ecom_tmp));
+      ecom_tmp.size = 1;
+      ecom_tmp.val = (uint8_t *)eval.val;
+
+      if (ae->ecommunity)
+        ae->ecommunity = ecommunity_merge(ae->ecommunity, &ecom_tmp);
+      else
+        ae->ecommunity = ecommunity_dup(&ecom_tmp);
+    }
+  attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
+}
+
 /* updates selected bgp_info structure to bgp vrf rib table
  * most of the cases, processing consists in adding or removing entries in RIB tables
  * on some cases, there is an update request. then it is necessary to have both old and new ri
