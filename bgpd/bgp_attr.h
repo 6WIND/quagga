@@ -121,6 +121,8 @@ struct attr_extra
   uint32_t eth_t_id;
   struct overlay_index evpn_overlay;
   short use_gw;
+  /* EVPN MAC Mobility sequence number, if any. */
+  uint32_t mm_seqnum;
 };
 
 /* BGP core attribute structure. */

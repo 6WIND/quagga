@@ -39,6 +39,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_debug.h"
 #include "bgpd/bgp_packet.h"
 #include "bgpd/bgp_ecommunity.h"
+#include "bgpd/bgp_attr_evpn.h"
 #include "table.h"
 #include "bgp_encap_types.h"
 #include "bgp_evpn.h"
@@ -1863,6 +1864,9 @@ bgp_attr_ext_communities (struct bgp_attr_parser_args *args)
                                args->total);
   
   attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
+
+  /* Extract MAC mobility sequence number, if any. */
+  (bgp_attr_extra_get (attr))->mm_seqnum = bgp_attr_mac_mobility_seqnum(attr);
 
   return BGP_ATTR_PARSE_PROCEED;
 }

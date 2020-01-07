@@ -389,6 +389,8 @@ bgp_info_cmp (struct bgp *bgp, struct bgp_info *new, struct bgp_info *exist,
   int internal_as_route;
   int confed_as_route;
   int ret;
+  uint32_t new_mm_seqnum = 0, exist_mm_seqnum = 0;
+  struct bgp_node *rn;
 
   /* 0. Null check. */
   if (new == NULL)
@@ -400,6 +402,51 @@ bgp_info_cmp (struct bgp *bgp, struct bgp_info *new, struct bgp_info *exist,
   existattr = exist->attr;
   newattre = newattr->extra;
   existattre = existattr->extra;
+
+  /* For EVPN RT2 routes, we have to compare the MAC mobility
+   * sequence number.
+   */
+  rn = new->net;
+  if (rn && rn->p.family == AF_L2VPN &&
+      rn->p.u.prefix_evpn.route_type == EVPN_MACIP_ADVERTISEMENT)
+    {
+      if (newattre)
+        new_mm_seqnum = newattre->mm_seqnum;
+      if (existattre)
+        exist_mm_seqnum = existattre->mm_seqnum;
+
+      if (new_mm_seqnum > exist_mm_seqnum)
+        return -1;
+      if (new_mm_seqnum < exist_mm_seqnum)
+        return 1;
+
+      /* If sequence numbers are the same, prefer the route from
+       * the lowest IP.
+       */
+      if (new->peer == bgp->peer_self)
+        {
+          if (exist->peer->status == Established)
+            ret = sockunion_cmp(exist->peer->su_local, &exist->peer->su);
+          else
+            ret = -1;
+        }
+      else if (exist->peer == bgp->peer_self)
+        {
+          if (new->peer->status == Established)
+            ret = sockunion_cmp(&new->peer->su, new->peer->su_local);
+          else
+            ret = 1;
+        }
+      else
+        {
+          ret = sockunion_cmp(&new->peer->su, &exist->peer->su);
+        }
+
+      if (ret == 1)
+        return 1;
+      if (ret == -1)
+        return -1;
+    }
 
   /* 1. Weight check. */
   new_weight = exist_weight = 0;
@@ -3008,6 +3055,83 @@ bgp_add_mac_mobility_to_attr(uint32_t seq_num, struct attr *attr)
   attr->flag |= ATTR_FLAG_BIT (BGP_ATTR_EXT_COMMUNITIES);
 }
 
+static void
+bgp_update_mac_mobility_seqnum(struct bgp *bgp, struct bgp_node *rn,
+                               struct attr *attr)
+{
+  struct bgp_info *iter;
+  struct bgp_node *vrf_rn = NULL;
+  struct ecommunity *new_ecom = NULL;
+  afi_t afi_int;
+  size_t i;
+  struct listnode *node;
+  uint32_t hi_mm_seqnum;
+  int has_remote_entry = 0;
+
+  if (!rn || !attr || !attr->extra || !attr->extra->ecommunity)
+    return;
+
+  if (rn->p.family != AF_L2VPN)
+    return;
+
+  if (rn->p.u.prefix_evpn.route_type != EVPN_MACIP_ADVERTISEMENT)
+    return;
+
+  new_ecom = attr->extra->ecommunity;
+  if (!new_ecom)
+    return;
+
+  if (rn->p.prefixlen == L2VPN_IPV6_PREFIX_LEN)
+    afi_int = AFI_IP6;
+  else
+    afi_int = AFI_IP;
+
+  for (i = 0; i < (size_t)new_ecom->size; i++)
+    {
+      struct bgp_rt_sub dummy, *rt_sub;
+      uint8_t *val = new_ecom->val + 8 * i;
+      uint8_t type = val[1];
+      struct bgp_vrf *vrf;
+
+      if (type != ECOMMUNITY_ROUTE_TARGET)
+        continue;
+
+      memcpy(&dummy.rt, val, 8);
+      rt_sub = hash_lookup (bgp->rt_subscribers, &dummy);
+      if (!rt_sub)
+        continue;
+
+      for (ALL_LIST_ELEMENTS_RO(rt_sub->vrfs, node, vrf))
+        {
+          vrf_rn = bgp_node_get (vrf->rib[afi_int], &rn->p);
+          if (!vrf_rn)
+            continue;
+          break;
+        }
+    }
+
+  if (!vrf_rn)
+    return;
+
+  hi_mm_seqnum = 0;
+  /* look for the highest MAC sequence number from peer */
+  for (iter = vrf_rn->info; iter; iter = iter->next)
+    {
+      if (iter->peer == bgp->peer_self)
+        continue;
+      if (iter->attr->extra->mm_seqnum > hi_mm_seqnum)
+        hi_mm_seqnum = iter->attr->extra->mm_seqnum;
+      if (!has_remote_entry)
+        has_remote_entry = 1;
+    }
+
+  if (has_remote_entry)
+    {
+      attr->extra->mm_seqnum = hi_mm_seqnum + 1;
+      bgp_add_mac_mobility_to_attr(attr->extra->mm_seqnum, attr);
+    }
+}
+
 /* updates selected bgp_info structure to bgp vrf rib table
  * most of the cases, processing consists in adding or removing entries in RIB tables
  * on some cases, there is an update request. then it is necessary to have both old and new ri
@@ -3048,6 +3172,7 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
     {
       char rd_str[RD_ADDRSTRLEN];
       char nh_str[BUFSIZ] = "<?>";
+      char mm_seq_str[128];
 
       prefix_rd2str(prd, rd_str, sizeof(rd_str));
       prefix2str(&rn->p, pfx_str, sizeof(pfx_str));
@@ -3063,8 +3188,15 @@ bgp_vrf_process_one (struct bgp_vrf *vrf, afi_t afi, safi_t safi, struct bgp_nod
           inet_ntop (AF_INET, &select->attr->nexthop,
                      nh_str, sizeof (nh_str));
         }
-      zlog_debug ("vrf[%s] %s%s: [%s] [nh %s] %s ", vrf_rd_str, pfx_str,
-                  EVPN_RT3_STR(&rn->p), rd_str, nh_str,
+      if (IS_EVPN_RT2_PREFIX(&rn->p) && select &&
+          select->attr && select->attr->extra &&
+          select->attr->extra->mm_seqnum)
+        snprintf(mm_seq_str, sizeof(mm_seq_str), " MAC seq %u",
+                 select->attr->extra->mm_seqnum);
+      else
+        mm_seq_str[0] = '\0';
+      zlog_debug ("vrf[%s] %s%s: [%s] [nh %s%s] %s ", vrf_rd_str, pfx_str,
+                  EVPN_RT3_STR(&rn->p), rd_str, nh_str, mm_seq_str,
                   action == ROUTE_INFO_TO_REMOVE? "withdrawing" : "updating");
     }  
 
@@ -3749,6 +3881,95 @@ bgp_vrf_apply_new_imports_internal (struct bgp_vrf *vrf, afi_t afi, safi_t safi)
       }
 }
 
+/* Called in bgp_process_vrf_main in order to withdraw local EVPN
+ * RT2 route.
+ */
+static void
+bgp_local_evpn_rt2_entry_delete(struct bgp *bgp, struct bgp_vrf *vrf,
+                                struct bgp_node *rn,
+                                struct bgp_info *new_select,
+                                struct bgp_info *old_select)
+{
+  if (!vrf || !bgp || !rn)
+    return;
+  if (rn->p.family != AF_L2VPN)
+    return;
+  if (rn->p.u.prefix_evpn.route_type != EVPN_MACIP_ADVERTISEMENT)
+    return;
+
+  if (new_select && old_select && (new_select != old_select))
+    {
+      char vrf_rd_str[RD_ADDRSTRLEN];
+      char old_loc_rem[128], new_loc_rem[128];
+      char *mac = NULL;
+
+      prefix_rd2str(&vrf->outbound_rd, vrf_rd_str, sizeof(vrf_rd_str));
+
+      memset(old_loc_rem, '\0', sizeof(old_loc_rem));
+      memset(new_loc_rem, '\0', sizeof(new_loc_rem));
+
+      if (old_select->sub_type == BGP_ROUTE_STATIC)
+        snprintf(old_loc_rem, sizeof(old_loc_rem), " local");
+      else if (old_select->sub_type == BGP_ROUTE_NORMAL)
+        snprintf(old_loc_rem, sizeof(old_loc_rem), " remote(%s)",
+                 old_select->peer->host);
+
+      if (new_select->sub_type == BGP_ROUTE_STATIC)
+        snprintf(new_loc_rem, sizeof(new_loc_rem), " local");
+      else if (new_select->sub_type == BGP_ROUTE_NORMAL)
+        snprintf(new_loc_rem, sizeof(new_loc_rem), " remote(%s)",
+                 new_select->peer->host);
+
+      mac = mac2str((char *)&rn->p.u.prefix_evpn.u.prefix_macip.mac);
+      zlog_info("vrf[%s]: this old%s entry MAC %s (seq %u) conflicts "
+                "with new%s MAC (seq %u)",
+                vrf_rd_str,  old_loc_rem, mac,
+                old_select->attr->extra->mm_seqnum,
+                new_loc_rem, new_select->attr->extra->mm_seqnum);
+      if (mac)
+        XFREE (MTYPE_BGP_MAC, mac);
+
+      /* Withdraw local static route */
+      if (old_select && old_select->peer == bgp->peer_self &&
+          old_select->type == ZEBRA_ROUTE_BGP &&
+          old_select->sub_type == BGP_ROUTE_STATIC)
+        {
+          struct bgp_node *global_rn = NULL;
+          struct bgp_info *ri = NULL;
+          struct prefix_rd *prd = &(old_select->extra->vrf_rd);
+
+          global_rn =  bgp_afi_node_get (bgp->rib[AFI_L2VPN][SAFI_EVPN],
+                                         AFI_L2VPN, SAFI_EVPN,
+                                         &rn->p, prd);
+          if (global_rn)
+            {
+              /* search local route entry in global rib, mark deletion
+	       * and schedule for processing.
+	       */
+              for (ri = global_rn->info; ri; ri = ri->next)
+                {
+                  if (ri->peer == bgp->peer_self &&
+                      ri->type == ZEBRA_ROUTE_BGP &&
+                      ri->sub_type == BGP_ROUTE_STATIC)
+                    break;
+                }
+              if (ri)
+                {
+                  bgp_info_delete(global_rn, ri);
+                  bgp_process(bgp, global_rn, AFI_L2VPN, SAFI_EVPN);
+                }
+
+              bgp_unlock_node(global_rn);
+            }
+
+          /* Also mark deletion for old_select which must be in vrf rib,
+           * old_select will be removed in bgp_process_vrf_main().
+           */
+          bgp_info_delete(rn, old_select);
+        }
+    }
+}
+
 struct bgp_process_queue 
 {
   struct bgp *bgp;
@@ -4072,6 +4293,8 @@ bgp_process_vrf_main (struct work_queue *wq, void *data)
             }
         }
     }
+
+  bgp_local_evpn_rt2_entry_delete(bgp, vrf, rn, new_select, old_select);
 
   /* Reap old select bgp_info, if it has been removed */
   if (old_select && CHECK_FLAG (old_select->flags, BGP_INFO_REMOVED))
@@ -7408,6 +7631,9 @@ bgp_static_update_safi (struct bgp *bgp, struct prefix *p,
         {
           bgp_add_routermac_ecom (&attr, bgp_static->router_mac);
         }
+
+      bgp_update_mac_mobility_seqnum(bgp, rn, &attr);
+
       if (bgp_static->igpnexthop.s_addr)
         {
           overlay_index_update(&attr, bgp_static->eth_s_id, &add);

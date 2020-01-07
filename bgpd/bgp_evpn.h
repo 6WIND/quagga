@@ -76,6 +76,9 @@ bgp_evpn_auto_discovery_new_entry (struct bgp_vrf *vrf,
 #define IS_EVPN_RT1_PREFIX(p) ((p)->family == AF_L2VPN && \
                                (p)->u.prefix_evpn.route_type == \
                                 EVPN_ETHERNET_AUTO_DISCOVERY)
+#define IS_EVPN_RT2_PREFIX(p) ((p)->family == AF_L2VPN && \
+                               (p)->u.prefix_evpn.route_type == \
+                                EVPN_MACIP_ADVERTISEMENT)
 #define IS_EVPN_RT3_PREFIX(p) ((p)->family == AF_L2VPN && \
                                (p)->u.prefix_evpn.route_type == \
                                 EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG)
