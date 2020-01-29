@@ -32,7 +32,6 @@ void *qzmq_context = NULL;
 void qzmq_init (void)
 {
   qzmq_context = zmq_ctx_new ();
-  zmq_ctx_set (qzmq_context, ZMQ_IPV6, 1);
 }
 
 void qzmq_finish (void)
