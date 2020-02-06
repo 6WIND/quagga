@@ -68,10 +68,16 @@ bfd_new (void)
   bfd->sock4_mhop = bfd_server_socket_init (AF_INET, BFD_PORT_MHOP);
   bfd->sock4_1hop_echo = bfd_server_socket_init (AF_INET, BFD_PORT_1HOP_ECHO);
 #ifdef HAVE_IPV6
-  bfd->sock6_1hop = bfd_server_socket_init (AF_INET6, BFD_PORT_1HOP);
-  bfd->sock6_mhop = bfd_server_socket_init (AF_INET6, BFD_PORT_MHOP);
-  bfd->sock6_1hop_echo =
-    bfd_server_socket_init (AF_INET6, BFD_PORT_1HOP_ECHO);
+  if (ipv6_mode) {
+    bfd->sock6_1hop = bfd_server_socket_init (AF_INET6, BFD_PORT_1HOP);
+    bfd->sock6_mhop = bfd_server_socket_init (AF_INET6, BFD_PORT_MHOP);
+    bfd->sock6_1hop_echo =
+      bfd_server_socket_init (AF_INET6, BFD_PORT_1HOP_ECHO);
+  } else {
+    bfd->sock6_1hop = -1;
+    bfd->sock6_mhop = -1;
+    bfd->sock6_1hop_echo = -1;
+  }
 #endif /* HAVE_IPV6 */
 
   /* Set up queue for waiting neighbors */
@@ -233,8 +239,10 @@ bfd_init (void)
   BFD_READ_ON (bfd->t_read4_mhop, bfd_read4_mhop, bfd->sock4_mhop);
 
 #ifdef HAVE_IPV6
-  BFD_READ_ON (bfd->t_read6_1hop, bfd_read6_1hop, bfd->sock6_1hop);
-  BFD_READ_ON (bfd->t_read6_mhop, bfd_read6_mhop, bfd->sock6_mhop);
+  if (ipv6_mode) {
+    BFD_READ_ON (bfd->t_read6_1hop, bfd_read6_1hop, bfd->sock6_1hop);
+    BFD_READ_ON (bfd->t_read6_mhop, bfd_read6_mhop, bfd->sock6_mhop);
+  }
 #endif /* HAVE_IPV6 */
 }
 

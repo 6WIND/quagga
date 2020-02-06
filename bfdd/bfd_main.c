@@ -60,6 +60,9 @@ struct zebra_privs_t bfdd_privs = {
 /* Configuration filename and directory. */
 char config_default[] = SYSCONFDIR BFDD_DEFAULT_CONFIG;
 
+/* IPv6 mode is disabled by default */
+int ipv6_mode = 0;
+
 /* Manually specified configuration file name.  */
 int force_cbit_to_unset = 0;
 char *config_file = NULL;
@@ -92,6 +95,7 @@ BFD Deamon\n\n\
 -u, --user         User to run as\n\
 -g, --group        Group to run as\n\
 -Z, --zeromq,      Bind zmq socket\n\
+-6, --ipv6         Runs with IPv6 support\n\
 -v, --version      Print program version\n\
 -h, --help         Display this help and exit\n\
 \n\
@@ -110,6 +114,7 @@ char *vty_addr = NULL;
 /* BFDd Options */
 static struct option longopts[] = {
   {"daemon", no_argument, NULL, 'd'},
+  {"ipv6", no_argument, NULL, '6'},
   {"config_file", required_argument, NULL, 'f'},
   {"pid_file", required_argument, NULL, 'i'},
   {"socket",      required_argument, NULL, 'z'},
@@ -221,7 +226,7 @@ main (int argc, char **argv, char **envp)
     {
       int opt;
 
-      opt = getopt_long (argc, argv, "df:i:z:hA:P:u:g:Z:vcC", longopts, 0);
+      opt = getopt_long (argc, argv, "d6f:i:z:hA:P:u:g:Z:vcC", longopts, 0);
 
       if (opt == EOF)
 	break;
@@ -232,6 +237,9 @@ main (int argc, char **argv, char **envp)
 	  break;
 	case 'd':
 	  daemon_mode = 1;
+	  break;
+	case '6':
+	  ipv6_mode = 1;
 	  break;
 	case 'f':
 	  config_file = optarg;

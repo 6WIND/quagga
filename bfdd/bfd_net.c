@@ -94,6 +94,9 @@ static int
 bfd_sock (int family)
 {
   int sock;
+
+  if (family == AF_INET6 && !ipv6_mode)
+    return -1;
   if ((sock = socket (family, SOCK_DGRAM, 0)) < 0)
     {
       zlog_err ("%s: cannot create family=%d socket: %s", __func__, family,
