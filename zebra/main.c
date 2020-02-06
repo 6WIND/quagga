@@ -525,6 +525,8 @@ main (int argc, char **argv)
   /* Needed for BSD routing socket. */
   pid = getpid ();
 
+  vty_set_sock_ipv4_only(true);
+
   /* This must be done only after locking pidfile (bug #403). */
   zebra_zserv_socket_init (zserv_path);
 

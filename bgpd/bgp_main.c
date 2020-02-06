@@ -191,6 +191,8 @@ sighup (void)
   /* Reload config file. */
   vty_read_config (config_file, config_default);
 
+  vty_set_sock_ipv4_only(true);
+
   /* Create VTY's socket */
   vty_serv_sock (vty_addr, vty_port, BGP_VTYSH_PATH);
 
@@ -538,6 +540,8 @@ main (int argc, char **argv)
 
   /* Process ID file creation. */
   pid_output (pid_file);
+
+  vty_set_sock_ipv4_only(true);
 
   /* Make bgp vty socket. */
   vty_serv_sock (vty_addr, vty_port, BGP_VTYSH_PATH);

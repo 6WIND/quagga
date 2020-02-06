@@ -64,6 +64,8 @@ extern struct host host;
 /* Vector which store each vty structure. */
 static vector vtyvec;
 
+static bool ipv4_only;
+
 /* Vty timeout value. */
 static unsigned long vty_timeout_val = VTY_TIMEOUT_DEFAULT;
 
@@ -1947,7 +1949,7 @@ vty_accept (struct thread *thread)
 
 #ifdef HAVE_IPV6
 static void
-vty_serv_sock_addrinfo (const char *hostname, unsigned short port)
+vty_serv_sock_addrinfo (const char *hostname, unsigned short port, bool ipv4_only)
 {
   int ret;
   struct addrinfo req;
@@ -1958,7 +1960,10 @@ vty_serv_sock_addrinfo (const char *hostname, unsigned short port)
 
   memset (&req, 0, sizeof (struct addrinfo));
   req.ai_flags = AI_PASSIVE;
-  req.ai_family = AF_UNSPEC;
+  if (ipv4_only)
+    req.ai_family = AF_INET;
+  else
+    req.ai_family = AF_UNSPEC;
   req.ai_socktype = SOCK_STREAM;
   sprintf (port_str, "%d", port);
   port_str[sizeof (port_str) - 1] = '\0';
@@ -2315,6 +2320,11 @@ vtysh_write (struct thread *thread)
 
 #endif /* VTYSH */
 
+void vty_set_sock_ipv4_only(bool on)
+{
+  ipv4_only = on;
+}
+
 /* Determine address family to bind. */
 void
 vty_serv_sock (const char *addr, unsigned short port, const char *path)
@@ -2324,7 +2334,7 @@ vty_serv_sock (const char *addr, unsigned short port, const char *path)
     {
 
 #ifdef HAVE_IPV6
-      vty_serv_sock_addrinfo (addr, port);
+      vty_serv_sock_addrinfo (addr, port, ipv4_only);
 #else /* ! HAVE_IPV6 */
       vty_serv_sock_family (addr,port, AF_INET);
 #endif /* HAVE_IPV6 */

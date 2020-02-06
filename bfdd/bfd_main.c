@@ -342,6 +342,8 @@ main (int argc, char **argv, char **envp)
   /* Pid file create. */
   pid_output (pid_file);
 
+  vty_set_sock_ipv4_only(true);
+
   /* Create VTY's socket */
   vty_serv_sock (vty_addr, vty_port, BFD_VTYSH_PATH);
 
