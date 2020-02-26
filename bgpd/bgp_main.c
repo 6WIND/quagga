@@ -117,10 +117,6 @@ char *config_file = NULL;
 /* Process ID saved for use by init system */
 static const char *pid_file = PATH_BGPD_PID;
 
-/* VTY port number and address.  */
-int vty_port = BGP_VTY_PORT;
-char *vty_addr = NULL;
-
 /* privileges */
 static zebra_capabilities_t _caps_p [] =  
 {
@@ -358,6 +354,9 @@ bgp_exit (int status)
   if (zlog_default)
     closezlog (zlog_default);
 
+  if (vty_addr)
+    XFREE (MTYPE_TMP, vty_addr);
+
   if (CONF_BGP_DEBUG (normal, NORMAL))
     log_memstats_stderr ("bgpd");
 
@@ -453,7 +452,8 @@ main (int argc, char **argv)
 	    bm->port = tmp_port;
 	  break;
 	case 'A':
-	  vty_addr = optarg;
+	  vty_addr = XMALLOC(MTYPE_TMP, strlen(optarg) + 1);
+	  snprintf(vty_addr, strlen(optarg) + 1, "%s", optarg);
 	  break;
 	case 'P':
           /* Deal with atoi() returning 0 on failure, and bgpd not

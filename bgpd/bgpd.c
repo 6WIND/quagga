@@ -89,6 +89,10 @@ int bgp_exit_procedure = 0;
 /* BGP community-list.  */
 struct community_list_handler *bgp_clist;
 
+/* VTY port number and address.  */
+int vty_port = BGP_VTY_PORT;
+char *vty_addr = NULL;
+
 int  bgp_order_send_eor = 0;
 int  bgp_selection_deferral_tmr = BGP_DEFAULT_SELECTION_DEFERRAL;
 
@@ -6692,9 +6696,20 @@ bgp_config_write (struct vty *vty)
       write++;
     }
 
+  /* BGP vty address and port */
+  if (vty_addr)
+    {
+      if (vty_port == BGP_VTY_PORT)
+        vty_out (vty, "bgp vty bind %s%s", vty_addr, VTY_NEWLINE);
+      else
+        vty_out (vty, "bgp vty bind %s %d%s", vty_addr, vty_port, VTY_NEWLINE);
+      write++;
+    }
+
   /* BGP selection deferral timer */
   vty_out (vty, "bgp bestpath selection-deferral %u%s",
            bgp_selection_deferral_tmr, VTY_NEWLINE);
+  write++;
 
   /* BGP configuration. */
   for (ALL_LIST_ELEMENTS (bm->bgp, mnode, mnnode, bgp))

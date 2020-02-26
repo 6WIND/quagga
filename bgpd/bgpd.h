@@ -1086,6 +1086,10 @@ extern int bgp_exit_procedure;
 extern int  bgp_order_send_eor;
 extern int bgp_selection_deferral_tmr;
 
+/* VTY port number and address. */
+extern int vty_port;
+extern char *vty_addr;
+
 /* Prototypes. */
 extern void bgp_terminate (void);
 extern void bgp_reset (void);

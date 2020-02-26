@@ -972,6 +972,104 @@ DEFUN (no_bgp_bestpath_selection_deferral,
   return CMD_SUCCESS;
 }
 
+/* BGP vty address binding */
+DEFUN (bgp_vty_bind_addr,
+       bgp_vty_bind_addr_cmd,
+       "bgp vty bind (A.B.C.D|X:X::X:X)",
+       "BGP\n"
+       "Vty configuration\n"
+       "Bind address and port for vty server\n"
+       "Vty listening IPv4 address\n"
+       "Vty listening IPv6 address\n")
+{
+  union sockunion su;
+  int ret = str2sockunion (argv[0], &su);
+
+  if (ret < 0)
+    {
+      vty_out (vty, "%% Malformed address: %s%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  if (vty_addr)
+    {
+      if (strcmp(argv[0], vty_addr) == 0)
+	return CMD_SUCCESS;
+      XFREE (MTYPE_TMP, vty_addr);
+    }
+
+  vty_addr = XMALLOC(MTYPE_TMP, strlen(argv[0]) + 1);
+  snprintf(vty_addr, strlen(argv[0]) + 1, "%s", argv[0]);
+
+  vty_reset_other_vtys (vty);
+  vty_serv_sock(vty_addr, vty_port, BGP_VTYSH_PATH);
+
+  return CMD_SUCCESS;
+}
+
+/* BGP vty address and port binding */
+DEFUN (bgp_vty_bind_addr_port,
+       bgp_vty_bind_addr_port_cmd,
+       "bgp vty bind (A.B.C.D|X:X::X:X) <1-65535>",
+       "BGP\n"
+       "Vty configuration\n"
+       "Bind address and port for vty server\n"
+       "Vty listening IPv4 address\n"
+       "Vty listening IPv6 address\n"
+       "Vty listening port\n")
+{
+  union sockunion su;
+  u_int16_t port;
+  int ret = str2sockunion (argv[0], &su);
+
+  if (ret < 0)
+    {
+      vty_out (vty, "%% Malformed address: %s%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  VTY_GET_INTEGER("port", port, argv[1]);
+
+  if (vty_addr)
+    {
+      /* configuration not changed, do nothing */
+      if ((strcmp(argv[0], vty_addr) == 0) && (port == vty_port))
+	return CMD_SUCCESS;
+      XFREE (MTYPE_TMP, vty_addr);
+    }
+
+  vty_addr = XMALLOC(MTYPE_TMP, strlen(argv[0]) + 1);
+  snprintf(vty_addr, strlen(argv[0]) + 1, "%s", argv[0]);
+  vty_port = port;
+
+  vty_reset_other_vtys (vty);
+  vty_serv_sock (vty_addr, vty_port, BGP_VTYSH_PATH);
+
+  return CMD_SUCCESS;
+}
+
+/* BGP vty address and port */
+DEFUN (no_bgp_vty_bind,
+       no_bgp_vty_bind_cmd,
+       "no bgp vty bind",
+       NO_STR
+       "BGP\n"
+       "Vty configuration\n"
+       "Bind address and port for vty server\n")
+{
+  if (vty_addr)
+    {
+      XFREE (MTYPE_TMP, vty_addr);
+      vty_addr = NULL;
+      vty_port = BGP_VTY_PORT;
+
+      vty_reset_other_vtys (vty);
+      vty_serv_sock (vty_addr, vty_port, BGP_VTYSH_PATH);
+    }
+
+  return CMD_SUCCESS;
+}
+
 DEFUN (bgp_timers,
        bgp_timers_cmd,
        "timers bgp <0-65535> <0-65535>",
@@ -11015,6 +11113,11 @@ bgp_vty_init (void)
   /* bgp bestpath selection deferral commands */
   install_element (CONFIG_NODE, &bgp_bestpath_selection_deferral_cmd);
   install_element (CONFIG_NODE, &no_bgp_bestpath_selection_deferral_cmd);
+
+  /* bgp vty addr commands */
+  install_element (CONFIG_NODE, &bgp_vty_bind_addr_cmd);
+  install_element (CONFIG_NODE, &bgp_vty_bind_addr_port_cmd);
+  install_element (CONFIG_NODE, &no_bgp_vty_bind_cmd);
 
   /* bgp set bind/no bgp set bind */
   install_element (CONFIG_NODE, &bgp_set_bind_addr_cmd);
