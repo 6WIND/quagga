@@ -59,6 +59,9 @@ struct bfd *bfd = NULL;
 uint32_t mydisc = 0;
 struct bfd_server_addr bfd_srv_addr;
 
+/* VTY port number and address. */
+int vty_port = BFDD_VTY_PORT;
+char *vty_addr = NULL;
 
 /* Create a new BFD structure */
 static void

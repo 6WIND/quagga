@@ -32,6 +32,7 @@
 #include "thread.h"
 #include "hash.h"
 #include "table.h"
+#include "memory.h"
 
 #include "bfd.h"
 #include "bfdd/bfdd.h"
@@ -989,6 +990,16 @@ bfd_config_write (struct vty *vty)
     write ++;
   }
 
+  /* BFD vty address and port */
+  if (vty_addr)
+    {
+      if (vty_port == BFDD_VTY_PORT)
+        vty_out (vty, "bfd vty bind %s%s", vty_addr, VTY_NEWLINE);
+      else
+        vty_out (vty, "bfd vty bind %s %d%s", vty_addr, vty_port, VTY_NEWLINE);
+      write++;
+    }
+
   if (bfd->rx_interval != BFD_IF_MINRX_DFT ||
       bfd->tx_interval != BFD_IF_INTERVAL_DFT ||
       bfd->failure_threshold != BFD_IF_MULTIPLIER_DFT ||
@@ -1151,6 +1162,104 @@ DEFUN (no_bfd_underlay_limit_timeout,
   return CMD_SUCCESS;
 }
 
+/* BFD vty address binding */
+DEFUN (bfd_vty_bind_addr,
+       bfd_vty_bind_addr_cmd,
+       "bfd vty bind (A.B.C.D|X:X::X:X)",
+       "BFD\n"
+       "Vty configuration\n"
+       "Bind address and port for vty server\n"
+       "Vty listening IPv4 address\n"
+       "Vty listening IPv6 address\n")
+{
+  union sockunion su;
+  int ret = str2sockunion (argv[0], &su);
+
+  if (ret < 0)
+    {
+      vty_out (vty, "%% Malformed address: %s%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  if (vty_addr)
+    {
+      if (strcmp(argv[0], vty_addr) == 0)
+	return CMD_SUCCESS;
+      XFREE (MTYPE_TMP, vty_addr);
+    }
+
+  vty_addr = XMALLOC(MTYPE_TMP, strlen(argv[0]) + 1);
+  snprintf(vty_addr, strlen(argv[0]) + 1, "%s", argv[0]);
+
+  vty_reset_other_vtys (vty);
+  vty_serv_sock(vty_addr, vty_port, BFD_VTYSH_PATH);
+
+  return CMD_SUCCESS;
+}
+
+/* BFD vty address and port binding */
+DEFUN (bfd_vty_bind_addr_port,
+       bfd_vty_bind_addr_port_cmd,
+       "bfd vty bind (A.B.C.D|X:X::X:X) <1-65535>",
+       "BFD\n"
+       "Vty configuration\n"
+       "Bind address and port for vty server\n"
+       "Vty listening IPv4 address\n"
+       "Vty listening IPv6 address\n"
+       "Vty listening port\n")
+{
+  union sockunion su;
+  u_int16_t port;
+  int ret = str2sockunion (argv[0], &su);
+
+  if (ret < 0)
+    {
+      vty_out (vty, "%% Malformed address: %s%s", argv[0], VTY_NEWLINE);
+      return CMD_WARNING;
+    }
+
+  VTY_GET_INTEGER("port", port, argv[1]);
+
+  if (vty_addr)
+    {
+      /* configuration not changed, do nothing */
+      if ((strcmp(argv[0], vty_addr) == 0) && (port == vty_port))
+	return CMD_SUCCESS;
+      XFREE (MTYPE_TMP, vty_addr);
+    }
+
+  vty_addr = XMALLOC(MTYPE_TMP, strlen(argv[0]) + 1);
+  snprintf(vty_addr, strlen(argv[0]) + 1, "%s", argv[0]);
+  vty_port = port;
+
+  vty_reset_other_vtys (vty);
+  vty_serv_sock (vty_addr, vty_port, BFD_VTYSH_PATH);
+
+  return CMD_SUCCESS;
+}
+
+/* BFD vty address and port */
+DEFUN (no_bfd_vty_bind,
+       no_bfd_vty_bind_cmd,
+       "no bfd vty bind",
+       NO_STR
+       "BFD\n"
+       "Vty configuration\n"
+       "Bind address and port for vty server\n")
+{
+  if (vty_addr)
+    {
+      XFREE (MTYPE_TMP, vty_addr);
+      vty_addr = NULL;
+      vty_port = BFDD_VTY_PORT;
+
+      vty_reset_other_vtys (vty);
+      vty_serv_sock (vty_addr, vty_port, BFD_VTYSH_PATH);
+    }
+
+  return CMD_SUCCESS;
+}
+
 /* Initialization of BFD interface. */
 static void
 bfd_vty_cmd_init (void)
@@ -1211,6 +1320,11 @@ bfd_vty_cmd_init (void)
   install_element (BFD_NODE, &no_bfd_global_passive_cmd);
   install_element (BFD_NODE, &bfd_global_passive_startup_only_cmd);
   install_element (BFD_NODE, &no_bfd_global_passive_startup_only_cmd);
+
+  /* bfd vty addr commands */
+  install_element (CONFIG_NODE, &bfd_vty_bind_addr_cmd);
+  install_element (CONFIG_NODE, &bfd_vty_bind_addr_port_cmd);
+  install_element (CONFIG_NODE, &no_bfd_vty_bind_cmd);
 };
 
 

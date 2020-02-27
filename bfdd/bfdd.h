@@ -32,6 +32,10 @@ extern struct bfd *bfd;
 extern struct neightbl *neightbl;
 extern int force_cbit_to_unset;
 
+/* VTY port number and address. */
+extern int vty_port;
+extern char *vty_addr;
+
 #define BFDD_VERSION "0.90.1"
 
 #define BFDD_DEFAULT_CONFIG	"bfdd.conf"

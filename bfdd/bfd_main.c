@@ -101,12 +101,6 @@ Report bugs to %s\n", progname, ZEBRA_BUG_ADDRESS);
   exit (status);
 }
 
-
-/* VTY port number and address.  */
-int vty_port = BFDD_VTY_PORT;
-char *vty_addr = NULL;
-
-
 /* BFDd Options */
 static struct option longopts[] = {
   {"daemon", no_argument, NULL, 'd'},
@@ -201,7 +195,6 @@ main (int argc, char **argv, char **envp)
   char *p;
   int daemon_mode = 0;
   int dryrun = 0;
-  int vty_port = BFDD_VTY_PORT;
   char *progname;
   struct thread thread;
 #ifdef HAVE_ZEROMQ
@@ -240,7 +233,8 @@ main (int argc, char **argv, char **envp)
 	  force_cbit_to_unset = 1;
 	  break;
 	case 'A':
-	  vty_addr = optarg;
+	  vty_addr = XMALLOC(MTYPE_TMP, strlen(optarg) + 1);
+	  snprintf(vty_addr, strlen(optarg) + 1, "%s", optarg);
 	  break;
 	case 'i':
 	  pid_file = optarg;
@@ -378,6 +372,9 @@ bfdd_exit (int status)
 
   if (zlog_default)
     closezlog (zlog_default);
+
+  if (vty_addr)
+    XFREE (MTYPE_TMP, vty_addr);
 
   exit (status);
 }
