@@ -3132,6 +3132,53 @@ vty_reset ()
     }
 }
 
+/* Reset all VTY status except current vty. This function is used to be called
+ * by a vty command which has to reset all VTYs. Because vty_execute() will
+ * access current vty after the command execution, so current vty should not
+ * be closed and freed during the command execution.
+ */
+void
+vty_reset_other_vtys (struct vty *current_vty)
+{
+  unsigned int i;
+  struct vty *vty;
+  struct thread *vty_serv_thread;
+
+  for (i = 0; i < vector_active (vtyvec); i++)
+    if ((vty = vector_slot (vtyvec, i)) != NULL)
+      {
+	buffer_reset (vty->obuf);
+	vty->status = VTY_CLOSE;
+	/* Current vty will be closed in vty_read(), because vty
+	 * status has been set to VTY_CLOSE.
+	 */
+	if (vty != current_vty)
+	  vty_close (vty);
+      }
+
+  for (i = 0; i < vector_active (Vvty_serv_thread); i++)
+    if ((vty_serv_thread = vector_slot (Vvty_serv_thread, i)) != NULL)
+      {
+	thread_cancel (vty_serv_thread);
+	vector_slot (Vvty_serv_thread, i) = NULL;
+        close (i);
+      }
+
+  vty_timeout_val = VTY_TIMEOUT_DEFAULT;
+
+  if (vty_accesslist_name)
+    {
+      XFREE(MTYPE_VTY, vty_accesslist_name);
+      vty_accesslist_name = NULL;
+    }
+
+  if (vty_ipv6_accesslist_name)
+    {
+      XFREE(MTYPE_VTY, vty_ipv6_accesslist_name);
+      vty_ipv6_accesslist_name = NULL;
+    }
+}
+
 static void
 vty_save_cwd (void)
 {
