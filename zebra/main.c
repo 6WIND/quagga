@@ -62,6 +62,7 @@ static struct thread *zebra_monitor_thread;
 /* VTY port number and address.  */
 int vty_port = ZEBRA_VTY_PORT;
 char *vty_addr = NULL;
+int zebra_init_done = 0;
 
 /* Route retain mode flag. */
 int retain_mode = 0;
@@ -542,6 +543,7 @@ main (int argc, char **argv)
 
   /* Print banner. */
   zlog_notice ("Zebra %s starting: vty@%d pid %d", QUAGGA_VERSION, vty_port, pid);
+  zebra_init_done = 1;
 
   while (thread_fetch (zebrad.master, &thread))
     thread_call (&thread);

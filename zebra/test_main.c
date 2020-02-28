@@ -54,6 +54,7 @@ struct thread_master *master;
 
 char *vty_addr = NULL;
 int vty_port = 0;
+int zebra_init_done = 0;
 
 /* Command line options. */
 struct option longopts[] = 
@@ -389,6 +390,7 @@ main (int argc, char **argv)
 
   /* Print banner. */
   zlog_notice ("Zebra %s starting: vty@%d", QUAGGA_VERSION, vty_port);
+  zebra_init_done = 1;
 
   while (thread_fetch (zebrad.master, &thread))
     thread_call (&thread);

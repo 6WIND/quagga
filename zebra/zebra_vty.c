@@ -36,6 +36,7 @@
 /* VTY port number and address. */
 extern int vty_port;
 extern char *vty_addr;
+extern int zebra_init_done;
 
 static int do_show_ip_route(struct vty *vty, safi_t safi, vrf_id_t vrf_id);
 static void vty_show_ip_route_detail (struct vty *vty, struct route_node *rn,
@@ -5315,8 +5316,11 @@ DEFUN (zebra_vty_bind_addr,
   vty_addr = XMALLOC(MTYPE_TMP, strlen(argv[0]) + 1);
   snprintf(vty_addr, strlen(argv[0]) + 1, "%s", argv[0]);
 
-  vty_reset_other_vtys (vty);
-  vty_serv_sock(vty_addr, vty_port, ZEBRA_VTYSH_PATH);
+  if (zebra_init_done)
+    {
+      vty_reset_other_vtys (vty);
+      vty_serv_sock(vty_addr, vty_port, ZEBRA_VTYSH_PATH);
+    }
 
   return CMD_SUCCESS;
 }
@@ -5356,8 +5360,11 @@ DEFUN (zebra_vty_bind_addr_port,
   snprintf(vty_addr, strlen(argv[0]) + 1, "%s", argv[0]);
   vty_port = port;
 
-  vty_reset_other_vtys (vty);
-  vty_serv_sock (vty_addr, vty_port, ZEBRA_VTYSH_PATH);
+  if (zebra_init_done)
+    {
+      vty_reset_other_vtys (vty);
+      vty_serv_sock (vty_addr, vty_port, ZEBRA_VTYSH_PATH);
+    }
 
   return CMD_SUCCESS;
 }
@@ -5377,8 +5384,11 @@ DEFUN (no_zebra_vty_bind,
       vty_addr = NULL;
       vty_port = ZEBRA_VTY_PORT;
 
-      vty_reset_other_vtys (vty);
-      vty_serv_sock (vty_addr, vty_port, ZEBRA_VTYSH_PATH);
+      if (zebra_init_done)
+        {
+          vty_reset_other_vtys (vty);
+          vty_serv_sock (vty_addr, vty_port, ZEBRA_VTYSH_PATH);
+        }
     }
 
   return CMD_SUCCESS;
