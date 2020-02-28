@@ -338,6 +338,7 @@ main (int argc, char **argv, char **envp)
   /* Print banner. */
   zlog_notice ("BFDd %s starting: vty@%d pid %d", QUAGGA_VERSION, vty_port, getpid ());
 
+  bfd_init_done = 1;
   /* Execute each thread. */
   while (thread_fetch (master, &thread))
     thread_call (&thread);

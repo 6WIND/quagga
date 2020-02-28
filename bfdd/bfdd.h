@@ -35,6 +35,7 @@ extern int force_cbit_to_unset;
 /* VTY port number and address. */
 extern int vty_port;
 extern char *vty_addr;
+extern int bfd_init_done;
 
 #define BFDD_VERSION "0.90.1"
 

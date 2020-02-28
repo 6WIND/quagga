@@ -1191,8 +1191,11 @@ DEFUN (bfd_vty_bind_addr,
   vty_addr = XMALLOC(MTYPE_TMP, strlen(argv[0]) + 1);
   snprintf(vty_addr, strlen(argv[0]) + 1, "%s", argv[0]);
 
-  vty_reset_other_vtys (vty);
-  vty_serv_sock(vty_addr, vty_port, BFD_VTYSH_PATH);
+  if (bfd_init_done)
+    {
+      vty_reset_other_vtys (vty);
+      vty_serv_sock(vty_addr, vty_port, BFD_VTYSH_PATH);
+    }
 
   return CMD_SUCCESS;
 }
@@ -1232,8 +1235,11 @@ DEFUN (bfd_vty_bind_addr_port,
   snprintf(vty_addr, strlen(argv[0]) + 1, "%s", argv[0]);
   vty_port = port;
 
-  vty_reset_other_vtys (vty);
-  vty_serv_sock (vty_addr, vty_port, BFD_VTYSH_PATH);
+  if (bfd_init_done)
+    {
+      vty_reset_other_vtys (vty);
+      vty_serv_sock (vty_addr, vty_port, BFD_VTYSH_PATH);
+    }
 
   return CMD_SUCCESS;
 }
@@ -1253,8 +1259,11 @@ DEFUN (no_bfd_vty_bind,
       vty_addr = NULL;
       vty_port = BFDD_VTY_PORT;
 
-      vty_reset_other_vtys (vty);
-      vty_serv_sock (vty_addr, vty_port, BFD_VTYSH_PATH);
+      if (bfd_init_done)
+        {
+          vty_reset_other_vtys (vty);
+          vty_serv_sock (vty_addr, vty_port, BFD_VTYSH_PATH);
+        }
     }
 
   return CMD_SUCCESS;
