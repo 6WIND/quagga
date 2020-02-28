@@ -52,6 +52,9 @@ extern int rib_process_hold_time;
 /* Pacify zclient.o in libzebra, which expects this variable. */
 struct thread_master *master;
 
+char *vty_addr = NULL;
+int vty_port = 0;
+
 /* Command line options. */
 struct option longopts[] = 
 {
@@ -267,8 +270,6 @@ int
 main (int argc, char **argv)
 {
   char *p;
-  char *vty_addr = NULL;
-  int vty_port = 0;
   int batch_mode = 0;
   int daemon_mode = 0;
   char *config_file = NULL;
@@ -306,7 +307,8 @@ main (int argc, char **argv)
 	  config_file = optarg;
 	  break;
 	case 'A':
-	  vty_addr = optarg;
+	  vty_addr = XMALLOC(MTYPE_TMP, strlen(optarg) + 1);
+	  snprintf(vty_addr, strlen(optarg) + 1, "%s", optarg);
 	  break;
 	case 'P':
 	  /* Deal with atoi() returning 0 on failure, and zebra not

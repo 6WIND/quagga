@@ -59,6 +59,10 @@ pid_t pid;
 struct thread_master *master;
 static struct thread *zebra_monitor_thread;
 
+/* VTY port number and address.  */
+int vty_port = ZEBRA_VTY_PORT;
+char *vty_addr = NULL;
+
 /* Route retain mode flag. */
 int retain_mode = 0;
 
@@ -211,6 +215,9 @@ sigint (void)
   irdp_finish();
 #endif
 
+  if (vty_addr)
+    XFREE (MTYPE_TMP, vty_addr);
+
   exit (0);
 }
 
@@ -323,8 +330,6 @@ int
 main (int argc, char **argv)
 {
   char *p;
-  char *vty_addr = NULL;
-  int vty_port = ZEBRA_VTY_PORT;
   int dryrun = 0;
   int batch_mode = 0;
   int daemon_mode = 0;
@@ -381,7 +386,8 @@ main (int argc, char **argv)
 	  fpm_format = optarg;
 	  break;
 	case 'A':
-	  vty_addr = optarg;
+	  vty_addr = XMALLOC(MTYPE_TMP, strlen(optarg) + 1);
+	  snprintf(vty_addr, strlen(optarg) + 1, "%s", optarg);
 	  break;
         case 'i':
           pid_file = optarg;
