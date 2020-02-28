@@ -92,6 +92,7 @@ struct community_list_handler *bgp_clist;
 /* VTY port number and address.  */
 int vty_port = BGP_VTY_PORT;
 char *vty_addr = NULL;
+int bgp_init_done = 0;
 
 int  bgp_order_send_eor = 0;
 int  bgp_selection_deferral_tmr = BGP_DEFAULT_SELECTION_DEFERRAL;

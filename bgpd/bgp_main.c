@@ -570,6 +570,7 @@ main (int argc, char **argv)
 	       bm->port,
 	       getpid ());
 
+  bgp_init_done = 1;
   /* Start finite state machine, here we go! */
   while (thread_fetch (bm->master, &thread))
     thread_call (&thread);
