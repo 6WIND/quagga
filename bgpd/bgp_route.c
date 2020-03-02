@@ -946,12 +946,12 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
     transparent = 0;
 
   /* If community is not disabled check the no-export and local. */
-  if (! transparent && bgp_community_filter (peer, riattr))
+  if (! transparent && riattr && bgp_community_filter (peer, riattr))
     return 0;
 
   /* If the attribute has originator-id and it is same as remote
      peer's id. */
-  if (riattr->flag & ATTR_FLAG_BIT (BGP_ATTR_ORIGINATOR_ID))
+  if (riattr && riattr->flag & ATTR_FLAG_BIT (BGP_ATTR_ORIGINATOR_ID))
     {
       if (IPV4_ADDR_SAME (&peer->remote_id, &riattr->extra->originator_id))
 	{
@@ -989,7 +989,7 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
 
 #ifdef BGP_SEND_ASPATH_CHECK
   /* AS path loop check. */
-  if (aspath_loop_check (riattr->aspath, peer->as))
+  if (riattr && aspath_loop_check (riattr->aspath, peer->as))
     {
       if (BGP_DEBUG (filter, FILTER))  
         zlog (peer->log, LOG_DEBUG, 
@@ -1002,7 +1002,7 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
   /* If we're a CONFED we need to loop check the CONFED ID too */
   if (CHECK_FLAG(bgp->config, BGP_CONFIG_CONFEDERATION))
     {
-      if (aspath_loop_check(riattr->aspath, bgp->confed_id))
+      if (riattr && aspath_loop_check(riattr->aspath, bgp->confed_id))
 	{
 	  if (BGP_DEBUG (filter, FILTER))  
 	    zlog (peer->log, LOG_DEBUG, 
@@ -1043,7 +1043,8 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
     }
   
   /* For modify attribute, copy it to temporary structure. */
-  bgp_attr_dup (attr, riattr);
+  if (riattr)
+    bgp_attr_dup (attr, riattr);
   
   /* If local-preference is not set. */
   if ((peer->sort == BGP_PEER_IBGP
