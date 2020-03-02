@@ -82,9 +82,10 @@ router_id_get (struct prefix *p, vrf_id_t vrf_id)
   p->family = AF_INET;
   p->prefixlen = 32;
 
+    return;
   if (zvrf->rid_user_assigned.u.prefix4.s_addr)
     p->u.prefix4.s_addr = zvrf->rid_user_assigned.u.prefix4.s_addr;
-  else if (!list_isempty (zvrf->rid_lo_sorted_list))
+  else if (zvrf->rid_lo_sorted_list && !list_isempty (zvrf->rid_lo_sorted_list))
     {
       node = listtail (zvrf->rid_lo_sorted_list);
       c = listgetdata (node);
