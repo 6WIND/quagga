@@ -533,6 +533,8 @@ bgp_listener (int sock, struct sockaddr *sa, socklen_t salen)
   return 0;
 }
 
+static int bgp_socket_opened = 0;
+
 /* IPv6 supported version of BGP server socket setup.  */
 int
 bgp_socket (unsigned short port)
@@ -546,6 +548,9 @@ bgp_socket (unsigned short port)
 	int addr_len;
 	int ret, count, sock;
 
+        /* silently return */
+        if (bgp_socket_opened)
+          return 0;
 	count = 0;
 	for (idx = 0; idx < FAMILY_TYPE_MAX; idx ++)
 	{
@@ -583,6 +588,7 @@ bgp_socket (unsigned short port)
 		zlog_err ("%s: no usable addresses", __func__);
 		return -1;
 	}
+        bgp_socket_opened = 1;
 	return 0;
 }
 
@@ -599,4 +605,5 @@ bgp_close (void)
       listnode_delete (bm->listen_sockets, listener);
       XFREE (MTYPE_BGP_LISTENER, listener);
     }
+  bgp_socket_opened = 0;
 }
