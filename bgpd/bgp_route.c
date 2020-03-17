@@ -583,18 +583,15 @@ bgp_info_cmp (struct bgp *bgp, struct bgp_info *new, struct bgp_info *exist,
            * array.
            */
           *paths_eq = 1;
-          return 0;
         }
       else if (new->peer->sort == BGP_PEER_IBGP)
         {
           if (aspath_cmp (new->attr->aspath, exist->attr->aspath)) {
             *paths_eq = 1;
-            return 0;
           }
         }
       else if (new->peer->as == exist->peer->as) {
         *paths_eq = 1;
-        return 0;
       }
     }
 
