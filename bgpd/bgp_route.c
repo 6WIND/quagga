@@ -1659,8 +1659,12 @@ bool bgp_api_route_get_main (struct bgp_api_route *out, struct bgp_node *bn,
         continue;
       if (iter_on_multipath)
         {
-          if (CHECK_FLAG (sel->flags, BGP_INFO_MULTIPATH))
-            break;
+          if (CHECK_FLAG (sel->flags, BGP_INFO_MULTIPATH) &&
+              ! CHECK_FLAG (sel->flags, BGP_INFO_SELECTED))
+            {
+              sel_start = sel->next;
+              break;
+            }
         }
       else
         {
@@ -1696,8 +1700,9 @@ bool bgp_api_route_get_main (struct bgp_api_route *out, struct bgp_node *bn,
     }
   /* now that an entry with SELECTED flag was found, check for possibly MULTIPATH entries
      in next items */
-  for (iter = sel_start->next; iter; iter = iter->next)
-    if (CHECK_FLAG (iter->flags, BGP_INFO_MULTIPATH))
+  for (iter = sel_start; iter; iter = iter->next)
+    if (CHECK_FLAG (iter->flags, BGP_INFO_MULTIPATH) &&
+        ! CHECK_FLAG (iter->flags, BGP_INFO_SELECTED))
       {
         *next = iter;
         break;
@@ -1732,8 +1737,12 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
         continue;
       if (iter_on_multipath)
         {
-          if (CHECK_FLAG (sel->flags, BGP_INFO_MULTIPATH))
-            break;
+          if (CHECK_FLAG (sel->flags, BGP_INFO_MULTIPATH) &&
+              ! CHECK_FLAG (sel->flags, BGP_INFO_SELECTED))
+            {
+              sel_start = sel->next;
+              break;
+            }
         }
       else
         {
@@ -1830,8 +1839,9 @@ bool bgp_api_route_get (struct bgp_vrf *vrf, struct bgp_api_route *out, struct b
     }
   /* now that an entry with SELECTED flag was found, check for possibly MULTIPATH entries
      in next items */
-  for (iter = sel_start->next; iter; iter = iter->next)
-    if (CHECK_FLAG (iter->flags, BGP_INFO_MULTIPATH))
+  for (iter = sel_start; iter; iter = iter->next)
+    if (CHECK_FLAG (iter->flags, BGP_INFO_MULTIPATH) &&
+        ! CHECK_FLAG (iter->flags, BGP_INFO_SELECTED))
       {
         *next = iter;
         break;
