@@ -4373,67 +4373,56 @@ bgp_process_queue_init (void)
 }
 
 /*
- *  Check if bgp bestpath selection should be triggered for a bgp
- *  route node marked with BGP_NODE_PROCESS_TO_SCHEDULE.
- *  If yes, return 1, else return 0;
+ *  Check if a route entry is EVPN.
  */
 static bool
-bgp_trigger_bgp_selection_check (struct peer *peer, afi_t afi, safi_t safi,
-                                 struct bgp_node *rn)
+is_origin_evpn (struct bgp_node *rn)
 {
   struct bgp_info *ri;
-  bool all_peers_eor_received = true;
-  bool has_peer = false;
-  int is_origin_evpn = 0;
-  bool ret;
-  assert (rn && peer);
+  bool ret = false;
 
-  if (!CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE)) {
-    ret = false;
-    goto end_trigger_check;
-  }
+  assert (rn);
 
   for (ri = rn->info; ri; ri = ri->next)
     {
-      if (ri->peer->status != Established)
+      if (CHECK_FLAG (ri->flags, BGP_INFO_ORIGIN_EVPN))
+        {
+          ret = true;
+	  break;
+        }
+    }
+
+  return ret;
+}
+
+/*
+ *  Check if bgp bestpath selection should be triggered for afi/safi family.
+ *  If yes, return 1, else return 0;
+ */
+static bool
+bgp_trigger_bgp_selection_check (struct bgp *bgp, afi_t afi, safi_t safi)
+{
+  struct peer *peer;
+  struct listnode *node, *next;
+  bool all_peers_eor_received = true;
+
+  assert (bgp);
+
+  for (ALL_LIST_ELEMENTS (bgp->peer, node, next, peer))
+    {
+      if (peer->status != Established)
         continue;
 
-      if (!is_origin_evpn && CHECK_FLAG (ri->flags, BGP_INFO_ORIGIN_EVPN))
-        is_origin_evpn = 1;
-
-      /* if graceful restart is disabled, assume eor is not active */
-      if (!CHECK_FLAG(ri->peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_RCV)) {
-        if (ri->peer == peer)
-          has_peer = true;
-        continue;
-      }
-      if (!CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED) &&
-          !CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED) &&
-          !CHECK_FLAG (ri->peer->af_sflags[afi][safi], PEER_STATUS_FIRST_KEEPALIVE_RECEIVED))
+      if (!CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED) &&
+          !CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED) &&
+          !CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_FIRST_KEEPALIVE_RECEIVED))
         {
           all_peers_eor_received = false;
           break;
         }
-      if (ri->peer == peer)
-        has_peer = true;
     }
 
-  if (rn->table && bgp_node_table (rn) &&
-      bgp_node_table (rn)->type == BGP_TABLE_VRF)
-    {
-      if ((safi == SAFI_MPLS_VPN && is_origin_evpn) ||
-          (safi == SAFI_EVPN && !is_origin_evpn)) {
-        ret = false;
-        goto end_trigger_check;
-      }
-    }
-
-  if (all_peers_eor_received == true && has_peer == true)
-    ret = true;
-  else
-    ret = false;
- end_trigger_check:
-  return ret;
+  return all_peers_eor_received;
 }
 
 void
@@ -4447,6 +4436,9 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
   zlog_debug ("%s: %s, running bgp best selection for %d, %d", __func__,
               peer->host, afi, safi);
 
+  if (!bgp_trigger_bgp_selection_check (peer->bgp, afi, safi))
+    goto end_running;
+
   if (safi == SAFI_MPLS_VPN || safi == SAFI_EVPN)
     {
       for (rn = bgp_table_top (peer->bgp->rib[afi][safi]); rn; rn = bgp_route_next (rn))
@@ -4459,7 +4451,7 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
             {
               for (rm = bgp_table_top (table); rm; rm = bgp_route_next (rm))
                 {
-                  if (bgp_trigger_bgp_selection_check (peer, afi, safi, rm))
+                  if (CHECK_FLAG (rm->flags, BGP_NODE_PROCESS_TO_SCHEDULE))
                     {
                       UNSET_FLAG (rm->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
                       bgp_process(peer->bgp, rm, afi, safi);
@@ -4473,7 +4465,7 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
     {
       for (rn = bgp_table_top (peer->bgp->rib[afi][safi]); rn; rn = bgp_route_next (rn))
         {
-          if (bgp_trigger_bgp_selection_check (peer, afi, safi, rn))
+          if (CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE))
             {
               UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
               bgp_process(peer->bgp, rn, afi, safi);
@@ -4490,7 +4482,7 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
       for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf)) {
         for (rn = bgp_table_top (vrf->rib[afi]); rn; rn = bgp_route_next (rn))
           {
-            if (bgp_trigger_bgp_selection_check (peer, afi, safi, rn))
+            if (CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE) && !is_origin_evpn(rn))
               {
                 UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
                 bgp_process(peer->bgp, rn, afi, SAFI_UNICAST);
@@ -4504,7 +4496,7 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
       for (ALL_LIST_ELEMENTS_RO(peer->bgp->vrfs, node, vrf)) {
         for (rn = bgp_table_top (vrf->rib[AFI_L2VPN]); rn; rn = bgp_route_next (rn))
           {
-            if (bgp_trigger_bgp_selection_check (peer, afi, safi, rn))
+            if (CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE) && is_origin_evpn(rn))
               {
                 UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
                 bgp_process(peer->bgp, rn, AFI_L2VPN, SAFI_UNICAST);
@@ -4513,7 +4505,7 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
           }
         for (rn = bgp_table_top (vrf->rib[AFI_IP]); rn; rn = bgp_route_next (rn))
           {
-            if (bgp_trigger_bgp_selection_check (peer, afi, safi, rn))
+            if (CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE) && is_origin_evpn(rn))
               {
                 UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
                 bgp_process(peer->bgp, rn, AFI_IP, SAFI_UNICAST);
@@ -4522,7 +4514,7 @@ bgp_trigger_bgp_selection (struct peer *peer, afi_t afi, safi_t safi)
           }
 	for (rn = bgp_table_top (vrf->rib[AFI_IP6]); rn; rn = bgp_route_next (rn))
           {
-            if (bgp_trigger_bgp_selection_check (peer, afi, safi, rn))
+            if (CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE) && is_origin_evpn(rn))
               {
                 UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
                 bgp_process(peer->bgp, rn, AFI_IP6, SAFI_UNICAST);
@@ -4682,22 +4674,11 @@ bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
     }
 
   /* do not enqueue for BGP, wait reception of EOR marker */
-  for (ri = rn->info; ri; ri = ri->next) {
-    if (ri->peer == bgp->peer_self)
-      continue;
-    if (ri->peer->status != Established)
-      continue;
-    /* if graceful restart is disabled, assume eor is not active */
-    if (!CHECK_FLAG(ri->peer->af_cap[orig_afi][orig_safi], PEER_CAP_RESTART_AF_RCV))
-      continue;
-    /* if eor is not received yet, cancel enqueuing of rm */
-    if (!CHECK_FLAG (ri->peer->af_sflags[orig_afi][orig_safi], PEER_STATUS_EOR_RECEIVED) &&
-        !CHECK_FLAG (ri->peer->af_sflags[orig_afi][orig_safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED) &&
-        !CHECK_FLAG (ri->peer->af_sflags[orig_afi][orig_safi], PEER_STATUS_FIRST_KEEPALIVE_RECEIVED)) {
+  if (!bgp_trigger_bgp_selection_check (bgp, orig_afi, orig_safi))
+    {
       SET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
       return;
     }
-  }
 
   if (CHECK_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE))
     UNSET_FLAG (rn->flags, BGP_NODE_PROCESS_TO_SCHEDULE);
