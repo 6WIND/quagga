@@ -4639,6 +4639,13 @@ bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
       return;
     }
 
+  /* always call bgp process for route node in global RIB */
+  if (bgp_node_table (rn)->type == BGP_TABLE_MAIN)
+    {
+      bgp_process_send(bgp, rn, afi, safi);
+      return;
+    }
+
   /* if deferral timer is disabled, then
    * go back to old behaviour, ie: process incoming entries
    * as soon as possible
