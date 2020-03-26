@@ -4413,6 +4413,9 @@ bgp_trigger_bgp_selection_check (struct bgp *bgp, afi_t afi, safi_t safi)
       if (peer->status != Established)
         continue;
 
+      if (peer->afc_nego[afi][safi] == 0)
+        continue;
+
       if (!CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_EOR_RECEIVED) &&
           !CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_SELECTION_DEFERRAL_EXPIRED) &&
           !CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_FIRST_KEEPALIVE_RECEIVED))
