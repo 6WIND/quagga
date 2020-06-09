@@ -87,6 +87,7 @@ struct bgp_master
 #define BGP_OPT_MULTIPLE_INSTANCE        (1 << 1)
 #define BGP_OPT_CONFIG_CISCO             (1 << 2)
 #define BGP_OPT_NO_LISTEN                (1 << 3)
+#define BGP_OPT_NO_IPV6_PORT             (1 << 4)
 
   QZC_NODE
 };

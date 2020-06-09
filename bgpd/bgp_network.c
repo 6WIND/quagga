@@ -533,15 +533,16 @@ bgp_listener (int sock, struct sockaddr *sa, socklen_t salen)
   return 0;
 }
 
-static int bgp_socket_opened = 0;
+int bgp_socket_opened = 0;
 
 /* IPv6 supported version of BGP server socket setup.  */
 int
 bgp_socket (unsigned short port)
 {
-#define FAMILY_TYPE_MAX 2
-	int family_type[FAMILY_TYPE_MAX] = {AF_INET, AF_INET6};
-	int idx;
+#define FAMILY_TYPE_NO_IPV6    1
+#define FAMILY_TYPE_WITH_IPV6  2
+	int family_type[FAMILY_TYPE_WITH_IPV6] = {AF_INET, AF_INET6};
+	int idx, max_idx;
 	struct sockaddr *sock_addr;
 	struct sockaddr_in ipv4;
 	struct sockaddr_in6 ipv6;
@@ -552,7 +553,12 @@ bgp_socket (unsigned short port)
         if (bgp_socket_opened)
           return 0;
 	count = 0;
-	for (idx = 0; idx < FAMILY_TYPE_MAX; idx ++)
+	if (bgp_option_check (BGP_OPT_NO_IPV6_PORT))
+		max_idx = FAMILY_TYPE_NO_IPV6;
+	else
+		max_idx = FAMILY_TYPE_WITH_IPV6;
+
+	for (idx = 0; idx < max_idx; idx ++)
 	{
 		sock = socket (family_type[idx], SOCK_STREAM, 0);
 		if (sock < 0)
@@ -588,7 +594,8 @@ bgp_socket (unsigned short port)
 		zlog_err ("%s: no usable addresses", __func__);
 		return -1;
 	}
-        bgp_socket_opened = 1;
+
+	bgp_socket_opened = 1;
 	return 0;
 }
 

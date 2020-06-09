@@ -51,6 +51,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgp_vty.h"
 #include "bgpd/bgp_mpath.h"
 #include "bgpd/bgp_clist.h"
+#include "bgpd/bgp_network.h"
 
 /* Utility function to get address family from current node.  */
 afi_t
@@ -322,6 +323,41 @@ DEFUN (no_bgp_multiple_instance,
       vty_out (vty, "%% There are more than two BGP instances%s", VTY_NEWLINE);
       return CMD_WARNING;
     }
+  return CMD_SUCCESS;
+}
+
+DEFUN (bgp_default_ipv6_port,
+       bgp_default_ipv6_port_cmd,
+       "bgp default ipv6",
+       "BGP specific commands\n"
+       "Configure BGP defaults\n"
+       "Enable ipv6 port by default\n")
+{
+
+  if (!bgp_option_check (BGP_OPT_NO_IPV6_PORT))
+    return CMD_SUCCESS;
+  bgp_option_unset (BGP_OPT_NO_IPV6_PORT);
+
+  if (bgp_socket_opened)
+    vty_out(vty, "%% bgp socket already opened, you need to unconfigure 'router bgp ' to apply changes");
+  return CMD_SUCCESS;
+}
+
+/* "no bgp default ipv6". */
+DEFUN (no_bgp_default_ipv6_port,
+       no_bgp_default_ipv6_port_cmd,
+       "no bgp default ipv6",
+       NO_STR
+       "BGP specific commands\n"
+       "Configure BGP defaults\n"
+       "Enable ipv6 port by default\n")
+{
+  if (bgp_option_check (BGP_OPT_NO_IPV6_PORT))
+    return CMD_SUCCESS;
+  bgp_option_set (BGP_OPT_NO_IPV6_PORT);
+
+  if (bgp_socket_opened)
+    vty_out(vty, "%% bgp socket already opened, you need to unconfigure 'router bgp ' to apply changes");
   return CMD_SUCCESS;
 }
 
@@ -1924,6 +1960,12 @@ peer_remote_as_vty (struct vty *vty, const char *peer_str,
 	  return CMD_WARNING;
 	}
       return CMD_SUCCESS;
+    }
+
+  if ((su.sa.sa_family == AF_INET6) && (bgp_option_check (BGP_OPT_NO_IPV6_PORT)))
+    {
+      vty_out(vty, "%% IPv6 disabled. can not create ipv6 peer", VTY_NEWLINE);
+      return CMD_WARNING;
     }
 
   if (peer_address_self_check (&su))
@@ -11131,6 +11173,10 @@ bgp_vty_init (void)
   /* bgp set bind/no bgp set bind */
   install_element (CONFIG_NODE, &bgp_set_bind_addr_cmd);
   install_element (CONFIG_NODE, &bgp_unset_bind_addr_cmd);
+
+  /* "no bgp default ipv6" commands. */
+  install_element (CONFIG_NODE, &no_bgp_default_ipv6_port_cmd);
+  install_element (CONFIG_NODE, &bgp_default_ipv6_port_cmd);
 
   /* Dummy commands (Currently not supported) */
   install_element (BGP_NODE, &no_synchronization_cmd);

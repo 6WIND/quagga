@@ -119,6 +119,7 @@ bgp_option_set (int flag)
     case BGP_OPT_NO_FIB:
     case BGP_OPT_MULTIPLE_INSTANCE:
     case BGP_OPT_CONFIG_CISCO:
+    case BGP_OPT_NO_IPV6_PORT:
     case BGP_OPT_NO_LISTEN:
       SET_FLAG (bm->options, flag);
       break;
@@ -138,6 +139,7 @@ bgp_option_unset (int flag)
 	return BGP_ERR_MULTIPLE_INSTANCE_USED;
       /* Fall through.  */
     case BGP_OPT_NO_FIB:
+    case BGP_OPT_NO_IPV6_PORT:
     case BGP_OPT_CONFIG_CISCO:
       UNSET_FLAG (bm->options, flag);
       break;
@@ -1374,6 +1376,12 @@ peer_create_api (struct bgp *bgp, const char *host, as_t as)
   peer = peer_lookup (bgp, &su);
   if (peer)
     return NULL;
+
+  if ((su.sa.sa_family == AF_INET6) && (bgp_option_check (BGP_OPT_NO_IPV6_PORT)))
+    {
+      zlog_debug("IPv6 disabled. can not create ipv6 peer");
+      return NULL;
+    }
 
   /* If the peer is not part of our confederation, and its not an
      iBGP peer then spoof the source AS */
@@ -6711,6 +6719,12 @@ bgp_config_write (struct vty *vty)
   vty_out (vty, "bgp bestpath selection-deferral %u%s",
            bgp_selection_deferral_tmr, VTY_NEWLINE);
   write++;
+
+  if (bgp_option_check (BGP_OPT_NO_IPV6_PORT))
+    {
+      vty_out (vty, "no bgp default ipv6%s", VTY_NEWLINE);
+      write++;
+    }
 
   /* BGP configuration. */
   for (ALL_LIST_ELEMENTS (bm->bgp, mnode, mnnode, bgp))
