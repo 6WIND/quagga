@@ -993,13 +993,15 @@ bfd_config_write (struct vty *vty)
   /* BFD vty address and port */
   if (vty_addr)
     {
-      if (vty_port == BFDD_VTY_PORT)
+      if (vty_port == BFDD_VTY_PORT) {
         vty_out (vty, "bfd vty bind %s%s", vty_addr, VTY_NEWLINE);
-      else
+      } else {
         vty_out (vty, "bfd vty bind %s %d%s", vty_addr, vty_port, VTY_NEWLINE);
       write++;
-    }
-
+      }
+    } else if (!vty_port) {
+    vty_out (vty, "no bfd vty bind%s", VTY_NEWLINE);
+  }
   if (bfd->rx_interval != BFD_IF_MINRX_DFT ||
       bfd->tx_interval != BFD_IF_INTERVAL_DFT ||
       bfd->failure_threshold != BFD_IF_MULTIPLIER_DFT ||
@@ -1257,6 +1259,32 @@ DEFUN (no_bfd_vty_bind,
     {
       XFREE (MTYPE_TMP, vty_addr);
       vty_addr = NULL;
+      vty_port = 0;
+
+      if (bfd_init_done)
+        {
+          vty_reset_other_vtys (vty);
+          vty_serv_sock (vty_addr, vty_port, BFD_VTYSH_PATH);
+        }
+    } else
+      vty_port = 0;
+
+  return CMD_SUCCESS;
+}
+
+/* BFD vty address and port */
+DEFUN (default_bfd_vty_bind,
+       default_bfd_vty_bind_cmd,
+       "default bfd vty bind",
+       "default\n"
+       "BFD\n"
+       "Vty configuration\n"
+       "Bind address and port for vty server\n")
+{
+  if (vty_addr)
+    {
+      XFREE (MTYPE_TMP, vty_addr);
+      vty_addr = NULL;
       vty_port = BFDD_VTY_PORT;
 
       if (bfd_init_done)
@@ -1334,6 +1362,7 @@ bfd_vty_cmd_init (void)
   install_element (CONFIG_NODE, &bfd_vty_bind_addr_cmd);
   install_element (CONFIG_NODE, &bfd_vty_bind_addr_port_cmd);
   install_element (CONFIG_NODE, &no_bfd_vty_bind_cmd);
+  install_element (CONFIG_NODE, &default_bfd_vty_bind_cmd);
 };
 
 

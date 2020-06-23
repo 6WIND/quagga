@@ -5257,7 +5257,8 @@ static int config_write_vty(struct vty *vty)
       else
         vty_out (vty, "zebra vty bind %s %d%s", vty_addr, vty_port, VTY_NEWLINE);
       vty_out (vty, "!%s", VTY_NEWLINE);
-    }
+    } else if (!vty_port)
+        vty_out (vty, "no zebra vty bind %s", VTY_NEWLINE);
 
   if (ipv4_multicast_mode != MCAST_NO_CONFIG)
     vty_out (vty, "ip multicast rpf-lookup-mode %s%s",
@@ -5374,6 +5375,31 @@ DEFUN (no_zebra_vty_bind,
        no_zebra_vty_bind_cmd,
        "no zebra vty bind",
        NO_STR
+       "ZEBRA\n"
+       "Vty configuration\n"
+       "Bind address and port for vty server\n")
+{
+  if (vty_addr)
+    {
+      XFREE (MTYPE_TMP, vty_addr);
+      vty_addr = NULL;
+      vty_port = 0;
+
+      if (zebra_init_done)
+        {
+          vty_reset_other_vtys (vty);
+          vty_serv_sock (vty_addr, vty_port, ZEBRA_VTYSH_PATH);
+        }
+    } else
+      vty_port = 0;
+
+  return CMD_SUCCESS;
+}
+
+DEFUN (default_zebra_vty_bind,
+       default_zebra_vty_bind_cmd,
+       "default zebra vty bind",
+       "default\n"
        "ZEBRA\n"
        "Vty configuration\n"
        "Bind address and port for vty server\n")
@@ -5653,4 +5679,5 @@ zebra_vty_init (void)
   install_element (CONFIG_NODE, &zebra_vty_bind_addr_cmd);
   install_element (CONFIG_NODE, &zebra_vty_bind_addr_port_cmd);
   install_element (CONFIG_NODE, &no_zebra_vty_bind_cmd);
+  install_element (CONFIG_NODE, &default_zebra_vty_bind_cmd);
 }

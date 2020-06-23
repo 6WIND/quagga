@@ -6713,7 +6713,9 @@ bgp_config_write (struct vty *vty)
       else
         vty_out (vty, "bgp vty bind %s %d%s", vty_addr, vty_port, VTY_NEWLINE);
       write++;
-    }
+    } else if (!vty_port) {
+        vty_out (vty, "no bgp vty bind%s", VTY_NEWLINE);
+  }
 
   /* BGP selection deferral timer */
   vty_out (vty, "bgp bestpath selection-deferral %u%s",

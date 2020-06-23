@@ -1103,7 +1103,33 @@ DEFUN (no_bgp_vty_bind,
     {
       XFREE (MTYPE_TMP, vty_addr);
       vty_addr = NULL;
-      vty_port = BGP_VTY_PORT;
+      vty_port = 0;
+
+      if (bgp_init_done)
+        {
+          vty_reset_other_vtys (vty);
+          vty_serv_sock (vty_addr, vty_port, BGP_VTYSH_PATH);
+        }
+    } else
+      vty_port = 0;
+
+  return CMD_SUCCESS;
+}
+
+/* BGP vty address and port */
+DEFUN (default_bgp_vty_bind,
+       default_bgp_vty_bind_cmd,
+       "default bgp vty bind",
+       "default\n"
+       "BGP\n"
+       "Vty configuration\n"
+       "Bind address and port for vty server\n")
+{
+  if (vty_addr)
+    {
+      XFREE (MTYPE_TMP, vty_addr);
+      vty_addr = NULL;
+      vty_port = 0;
 
       if (bgp_init_done)
         {
@@ -11169,6 +11195,7 @@ bgp_vty_init (void)
   install_element (CONFIG_NODE, &bgp_vty_bind_addr_cmd);
   install_element (CONFIG_NODE, &bgp_vty_bind_addr_port_cmd);
   install_element (CONFIG_NODE, &no_bgp_vty_bind_cmd);
+  install_element (CONFIG_NODE, &default_bgp_vty_bind_cmd);
 
   /* bgp set bind/no bgp set bind */
   install_element (CONFIG_NODE, &bgp_set_bind_addr_cmd);
